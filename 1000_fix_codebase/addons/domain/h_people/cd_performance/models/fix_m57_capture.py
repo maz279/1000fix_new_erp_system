@@ -50,7 +50,7 @@ from .fix_performance import (
     period_bounds,
     require_group,
 )
-from .fix_performance_ops import _is_hr, _require_hr, _user_of
+from .fix_performance_ops import _is_hr, _require_hr, _require_hr_or_officer, _user_of
 
 # ---------------------------------------------------------------- KPI definition
 MEASURES = [
@@ -566,13 +566,13 @@ class FixPerformanceReviewCycle(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        _require_hr(self.env, "Setting up a review cycle")
+        _require_hr_or_officer(self.env, "Setting up a review cycle")
         return super().create(vals_list)
 
     def write(self, vals):
         guard_first(self, vals)
         if not self._fix_guard_open():
-            _require_hr(self.env, "Changing a review cycle")
+            _require_hr_or_officer(self.env, "Changing a review cycle")
             frozen = changed_fields(self.filtered(lambda r: r.state != "draft"), vals, self._TERMS)
             if frozen:
                 raise UserError(
@@ -616,7 +616,7 @@ class FixPerformanceReviewCycle(models.Model):
     def action_open(self):
         """HR opens the cycle: one review per employee of the population who
         has a line manager to review them (FR-PIC-016)."""
-        _require_hr(self.env, "Opening a review cycle")
+        _require_hr_or_officer(self.env, "Opening a review cycle")
         Review = self.env["fix.performance.review"]
         for rec in self:
             if rec.state != "draft":
@@ -844,7 +844,7 @@ class FixPerformanceFeedback(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        _require_hr(self.env, "Requesting multi-source feedback")
+        _require_hr_or_officer(self.env, "Requesting multi-source feedback")
         Review = self.env["fix.performance.review"].sudo()
         for vals in vals_list:
             review = Review.browse(vals.get("review_id"))
@@ -878,7 +878,7 @@ class FixPerformanceFeedback(models.Model):
     def write(self, vals):
         guard_first(self, vals)
         if not self._fix_guard_open():
-            _require_hr(self.env, "Changing a feedback request")
+            _require_hr_or_officer(self.env, "Changing a feedback request")
             frozen = changed_fields(
                 self.filtered(lambda r: r.state != "requested"), vals, self._TERMS
             )

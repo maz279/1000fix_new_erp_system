@@ -21,7 +21,7 @@ CD-M52-01: the accounts-payable core.
   per-diem & mileage rate master, expense policy enforced on submit,
   employee advances & floats with settlement and recovery
 """,
-    "version": "19.0.1.4.0",
+    "version": "19.0.1.6.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Payables",

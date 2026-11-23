@@ -76,9 +76,30 @@ class FixFieldOrderCertification(models.Model):
             )
         return False
 
+    def _fix_fitness_problem(self, technician=None):
+        """M59-F11 (A09 ERP audit): the fitness-for-work status Occupational
+        Health publishes was read by nobody outside cd_hse - not by the
+        dispatch that sends the technician to a customer's home. A current
+        "Unfit" status refuses the dispatch and the start of the work.
+        Fit-with-restrictions does not block the call (the dispatcher sees the
+        restriction on the status); a lapsed status never blocks.
+        cd_hse is optional for this module, so the read is guarded."""
+        tech = technician or self.technician_id
+        if not tech or not hasattr(tech.sudo(), "_fix_fitness_status"):
+            return None
+        status = tech.sudo()._fix_fitness_status()
+        if status and status.status == "unfit":
+            return "%s is unfit for work (M59 fitness status from %s)" % (
+                tech.name,
+                status.valid_from,
+            )
+        return None
+
     def _fix_assert_certified(self, technician=None):
         for rec in self:
-            reason = rec._fix_certification_problem(technician)
+            reason = rec._fix_certification_problem(technician) or rec._fix_fitness_problem(
+                technician
+            )
             if reason:
                 raise UserError("M22 eligibility: dispatch of %s blocked — %s" % (rec.name, reason))
         return True
@@ -135,7 +156,7 @@ class FixFieldOrderCertification(models.Model):
         certification that lapsed, was suspended or was revoked after the
         dispatch stops it here (FR-LMS-013, BRU-LMS-03)."""
         for rec in self:
-            reason = rec._fix_certification_problem()
+            reason = rec._fix_certification_problem() or rec._fix_fitness_problem()
             if reason:
                 raise UserError(
                     "M22 eligibility: work on %s cannot start — %s" % (rec.name, reason)

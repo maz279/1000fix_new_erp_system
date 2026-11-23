@@ -35,6 +35,9 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        # M56-F19: the payslip's real scope (company-wide for payroll, the cost
+        # unit for anyone else) - replaces the generated no-op unit rule.
+        "security/fix_payslip_scope_rules.xml",
         "security/fix_payroll_security.xml",
         "security/ir.model.access.csv",
         "data/payroll_ops_sequences.xml",

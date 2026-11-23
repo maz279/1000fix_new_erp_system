@@ -1911,7 +1911,11 @@ class HrVersionCdCoreExt(models.Model):
 
     @api.model
     def _get_marital_status_selection(self):
+        # M58-F18: a candidate records "Separated" (a real status in the
+        # Bangladesh service book), and the hire carried it here as "Single".
+        # The status is kept as recorded instead of being silently changed.
         return [
             *super()._get_marital_status_selection(),
+            ("separated", "Separated"),
             ("unspecified", "Unrecorded (migration default)"),
         ]

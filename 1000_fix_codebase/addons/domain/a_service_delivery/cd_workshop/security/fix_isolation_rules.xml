@@ -48,6 +48,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_workshop_test_result_company" model="ir.rule">
+        <field name="name">fix.workshop.test.result: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_test_result"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_workshop_waiver_request_company" model="ir.rule">
         <field name="name">fix.workshop.waiver.request: allowed companies</field>
         <field name="model_id" ref="model_fix_workshop_waiver_request"/>

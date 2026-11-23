@@ -8,6 +8,43 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_brand_reconciliation_company" model="ir.rule">
+        <field name="name">fix.brand.reconciliation: allowed companies</field>
+        <field name="model_id" ref="model_fix_brand_reconciliation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_brand_remittance_company" model="ir.rule">
+        <field name="name">fix.brand.remittance: allowed companies</field>
+        <field name="model_id" ref="model_fix_brand_remittance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_claim_writeoff_company" model="ir.rule">
+        <field name="name">fix.claim.writeoff: allowed companies</field>
+        <field name="model_id" ref="model_fix_claim_writeoff"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_protection_claim_company" model="ir.rule">
+        <field name="name">fix.protection.claim: allowed companies</field>
+        <field name="model_id" ref="model_fix_protection_claim"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_protection_claim_operating_unit" model="ir.rule">
+        <field name="name">fix.protection.claim: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_protection_claim"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_protection_policy_company" model="ir.rule">
+        <field name="name">fix.protection.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_protection_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_protection_policy_operating_unit" model="ir.rule">
+        <field name="name">fix.protection.policy: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_protection_policy"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_warranty_claim_company" model="ir.rule">
         <field name="name">fix.warranty.claim: allowed companies</field>
         <field name="model_id" ref="model_fix_warranty_claim"/>
@@ -19,47 +56,14 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
-    <!-- M09 capture audit, second pass (2026-11-18): the new registers -->
     <record id="rule_fix_warranty_void_company" model="ir.rule">
         <field name="name">fix.warranty.void: allowed companies</field>
         <field name="model_id" ref="model_fix_warranty_void"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
-    <record id="rule_fix_protection_policy_company" model="ir.rule">
-        <field name="name">fix.protection.policy: allowed companies</field>
-        <field name="model_id" ref="model_fix_protection_policy"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_protection_claim_company" model="ir.rule">
-        <field name="name">fix.protection.claim: allowed companies</field>
-        <field name="model_id" ref="model_fix_protection_claim"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_brand_remittance_company" model="ir.rule">
-        <field name="name">fix.brand.remittance: allowed companies</field>
-        <field name="model_id" ref="model_fix_brand_remittance"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_brand_reconciliation_company" model="ir.rule">
-        <field name="name">fix.brand.reconciliation: allowed companies</field>
-        <field name="model_id" ref="model_fix_brand_reconciliation"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
     <record id="rule_fix_warranty_void_operating_unit" model="ir.rule">
         <field name="name">fix.warranty.void: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_warranty_void"/>
-        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
-    </record>
-    <record id="rule_fix_protection_policy_operating_unit" model="ir.rule">
-        <field name="name">fix.protection.policy: allowed operating units (internal users)</field>
-        <field name="model_id" ref="model_fix_protection_policy"/>
-        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
-    </record>
-    <record id="rule_fix_protection_claim_operating_unit" model="ir.rule">
-        <field name="name">fix.protection.claim: allowed operating units (internal users)</field>
-        <field name="model_id" ref="model_fix_protection_claim"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -121,19 +121,45 @@ write-offs, payments, notes, filings, bulk imports.
   isolation · **D12** P2 backlog sequencing · **D13** the five GL config seats (GRNI accrual, note
   counter, M53 settlement seats, TDS due-day 14th→7th, FX accounts).
 
-## 5. Remaining engineering backlog (no decision needed)
-- M20: dunning reminder dispatch (no channel/handoff today), billable-event coverage beyond
-  service orders, TDS/AIT settle seat, bilingual invoice content, multiple documents (po/statement).
-- M52: consignment settlement from M15, retention money, approved-bill cancellation path,
-  near-duplicate detection, invoice-line coding dimensions.
-- M50: field-technician cash reconciliation (FR-TRE-017), account-purpose segregation, manual
+## 5. Engineering backlog — status as of 2026-11-23
+**Closed since the audit** (waves 5–6 and the P03 wiring): dunning reminder dispatch with delivery
+evidence (M20-F5); consignment settlement (M52-F3, spec P0); retention money (M52-F4); branch/OU
+P&L slice (M19-F4); subledger reconciliation as a hard close gate; posting-log hash chain with
+tamper detection; VAT input-credit carry-forward (M51-F8 core — no negative net can strand
+credit); P03 workspace surfaces for every new register (`f3bd13c3`).
+
+**Still open — no owner decision needed:**
+- M20: billable-event coverage beyond service orders, TDS/AIT settle seat, bilingual invoice
+  content, multiple documents (PO / statement of account).
+- M52: approved-bill cancellation path, near-duplicate detection at entry, invoice-line coding
+  dimensions.
+- M50: the treasury CONTROLS over field cash — M02 already owns the per-technician-per-day
+  register (`fix.field.cash.recon`, FR-FSM-056; the audit's "entirely missing" was overstated and
+  is corrected in the register), so FR-TRE-017's missing pieces (receipts tie-out, tolerance and
+  escalation tiers, prior-day-variance block, shortfall booking) are being added as an EXTENSION
+  of that one register — plus account-purpose segregation per treasury role and the manual
   instruction debit seat.
-- M19: year-end close, audit-trail hash chain / append-only enforcement, branch/OU P&L slice,
-  purge of 163 stale demo FX rates, subledger reconciliation coverage 4 → 7 and as a close gate.
-- M51: input-credit carry-forward/refund, determination record, 6.5 register, income-tax pack,
-  import-tax record, truncated-base computation.
-- M49/M53/M54: M53 settlement GL seats (D13), M49 book-vs-tax feed to M51 (needs D2), M54 job
-  costing coverage from A02 orders.
+- M19: year-end close console, purge of 163 stale demo FX rates, widening subledger
+  reconciliation from 4 to 7 subledgers.
+- M51: tax determination record, Mushak 6.5 register, income-tax pack, import-tax record,
+  truncated-base computation (refund applications deliberately out of scope).
+- M49/M54: M49 book-vs-tax feed to M51 (needs D2), M54 job costing coverage from A02 orders.
+- Settlement GL seats (M53) are configuration — item D13.
+**Owner-gated:** D1, D2, D3, D4, D6, D7, D8, D9, D10, D13 (see the decisions document).
+
+## 5b. Found by verification, after the audit (fixed)
+- **A production regression the suites could not see** (`7ceef1cc`): the wave-4 point-in-time
+  ageing ran its supplementary reads (payment-run lines, LC remittances) as the CALLER, so a
+  caller without that sub-model's rights — the workspace administrator was one — made the whole
+  ageing raise; the M52 Payables tile fell back to "—" and the AP Ageing screen would fail. The
+  module suites run as superuser and could not catch it; a post-merge check as the real user did.
+  Now sudo-read (dates and amounts only, for bills the caller may read), with a regression test;
+  verified live as `amber.biswas` (su=False): ৳130,043,343.04.
+- **An audit overstatement corrected**: A4 called FR-TRE-017 field-cash reconciliation "entirely
+  missing"; M02 already owns `fix.field.cash.recon` (per technician per day, unique, second-person
+  confirm). The genuinely missing pieces (receipts tie-out, tolerance/escalation, prior-day block,
+  shortfall) are being added as an EXTENSION of that single register — a second parallel register
+  would itself have been an ERP defect (double entry, two conflicting blocks).
 
 ## 6. Evidence index
 - `1000_fix_codebase/scratch/a08_drive/REGISTER.md` — every defect, its status, the commit.
@@ -143,3 +169,31 @@ write-offs, payments, notes, filings, bulk imports.
   5e99f30f · 3ec832c5 · 71c2f3ec — each with the rule id and the verified suites in its message.
 - Backups: `fix_real_pre_coaload_2026-11-22.dump`, `fix_real_pre_wave23_2026-11-22.dump`,
   `fix_test_pre_a08_2026-11-22.dump`.
+
+## 7. Wave 5–6 (added 2026-11-23, merged to the mainline and deployed)
+Merged `fix/a08-wave5` into the working branch (fast-forward after absorbing the mainline; the one
+`cd_gl_ext/models/__init__.py` conflict resolved as a union of late-loading imports). Commits:
+- `9fadcab1` **M20-F5** dunning reminders are SENT with immutable per-step evidence (M27 delivery
+  queue, `purpose=collections`, `lawful_basis=contract`, recipient masked, `sent` never claimed as
+  delivered without the provider callback; idempotent 2h retry capped at 3; disputes/promises/plans
+  re-checked at send; call steps create the M27 follow-up row; `action_run_dunning` returns only
+  transitioned runs so a daily re-scan cannot spam).
+- `9006d2dd` **M52-F3** consignment settlement (spec P0 — gather M15 consumptions, agreement/price-list
+  rate, VAT per the partner tax profile, AP-matrix approval, Dr expense / Cr 200101 with OU+branch+brand)
+  and **M52-F4** retention money (exact % withheld at posting, retention register, release only by a
+  different manager after certified completion, ageing at the net; seats fail closed).
+- `380cdc6d` **M19-F4** branch/OU P&L engine slice (`pnl_by_branch`, ties exactly to the company P&L,
+  unallocated bucket never dropped) + **subledger reconciliation as a hard close gate** (AR/AP/VAT
+  out+in, fail-closed on missing config) + **posting-log hash chain** (`verify_chain` detects changed
+  content, sequence gaps, predecessor mismatch and tail truncation; advisory+row locks; genesis at
+  deployment, no rewrite of history).
+- `7d192ef4` **M51 input-credit carry-forward** (opening/used/closing credit on the 9.1; `credit_used =
+  min(opening, max(0, output−input))`; negative net now impossible; filing refuses when opening ≠
+  previous closing, naming both; challan settles the post-credit net; refund application deliberately
+  out of scope per FR-TAX-018's core).
+Deploy: fix_real backed up (`fix_real_pre_wave56_2026-11-23.dump`), `-u` of the four modules clean
+(0 non-RST errors), versions live (cd_gl_ext 19.0.2.8.0, cd_ap_ext 19.0.1.5.0, cd_billing_engine
+19.0.2.10.0, cd_tax_engine_bd 19.0.1.4.0), all five new tables and the three credit columns created;
+fix_dev upgraded to match. Test evidence: 7 new carry-forward tests, 6 consignment/retention,
+6 M19 P&L/close/chain, 5 dunning — plus ~490 module regressions, all green; lead re-ran each new
+suite directly (zero failures).

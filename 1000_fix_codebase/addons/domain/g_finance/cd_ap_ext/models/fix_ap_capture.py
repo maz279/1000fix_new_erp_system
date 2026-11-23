@@ -127,7 +127,7 @@ def _runs_unsettled_at(env, companies, as_of):
     released to the bank and not yet paid, or paid after that date (A08
     M52-F5). Their bills are paid and their notes netted NOW; on that date
     both were still open."""
-    return env["fix.payment.run.line"].search(
+    return env["fix.payment.run.line"].sudo().search(
         [
             ("company_id", "in", companies.ids),
             ("state", "in", ("sent", "paid")),
@@ -149,7 +149,7 @@ def open_bills_at(env, bills, as_of):
     part of the bill after `as_of` is added back. A bill marked paid that has
     no dated settlement record is left out at every date, as it always was."""
     dated, in_force = set(), set()
-    for line in env["fix.payment.run.line"].search(
+    for line in env["fix.payment.run.line"].sudo().search(
         [("bill_ids", "in", bills.ids), ("move_id", "!=", False)]
     ):
         paid_on, back_on = _entry_date(line.move_id), _entry_date(line.reversal_move_id)
@@ -158,7 +158,13 @@ def open_bills_at(env, bills, as_of):
             if _in_force_on(paid_on, back_on, as_of):
                 in_force.add(bill.id)
     later = defaultdict(float)
-    for settlement in env["fix.ap.lc.settlement"].search(
+    # Read as superuser, like the take-on leg above: the ageing is a finance
+    # report whose READERSHIP is gated by the surface's own ACL, but a caller
+    # without `fix.ap.lc.settlement` rights (the workspace admin is one) made
+    # this search raise AccessError and the whole ageing — and the M52
+    # payables KPI — returned nothing. The settlement only supplies a DATE and
+    # an amount for bills the caller may already read.
+    for settlement in env["fix.ap.lc.settlement"].sudo().search(
         [("kind", "=", "bill"), ("bill_id", "in", bills.ids)]
     ):
         dated.add(settlement.bill_id.id)
@@ -184,7 +190,7 @@ def open_notes_at(env, notes, as_of):
     payment in force on that date has netted. Until the bank has paid the run
     that took a note, the vendor's payable is not reduced by it."""
     netted = env["fix.vendor.note"]
-    lines = env["fix.payment.run.line"].search(
+    lines = env["fix.payment.run.line"].sudo().search(
         [("note_ids", "in", notes.ids), ("move_id", "!=", False)]
     )
     for line in lines:
@@ -207,6 +213,7 @@ def ageing_by_vendor(env, companies, as_of):
     settled_later = (
         lines.bill_ids.ids
         + env["fix.ap.lc.settlement"]
+        .sudo()
         .search([("company_id", "in", companies.ids), ("kind", "=", "bill"), ("date", ">", as_of)])
         .mapped("bill_id")
         .ids

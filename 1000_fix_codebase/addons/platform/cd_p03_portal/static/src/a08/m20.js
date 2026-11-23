@@ -26,7 +26,9 @@ export const MODULE = {
     { en: 'Record Coverage', screens: [
       { id: 'M20-ar-dispute', en: "Ar Dispute", bn: "Ar Dispute", t: 'g' },
       { id: 'M20-ar-consolidated-bill', en: "Ar Consolidated Bill", bn: "Ar Consolidated Bill", t: 'g' },
-      { id: 'M20-dunning-register', en: 'Dunning Register', bn: 'দেনা আদায় রেজিস্টার', t: 'g' }
+      { id: 'M20-dunning-register', en: 'Dunning Register', bn: 'দেনা আদায় রেজিস্টার', t: 'g' },
+      { id: 'M20-dunning-evidence', en: 'Reminder Deliveries', bn: 'তাগাদের ডেলিভারি', t: 'g' },
+      { id: 'M20-handoffs', en: 'Call Hand-offs (M27)', bn: 'কল হ্যান্ডঅফ', t: 'g' }
     ]},
     { en: 'Delivery & Statements', screens: [
       { id: 'M20-deliveries', en: 'Invoice Deliveries', bn: 'ইনভয়েস বিতরণ', t: 'g' },
@@ -540,6 +542,29 @@ export const SCREENS = {
       { m: 'action_suppress_strategic', l: 'Suppress: Strategic Customer', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
       { m: 'action_suppress_dispute', l: 'Suppress: Open Dispute', asks: [{ label: 'Until (YYYY-MM-DD, empty = until the dispute closes)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
       { m: 'action_lift_suppression', l: 'Lift Suppression', ask: 'Why the suppression ends', kwarg: 'note' }
+    ] },
+
+  /* A08 wave 5 (M20-F5): every reminder the ladder sends now leaves an
+   * immutable delivery row — sent with the provider's message id, or failed
+   * with the reason; a sent step is never re-sent, and "delivered" is only
+   * ever claimed by the provider's callback. */
+  'M20-dunning-evidence': { kind: 'model_list', model: 'fix.ar.dunning.action', create: false,
+    empty: 'A reminder appears here the moment its ladder step is raised — one row per step, per channel.',
+    cols: ['name', 'invoice_id', 'customer_id', 'step', 'channel', 'state', 'sent_at', 'provider_ref', 'recipient_masked', 'template_name', 'amount', 'days_overdue', 'retry_count', 'failure_reason'],
+    stateField: 'state',
+    actions: [{ m: 'action_retry', l: 'Retry Failed Send' }] },
+
+  /* A08 wave 5 (M20-F5): a ladder step whose channel is a phone call lands
+   * here for M27 to work (routed into a collections workstream when one is
+   * configured). */
+  'M20-handoffs': { kind: 'model_list', model: 'fix.ar.dunning.handoff', create: false,
+    empty: 'Call steps of the ladder appear here for the contact centre to pick up.',
+    cols: ['name', 'invoice_id', 'customer_id', 'phone', 'amount', 'days_overdue', 'priority', 'state', 'm27_reference', 'picked_up_by_id', 'picked_up_at', 'closed_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_pick_up', l: 'Pick Up' },
+      { m: 'action_done', l: 'Done', ask: 'What was agreed on the call', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Cancel Hand-off', ask: 'Why this call is not needed', kwarg: 'reason' }
     ] },
 
   /* ============ M20 SECOND CAPTURE PASS (19 Nov 2026) ===================

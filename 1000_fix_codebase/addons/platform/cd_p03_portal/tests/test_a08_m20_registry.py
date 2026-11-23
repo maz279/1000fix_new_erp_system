@@ -126,6 +126,10 @@ def test_bespoke_screens_kept_and_every_screen_is_real(registry):
         "M20-cases",
         "M20-oa-refunds",
         "M20-unbilled",
+        # A08 wave 5 (M20-F5): the reminder delivery evidence and the M27
+        # call hand-off queue of the dunning ladder.
+        "M20-dunning-evidence",
+        "M20-handoffs",
     }
     for g in registry["module"]["groups"]:
         for s in g["screens"]:

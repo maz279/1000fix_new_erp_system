@@ -34,7 +34,9 @@ export const MODULE = {
       { id: 'M52-taxprofile', en: 'Vendor Tax Profile', bn: 'বিক্রেতার কর প্রোফাইল', t: 'g' },
       { id: 'M52-disputes', en: 'Vendor Disputes', bn: 'বিক্রেতার বিরোধ', t: 'g' },
       { id: 'M52-vstatements', en: 'Vendor Statement Reconciliation', bn: 'বিক্রেতার বিবরণী মিলকরণ', t: 'g' },
-      { id: 'M52-ageing-snapshots', en: 'Ageing Snapshots', bn: 'বয়স বিশ্লেষণের স্থির চিত্র', t: 'g' }
+      { id: 'M52-ageing-snapshots', en: 'Ageing Snapshots', bn: 'বয়স বিশ্লেষণের স্থির চিত্র', t: 'g' },
+      { id: 'M52-retention', en: 'Retention Money', bn: 'রিটেনশন টাকা', t: 'g' },
+      { id: 'M52-consignment', en: 'Consignment Settlements', bn: 'কনসাইনমেন্ট নিষ্পত্তি', t: 'g' }
     ]},
     { en: 'Payments', screens: [
       { id: 'M52-bank-queue', en: 'Bank Accounts to Confirm', bn: 'নিশ্চিতকরণের অপেক্ষায় ব্যাংক হিসাব', t: 'g' },
@@ -637,6 +639,22 @@ export const SCREENS = {
   'M52-ageing-snapshots': { kind: 'model_list', model: 'fix.ap.ageing.snapshot',
     cols: ['name','as_of','note','current','d1_30','d31_60','d61_90','d90','total','vendor_count','taken_by_id','taken_at'],
     empty: 'No ageing snapshot kept yet. Take one at each period close: it is never changed afterwards.' },
+  /* A08 wave 5 (M52-F4): money withheld from vendor bills, released only by a
+   * different manager once the retention condition (schedule or certificate)
+   * is met — the aged payable runs on the NET. */
+  'M52-retention': { kind: 'model_list', model: 'fix.ap.retention',
+    cols: ['name','invoice_id','vendor_id','withheld_amount','released_amount','balance','release_due_date','release_condition','certificate_ref','state'],
+    stateField: 'state',
+    actions: [{m:'action_request_release',l:'Request Release'},{m:'action_release',l:'Release (2nd person)'},{m:'action_reject_release',l:'Reject Release'}],
+    empty: 'Retention rows are created by the bill that withholds them; they are never deleted.' },
+  /* A08 wave 5 (M52-F3, spec P0): settle consignment stock consumed per the
+   * partner agreement — gathers M15 consumptions, prices them, posts Dr expense
+   * / Cr AP through the approval matrix. */
+  'M52-consignment': { kind: 'model_list', model: 'fix.ap.consignment.settlement',
+    cols: ['name','partner_id','brand_id','period_start','period_end','line_count','quantity_total','value_untaxed','state'],
+    stateField: 'state',
+    actions: [{m:'action_gather',l:'Gather Consumptions'},{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve (2nd person)'},{m:'action_reject',l:'Reject'},{m:'action_cancel',l:'Cancel'}],
+    empty: 'A settlement gathers the period\'s consumed consignment stock for one partner; nothing already on another live settlement is taken twice.' },
   'M52-grni-accruals': { kind: 'model_list', model: 'fix.ap.grni.accrual',
     cols: ['name','period_end','line_count','grni_total','clearing_balance','unrecorded_estimate','computed_by_id','confirmed_by_id','state'],
     stateField: 'state',

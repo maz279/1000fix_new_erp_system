@@ -128,6 +128,20 @@ SURFACES = {
         "actions": {"action_activate", "action_retire"},
         "pickers": {"customer_ids": [("customer_rank", ">", 0)]},
     },
+    # A08 wave 5 (M20-F5): the delivery evidence of every reminder the ladder
+    # sends — immutable once sent; a failed send is retryable, a sent step is
+    # never re-sent.
+    "fix.ar.dunning.action": {
+        "order": "create_date desc, id desc",
+        "limit": 500,
+        "actions": {"action_retry"},
+    },
+    # A08 wave 5 (M20-F5): a call step lands here for the contact centre.
+    "fix.ar.dunning.handoff": {
+        "order": "priority desc, id desc",
+        "limit": 300,
+        "actions": {"action_pick_up", "action_done", "action_cancel"},
+    },
     # p8 FR-ARB-034: the prioritised collections worklist
     "fix.ar.collection.case": {
         "order": "state, priority_score desc, id",

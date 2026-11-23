@@ -758,3 +758,54 @@ def test_the_dedicated_anonymous_form_sends_only_what_an_anonymous_report_holds(
     }
     assert "anonymous" in editable and editable <= accepted
     assert "employee_id" not in editable
+
+
+# ================================= CAPA reopen and the overdue reminder (M59-F10)
+def test_an_ineffective_action_reopens_instead_of_staying_verified(x):
+    """FR-HSE-015 / lifecycle 8.1: a verified action was a dead end. A finding
+    on verification returns it to open, with the finding on its history."""
+    inc = _serious(x)
+    capa = _investigated(x, inc, owner=x.colleague)
+    capa.with_user(x.colleague).action_mark_done(note="Ladder replaced")
+    capa.with_user(x.hse2).action_verify(note="Inspected the new ladder")
+    assert capa.state == "verified"
+    with pytest.raises(UserError, match="did not hold"):
+        capa.with_user(x.hse).action_reopen()
+    with pytest.raises(AccessError):
+        capa.with_user(x.colleague).action_reopen(reason="The stand came loose again")
+    capa.with_user(x.hse).action_reopen(reason="The stand came loose again")
+    assert capa.state == "open" and capa.reopen_count == 1
+    assert "came loose again" in " ".join(capa.message_ids.mapped("body"))
+    # and the action is worked again to a fresh verification
+    capa.with_user(x.colleague).action_mark_done(note="Bolted to the wall")
+    capa.with_user(x.hse2).action_verify(note="Checked after a week")
+    assert capa.state == "verified" and capa.reopen_count == 1
+    capa.with_user(x.hse).action_reopen(reason="Second failure")
+    assert capa.reopen_count == 2
+
+
+def test_overdue_actions_remind_their_owner_once_a_day(x):
+    """M59-F10 / AUT-HSE-10: no cron looked at the due date. The owner gets one
+    to-do a day while the action is open and late; seven days late the HSE
+    officers hear it too."""
+    inc = _serious(x)
+    capa = _investigated(x, inc, owner=x.colleague)
+    capa.sudo()._guarded().write({"due_date": x.today - timedelta(days=3)})
+    Capa = x.env["fix.hse.capa"]
+    assert Capa.cron_overdue_capas() >= 1
+    mine = capa.activity_ids.filtered(
+        lambda a: a.summary == "CAPA overdue: %s" % capa.name and a.user_id == x.colleague
+    )
+    assert mine, capa.activity_ids.mapped("summary")
+    assert Capa.cron_overdue_capas() == 0  # once a day
+    # still open seven days late: the HSE officers hear it
+    capa.sudo()._guarded().write(
+        {"due_date": x.today - timedelta(days=9), "overdue_alerted_on": False}
+    )
+    assert Capa.cron_overdue_capas() >= 1
+    assert x.hse in capa.activity_ids.user_id
+    # a done action is never chased
+    capa.with_user(x.colleague).action_mark_done(note="Stand bolted")
+    before = len(capa.activity_ids)
+    assert Capa.cron_overdue_capas() == 0
+    assert len(capa.activity_ids) == before

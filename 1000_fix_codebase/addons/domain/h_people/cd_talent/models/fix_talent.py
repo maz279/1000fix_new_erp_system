@@ -451,6 +451,14 @@ class FixJobRequisition(models.Model):
             )
         return True
 
+    def _people_conflicted_users(self):
+        """M58-F12: the hiring manager is the SUBJECT of a requisition - it asks
+        for someone on their team - so they never decide it, even when a
+        recruiter created and submitted it (the generic conflict set only
+        held the requester, the creator, the preparers and the subject
+        EMPLOYEES, which a requisition has none of)."""
+        return super()._people_conflicted_users() | self.sudo().mapped("hiring_manager_id")
+
     def action_close(self):
         _require_recruiter(self.env, "close a requisition")
         for rec in self:
@@ -494,11 +502,9 @@ class FixCandidate(models.Model):
         default="direct",
     )
     date_of_birth = fields.Date(help="Verified before offer: BLA 2006 s.34 (BRU-TAO-17).")
-    nid_number = fields.Char(
-        string="NID Number",
-        help="10-, 13- or 17-digit National ID. Held in clear only until the hire copies it "
-        "to the employee (or the record is erased); duplicates are found by its hash.",
-    )
+    # M58-F4: nid_number / birth_reg_number / passport_number are declared in
+    # fix_candidate_identity.py - they live in the Bangladesh-resident store,
+    # and the row keeps only their keyed hashes and pointers.
     nid_hash = fields.Char(
         string="NID Hash", readonly=True, copy=False, index=True, groups="cd_talent.group_talent"
     )
@@ -576,12 +582,52 @@ class FixCandidate(models.Model):
             keys.append(("email", "=ilike", self.email.strip()))
         if _digits(self.phone):
             keys.append(("phone", "ilike", _digits(self.phone)[-10:]))
-        digest = nid_hash(self.env, self.nid_number) if self.nid_number else self.sudo().nid_hash
+        # M58-F4: the hash is what the row keeps; the value itself is in the
+        # resident store, so the duplicate check normally reads no value at all
+        digest = self.sudo().nid_hash or (
+            nid_hash(self.env, self.nid_number) if self.nid_number else False
+        )
         if digest:
             keys.append(("nid_hash", "=", digest))
         if not keys:
             return None
         return ["|"] * (len(keys) - 1) + keys
+
+    def _fix_duplicate_message(self, vals, exclude=None):
+        """AUT-TAO-03 from the values being written. The stored hash is written
+        by the inverse after the row exists (M58-F4), so a new application's NID
+        is hashed here from the submitted value - neither path needs the value
+        to stay on the row."""
+        req = vals.get("requisition_id") or (exclude and exclude.requisition_id.id)
+        if not req:
+            return None
+        keys = []
+        if vals.get("email"):
+            keys.append(("email", "=ilike", str(vals["email"]).strip()))
+        phone = _digits(vals.get("phone"))
+        if phone:
+            keys.append(("phone", "ilike", phone[-10:]))
+        if vals.get("nid_number"):
+            keys.append(("nid_hash", "=", nid_hash(self.env, vals["nid_number"])))
+        elif exclude is not None and exclude.sudo().nid_hash:
+            keys.append(("nid_hash", "=", exclude.sudo().nid_hash))
+        if not keys:
+            return None
+        domain = [
+            ("requisition_id", "=", int(req)),
+            ("state", "!=", "rejected"),
+            *(["|"] * (len(keys) - 1) + keys),
+        ]
+        if exclude is not None:
+            domain.insert(0, ("id", "!=", exclude.id))
+        dup = self.sudo().with_context(active_test=False).search(domain, limit=1)
+        if not dup:
+            return None
+        return "%s has already applied to %s (%s): the same email, phone or NID." % (
+            vals.get("name") or (exclude and exclude.name) or "This candidate",
+            dup.requisition_id.name,
+            dup.name,
+        )
 
     @api.constrains("email", "phone", "nid_number", "requisition_id")
     def _check_duplicate_application(self):
@@ -614,6 +660,9 @@ class FixCandidate(models.Model):
         for vals in vals_list:
             if vals.get("nid_number"):
                 vals["nid_number"] = str(vals["nid_number"]).strip()
+            message = self._fix_duplicate_message(vals)
+            if message:
+                raise ValidationError(message)
         recs = super().create(vals_list)
         for rec in recs.filtered("nid_number"):
             rec.sudo()._guarded().write({"nid_hash": nid_hash(rec.env, rec.nid_number)})
@@ -643,6 +692,12 @@ class FixCandidate(models.Model):
                     )
         if vals.get("nid_number"):
             vals = dict(vals, nid_number=str(vals["nid_number"]).strip())
+            # M58-F4: the duplicate check from the submitted value, before the
+            # hash is written (the value itself is never kept on the row)
+            for rec in self:
+                message = rec._fix_duplicate_message(vals, exclude=rec)
+                if message:
+                    raise ValidationError(message)
         result = super().write(vals)
         if "nid_number" in vals:
             for rec in self:
@@ -822,6 +877,10 @@ class FixCandidate(models.Model):
     def action_offer(self):
         for rec in self:
             problems = rec._fix_interview_problems() + rec._fix_assessment_problems()
+            # M58-F20: the age gate ran only at issue and hire, so a minor
+            # reached the "offered" stage; the date of birth is verified
+            # before the offer (BLA 2006 s.34, BRU-TAO-17)
+            problems += rec._fix_age_problems(None)
             if problems:
                 raise UserError(
                     "%s cannot move to the offer stage: %s." % (rec.name, "; ".join(problems))
@@ -867,9 +926,9 @@ class FixCandidate(models.Model):
                     "Hiring Gate Blocked (RAP-M58-05) for %s: %s." % (rec.name, "; ".join(problems))
                 )
             emp = rec._fix_create_employee(accepted)
-            # the NID now lives on the employee master: no second clear copy
-            if rec.nid_number:
-                rec.sudo()._guarded().write({"nid_number": False})
+            # M58-F4: each identifier the store serves back intact is copied to
+            # the employee master and released here; none stays in clear.
+            rec._fix_release_identity(emp)
             contract = rec._fix_create_contract(emp, accepted)
             rec._guarded().write(
                 {"state": "hired", "employee_id": emp.id, "hired_on": fields.Datetime.now()}
@@ -1016,12 +1075,14 @@ class FixCandidate(models.Model):
             )
         )
         for rec in due:
+            # M58-F4: the store-held identifiers leave first (a store that is
+            # down leaves one for the next run; the record is still anonymised)
+            rec._fix_identity_erase()
             rec._guarded().write(
                 {
                     "name": "Erased candidate %d" % rec.id,
                     "email": False,
                     "phone": False,
-                    "nid_number": False,
                     "nid_hash": False,
                     "date_of_birth": False,
                     "rejection_reason": False,

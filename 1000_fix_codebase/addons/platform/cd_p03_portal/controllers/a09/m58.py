@@ -165,9 +165,16 @@ def funnel_conversion(env, date_from=None, date_to=None, **params):
         ("rejected", "Rejected"),
     ]
     counts = {k: len(candidates.filtered(lambda c, kk=k: c.state == kk)) for k, _ in stages}
-    base = counts["applied"] or len(candidates) or 1
+    # M58-F13: the share is over the APPLIED pool - everyone who ever applied,
+    # i.e. every candidate - never over the people still sitting in the first
+    # stage (that base read "hired: 400%" as soon as most had moved on)
+    base = len(candidates)
     rows = [
-        {"stage": label, "candidates": counts[key], "share": round(counts[key] / base * 100.0, 1)}
+        {
+            "stage": label,
+            "candidates": counts[key],
+            "share": round(counts[key] / base * 100.0, 1) if base else 0.0,
+        }
         for key, label in stages
     ]
     return _pack(
@@ -447,13 +454,15 @@ def kpis(env):
         if req_hired and req.create_date:
             first = min(c.hired_on or c.create_date for c in req_hired)
             fill_days.append((first.date() - req.create_date.date()).days)
+    # M58-F13: a rate with no fact behind it is unknown, not 0 - the tile
+    # prints "—" for None (the same rule time_to_fill already followed)
     return {
         "open_requisitions": len(reqs.filtered(lambda r: r.state == "open")),
         "time_to_fill": round(sum(fill_days) / len(fill_days), 1) if fill_days else None,
         "pipeline": len(
             candidates.filtered(lambda c: c.state in ("applied", "screening", "interview"))
         ),
-        "offer_accept_rate": (round(len(accepted) / len(issued) * 100.0, 1) if issued else 0.0)
+        "offer_accept_rate": (round(len(accepted) / len(issued) * 100.0, 1) if issued else None)
         if can_offers
         else None,
         "referral_share": round(
@@ -461,6 +470,6 @@ def kpis(env):
             1,
         )
         if candidates
-        else 0.0,
-        "first90_retention": round(on_track / len(reviews) * 100.0, 1) if reviews else 0.0,
+        else None,
+        "first90_retention": round(on_track / len(reviews) * 100.0, 1) if reviews else None,
     }

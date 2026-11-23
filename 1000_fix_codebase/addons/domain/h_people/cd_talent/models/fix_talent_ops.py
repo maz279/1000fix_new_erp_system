@@ -10,10 +10,12 @@
 # against the requisition's approved pass mark, and an offer is issued only
 # by an approver (the CFO tier when it falls outside the M57 pay band, I7),
 # with its terms pinned at approval.
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_talent import _require_recruiter
+from .fix_talent import _int_param, _require_recruiter
 
 # An object, never a flag: a JSON-RPC caller cannot put it in the context.
 _PANEL_SYNC = object()
@@ -103,6 +105,28 @@ class FixTalentInterview(models.Model):
         if any(r.state != "scheduled" for r in self):
             locked |= set(self._FROZEN)
         return locked
+
+    @api.constrains("candidate_id", "interviewer_id", "panelist_ids")
+    def _check_panel_independence(self):
+        """M58-F12: the hiring manager whose requisition this is, and the
+        approver who opened it, never judge its candidates - not as the lead
+        interviewer either (BRU-TAO-07 independence was enforced on the
+        candidate alone, so a hiring manager could sit on their own panel)."""
+        for rec in self:
+            req = rec.candidate_id.sudo().requisition_id
+            if not req:
+                continue
+            barred = req.hiring_manager_id | req.approved_by_id
+            panel = (rec.interviewer_id | rec.panelist_ids).sudo()
+            sitting = panel.filtered(
+                lambda emp, barred=barred: emp.user_id and emp.user_id in barred
+            )
+            if sitting:
+                raise ValidationError(
+                    "%s: %s is the hiring manager or the approver of requisition %s and "
+                    "cannot judge its candidates."
+                    % (rec.display_name, ", ".join(sitting.mapped("name")), req.name)
+                )
 
     @api.depends("evaluation_ids.state", "evaluation_ids.score", "evaluation_ids.recommendation")
     def _compute_panel(self):
@@ -564,7 +588,14 @@ class FixTalentOffer(models.Model):
         required=True,
     )
     issued_on = fields.Date(readonly=True, copy=False)
-    valid_until = fields.Date()
+    valid_until = fields.Date(
+        string="Valid Until",
+        default=lambda self: self._fix_default_valid_until(),
+        help="The day the candidate must accept by; the offer expires after it "
+        "(M58-F15: an offer with no validity date never lapsed and kept blocking "
+        "the candidate's other offers). Defaults to today plus the configured "
+        "cd_talent.offer_validity_days when the business has set that figure.",
+    )
     joining_date = fields.Date()
     band_id = fields.Many2one(
         "fix.compensation.band", compute="_compute_band", string="Pay Band (M57)"
@@ -613,6 +644,17 @@ class FixTalentOffer(models.Model):
         if any(r.state != "issued" for r in self):
             locked |= {"acceptance_ref", "acceptance_file", "acceptance_filename"}
         return locked
+
+    @api.model
+    def _fix_default_valid_until(self):
+        """M58-F15: the validity default is the business's own figure
+        (cd_talent.offer_validity_days). With none ruled the form leaves the
+        date to be entered, and the issue gate refuses an offer without it -
+        no default of ours outlives the candidate's decision."""
+        days = _int_param(self.env, "cd_talent.offer_validity_days", 0)
+        if days <= 0:
+            return False
+        return fields.Date.context_today(self) + timedelta(days=days)
 
     # ---- the band (I7, read-only) ---------------------------------------------
     def _fix_band(self):
@@ -701,7 +743,11 @@ class FixTalentOffer(models.Model):
         today = fields.Date.context_today(self)
         if not self.joining_date or self.joining_date < today:
             problems.append("no joining date on or after today")
-        if self.valid_until and self.valid_until < today:
+        # M58-F15: an undated offer never lapsed (the expiry cron only sees a
+        # dated one) and blocked the candidate's other offers for ever
+        if not self.valid_until:
+            problems.append("no validity date (the day the candidate must accept by)")
+        elif self.valid_until < today:
             problems.append("the offer's validity has passed")
         problems += cand._fix_interview_problems()
         problems += cand._fix_assessment_problems()

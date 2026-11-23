@@ -24,6 +24,7 @@ access_fix_talent_check_verifier,fix.talent.check.verifier,model_fix_talent_chec
 access_fix_job_requisition_hm,fix.job.requisition.hiring.manager,model_fix_job_requisition,cd_talent.group_hiring_manager,1,1,1,0
 access_fix_candidate_hm,fix.candidate.hiring.manager,model_fix_candidate,cd_talent.group_hiring_manager,1,1,1,0
 access_fix_talent_interview_hm,fix.talent.interview.hiring.manager,model_fix_talent_interview,cd_talent.group_hiring_manager,1,0,0,0
+access_fix_talent_first90_hm,fix.talent.first90.hiring.manager,model_fix_talent_first90,cd_talent.group_hiring_manager,1,1,1,0
 access_fix_talent_evaluation_user,fix.talent.evaluation.panelist,model_fix_talent_evaluation,base.group_user,1,1,0,0
 access_fix_headcount_budget_role,fix.headcount.budget.role,model_fix_headcount_budget,cd_talent.group_talent,1,1,1,0
 access_fix_headcount_budget_cfo,fix.headcount.budget.cfo,model_fix_headcount_budget,cd_entity_config.group_dofa_tier_4,1,1,0,0

@@ -168,14 +168,34 @@ to decide in the M21 UI round.
 
 ## 3. What was fixed in code (this round)
 
-**79 distinct finding ids** are addressed in the code changes (the code cites each id at the fix);
-the integrated change set is **9,388 changed lines across 89 code, test and contract files** in
-eight modules plus the payroll engine, landed as nine per-module commits. The work was built in nine
-parallel builder streams on their own databases, integrated by the lead on a fresh database
-(`fix_test_a09_int`) where the upgrade of all changed modules loads with **no error**, and closed
-with the test runs recorded in §4.
+**79 distinct finding ids** are addressed in the wave-1 code changes (the code cites each id at the
+fix); that change set is **9,388 changed lines across 89 code, test and contract files** in eight
+modules plus the payroll engine, landed as nine per-module commits. **Wave 2 adds thirteen
+findings** in seven commits (`9958ea23`, `3dd52a3e`, `9528d49f`, `3668cfa3`, `224f8178`, `1da3102b`,
+`8a0bc096`): M21 UI-F12; M56-F19; M57-F2 and M57-F14; M58-F4, F12, F13, F15, F17, F18, F20;
+M59-F10 and F11. Both waves were integrated on `fix_test_a09_int`, where the upgrade of every
+changed module loads with no error, and closed with the module test runs recorded in §4.
 
-Highlights by module (each with tests and the estate's mutation-check discipline):
+**Correction to the first issue of this report.** The first issue credited four mechanisms that were
+not in the code (builder summaries had been read as evidence). What is true:
+
+- *M57 "HR Officer access per the spec"* — there was no HR Officer ACL row at all (M57-F14). Wave 2
+  adds the five rows (`cd_performance/security/ir.model.access.csv`; test
+  `test_a09_m57_officer_access.py`: the officer sets the cycle and goals up, unlink stays refused).
+- *M57 "above-band exception via CFO"* — no such mechanism exists. M57-F18 is an owner decision
+  (D27, §5) and is **open**.
+- *M59 "inspection→CAPA→reopen loops"* — there was no CAPA reopen and no inspection→CAPA link. Wave
+  2 builds the reopen (with the finding on the history) and the daily overdue reminder (M59-F10;
+  test `test_a09_hse_r2.py`). Inspection scheduling and the inspection→CAPA/incident link remain
+  open (§5).
+- *M59 "fitness events published"* — no fitness event exists. What the audit actually asked for is
+  built in wave 2: the dispatch now reads the published fitness status and refuses an Unfit
+  technician (M59-F11; `cd_field_service`, test `test_a09_m59_fitness_gate.py`).
+- *M58 "retention fail-closed"* — the retention period is an owner figure (M58-F3, §5); the code
+  does not refuse capture. What is built is the residency store (M58-F4) and the erasure path.
+- *M58 "hire cancel"* — not built; the hire reversal (M58-F5) is open (§5).
+
+Highlights by module (each item is in the code; the module's test run is in §4):
 
 - **M56 Payroll** — a Payroll Manager holding no accounting group can post (authorisation first,
   then the elevated posting funnel; the operator is still recorded); provident fund is taken only
@@ -207,48 +227,135 @@ Highlights by module (each with tests and the estate's mutation-check discipline
   components that have facts) and every weighting can reach the top band; rework attribution;
   Dhaka month boundary; PIP/discipline eligibility; one adjustment can no longer block a month;
   scheme versions cannot overlap or be back-dated and their terms freeze at signature; the second
-  signature is refused when the only CFO holders are the HR Director holders; clawbacks ride the
-  run's approval statement and notify the employee; review-cycle dead ends closed; HR Officer
-  access per the spec and privacy narrowed; calibration can adjust; above-band exception via CFO;
-  a run can be voided before payment; the six M57 tiles point at the lists their titles name, the
-  missing "Request Calibration" button added, packs honour their period.
+  signature is refused when the only CFO holders are the HR Director holders (wave-2 test
+  `test_a09_m57_round2.py::test_the_request_refuses_when_every_cfo_is_also_the_hr_director`);
+  clawbacks ride the run's approval statement and notify the employee; review-cycle dead ends
+  closed; calibration can adjust; a run can be voided before payment; the six M57 tiles point at
+  the lists their titles name, the missing "Request Calibration" button added, packs honour their
+  period. **Wave 2**: the HR Officer's set-up access (M57-F14) — five ACL rows plus the set-up
+  guards widened (create/change/open a cycle, start a review, start a PIP, request/change feedback);
+  the decisions (close a cycle or a PIP, award, approve) stay where they were. **Open**: above-band
+  exception (D27), and the privacy split of ratings from payroll readers (M57-F15, §5).
 - **M59 HSE** — notice forms and citations corrected against the gazette (Form 27 / 27(A) / 27(B) /
   28 / 29; the register's basis is s.80(2), not s.90); the **instant notice** recorded per named
   authority and the **final report Form 27(A)** and occupational-disease notice Form 29 modelled
-  with their clocks and close gates (the missing recipient model completed by the lead); the DIFE
-  clock covers fatal/serious/minor/dangerous/first-aid with the 20-day escalation; the statutory
-  compensation floor is computed and an award below it needs a recorded reason; the half-yearly
-  return dates; committee composition and drill intervals enforced; reporter/investigator/closer
-  separation; inspection→CAPA→reopen loops; fitness events published; controller dates and packs.
+  with their clocks and close gates (the missing recipient model completed by the lead — its
+  company isolation rule was missing until the wave-2 regeneration); the DIFE clock covers
+  fatal/serious/minor/dangerous/first-aid with the 20-day escalation; the statutory compensation
+  floor is computed (`fix_hse.py`, the BLA ss.150-152 block) and an award below it needs a recorded
+  reason; the half-yearly return dates; committee representation checked (both sides required);
+  reports and packs on Dhaka dates. **Wave 2**: CAPA reopen when a verification finds the action
+  ineffective, and the daily overdue reminder (M59-F10); the dispatch fitness gate (M59-F11, in
+  `cd_field_service`). **Open**: inspection scheduling and the inspection→CAPA/incident link
+  (M59-F9), drill scheduling (M59-F7), PPE as stock (M59-F8) — §5.
 - **M22 Learning** — an un-tiered certificate no longer satisfies a tiered job; the workshop gate
   has a switch (the flip is an owner decision); the certification check refuses before the
   assignment is written; training sessions mark availability; the effectiveness and coverage crons;
   KPI formulas fixed (brands, real technician population, configured lead time, passed assessments
   only); the catalogue skill gate covers `service` items; superuser overrides are logged; Dhaka
   dates; packs honour their period.
-- **M58 Talent** — the recruiter can read and draft offers (lead-completed ACL); candidate
-  government identifiers move to the residency store with hashes and masking (model written by the
-  builder, wiring still to finish); retention fail-closed; hire cancel; independence; age gate;
-  offer validity; KPI honesty; first-90 access and automation; appointment letter corrected.
+- **M58 Talent** — the recruiter can read and draft offers (lead-completed ACL); **wave 2**: the
+  candidate's government identifiers live in the Bangladesh-resident store (M58-F4): keyed hashes
+  shared with M21, pointers, the last four digits, a logged read path, the hire copies and releases,
+  the 19.0.0.6.0 post-migrate moves the clear columns and a daily cron retries a row the store could
+  not take (`test_m58_identity_residency.py`); the duplicate check reads the hash, never a value;
+  the hiring manager and the requisition's approver can no longer approve their own requisition or
+  sit on its panels (M58-F12); the KPIs say "unknown" where nothing was measured and the funnel
+  share is over every candidate (M58-F13); an offer carries its acceptance deadline and an undated
+  offer cannot be issued (M58-F15); a Hiring Manager reaches the first-90 reviews of their own
+  requisitions (ACL row + record rule, M58-F17); "Separated" stays "Separated" on the employee
+  (M58-F18); the minimum hiring age is checked when the offer is drafted (M58-F20); the appointment
+  letter is corrected. **Open**: retention period and talent-pool period (M58-F3, owner), the hire
+  reversal (M58-F5), the domain events (M58-F6) — §5.
 
-Not yet done in this round (the builders were interrupted mid-stream twice by a shared usage cap and
-once by a runtime crash; their remaining items are listed in §5): the Talent identity store wiring,
-the HSE screens/forms for the new filings, several M57 items, the bilingual letterheaded PDF
-documents, and the closing test runs for some streams.
+Also in wave 2: **M56-F19** — the payslip's operating-unit rule filtered a column nothing sets, so
+it always passed; two explicit rules now state the real scope (payroll runs the whole company;
+anyone else sees their cost units), and the isolation generator skips the model (`--check` clean).
+**Isolation regeneration** — `generate-isolation-rules.py --check` reported drift in eleven modules
+(models added in recent rounds never got their company rule, including M58's candidate child
+registers and `fix.hse.notice.recipient`); regenerated, 68 modules / 890 company rules / 453
+operating-unit rules, no drift. **M21 UI-F12** — the identity read log pack stops at its cap and
+says "first N of TOTAL" with the number left out (it used to title itself "2000 reads" as though
+that were the whole log).
+
+What is still open (the builders were interrupted mid-stream twice by a shared usage cap; the
+remaining items are listed in §5): the Talent retention figure and hire reversal, the Talent domain
+events, the payroll arrears for a raise activated after the month was paid, HSE inspection
+scheduling/CAPA link, the M55 cost/liability packs and Form 10 document, and the bilingual
+letterheaded PDF documents.
 
 ## 4. Deployment state
 
-Nothing from this round is deployed or committed to the shared branch yet. The work sits on
-`fix/a09-erp-audit` in the isolated worktree, integrated and upgrade-clean on a fresh database.
+**Wave 1 — deployed and verified on both servers, 2026-11-23.**
+- Backups before each upgrade: `fix_dev_pre_a09_erp_20261123_0834.dump` (71,151,381 B) and
+  `fix_real_pre_a09_erp_20261123_0834.dump` (74,455,875 B); again at 09:43 for the hotfix
+  (`fix_dev_pre_a09_20261123_0943.dump`, 71,588,751 B; `fix_real_pre_a09_20261123_0943.dump`,
+  74,895,229 B).
+- Upgrades: fix_dev 08:34, fix_real 09:43 — exit 0 with 0 errors in the upgrade logs (the single
+  `Unexpected indentation` line is the estate's known asset-template warning). Both listeners were
+  restarted through their watchdogs (8069 serves fix_real, 8090 serves fix_dev) and the regenerated
+  asset bundles purged.
+- Production data untouched: 504 employees, 0 employment contracts, 112 / 11 / 2 years of service,
+  0 payslips; the employee-code sequence at 4892; the 2026-Act figures switch **absent** (they move
+  only when approved); statutory packs baseline + drafts.
+- The post-hotfix read-only sweep (46 report packs, 169 list screens, 145 form schemas and 7 module
+  homes per server) found **0 issues and no console error** on either server, and confirmed the
+  deployed fixes (M55 balances read "as at 2026-11-23 / Annual Taken 2026"; M22 gate readiness
+  lists all 10 device types; M21 technicians 140 = the SQL count of the group's own members).
+  Evidence: `scratch/rebuild/evidence/A09-deploy/live_check_after_hotfix.log`.
+
 The production-data changes that need your approval are **not applied**: the 2026-Act figures move
 only when you approve (one switch), and the enacted tax tables are proposed packs awaiting sign-off.
 
+**Wave 2 — deployed and verified on both servers, 2026-11-23 16:55.**
+- Backups before the upgrade: `fix_dev_pre_a09_20261123_1655.dump` (71,470,854 B) and
+  `fix_real_pre_a09_20261123_1655.dump` (74,820,358 B).
+- Upgraded on each database, fix_dev then fix_real: the seven A09 modules plus every module whose
+  generated isolation rules changed (cd_competency, cd_field_service, cd_msp_contract,
+  cd_service_order, cd_warranty_claims, cd_workshop, cd_contract_core, cd_quotation, cd_ewaste,
+  cd_inventory, cd_gl_ext, cd_rbac_ext, cd_p03_portal) — 18 modules, **exit 0 with 0 errors** in
+  both upgrade logs. Both listeners restarted (8090 at 17:06:45, 8069 at 17:07:18); assets purged
+  (0 on dev, 3 on real); the 2026-Act switch **absent** on both.
+- **An outage, and how it ended:** a concurrent session's deploy killed both listeners at ~17:08
+  (the documented hazard of a shared checkout). The watchdogs restored them without intervention —
+  8069 at 17:09:43, 8090 at 17:11:00 — 2–4 minutes down. No data was touched; the sweep below ran
+  after both were back.
+- The read-only sweep on the deployed code: **46 report packs, 169 list screens, 145 form schemas
+  and 7 module homes per server — 0 issues, 0 console errors on both.** The Talent KPI tiles now
+  read "—" where nothing was measured (fix_real: time-to-fill, offer accept rate, referral share,
+  first-90 retention; fix_dev: time-to-fill, first-90 retention) instead of 0.0.
+  Evidence: `scratch/rebuild/evidence/A09-deploy/live_check_wave2.log`, `results-fix_dev.json`,
+  `results-fix_real.json`.
+- Production data unchanged by the upgrade: 504 employees, **0 candidates, 0 offers, 0 payslips**.
+
+**Test evidence for wave 2** (`fix_test_a09_int`, the integrated database): cd_talent **133 passed**;
+cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; the closing run of
+the identity-residency suite, the performance suite (with the new officer test), the M21 control
+suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**. The wave-1 portal guard
+suites (545) stay green and the two M21 wave-2 portal tests pass; the live sweep above is the check
+the suites cannot make (the served screens).
+
 ## 5. Open items and what happens next
 
-1. Finish the interrupted builder items (§3 last paragraph) — resuming the same streams.
-2. Green the remaining suites (module suites, then the workspace guard suites) and re-run them.
-3. Commit per module, land on the shared branch, back up both databases, rehearse the upgrade on a
-   copy of production, deploy, restart, and verify live in the browser twice.
-4. Your decisions: `audit_analysis/A09_ERP_AUDIT_DECISIONS_2026-11-23.md` (40 items, each with a
-   recommendation), of which the five that block go-live are D1 (contracts and master data),
-   D2 (identity rollout), D3 (role holders), D4 (authority tiers) and D5 (provident fund).
+Built and verified in wave 2 (§3/§4): M58-F4, F12, F13, F15, F17, F18, F20; M59-F10 and F11;
+M56-F19; M57-F2 and F14; M21 UI-F12; the isolation regeneration.
+
+**Open — code we owe:**
+
+| Finding | Pri | What is missing | Remedy |
+|---|---|---|---|
+| M56 / M57-F3 (arrears half) | P1 | A contract version activated *after* its month was paid creates no arrears. The in-period case is built and tested (`test_m57f3_a_raise_effective_mid_month_is_paid_for_the_days_it_ran`: 30,000×15/31 + 40,000×16/31 = 35,161.29). | On activation, if the covered month is already posted, carry the difference into the next run's slip as an arrears line. |
+| M58-F5 | P2 | No hire reversal: no `action_cancel` on the plan (draft / in progress), the candidate never returns to "offered". `_fix_take_back_identity` is written and has no caller. | Guarded plan cancel: unlink the draft contract and M22 baseline, archive the employee, clear `employee_id`, reset the candidate, recall the joiner event. |
+| M58-F6 | P2 | 9 of the 10 spec domain events are unpublished (`requisition.approved/blocked`, `candidate.applied`, `assessment.completed`, `offer.issued/accepted/declined`, `onboarding.started`, `readiness.incomplete`, `candidate.erased`, `probation.plan_created`); only `employee.joined` flows. | Publish through `libs/py/fix_events.publish` at the existing transitions; regenerate `contracts/events`. |
+| M59-F9 | P2 | Inspections have no schedule, no overdue and no link to a CAPA/incident ("Follow-up Required" is reachable, and the checks can be corrected and re-completed). | Add `scheduled_for` + an overdue cron, and a guarded "raise incident from inspection" that opens the incident whose CAPAs the findings need. |
+| M59-F7 / F8 | P2 | No drill schedule/overdue logic (s.62(8)); PPE is a counter, not M15 stock (no replenishment demand, no replacement interval). | Drill cadence by workforce size; PPE as a stock item with a reorder rule. |
+| M57-F15 | P2 | Payroll and HR generalists read every rating, review, PIP and 360 feedback (who said what). | Split the "reads all" rule: payroll groups see runs/lines/adjustments/clawbacks/disputes; reviews/PIPs/feedback stay HR + manager chain (+ calibrator/approver for what they decide). |
+| M57-F18 | P2 | No above-band exception for a raise or promotion (an out-of-band M58 offer can be approved, and its contract then fails at activation). | Owner decision D27, then a CFO-tier band exception that stamps the proposal/contract. |
+| M55-F10 | P2 | Overtime analysis reports hours only (no cost, no budget); leave balances have no projection; no leave-liability pack. | Price the overtime pack through the payroll engine's own `overtime_amount` (never a parallel formula) and add unused-days × daily-rate. |
+| M55-F19 | P3 | Form 10 (BLR r.102) is rows from a workspace action, not a formatted statutory document. | Render it through the report-export standard (PDF, letterhead). |
+| M55-F22 | P3 | A leave spanning out of a locked month is refused outright instead of being split; the maternity "six months' service" test awaits labour counsel. | Allow the future part of the span; align the maternity test once counsel rules. |
+| M58-F3 | — | Candidate retention period is 0 (no automatic erasure) and there is no separate talent-pool period. Recommendation: 180 days (365 with talent-pool consent). | **Owner decision**; the setting `cd_talent.candidate_retention_days` enforces it once set. |
+
+**Owner decisions:** `audit_analysis/A09_ERP_AUDIT_DECISIONS_2026-11-23.md` (40 items, each with a
+recommendation), of which the five that block go-live are D1 (contracts and master data), D2
+(identity rollout), D3 (role holders), D4 (authority tiers) and D5 (provident fund).

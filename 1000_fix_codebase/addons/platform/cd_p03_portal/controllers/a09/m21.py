@@ -636,22 +636,36 @@ def form6a_register(env, date_from=None, date_to=None, **params):
     )
 
 
+# A09 ERP audit UI-F12: one pack carries at most this many rows of the identity
+# read log. Past it the pack's title and notes SAY how many reads the period
+# holds; it used to stop at 2000 and title itself "2000 reads" as though that
+# were the whole log (production held 5321).
+IDENTITY_LOG_CAP = 2000
+
+
 def identity_access_log(env, date_from=None, date_to=None, **params):
     """Who read which employee's NID, birth registration or e-TIN (BRU-HCM-07),
-    read as the caller: the log is the HR Manager's, others are refused."""
+    read as the caller: the log is the HR Manager's, others are refused.
+
+    The newest IDENTITY_LOG_CAP reads of the period are served. When the period
+    holds more, the title reads "first N of TOTAL" and a note says how many are
+    left out, so the reader knows to narrow the period (the report standard's
+    "N of TOTAL" honesty rule)."""
     from odoo.addons.cd_p03_portal.controllers.p03_generic_api import (
         _datetime_to_local,
         _datetime_to_utc,
     )
 
+    Log = env["fix.hr.identity.access.log"]
     # the dates are the reader's calendar days (UTC+6), the column is UTC
     domain = []
     if date_from:
         domain.append(("read_at", ">=", _datetime_to_utc(env, "%s 00:00:00" % date_from)))
     if date_to:
         domain.append(("read_at", "<=", _datetime_to_utc(env, "%s 23:59:59" % date_to)))
-    logs = env["fix.hr.identity.access.log"].search(domain, limit=2000)
-    labels = dict(env["fix.hr.identity.access.log"]._fields["field_name"].selection)
+    total = Log.search_count(domain)
+    logs = Log.search(domain, limit=IDENTITY_LOG_CAP, order="read_at desc, id desc")
+    labels = dict(Log._fields["field_name"].selection)
     rows = [
         {
             "read_at": _datetime_to_local(env, log.read_at)[:16],
@@ -663,8 +677,21 @@ def identity_access_log(env, date_from=None, date_to=None, **params):
         }
         for log in logs
     ]
+    notes = [
+        "BRU-HCM-07: every read of an NID, birth registration or e-TIN value is logged; "
+        "the log is append-only and never shows the value."
+    ]
+    if total > len(rows):
+        title = "Identity Read Log — first %d of %d reads" % (len(rows), total)
+        notes.append(
+            "This pack carries the first %d (newest first) of the %d reads made in the "
+            "period; the other %d are not shown. Narrow the period to read them."
+            % (len(rows), total, total - len(rows))
+        )
+    else:
+        title = "Identity Read Log — %d read%s" % (total, "" if total == 1 else "s")
     return _pack(
-        "Identity Read Log — %d reads" % len(rows),
+        title,
         ["read_at", "user", "employee", "field", "purpose", "superuser"],
         {
             "read_at": "Read At",
@@ -675,10 +702,7 @@ def identity_access_log(env, date_from=None, date_to=None, **params):
             "superuser": "System Context",
         },
         rows,
-        [
-            "BRU-HCM-07: every read of an NID, birth registration or e-TIN value is logged; "
-            "the log is append-only and never shows the value."
-        ],
+        notes,
         empty="No identity value was read in the period.",
     )
 

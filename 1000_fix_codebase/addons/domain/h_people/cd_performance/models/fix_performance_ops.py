@@ -25,6 +25,18 @@ def _require_hr(env, what):
         raise AccessError("%s is an HR Manager decision." % what)
 
 
+HR_OFFICER = "cd_hr_core.group_hr_officer"
+
+
+def _require_hr_or_officer(env, what):
+    """M57-F14: the HR Officer (spec R31 - create, read, update, cycle
+    administration) runs the set-up: the cycle, its reviews, goals, PIPs and
+    feedback. The decisions (closing a cycle or a PIP, awarding, approving)
+    stay on the groups that decide."""
+    if not (_is_hr(env) or env.su or env.user.has_group(HR_OFFICER)):
+        raise AccessError("%s is an HR Manager's or an HR Officer's task." % what)
+
+
 def _user_of(employee):
     return employee.sudo().user_id
 
@@ -375,7 +387,7 @@ class FixPerfReview(models.Model):
     # ---- transitions ----------------------------------------------------------
     def action_start(self):
         """HR opens the self-assessment."""
-        _require_hr(self.env, "Starting a review cycle")
+        _require_hr_or_officer(self.env, "Starting a review cycle")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft review is started.")
@@ -605,7 +617,7 @@ class FixPerfPip(models.Model):
         return super().write(vals)
 
     def action_start(self):
-        _require_hr(self.env, "Starting a PIP")
+        _require_hr_or_officer(self.env, "Starting a PIP")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft PIP is started; a closed PIP is final.")

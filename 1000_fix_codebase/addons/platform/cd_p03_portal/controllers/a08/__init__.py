@@ -25,6 +25,10 @@ for _mod in MODULES.values():
 # A08 workflow audit (2026-11-04) D2: no A08 surface declared what
 # /p03/model/write may set, so an accountant wrote a bill's approval_state,
 # a payment's state or a statement line's match_state from the workspace.
-# Generated from the workspace forms (form_fields.py --a08).
+# Generated from the workspace forms (form_fields.py --a08). A surface with NO
+# form (an evidence/register grid such as the dunning deliveries or the
+# retention register) accepts no write through the endpoint at all — the empty
+# set is the strict answer, and `get` keeps that contract while the generated
+# file (which lists forms, not surfaces) need not name it.
 for _model, _conf in SURFACES.items():
-    _conf["writable"] = WRITABLE[_model]
+    _conf["writable"] = WRITABLE.get(_model, frozenset())
