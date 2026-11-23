@@ -108,6 +108,16 @@
         <field name="user_id" ref="base.user_root"/>
         <field name="active" eval="True"/>
     </record>
+    <record id="cron_hse_capa_overdue" model="ir.cron">
+        <field name="name">M59: Remind owners of overdue CAPA actions</field>
+        <field name="model_id" ref="model_fix_hse_capa"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_overdue_capas()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
     <record id="cron_hse_hazard_reviews" model="ir.cron">
         <field name="name">M59: Flag hazards due for review</field>
         <field name="model_id" ref="model_fix_hse_hazard"/>

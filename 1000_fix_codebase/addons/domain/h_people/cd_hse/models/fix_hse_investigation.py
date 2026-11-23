@@ -140,6 +140,10 @@ class FixHseCapa(models.Model):
     verified_by_id = fields.Many2one("res.users", string="Verified By", readonly=True, copy=False)
     verified_on = fields.Datetime(readonly=True, copy=False)
     cancel_reason = fields.Char(readonly=True, copy=False)
+    # M59-F10 (A09 ERP audit): a verification can find the action ineffective
+    # and send it back to open; how often it was reopened is the audit trail.
+    reopen_count = fields.Integer(string="Times Reopened", readonly=True, copy=False, default=0)
+    overdue_alerted_on = fields.Date(string="Overdue Reminder Sent On", readonly=True, copy=False)
     migrated = fields.Boolean(
         readonly=True, copy=False, help="Moved from the incident's former single CAPA fields."
     )
@@ -165,6 +169,8 @@ class FixHseCapa(models.Model):
             "verified_by_id",
             "verified_on",
             "cancel_reason",
+            "reopen_count",
+            "overdue_alerted_on",
             "migrated",
         }
 
@@ -275,3 +281,70 @@ class FixHseCapa(models.Model):
             rec._fix_check_open(rec.incident_id.ids)
             rec._guarded().write({"state": "cancelled", "cancel_reason": reason.strip()})
         return True
+
+    def action_reopen(self, reason=None):
+        """M59-F10 (A09 ERP audit; FR-HSE-015, lifecycle 8.1): a verification
+        can find the action ineffective. The action returns to open with the
+        finding on its history, so the owner acts again - it was a dead end
+        before (a verified action could only be cancelled)."""
+        _require_hse(self.env, "reopen a CAPA action")
+        if not (reason or "").strip():
+            raise UserError("Say why the action did not hold.")
+        for rec in self:
+            if rec.state != "verified":
+                raise UserError(
+                    "Reopen a CAPA action that was verified effective (%s is %s)."
+                    % (rec.name, rec.state)
+                )
+            rec._fix_check_open(rec.incident_id.ids)
+            rec._guarded().write(
+                {
+                    "state": "open",
+                    "reopen_count": (rec.reopen_count or 0) + 1,
+                    "overdue_alerted_on": False,
+                }
+            )
+            rec.message_post(
+                body="Verification found the action ineffective; reopened. %s" % reason.strip()
+            )
+        return True
+
+    @api.model
+    def cron_overdue_capas(self):
+        """M59-F10 / AUT-HSE-10: an open action past its due date reminds its
+        owner (one to-do per action per day); an action still open seven days
+        past its due date also tells the HSE officers. Idempotent: the day the
+        reminder went out is on the row."""
+        today = fields.Date.context_today(self)
+        due = self.sudo().search(
+            [
+                ("state", "=", "open"),
+                ("due_date", "!=", False),
+                ("due_date", "<", today),
+                ("overdue_alerted_on", "!=", today),
+            ]
+        )
+        if not due:
+            return 0
+        officers = (
+            self.env.ref("cd_hse.group_hse_officer", raise_if_not_found=False)
+            .sudo()
+            .all_user_ids.filtered(lambda u: u.active and not u.share)
+        )
+        sent = 0
+        for rec in due:
+            recipients = rec.owner_user_id
+            if not recipients or (today - rec.due_date).days >= 7:
+                recipients |= officers
+            for user in recipients:
+                rec.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=today,
+                    summary="CAPA overdue: %s" % rec.name,
+                    note="Due %s (open %d days). Record what was done, or replan the action."
+                    % (rec.due_date, (today - rec.due_date).days),
+                    user_id=user.id,
+                )
+                sent += 1
+            rec._guarded().write({"overdue_alerted_on": today})
+        return sent
