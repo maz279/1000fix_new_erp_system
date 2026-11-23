@@ -8,6 +8,16 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_escalation_event_company" model="ir.rule">
+        <field name="name">fix.escalation.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_escalation_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_escalation_rule_company" model="ir.rule">
+        <field name="name">fix.escalation.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_escalation_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_estimate_company" model="ir.rule">
         <field name="name">fix.estimate: allowed companies</field>
         <field name="model_id" ref="model_fix_estimate"/>

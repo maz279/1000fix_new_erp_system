@@ -127,12 +127,6 @@
         <field name="model_id" ref="model_fix_stock_transfer"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
-    <record id="rule_fix_stock_transfer_operating_unit" model="ir.rule">
-        <field name="name">fix.stock.transfer: allowed operating units (internal users)</field>
-        <field name="model_id" ref="model_fix_stock_transfer"/>
-        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
-    </record>
     <record id="rule_fix_stock_van_recon_company" model="ir.rule">
         <field name="name">fix.stock.van.recon: allowed companies</field>
         <field name="model_id" ref="model_fix_stock_van_recon"/>
@@ -143,14 +137,34 @@
         <field name="model_id" ref="model_fix_wms_carton"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_wms_device_company" model="ir.rule">
+        <field name="name">fix.wms.device: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_device"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_wms_dock_company" model="ir.rule">
         <field name="name">fix.wms.dock: allowed companies</field>
         <field name="model_id" ref="model_fix_wms_dock"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_wms_equipment_company" model="ir.rule">
+        <field name="name">fix.wms.equipment: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_equipment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_wms_floor_count_company" model="ir.rule">
         <field name="name">fix.wms.floor.count: allowed companies</field>
         <field name="model_id" ref="model_fix_wms_floor_count"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_move_company" model="ir.rule">
+        <field name="name">fix.wms.move: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_move"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_operative_company" model="ir.rule">
+        <field name="name">fix.wms.operative: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_operative"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_wms_putaway_company" model="ir.rule">
@@ -171,26 +185,6 @@
     <record id="rule_fix_wms_wave_company" model="ir.rule">
         <field name="name">fix.wms.wave: allowed companies</field>
         <field name="model_id" ref="model_fix_wms_wave"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_wms_move_company" model="ir.rule">
-        <field name="name">fix.wms.move: allowed companies</field>
-        <field name="model_id" ref="model_fix_wms_move"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_wms_operative_company" model="ir.rule">
-        <field name="name">fix.wms.operative: allowed companies</field>
-        <field name="model_id" ref="model_fix_wms_operative"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_wms_equipment_company" model="ir.rule">
-        <field name="name">fix.wms.equipment: allowed companies</field>
-        <field name="model_id" ref="model_fix_wms_equipment"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_wms_device_company" model="ir.rule">
-        <field name="name">fix.wms.device: allowed companies</field>
-        <field name="model_id" ref="model_fix_wms_device"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
