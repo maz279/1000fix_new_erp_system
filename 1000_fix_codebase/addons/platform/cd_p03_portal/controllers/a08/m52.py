@@ -121,6 +121,31 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_compute", "action_confirm"},
     },
+    # A08 wave 5 (M52-F4): retention money withheld from bills — released only
+    # by a different manager once the condition is met (BRU-APE-20).
+    "fix.ap.retention": {
+        "order": "release_due_date, id",
+        "limit": 400,
+        "actions": {"action_request_release", "action_release", "action_reject_release"},
+    },
+    # A08 wave 5 (M52-F3, spec P0): consignment settlements gathered from M15.
+    "fix.ap.consignment.settlement": {
+        "order": "settlement_date desc, id desc",
+        "limit": 200,
+        "actions": {
+            "action_gather",
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_reset_draft",
+            "action_cancel",
+        },
+    },
+    "fix.ap.consignment.settlement.line": {
+        "order": "id desc",
+        "limit": 1000,
+        "actions": set(),
+    },
     "fix.expense.card": {"order": "id desc", "limit": 300, "actions": set()},
     "fix.expense.card.transaction": {
         "order": "txn_date desc, id desc",
