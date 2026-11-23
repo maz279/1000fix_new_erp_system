@@ -7,8 +7,8 @@
 #
 # This moves the values of rows written before the change. Idempotent, and it
 # never fails the upgrade because the store is down: such a row keeps its
-# value (its hash is set already, so duplicates are caught) and the daily
-# erasure cron retries the move.
+# value (its hash is set already, so duplicates are caught) and the daily cron
+# "M58: Move clear candidate identifiers into the residency store" retries it.
 import logging
 
 from odoo import SUPERUSER_ID, api

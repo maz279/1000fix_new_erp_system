@@ -47,6 +47,17 @@
     <!-- the identity hash key shared with M21 (created once, never replaced) -->
     <function model="fix.candidate" name="_fix_ensure_identity_hash_key"/>
 
+    <record id="cron_talent_identity_move" model="ir.cron">
+        <field name="name">M58: Move clear candidate identifiers into the residency store</field>
+        <field name="model_id" ref="model_fix_candidate"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_identity_move_clear_values()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
     <record id="cron_talent_day_one_readiness" model="ir.cron">
         <field name="name">M58: Escalate day-one readiness before the start date</field>
         <field name="model_id" ref="model_fix_onboarding_plan"/>

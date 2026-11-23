@@ -154,3 +154,29 @@ def test_the_upgrade_moves_a_value_left_in_the_clear_column(x, monkeypatch):
     # running it again changes nothing
     again = x.env["fix.candidate"].sudo()._fix_identity_move_clear_values()
     assert again == {"moved": 0, "dropped_on_hired": 0, "left": 0}
+
+
+def test_the_daily_cron_moves_a_row_the_upgrade_could_not(x, monkeypatch):
+    """A store that is down during the upgrade leaves the value in the clear
+    column - never lost, and the daily cron moves it when the store is back."""
+    store = install(monkeypatch)
+    cron = x.env.ref("cd_talent.cron_talent_identity_move")
+    assert cron.active and cron.model_id.model == "fix.candidate"
+    assert cron.code.strip() == "model.cron_identity_move_clear_values()"
+    cand = _candidate(x, _requisition(x))
+    x.env.cr.execute(
+        "UPDATE fix_candidate SET nid_number = %s, nid_ref = NULL, nid_hash = NULL, "
+        "identity_last4 = NULL WHERE id = %s",
+        (NID, cand.id),
+    )
+    cand.invalidate_recordset()
+    store.down = True
+    assert x.env["fix.candidate"].sudo()._fix_identity_move_clear_values()["left"] == 1
+    cand.invalidate_recordset()
+    assert _column(x.env, cand, "nid_number") == NID  # the value is still there
+    store.down = False
+    moved = x.env["fix.candidate"].sudo().cron_identity_move_clear_values()
+    assert moved["moved"] == 1, moved
+    cand.invalidate_recordset()
+    assert not _column(x.env, cand, "nid_number")
+    assert cand.sudo().nid_ref and store.data == {"candidate nid:%s" % cand.sudo().nid_ref: NID}

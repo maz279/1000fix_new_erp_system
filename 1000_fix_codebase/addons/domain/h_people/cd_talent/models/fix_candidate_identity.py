@@ -26,7 +26,8 @@
 #   * the format is checked before anything leaves the ERP; a store that
 #     cannot be reached refuses the write (the value is never kept here);
 #   * the clear columns left from before are moved out by the post-migrate
-#     and, for rows the store could not take then, by the erasure cron.
+#     and, for a row the store could not take then, by the daily
+#     cron_identity_move_clear_values (the row keeps its value until then).
 # The retention period itself (M58-F3: how long an unsuccessful applicant's
 # data is kept) is a business figure and stays an owner decision; the erasure
 # cron enforces it once set.
@@ -582,7 +583,18 @@ class FixCandidateIdentity(models.Model):
             srec._fix_identity_log(name, "hire reversed: returned to the candidate")
             emp.write({name: False})  # M21's inverse erases the employee's copy
 
-    # ---- the move out of the clear columns (post-migrate and erasure cron) --------
+    # ---- the move out of the clear columns (post-migrate and the daily cron) ------
+    @api.model
+    def cron_identity_move_clear_values(self):
+        """M58-F4: the daily retry of the move out of the clear columns. The
+        upgrade leaves a row the store could not take; this moves it when the
+        store is back, so no value stays clear and no value is stranded.
+        Idempotent, superuser (the cron)."""
+        result = self._fix_identity_move_clear_values()
+        if any(result.values()):
+            _logger.info("candidate identity residency move: %s", result)
+        return result
+
     @api.model
     def _fix_identity_move_clear_values(self):
         """Move every identifier still in a clear column of fix_candidate to the
