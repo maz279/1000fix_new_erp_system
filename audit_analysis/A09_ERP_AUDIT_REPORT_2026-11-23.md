@@ -335,9 +335,14 @@ only when you approve (one switch), and the enacted tax tables are proposed pack
 **Test evidence for wave 2** (`fix_test_a09_int`, the integrated database): cd_talent **133 passed**;
 cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; cd_hr_core **327
 passed, 1 skipped**; the closing run of the identity-residency suite, the performance suite (with the new officer test), the M21 control
-suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**. The wave-1 portal guard
-suites (545) stay green and the two M21 wave-2 portal tests pass; the live sweep above is the check
-the suites cannot make (the served screens).
+suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**; the A09 portal guard
+files **509 passed** (including the two M21 wave-2 portal tests and the estate KPI-tile contract,
+which requires a ratio to be None — not 0 — while its denominator is empty, as the Talent tiles now
+are); the live sweep above is the check
+the suites cannot make (the served screens). The whole-estate portal suite (6,713 tests over every
+area) was attempted but its process was killed mid-run twice in this shared environment (at 57 % and
+26 %); the failures it had shown fell in A10/A11/A12 files another session was editing at the time,
+none in an A09 file.
 
 ## 5. Open items and what happens next
 
