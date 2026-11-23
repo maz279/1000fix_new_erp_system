@@ -21,16 +21,22 @@ class Ctx:
 def _user(env, login, groups=(), companies=None):
     companies = companies or env.company
     ou = env["operating.unit"].search([], limit=1)
-    return env["res.users"].with_context(no_reset_password=True).create(
-        {
-            "name": login,
-            "login": login,
-            "group_ids": [(6, 0, [env.ref("base.group_user").id] + [env.ref(g).id for g in groups])],
-            "company_ids": [(6, 0, companies.ids)],
-            "company_id": companies[0].id,
-            "assigned_operating_unit_ids": [(6, 0, ou.ids)],
-            "default_operating_unit_id": ou.id,
-        }
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": login,
+                "login": login,
+                "group_ids": [
+                    (6, 0, [env.ref("base.group_user").id] + [env.ref(g).id for g in groups])
+                ],
+                "company_ids": [(6, 0, companies.ids)],
+                "company_id": companies[0].id,
+                "assigned_operating_unit_ids": [(6, 0, ou.ids)],
+                "default_operating_unit_id": ou.id,
+            }
+        )
     )
 
 
@@ -41,19 +47,30 @@ def ic(odoo_env):
     n = next(_SEQ)
     co1 = env["res.company"].create({"name": "B3 IC Parent %d" % n, "currency_id": bdt.id})
     co2 = env["res.company"].create({"name": "B3 IC Sub %d" % n, "currency_id": bdt.id})
-    e1 = env["fix.entity"].create({"code": "B3P%d" % n, "legal_name": "B3 Parent", "company_id": co1.id})
-    e2 = env["fix.entity"].create({"code": "B3S%d" % n, "legal_name": "B3 Sub", "company_id": co2.id})
+    e1 = env["fix.entity"].create(
+        {"code": "B3P%d" % n, "legal_name": "B3 Parent", "company_id": co1.id}
+    )
+    e2 = env["fix.entity"].create(
+        {"code": "B3S%d" % n, "legal_name": "B3 Sub", "company_id": co2.id}
+    )
 
     def acc(co, t, rec=False):
         k = next(_SEQ)
         return env["account.account"].create(
-            {"code": "8%05d" % k, "name": "B3 %s %d" % (t, k), "account_type": t, "reconcile": rec,
-             "company_ids": [(6, 0, co.ids)]}
+            {
+                "code": "8%05d" % k,
+                "name": "B3 %s %d" % (t, k),
+                "account_type": t,
+                "reconcile": rec,
+                "company_ids": [(6, 0, co.ids)],
+            }
         )
 
     def jr(co):
         k = next(_SEQ)
-        return env["account.journal"].create({"name": "B3 J%d" % k, "code": "B%04d" % k, "type": "general", "company_id": co.id})
+        return env["account.journal"].create(
+            {"name": "B3 J%d" % k, "code": "B%04d" % k, "type": "general", "company_id": co.id}
+        )
 
     y = Ctx()
     y.env, y.bdt = env, bdt
@@ -85,17 +102,23 @@ def ic(odoo_env):
 
 
 def _txn(y, user, amount=100000.0):
-    return y.env["fix.intercompany.transaction"].with_user(user).with_context(**y.ctx).with_company(y.co1).create(
-        {
-            "name": "IT recharge",
-            "company_id": y.co1.id,
-            "source_entity_id": y.e1.id,
-            "target_entity_id": y.e2.id,
-            "rule_id": y.rule.id,
-            "amount": amount,
-            "currency_id": y.bdt.id,
-            "transaction_date": date(2026, 9, 20),
-        }
+    return (
+        y.env["fix.intercompany.transaction"]
+        .with_user(user)
+        .with_context(**y.ctx)
+        .with_company(y.co1)
+        .create(
+            {
+                "name": "IT recharge",
+                "company_id": y.co1.id,
+                "source_entity_id": y.e1.id,
+                "target_entity_id": y.e2.id,
+                "rule_id": y.rule.id,
+                "amount": amount,
+                "currency_id": y.bdt.id,
+                "transaction_date": date(2026, 9, 20),
+            }
+        )
     )
 
 
@@ -111,16 +134,22 @@ def _matched(y):
 
 
 def _book(y, user):
-    return y.env["fix.consolidation.book"].with_user(user).with_context(**y.ctx).with_company(y.co1).create(
-        {
-            "name": "B3 Group",
-            "code": "B3CONS%d" % next(_SEQ),
-            "company_id": y.co1.id,
-            "currency_id": y.bdt.id,
-            "parent_entity_id": y.e1.id,
-            "entity_ids": [(6, 0, (y.e1 | y.e2).ids)],
-            "consolidation_date": PE,
-        }
+    return (
+        y.env["fix.consolidation.book"]
+        .with_user(user)
+        .with_context(**y.ctx)
+        .with_company(y.co1)
+        .create(
+            {
+                "name": "B3 Group",
+                "code": "B3CONS%d" % next(_SEQ),
+                "company_id": y.co1.id,
+                "currency_id": y.bdt.id,
+                "parent_entity_id": y.e1.id,
+                "entity_ids": [(6, 0, (y.e1 | y.e2).ids)],
+                "consolidation_date": PE,
+            }
+        )
     )
 
 
@@ -160,8 +189,14 @@ def test_m19_C04_typed_elimination_refused(ic):
     assert b.elimination_ids and all(b.elimination_ids.mapped("transaction_id"))
     with pytest.raises(UserError, match="typed elimination is refused"):
         ic.env["fix.elimination.entry"].with_user(ic.acct).with_context(**ic.ctx).create(
-            {"book_id": b.id, "name": "typed", "elimination_type": "receivable_payable",
-             "from_entity_id": ic.e1.id, "to_entity_id": ic.e2.id, "amount": 480000.0}
+            {
+                "book_id": b.id,
+                "name": "typed",
+                "elimination_type": "receivable_payable",
+                "from_entity_id": ic.e1.id,
+                "to_entity_id": ic.e2.id,
+                "amount": 480000.0,
+            }
         )
 
 
@@ -178,7 +213,7 @@ def test_m19_C06_closed_book_frozen(ic):
     _as(b, ic.acct, ic).action_run_consolidation()
     _as(b, ic.acct, ic).action_generate_eliminations()
     _as(b, ic.mgr, ic).action_close()
-    line = b.line_ids.filtered(lambda l: l.account_type == "revenue")[:1]
+    line = b.line_ids.filtered(lambda ln: ln.account_type == "revenue")[:1]
     with pytest.raises(UserError, match="frozen"):
         _as(line, ic.acct, ic).write({"original_amount": line.original_amount + 5000000.0})
     with pytest.raises(UserError, match="frozen"):
@@ -186,29 +221,55 @@ def test_m19_C06_closed_book_frozen(ic):
 
 
 def _entity(env):
+    # One entity per company (UNIQUE): a real register already holds one.
+    # The nil-return pack guard needs NBR registration numbers on it.
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1)
+    if entity:
+        if not (entity.bin_number and entity.tin_number):
+            entity.sudo().write({"bin_number": "1882991029102", "tin_number": "881920391029"})
+        return entity
     return env["fix.entity"].create(
-        {"code": "B3NIL%d" % next(_SEQ), "legal_name": "B3 Nil", "company_id": env.company.id,
-         "bin_number": "1882991029102", "tin_number": "881920391029"}
+        {
+            "code": "B3NIL%d" % next(_SEQ),
+            "legal_name": "B3 Nil",
+            "company_id": env.company.id,
+            "bin_number": "1882991029102",
+            "tin_number": "881920391029",
+        }
     )
 
 
 def test_m19_N02_sales_after_verify_block_the_filing(odoo_env):
     env = odoo_env
     acct = _user(env, "b3nil_acct", [ACC_USER])
-    nr = env["fix.nil.return.generator"].with_user(acct).create(
-        {"entity_id": _entity(env).id, "period_year": 2026, "period_month": 8}
+    nr = (
+        env["fix.nil.return.generator"]
+        .with_user(acct)
+        .create({"entity_id": _entity(env).id, "period_year": 2026, "period_month": 8})
     )
     nr.with_user(acct).action_verify_eligibility()
     A = env["account.account"]
-    misc = env["account.journal"].search([("code", "=", "MISC"), ("company_id", "=", env.company.id)], limit=1)
+    misc = env["account.journal"].search(
+        [("code", "=", "MISC"), ("company_id", "=", env.company.id)], limit=1
+    )
     move = env["account.move"].create(
         {
             "move_type": "entry",
             "journal_id": misc.id,
             "date": date(2026, 8, 15),
             "line_ids": [
-                Command.create({"account_id": A.search([("code", "=", "101401")], limit=1).id, "debit": 2000000.0}),
-                Command.create({"account_id": A.search([("code", "=", "400000")], limit=1).id, "credit": 2000000.0}),
+                Command.create(
+                    {
+                        "account_id": A.search([("code", "=", "101401")], limit=1).id,
+                        "debit": 2000000.0,
+                    }
+                ),
+                Command.create(
+                    {
+                        "account_id": A.search([("code", "=", "400000")], limit=1).id,
+                        "credit": 2000000.0,
+                    }
+                ),
             ],
         }
     )
@@ -221,8 +282,10 @@ def test_m19_N02_sales_after_verify_block_the_filing(odoo_env):
 def test_m19_N03_state_cannot_be_typed(odoo_env):
     env = odoo_env
     acct = _user(env, "b3nil_acct2", [ACC_USER])
-    nr = env["fix.nil.return.generator"].with_user(acct).create(
-        {"entity_id": _entity(env).id, "period_year": 2026, "period_month": 8}
+    nr = (
+        env["fix.nil.return.generator"]
+        .with_user(acct)
+        .create({"entity_id": _entity(env).id, "period_year": 2026, "period_month": 8})
     )
     with pytest.raises(UserError, match="changes only through its workflow"):
         nr.with_user(acct).write({"state": "acknowledged"})
@@ -240,17 +303,33 @@ def test_m19_I05_priced_charge_uses_only_an_approved_rate(ic):
     with pytest.raises(UserError, match="no transfer-pricing rate is"):
         _as(t, ic.acct, ic).action_generate_mirror()
     Rate = env["fix.transfer.price.rate"]
-    rate = Rate.with_user(ic.acct).with_context(**ic.ctx).create(
-        {"rule_id": ic.rule.id, "markup_percent": 10.0, "date_from": date(2026, 7, 1),
-         "study_ref": "TP study FY27 (cost plus)"}
+    rate = (
+        Rate.with_user(ic.acct)
+        .with_context(**ic.ctx)
+        .create(
+            {
+                "rule_id": ic.rule.id,
+                "markup_percent": 10.0,
+                "date_from": date(2026, 7, 1),
+                "study_ref": "TP study FY27 (cost plus)",
+            }
+        )
     )
     with pytest.raises(UserError, match="changes only through its workflow"):
         _as(rate, ic.acct, ic).write({"state": "active"})
     with pytest.raises(UserError, match="Accounting Administrator"):
         _as(rate, ic.acct, ic).action_activate()
-    own = Rate.with_user(ic.mgr).with_context(**ic.ctx).create(
-        {"rule_id": ic.rule.id, "markup_percent": 10.0, "date_from": date(2027, 7, 1),
-         "study_ref": "own"}
+    own = (
+        Rate.with_user(ic.mgr)
+        .with_context(**ic.ctx)
+        .create(
+            {
+                "rule_id": ic.rule.id,
+                "markup_percent": 10.0,
+                "date_from": date(2027, 7, 1),
+                "study_ref": "own",
+            }
+        )
     )
     with pytest.raises(UserError, match="Segregation of duties"):
         _as(own, ic.mgr, ic).action_activate()
@@ -261,12 +340,14 @@ def test_m19_I05_priced_charge_uses_only_an_approved_rate(ic):
         _as(rate, ic.mgr, ic).write({"markup_percent": 25.0})
     # a rule markup that differs from the approved rate is refused
     ic.rule.sudo().write({"markup_percent": 12.0})
-    with pytest.raises(UserError, match="approved rate is 10.00"):
+    with pytest.raises(UserError, match=r"approved rate is 10\.00"):
         _as(t, ic.acct, ic).action_generate_mirror()
     ic.rule.sudo().write({"markup_percent": 10.0})
     _as(t, ic.acct, ic).action_generate_mirror()
     income = -sum(
-        t.source_move_id.sudo().line_ids.filtered(lambda line: line.account_id == ic.income).mapped("balance")
+        t.source_move_id.sudo()
+        .line_ids.filtered(lambda line: line.account_id == ic.income)
+        .mapped("balance")
     )
     assert (income, t.cost_amount, t.amount, t.tp_rate_id) == (110000.0, 100000.0, 110000.0, rate)
     _as(t, ic.acct2, ic).action_match()
@@ -282,8 +363,10 @@ def test_m19_I01_cost_recharge_proper_path(ic):
 def test_m19_N02b_filing_needs_a_locked_period(odoo_env):
     env = odoo_env
     acct = _user(env, "b3nil_acct3", [ACC_USER])
-    nr = env["fix.nil.return.generator"].with_user(acct).create(
-        {"entity_id": _entity(env).id, "period_year": 2026, "period_month": 7}
+    nr = (
+        env["fix.nil.return.generator"]
+        .with_user(acct)
+        .create({"entity_id": _entity(env).id, "period_year": 2026, "period_month": 7})
     )
     nr.with_user(acct).action_verify_eligibility()
     nr.with_user(acct).action_generate_nil_packs()

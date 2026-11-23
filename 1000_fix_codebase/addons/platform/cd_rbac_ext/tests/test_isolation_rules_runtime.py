@@ -76,13 +76,18 @@ class TestCompanyIsolationLive:
     def test_same_company_record_visible_to_user(self, odoo_env):
         env = odoo_env
         company_a = env.ref("base.main_company")
-        entity_a = env["fix.entity"].create(
-            {
-                "code": "ISO-A",
-                "legal_name": "Isolation Probe Entity A",
-                "company_id": company_a.id,
-            }
-        )
+        # fix.entity is UNIQUE per company and a real register is never empty
+        # (a fixture branch exists): reuse the company's entity, create only
+        # when the register is empty.
+        entity_a = env["fix.entity"].search([("company_id", "=", company_a.id)], limit=1)
+        if not entity_a:
+            entity_a = env["fix.entity"].create(
+                {
+                    "code": "ISO-A",
+                    "legal_name": "Isolation Probe Entity A",
+                    "company_id": company_a.id,
+                }
+            )
         env.flush_all()
         user = _internal_user(env, company_a)
         visible = env["fix.entity"].with_user(user).search_count([("id", "=", entity_a.id)])
@@ -118,14 +123,20 @@ class TestOperatingUnitIsolationLive:
                 .id,
             }
         )
-        entity_ou = env["fix.entity"].create(
-            {
-                "code": "ISO-OU",
-                "legal_name": "Isolation Probe Entity OU",
-                "company_id": company.id,
-                "operating_unit_id": ou_b.id,
-            }
-        )
+        # One entity per company (UNIQUE): park the company's existing entity
+        # in this probe OU rather than creating a second one.
+        entity_ou = env["fix.entity"].search([("company_id", "=", company.id)], limit=1)
+        if entity_ou:
+            entity_ou.sudo().write({"operating_unit_id": ou_b.id})
+        else:
+            entity_ou = env["fix.entity"].create(
+                {
+                    "code": "ISO-OU",
+                    "legal_name": "Isolation Probe Entity OU",
+                    "company_id": company.id,
+                    "operating_unit_id": ou_b.id,
+                }
+            )
         env.flush_all()
         user = _internal_user(env, company)  # belongs to no operating unit
         visible = env["fix.entity"].with_user(user).search_count([("id", "=", entity_ou.id)])
@@ -136,14 +147,18 @@ class TestOperatingUnitIsolationLive:
     def test_no_ou_record_visible_to_internal_user(self, odoo_env):
         env = odoo_env
         company = env.ref("base.main_company")
-        entity = env["fix.entity"].create(
-            {
-                "code": "ISO-NOOU",
-                "legal_name": "Isolation Probe Entity No OU",
-                "company_id": company.id,
-                "operating_unit_id": False,
-            }
-        )
+        entity = env["fix.entity"].search([("company_id", "=", company.id)], limit=1)
+        if entity:
+            entity.sudo().write({"operating_unit_id": False})
+        else:
+            entity = env["fix.entity"].create(
+                {
+                    "code": "ISO-NOOU",
+                    "legal_name": "Isolation Probe Entity No OU",
+                    "company_id": company.id,
+                    "operating_unit_id": False,
+                }
+            )
         env.flush_all()
         user = _internal_user(env, company)
         visible = env["fix.entity"].with_user(user).search_count([("id", "=", entity.id)])
