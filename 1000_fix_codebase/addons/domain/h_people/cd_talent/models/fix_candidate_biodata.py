@@ -283,13 +283,8 @@ class FixCandidateBiodata(models.Model):
         string="Nationality",
         default=lambda self: self.env.ref("base.bd", raise_if_not_found=False),
     )
-    birth_reg_number = fields.Char(
-        string="Birth Registration No. (17 digits)",
-        help="When the candidate has no NID. Held in clear only until the hire.",
-    )
-    passport_number = fields.Char(
-        string="Passport No.", help="Held in clear only until the hire copies it."
-    )
+    # M58-F4: birth_reg_number / passport_number are declared in
+    # fix_candidate_identity.py - the Bangladesh-resident store holds them.
     permanent_same_as_present = fields.Boolean(string="Permanent Address Same as Present")
     permanent_address = fields.Char(string="Permanent Address (village / road / post office)")
     permanent_upazila = fields.Char(string="Permanent Upazila / Thana")
@@ -564,10 +559,11 @@ class FixCandidateBiodata(models.Model):
             "permanent_division": cand.permanent_division,
             "driving_license_no": cand.driving_licence_no,
             "driving_license_exp": cand.driving_licence_expiry,
-            "birth_reg_number": cand.birth_reg_number,
-            "passport_number": cand.passport_number,
             "image_1920": cand.photo,
         }
+        # The identifiers (NID, birth registration, passport) are copied to the
+        # employee by _fix_release_identity, from the resident store, when the
+        # hire completes (M58-F4): they are not part of this clear write.
         if cand.permanent_address or cand.permanent_upazila or cand.permanent_post_code:
             simple["permanent_address"] = ", ".join(
                 p
@@ -575,9 +571,8 @@ class FixCandidateBiodata(models.Model):
                 if p
             )
         if cand.marital_status:
-            simple["marital"] = (
-                "single" if cand.marital_status == "separated" else cand.marital_status
-            )
+            # M58-F18: carried as recorded; hr.version holds "Separated" too
+            simple["marital"] = cand.marital_status
         if cand.nationality_id:
             simple["country_id"] = cand.nationality_id.id
         emergency = cand.family_ids.filtered("is_emergency_contact")[:2]
@@ -619,9 +614,9 @@ class FixCandidateBiodata(models.Model):
     def action_hire(self, offer=None):
         result = super().action_hire(offer=offer)
         for rec in self.filtered(lambda r: r.state == "hired"):
-            clear = {k: False for k in ("birth_reg_number", "passport_number") if rec.sudo()[k]}
-            if clear:
-                rec.sudo()._guarded().write(clear)
+            # M58-F4: the identifiers are copied to the employee and released by
+            # _fix_release_identity (called by action_hire); clearing them here
+            # would erase a value the store could not serve back that moment.
             rec._fix_prefill_preboarding()
         return result
 

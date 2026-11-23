@@ -208,15 +208,21 @@ def _cleared_check(x, cand, kind):
     return chk
 
 
-def _offer(x, cand, gross=30000.0, basic=18000.0, joining=None):
-    return x.env(user=x.hrmgr.id)["fix.talent.offer"].create(
-        {
-            "candidate_id": cand.id,
-            "gross_salary": gross,
-            "basic_salary": basic,
-            "joining_date": joining or (x.today + timedelta(days=30)),
-        }
-    )
+_UNDATED = object()
+
+
+def _offer(x, cand, gross=30000.0, basic=18000.0, joining=None, valid_until=_UNDATED):
+    """An offer with its acceptance deadline (M58-F15 makes the deadline a
+    term of the offer). `valid_until=None` asks for a deliberately undated
+    offer, which cannot be issued."""
+    vals = {
+        "candidate_id": cand.id,
+        "gross_salary": gross,
+        "basic_salary": basic,
+        "joining_date": joining or (x.today + timedelta(days=30)),
+        "valid_until": x.today + timedelta(days=21) if valid_until is _UNDATED else valid_until,
+    }
+    return x.env(user=x.hrmgr.id)["fix.talent.offer"].create(vals)
 
 
 def _ready_to_hire(x, req=None, **cand_vals):
@@ -400,9 +406,25 @@ def test_the_same_person_is_not_hired_twice(x):
 
 def test_minimum_age_is_checked_before_the_offer(x):
     req = _requisition(x)
+    # a 12-year-old who aced the interview: the OFFER STAGE itself refuses
+    # (M58-F20: the gate ran only at issue and hire, so a minor reached
+    # "offered")
     cand = _candidate(x, req, date_of_birth=str(x.today - timedelta(days=365 * 12)))
     _interviewed(x, cand)
+    with pytest.raises(UserError, match="minimum hiring age"):
+        cand.with_user(x.recruiter).action_offer()
+    cand.invalidate_recordset()
+    assert cand.state == "interview"
+    # a verified date of birth is required at the same gate (BRU-TAO-17)
+    cand.sudo().write({"date_of_birth": False})
+    with pytest.raises(UserError, match="no verified date of birth"):
+        cand.with_user(x.recruiter).action_offer()
+    # of age: the stage opens, and the same candidate could not be issued an
+    # offer while under age
+    cand.sudo().write({"date_of_birth": "1998-03-01"})
     cand.with_user(x.recruiter).action_offer()
+    assert cand.state == "offered"
+    cand.sudo().write({"date_of_birth": str(x.today - timedelta(days=365 * 12))})
     offer = _offer(x, cand)
     with pytest.raises(UserError, match="minimum hiring age"):
         offer.with_user(x.hrmgr).action_request_approval()
@@ -749,3 +771,204 @@ def test_workspace_offers_requests_never_the_apply_methods(odoo_env):
     assert "action_clear" not in a09.SURFACES["fix.talent.check"]["actions"]
     assert "action_issue" not in a09.SURFACES["fix.talent.offer"]["actions"]
     assert "action_request_approval" in a09.SURFACES["fix.talent.offer"]["actions"]
+
+
+# ============================================================ wave 2 (A09 ERP audit)
+def _requisition_for(x, hiring_manager):
+    """A requisition the recruiter raises for `hiring_manager`'s team and a
+    different approver opens."""
+    req = x.env(user=x.recruiter.id)["fix.job.requisition"].create(
+        {
+            "name": "A09 REQ %d" % next(_SEQ),
+            "position_id": x.position.id,
+            "department_id": x.dept.id,
+            "openings": 1,
+            "hiring_manager_id": hiring_manager.id,
+        }
+    )
+    return req
+
+
+def test_a_hiring_manager_never_approves_their_own_requisition(x):
+    """M58-F12: the conflict set held the requester and the creator only, so a
+    Requisition Approver who is the requisition's hiring manager could open
+    the requisition that hires for their own team."""
+    both = _user(x.env, "cd_talent.group_hiring_manager", "cd_talent.group_requisition_approver")
+    req = _requisition_for(x, both)
+    req.with_user(x.recruiter).action_request_approval()
+    req.invalidate_recordset()
+    tasks = req.approval_request_id.task_ids
+    mine = tasks.filtered(lambda t: t.state == "pending" and t.assigned_user_id == both)
+    assert mine, "the request is routed to the approver who is the hiring manager"
+    with pytest.raises(UserError, match="subject of it"):
+        mine.with_user(both).action_approve()
+    req.invalidate_recordset()
+    assert req.state == "draft" and req.approval_state == "pending"
+    # an approver with no stake in the requisition opens it
+    other = tasks.filtered(lambda t: t.state == "pending" and t.assigned_user_id == x.approver)
+    other.with_user(x.approver).action_approve()
+    req.invalidate_recordset()
+    assert req.state == "open" and req.approved_by_id == x.approver
+
+
+def test_the_hiring_manager_and_the_approver_never_judge_their_own_candidates(x):
+    """M58-F12: the panel check excluded only the candidate, so the hiring
+    manager could sit on - or lead - the panel that judges their own
+    candidates (BRU-TAO-07 independence)."""
+    hm = _user(x.env, "cd_talent.group_hiring_manager")
+    hm_emp = x.env["hr.employee"].create({"name": "A09 HM on panel", "user_id": hm.id})
+    approver_emp = x.env["hr.employee"].create(
+        {"name": "A09 approver on panel", "user_id": x.approver.id}
+    )
+    req = _requisition_for(x, hm)
+    _decide(req, x.recruiter, x.approver)
+    cand = _candidate(x, req)
+    cand.with_user(x.recruiter).action_screen()
+    cand.with_user(x.recruiter).action_interview()
+    Interview = x.env(user=x.recruiter.id)["fix.talent.interview"]
+    now = fields.Datetime.now()
+    # each refusal rolls back what it had written, as a real request would
+    with pytest.raises(ValidationError, match="cannot judge its candidates"), x.env.cr.savepoint():
+        Interview.create(
+            {"candidate_id": cand.id, "scheduled_on": now, "interviewer_id": hm_emp.id}
+        )
+    with pytest.raises(ValidationError, match="cannot judge its candidates"), x.env.cr.savepoint():
+        Interview.create(
+            {"candidate_id": cand.id, "scheduled_on": now, "interviewer_id": approver_emp.id}
+        )
+    iv = Interview.create(
+        {"candidate_id": cand.id, "scheduled_on": now, "interviewer_id": x.interviewer.id}
+    )
+    with pytest.raises(ValidationError, match="cannot judge its candidates"), x.env.cr.savepoint():
+        iv.with_user(x.recruiter).action_add_panelist(hm_emp.id)
+    with pytest.raises(ValidationError, match="cannot judge its candidates"), x.env.cr.savepoint():
+        iv.with_user(x.recruiter).action_add_panelist(approver_emp.id)
+    iv.invalidate_recordset()
+    # the round keeps its own panel (the lead interviewer); the refused two never join
+    assert iv.sudo().panelist_ids == x.interviewer
+    # an independent panelist is still added
+    independent = x.env["hr.employee"].create({"name": "A09 independent panelist"})
+    iv.with_user(x.recruiter).action_add_panelist(independent.id)
+    iv.invalidate_recordset()
+    assert iv.sudo().panelist_ids == x.interviewer | independent
+
+
+def test_talent_kpis_are_honest_when_nothing_was_measured(x):
+    """M58-F13: `first90_retention` printed 0.0% with no review (unknown is
+    not 0), and the funnel share was over whoever still sat in the "Applied"
+    stage, so two of three candidates in interview read 200%."""
+    req = _requisition(x)
+    moved = [_candidate(x, req), _candidate(x, req)]
+    _candidate(x, req)  # still at "Applied"
+    for cand in moved:
+        _interviewed(x, cand)
+    out = m58.kpis(x.env)
+    assert out["first90_retention"] is None  # no first-90 review exists
+    assert out["offer_accept_rate"] is None  # no offer was ever issued
+    assert out["referral_share"] == 0.0  # a measured 0 of 3
+    shares = {r["stage"]: r["share"] for r in m58.funnel_conversion(x.env)["rows"]}
+    assert shares["Applied"] == 33.3, shares
+    assert shares["Interview"] == 66.7, shares
+    assert shares["Hired"] == 0.0
+
+
+def test_an_offer_without_a_validity_date_cannot_be_issued(x):
+    """M58-F15: `valid_until` was optional, and the expiry cron only sees a
+    dated offer - an undated one stayed live for ever and blocked the
+    candidate's other offers. No default figure is ours to pick: the date is
+    entered (or defaults from the business's own setting)."""
+    req = _requisition(x)
+    cand = _candidate(x, req)
+    _interviewed(x, cand)
+    cand.with_user(x.recruiter).action_offer()
+    offer = _offer(x, cand, valid_until=None)
+    assert not offer.valid_until  # cd_talent.offer_validity_days is not ruled
+    with pytest.raises(UserError, match="no validity date"):
+        offer.with_user(x.hrmgr).action_request_approval()
+    offer.with_user(x.hrmgr).write({"valid_until": x.today + timedelta(days=7)})
+    _decide(offer, x.hrmgr, x.offer_approver)
+    offer.invalidate_recordset()
+    assert offer.state == "issued"
+    # once the business rules a figure, a NEW offer (no date passed) defaults to it
+    Param = x.env["ir.config_parameter"].sudo()
+    Param.set_param("cd_talent.offer_validity_days", "10")
+    try:
+        dated = x.env(user=x.hrmgr.id)["fix.talent.offer"].create(
+            {
+                "candidate_id": cand.id,
+                "gross_salary": 30000.0,
+                "basic_salary": 18000.0,
+                "joining_date": x.today + timedelta(days=30),
+            }
+        )
+        assert dated.valid_until == x.today + timedelta(days=10)
+    finally:
+        Param.set_param("cd_talent.offer_validity_days", "0")
+
+
+def test_a_hiring_manager_records_the_first_90_reviews_of_their_own_hires(x):
+    """M58-F17: fix.talent.first90 had no access row for a Hiring Manager, so
+    the manager who runs the 30/60/90 conversation could neither see nor
+    record it. They reach their own requisitions' plans and the reviews they
+    conduct - never another manager's."""
+    hm = _user(x.env, "cd_talent.group_hiring_manager")
+    hm_emp = x.env["hr.employee"].create({"name": "A09 HM reviewer", "user_id": hm.id})
+    mine = _requisition_for(x, hm)
+    _decide(mine, x.recruiter, x.approver)
+    theirs = _requisition(x)
+    Plan = x.env["fix.onboarding.plan"]
+    cand_mine, cand_theirs = _candidate(x, mine), _candidate(x, theirs)
+    plan_mine = Plan.create(
+        {
+            "name": "A09 plan mine",
+            "candidate_id": cand_mine.id,
+            "requisition_id": mine.id,
+            "joined_date": x.today,
+        }
+    )
+    plan_theirs = Plan.create(
+        {
+            "name": "A09 plan theirs",
+            "candidate_id": cand_theirs.id,
+            "requisition_id": theirs.id,
+            "joined_date": x.today,
+        }
+    )
+    hire_mine = x.env["hr.employee"].create({"name": "A09 hire mine"})
+    hire_theirs = x.env["hr.employee"].create({"name": "A09 hire theirs"})
+    plan_mine.sudo().write({"employee_id": hire_mine.id})
+    plan_theirs.sudo().write({"employee_id": hire_theirs.id})
+    First90 = x.env["fix.talent.first90"]
+    own = First90.with_user(hm).create(
+        {
+            "employee_id": hire_mine.id,
+            "plan_id": plan_mine.id,
+            "reviewer_id": hm_emp.id,
+            "milestone": "day_30",
+        }
+    )
+    foreign = First90.create(
+        {
+            "employee_id": hire_theirs.id,
+            "plan_id": plan_theirs.id,
+            "milestone": "day_30",
+        }
+    )
+    x.env.invalidate_all()
+    assert own.with_user(hm).milestone == "day_30"
+    own.with_user(hm).write({"rating": 4.0})
+    assert own.sudo().rating == 4.0
+    assert First90.with_user(hm).search([]) == own
+    with pytest.raises(AccessError), x.env.cr.savepoint():
+        foreign.with_user(hm).write({"rating": 1.0})
+    # a review the manager conducts for another team is theirs to record too
+    conducted = First90.with_user(hm).create(
+        {
+            "employee_id": hire_theirs.id,
+            "plan_id": plan_theirs.id,
+            "reviewer_id": hm_emp.id,
+            "milestone": "day_60",
+        }
+    )
+    x.env.invalidate_all()
+    assert conducted in First90.with_user(hm).search([])

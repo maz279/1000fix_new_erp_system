@@ -438,8 +438,11 @@ def test_the_hire_carries_the_biodata_to_the_employee(x):
     assert emp.experience_line_ids.end_date  # a current job ends at the hire
     assert set(emp.document_ids.mapped("doc_type")) >= {"nid_smart", "cv"}
     assert emp.dependant_ids.filtered("is_nominee").nominee_pct == 100
-    # no second clear copy of the passport on the candidate
-    assert not cand.sudo().passport_number
+    # M58-F4: nothing clear of the passport is left in the candidate's row (the
+    # copy to the employee is exercised in test_m58_identity_residency.py, with
+    # a store that serves the value back)
+    cand.env.cr.execute("SELECT passport_number FROM fix_candidate WHERE id = %s", (cand.id,))
+    assert not cand.env.cr.fetchone()[0]
     # the pre-boarding NID arrives verified by its own verifier
     plan = x.env["fix.onboarding.plan"].search([("candidate_id", "=", cand.id)])
     nid_item = plan.document_ids.filtered(lambda d: d.document_type == "nid")
@@ -562,3 +565,25 @@ def test_a_grid_the_screen_does_not_offer_is_refused(x, call):
         grids=[{"field": "message_ids", "rows": [], "removed": []}],
     )
     assert "does not edit" in (res.get("error") or ""), res
+
+
+def test_a_separated_candidate_stays_separated_on_the_employee(x):
+    """M58-F18: the hire coerced "Separated" to "Single" because hr.version had
+    no such value, silently changing a status the service book records. The
+    employee master holds the value the candidate declared."""
+    req = _requisition(x)
+    cand, offer = _ready_to_hire(x, req)
+    # marital status is collected from the offer stage (data minimisation)
+    cand.with_user(x.recruiter).write({"marital_status": "separated"})
+    _accept(x, offer)
+    assert cand.state == "hired"
+    emp = cand.employee_id.sudo()
+    assert emp.marital == "separated"
+    choices = dict(emp._fields["marital"]._description_selection(x.env))
+    assert choices["separated"] == "Separated"
+    # a married candidate is untouched by the change
+    req2 = _requisition(x)
+    cand2, offer2 = _ready_to_hire(x, req2)
+    cand2.with_user(x.recruiter).write({"marital_status": "married"})
+    _accept(x, offer2)
+    assert cand2.employee_id.sudo().marital == "married"

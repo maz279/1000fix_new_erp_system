@@ -41,6 +41,15 @@
         <field name="groups" eval="[(5, 0, 0)]"/>
     </record>
 
+    <!-- M58-F17: the hiring manager who runs the 30/60/90 conversations
+         reaches the first-90 reviews of their own requisitions' plans and the
+         reviews they conduct; the model had no access row for them at all -->
+    <record id="rule_talent_first90_scope" model="ir.rule">
+        <field name="name">fix.talent.first90: own requisitions' plans, or your reviews, unless a talent role</field>
+        <field name="model_id" ref="model_fix_talent_first90"/>
+        <field name="domain_force">['|', '|', ('plan_id.requisition_id.hiring_manager_id', '=', user.id), ('reviewer_id.user_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+    </record>
+
     <!-- BRU-TAO-07: private until the whole panel has submitted -->
     <record id="rule_talent_evaluation_read" model="ir.rule">
         <field name="name">fix.talent.evaluation: own, or the whole submitted panel</field>

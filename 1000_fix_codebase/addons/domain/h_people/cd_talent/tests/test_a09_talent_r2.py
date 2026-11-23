@@ -530,15 +530,17 @@ def _clear_nid(x, cand):
 
 
 def test_the_hire_leaves_no_clear_candidate_nid_and_duplicates_are_still_found(x, monkeypatch):
-    # the employee NID now lives in the residency store (A09 M21-A6); the
-    # local store answers synthetic values only, so the test stands in the
-    # in-memory store to read the copied value back
-    install(monkeypatch)
+    # M58-F4: the NID lives in the residency store from the moment it is
+    # written (M21-A6's client); the row keeps only its keyed hash and pointer.
+    # The local store answers synthetic values only, so the test stands the
+    # in-memory store in to read the copied value back.
+    store = install(monkeypatch)
     nid = "1990123456789"
     req = _requisition(x, openings=2)
     cand, offer = _ready_to_hire(x, req, nid_number=nid)
     clear, digest = _clear_nid(x, cand)
-    assert clear == nid and digest and nid not in digest
+    assert clear is None and digest and nid not in digest
+    assert [v for v in store.data.values() if v == nid], store.data
     _accept(x, offer)
     clear, digest_after = _clear_nid(x, cand)
     assert clear is None and digest_after == digest
@@ -575,27 +577,32 @@ def test_the_nid_hash_is_the_m21_keyed_hash_and_never_typed(x):
         _rpc_write(x.env, x.recruiter, cand, {"nid_hash": "forged"})
 
 
-def test_the_migration_hashes_candidate_nids_and_erases_hired_ones(x):
-    import importlib.util
-    from pathlib import Path
+def test_the_migration_drops_a_hired_nid_the_employee_already_holds(x, monkeypatch):
+    """M58-F4 (19.0.0.6.0 post-migrate): a candidate hired before the store
+    existed already has their identifier on the employee master. Moving the
+    clear value would store the same NID twice; the migration keeps the hash
+    and drops the value (my earlier wave covered the plain move)."""
+    from odoo.addons.cd_talent.models.fix_talent import nid_hash
 
+    store = install(monkeypatch)
+    nid = "1234509876"
+    emp = x.env["hr.employee"].create({"name": "A09 migrated hire", "nid_number": nid})
+    digest = nid_hash(x.env, nid)
+    assert emp.sudo().nid_hash == digest
     req = _requisition(x)
     cand = _candidate(x, req)
-    emp = x.env["hr.employee"].create({"name": "A09 migrated hire"})
     x.env.flush_all()
     x.env.cr.execute(
-        "UPDATE fix_candidate SET nid_number = '1234509876', nid_hash = NULL, state = 'hired', "
-        "employee_id = %s WHERE id = %s",
-        (emp.id, cand.id),
+        "UPDATE fix_candidate SET nid_number = %s, nid_ref = NULL, nid_hash = %s, "
+        "state = 'hired', employee_id = %s WHERE id = %s",
+        (nid, digest, emp.id, cand.id),
     )
     x.env.invalidate_all()
-    path = Path(__file__).resolve().parents[1] / "migrations" / "19.0.0.3.0" / "post-migrate.py"
-    spec = importlib.util.spec_from_file_location("m", path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    mod.migrate(x.env.cr, "19.0.0.2.0")
-    clear, digest = _clear_nid(x, cand)
-    assert clear is None and digest
+    result = x.env["fix.candidate"].sudo()._fix_identity_move_clear_values()
+    assert result == {"moved": 0, "dropped_on_hired": 1, "left": 0}, result
+    clear, digest_after = _clear_nid(x, cand)
+    assert clear is None and digest_after == digest
+    assert not [k for k in store.data if k.startswith("candidate ")]
 
 
 # ============================================ due and overdue tasks (AUT-TAO-13)

@@ -10,4 +10,5 @@ from . import (
     fix_onboarding_task,
     fix_talent_capture,
     fix_candidate_biodata,
+    fix_candidate_identity,
 )
