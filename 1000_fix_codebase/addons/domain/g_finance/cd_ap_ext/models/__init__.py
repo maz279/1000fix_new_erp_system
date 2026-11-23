@@ -6,6 +6,8 @@ from . import (
     fix_ap_controls,
     fix_ap_expense,
     fix_ap_ext,
+    fix_ap_retention,  # FR-APE-027: withheld retention register (after fix_ap_ext)
+    fix_ap_consignment,  # FR-APE-030: brand consignment settlements
     fix_ap_notes,
     fix_ap_payee_bank,
     fix_ap_payment_events,

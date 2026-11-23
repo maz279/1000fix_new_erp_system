@@ -44,6 +44,13 @@ AP_ACCOUNTS = {
     # asset until the supplier's bill takes it back. No default: finance names
     # the account (cd_ap_ext.account_code.supplier_advance) before any posts.
     "supplier_advance": (None, "Advances to suppliers"),
+    # FR-APE-027 / BRU-APE-20: money withheld from a sub-contractor's bill
+    # until the contractual release date or certified completion. A liability
+    # of its own until the approved release pays it, so the bill's payable and
+    # the payable ageing never include it. No default: finance names the
+    # account (cd_ap_ext.account_code.retention_payable) before any bill with
+    # retention posts; a bill without retention never needs it.
+    "retention_payable": (None, "Retention payable (sub-contractors)"),
     # A08 M52-8: an advance recovered through payroll clears against salaries
     # payable; Odoo generic chart: 230000 "Salary Payable"
     "salary_payable": ("230000", "Salaries payable (payroll recovery of advances)"),

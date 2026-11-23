@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FR-APE-027 / FR-APE-030: record-rule isolation for the retention register
+  and the brand consignment settlement. (fix_isolation_rules.xml is generated;
+  this file is the hand-written addition for the wave-5 models, AS-03.)
+-->
+<odoo>
+    <record id="rule_fix_ap_consignment_settlement_company" model="ir.rule">
+        <field name="name">fix.ap.consignment.settlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_consignment_settlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_consignment_settlement_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.consignment.settlement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_consignment_settlement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_consignment_settlement_line_company" model="ir.rule">
+        <field name="name">fix.ap.consignment.settlement.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_consignment_settlement_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_consignment_settlement_line_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.consignment.settlement.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_consignment_settlement_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_retention_company" model="ir.rule">
+        <field name="name">fix.ap.retention: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_retention"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_retention_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.retention: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_retention"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

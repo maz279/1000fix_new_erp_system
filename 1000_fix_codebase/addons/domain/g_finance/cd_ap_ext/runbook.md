@@ -103,6 +103,16 @@ The module depends on the following prerequisite modules:
 | `cd_ap_ext.claim_line_manager_step` | on | The claimant's line manager (employee manager with a login) approves before finance (spec §8.2). `0` = off. |
 | `cd_ap_ext.higher_level_may_approve_lower` | on | An approver of a higher AP-matrix level may sign a lower level (managers sign level 1); one user still signs one level. |
 | `cd_ap_ext.account_code.salary_payable` | none | GL account for advances recovered through payroll; unset = the recovery is refused. |
+| `cd_ap_ext.account_code.retention_payable` | none | GL account for retention withheld from sub-contractor bills (FR-APE-027). **Unset = a bill with a retention percentage is refused, naming this key**; a bill without retention never needs it. |
+| `cd_ap_ext.retention_max_percent` | none | Optional ceiling on a bill's retention percentage (FR-APE-027). Unset = no ceiling beyond 100 %. |
+| `cd_ap_ext.retention_release_days` | `90` | Default days from entry to the scheduled retention release date (BRU-APE-20); the person may move the date on the bill. |
+
+Consignment settlements (FR-APE-030) use the existing AP roles
+(`cd_ap_ext.account_code.expense`, `cd_ap_ext.account_code.ap`, and M51's
+`cd_tax_engine_bd.vat_input_account_code` when the brand's tax profile is
+VAT-registered) and the configured purchase journal. They read M15's
+`fix.stock.consumption` ledger; each consumption is settled once, and a
+cancelled settlement releases its lines.
 
 Payee bank accounts are paid only once confirmed by a second person
 (`fix.payee.bank.change`, or `fix.supplier.bank.change` for M42 suppliers).

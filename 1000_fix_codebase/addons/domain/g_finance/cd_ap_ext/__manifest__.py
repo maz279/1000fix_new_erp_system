@@ -38,6 +38,10 @@ CD-M52-01: the accounts-payable core.
         "cd_requisition",
         "cd_gl_ext",
         "cd_cash_position",
+        # FR-APE-030: consignment settlements read M15's consumption ledger
+        # (fix.stock.consumption / fix.spare.part). M15 does not depend on AP,
+        # so this is not a cycle; a gather with nothing consumed says so.
+        "cd_inventory",
         # M49 capital invoices: a capital bill line books its posted cost to a
         # CWIP project (no cycle: cd_fixed_asset_ext does not depend on AP)
         "cd_fixed_asset_ext",
@@ -46,13 +50,17 @@ CD-M52-01: the accounts-payable core.
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "security/fix_a08_rules.xml",
+        "security/fix_ap_money_rules.xml",
         "data/fix_ap_data.xml",
         "data/fix_ap_automation.xml",
         "data/fix_ap_capture_data.xml",
+        "data/fix_ap_money_data.xml",
         "views/fix_ap_ext_views.xml",
         # A06 ERP audit D6: LC remittances settle supplier bills
         "security/fix_ap_lc_rules.xml",
         "data/fix_ap_lc_settlement_data.xml",
+        # FR-APE-027 / FR-APE-030: retention and consignment settlement
+        "views/fix_ap_money_views.xml",
     ],
     "installable": True,
     "application": False,

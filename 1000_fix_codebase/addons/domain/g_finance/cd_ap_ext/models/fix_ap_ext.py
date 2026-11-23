@@ -38,6 +38,14 @@ DEFAULT_TOL_PRICE_PCT = 2.0
 DEFAULT_TOL_PRICE_ABS = 500.0
 DEFAULT_TOL_QTY_PCT = 0.0
 
+# FR-APE-027 / BRU-APE-20: retention withheld from a sub-contractor's bill.
+# The limit is optional ("within a limit if one exists"): unset = no ceiling
+# beyond 100 %, set = the highest retention percentage a bill may withhold.
+PARAM_RETENTION_MAX_PERCENT = "cd_ap_ext.retention_max_percent"
+# Default days from the bill date to the scheduled release date.
+PARAM_RETENTION_RELEASE_DAYS = "cd_ap_ext.retention_release_days"
+DEFAULT_RETENTION_RELEASE_DAYS = 90
+
 # TDS categories = Tax Rate Master codes (kind tds). The first seven are the
 # historical engine keys (vendor portal and existing bills use them).
 TDS_CATEGORIES = [
@@ -74,6 +82,12 @@ LOCKED_FIELDS = {
     "supplier_mushak_no",
     "payment_channel",
     "import_order_ref",
+    # FR-APE-027: the retention terms are part of what the approval covered;
+    # changing them after submission would change the payable without a new
+    # approval (and the register row is pinned to them).
+    "retention_percent",
+    "retention_release_date",
+    "retention_contract_ref",
 }
 
 # A08 M52-2/-3/-4 (F3): workflow and stamp fields only a transition sets.
@@ -251,6 +265,43 @@ class FixVendorInvoice(models.Model):
     advance_applied = fields.Monetary(
         string="Advance Deducted", currency_field="currency_id", readonly=True, copy=False
     )
+    # FR-APE-027 / BRU-APE-20: contractual retention withheld from this bill.
+    # It is a liability of its own (fix.ap.retention) from the moment the bill
+    # posts, not a payable to the vendor: total_payable and the payables
+    # ageing leave it out, and only an approved release pays it.
+    retention_percent = fields.Float(
+        string="Retention %",
+        digits=(6, 3),
+        default=0.0,
+        tracking=True,
+        help="Percentage of the bill's subtotal withheld as contractual retention "
+        "(FR-APE-027). The optional ceiling is system parameter "
+        "cd_ap_ext.retention_max_percent.",
+    )
+    retention_amount = fields.Monetary(
+        string="Retention Withheld",
+        currency_field="currency_id",
+        compute="_compute_totals",
+        store=True,
+        help="The retention percentage applied to the subtotal (before VAT and withholding).",
+    )
+    retention_amount_bdt = fields.Monetary(
+        string="Retention Withheld (BDT)",
+        currency_field="company_currency_id",
+        compute="_compute_totals",
+        store=True,
+    )
+    retention_release_date = fields.Date(
+        string="Retention Release Date",
+        default=lambda self: self._fix_default_retention_release_date(),
+        tracking=True,
+        help="The scheduled release date (BRU-APE-20: retention is released on this date "
+        "or on certified completion, never on request alone).",
+    )
+    retention_contract_ref = fields.Char(string="Retention Contract Ref")
+    retention_ids = fields.One2many(
+        "fix.ap.retention", "invoice_id", string="Retention", copy=False
+    )
     gross_amount = fields.Monetary(
         string="Gross (incl. VAT)",
         currency_field="currency_id",
@@ -364,6 +415,23 @@ class FixVendorInvoice(models.Model):
     note_ids = fields.One2many("fix.vendor.note", "invoice_id", string="Debit / Credit Notes")
 
     # ------------------------------------------------------------ computes --
+    def _fix_default_retention_release_date(self):
+        """The scheduled retention release date: entry date plus the
+        configured period (default 90 days); the person may move it."""
+        days = int(
+            float_param(self.env, PARAM_RETENTION_RELEASE_DAYS, DEFAULT_RETENTION_RELEASE_DAYS)
+        )
+        return fields.Date.context_today(self) + timedelta(days=max(days, 0))
+
+    @api.constrains("retention_percent")
+    def _check_retention_percent(self):
+        for inv in self:
+            if not 0.0 <= (inv.retention_percent or 0.0) <= 100.0:
+                raise ValidationError(
+                    "Bill %s: the retention percentage must be between 0 and 100 (FR-APE-027)."
+                    % (inv.invoice_ref or inv.id)
+                )
+
     @api.depends("invoice_date", "payment_term_days")
     def _compute_due_date(self):
         for inv in self:
@@ -410,6 +478,7 @@ class FixVendorInvoice(models.Model):
         "invoice_date",
         "advance_applied",
         "fx_rate",
+        "retention_percent",
     )
     def _compute_totals(self) -> None:
         for inv in self:
@@ -426,21 +495,30 @@ class FixVendorInvoice(models.Model):
                     vds = min(vds, vat_bdt)
             advance = inv.advance_applied or 0.0
             advance_bdt = _q(advance * rate) if foreign else advance
+            # FR-APE-027: retention is a percentage of the subtotal, withheld
+            # from the vendor's payable; it is neither an expense reduction nor
+            # part of the payable — a liability to the vendor until released.
+            retention = _q(subtotal * (inv.retention_percent or 0.0) / 100.0)
+            retention_bdt = _q(retention * rate) if foreign else retention
             inv.subtotal = subtotal
             inv.subtotal_bdt = subtotal_bdt
             inv.vat_amount_bdt = vat_bdt
             inv.tds_amount = tds
             inv.vds_amount = vds
+            inv.retention_amount = retention
+            inv.retention_amount_bdt = retention_bdt
             inv.gross_amount = _q(subtotal + inv.vat_amount)
             inv.gross_amount_bdt = _q(subtotal_bdt + vat_bdt)
-            inv.total_payable_bdt = _q(subtotal_bdt + vat_bdt - tds - vds - advance_bdt)
+            inv.total_payable_bdt = _q(
+                subtotal_bdt + vat_bdt - tds - vds - advance_bdt - retention_bdt
+            )
             if foreign:
                 withheld = (tds + vds) / rate if rate else 0.0
                 inv.total_payable = inv.currency_id.round(
-                    subtotal + inv.vat_amount - withheld - advance
+                    subtotal + inv.vat_amount - withheld - advance - retention
                 )
             else:
-                inv.total_payable = _q(subtotal + inv.vat_amount - tds - vds - advance)
+                inv.total_payable = _q(subtotal + inv.vat_amount - tds - vds - advance - retention)
 
     # Every quantity/price/receipt the match reads is a dependency: with
     # only ("line_ids", "requisition_id") an invoice line edited AFTER
@@ -904,6 +982,51 @@ class FixVendorInvoice(models.Model):
         )
 
     # ------------------------------------------------------------ workflow --
+    def _check_retention(self, doing):
+        """FR-APE-027 / BRU-APE-20: a bill that withholds retention states a
+        positive percentage within the configured ceiling (if one is set), a
+        release date on or after the bill date, and an amount the compute could
+        derive. A bill without retention passes untouched."""
+        self.ensure_one()
+        percent = self.retention_percent or 0.0
+        if not percent:
+            return
+        if not 0.0 < percent <= 100.0:
+            raise UserError(
+                "FR-APE-027: bill %s cannot be %s with a retention of %g%%: state a "
+                "percentage above 0 and at most 100." % (self.invoice_ref, doing, percent)
+            )
+        if not _q(self.retention_amount):
+            raise UserError(
+                "FR-APE-027: bill %s withholds %g%% retention but its subtotal is zero, so no "
+                "retention amount exists to withhold." % (self.invoice_ref, percent)
+            )
+        if not self.retention_release_date:
+            raise UserError(
+                "BRU-APE-20: bill %s withholds retention: set its scheduled release date."
+                % self.invoice_ref
+            )
+        if self.retention_release_date < self.invoice_date:
+            raise UserError(
+                "BRU-APE-20: bill %s's retention release date (%s) precedes the bill date "
+                "(%s)." % (self.invoice_ref, self.retention_release_date, self.invoice_date)
+            )
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_RETENTION_MAX_PERCENT)
+        if raw not in (None, False, ""):
+            try:
+                ceiling = float(raw)
+            except (TypeError, ValueError):
+                raise UserError(
+                    "System parameter %s is not a number (%r): correct it or clear it. Bill %s "
+                    "was not %s." % (PARAM_RETENTION_MAX_PERCENT, raw, self.invoice_ref, doing)
+                ) from None
+            if percent > ceiling + 1e-9:
+                raise UserError(
+                    "FR-APE-027: bill %s withholds %g%% retention, above the %g%% ceiling in "
+                    "system parameter %s."
+                    % (self.invoice_ref, percent, ceiling, PARAM_RETENTION_MAX_PERCENT)
+                )
+
     def _check_match_gate(self, doing):
         """G3-06 before the liability is approved and posted, not only when it
         is paid: a blocked or unmatched PO bill was submitted, approved and
@@ -963,6 +1086,7 @@ class FixVendorInvoice(models.Model):
                 raise UserError("Bill %s has no positive lines" % inv.invoice_ref)
             inv._check_fx_rate("submitted for approval")
             inv._check_match_gate("submitted for approval")
+            inv._check_retention("submitted for approval")
             inv._check_tds_category_reviewed("submitted for approval")
             inv._check_tds_confirmer()
             dup = inv._duplicates()
@@ -1110,6 +1234,7 @@ class FixVendorInvoice(models.Model):
                 raise UserError("Bill %s is not awaiting approval" % inv.invoice_ref)
             # re-read at every level: a match can break after submission
             inv._check_match_gate("approved")
+            inv._check_retention("approved")
             inv._check_tds_category_reviewed("approved")
             levels = inv._ap_levels()
             if not levels:
@@ -1294,6 +1419,7 @@ class FixVendorInvoice(models.Model):
         self.ensure_one()
         self._check_fx_rate("posted")
         self._check_match_gate("posted")
+        self._check_retention("posted")
         env, company = self.env, self.company_id
         partner = self.vendor_id.commercial_partner_id
         label = "Bill %s %s" % (partner.name, self.invoice_ref)
@@ -1348,6 +1474,20 @@ class FixVendorInvoice(models.Model):
                     partner,
                 )
             )
+        if self.retention_amount_bdt:
+            # FR-APE-027: the withheld retention is a liability of its own,
+            # never part of the vendor's payable: Cr retention payable, and
+            # total_payable above already excludes it.
+            lines.append(
+                (
+                    ap_account(env, company, "retention_payable"),
+                    "Retention withheld " + label,
+                    0.0,
+                    self.retention_amount_bdt,
+                    partner,
+                    (cur, -self.retention_amount),
+                )
+            )
         if self.advance_applied:
             # D5: an advance is taken back at the BDT it was paid at (its own
             # rate); the payable is reduced at the bill rate, so the
@@ -1396,6 +1536,7 @@ class FixVendorInvoice(models.Model):
             self.operating_unit_id,
         )
         self._guarded().write({"move_id": move.id})
+        self._fix_record_retention(move)
         self._book_capital_cost(move)
         self._create_deductions()
         self._create_input_credit()
@@ -1415,6 +1556,31 @@ class FixVendorInvoice(models.Model):
                 "payable_currency": self.total_payable,
                 "move_id": move.id,
             },
+        )
+
+    def _fix_record_retention(self, move):
+        """FR-APE-027: the bill's withheld retention enters its register when
+        the bill posts. One row per bill; the release is a separate approved
+        action (fix.ap.retention.action_release)."""
+        self.ensure_one()
+        amount = _q(self.retention_amount_bdt)
+        if not amount or self.retention_ids:
+            return
+        self.env["fix.ap.retention"].sudo().create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id,
+                "vendor_id": self.vendor_id.commercial_partner_id.id,
+                "invoice_id": self.id,
+                "invoice_ref": self.invoice_ref,
+                "contract_ref": self.retention_contract_ref or self.invoice_ref,
+                "currency_id": self.company_id.currency_id.id,
+                "withheld_amount": amount,
+                "release_due_date": self.retention_release_date,
+                "release_condition": "scheduled",
+                "note": "Withheld at %g%% on bill %s (entry %s)."
+                % (self.retention_percent, self.invoice_ref, move.name),
+            }
         )
 
     def _fix_advance_bdt(self):
