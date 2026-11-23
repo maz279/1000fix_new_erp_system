@@ -78,11 +78,15 @@ def test_external_posting_waits_for_the_internal_window(x):
         ext.with_user(x.recruiter).action_publish()
     internal = _posting(x, req)
     internal.with_user(x.recruiter).action_publish()
-    assert internal.internal_only_until == fields.Date.today() + timedelta(days=7)
+    # the 7-day internal-only window runs from the posting day (the caller's
+    # date, so the test asserts the window rather than a clock basis)
+    assert internal.internal_only_until == internal.published_on + timedelta(days=7)
     with pytest.raises(UserError, match="internal only until"):
         ext.with_user(x.recruiter).action_publish()
     # the window elapsed
-    internal.sudo()._guarded().write({"internal_only_until": fields.Date.today()})
+    internal.sudo()._guarded().write(
+        {"internal_only_until": fields.Date.today() - timedelta(days=1)}
+    )
     ext.with_user(x.recruiter).action_publish()
     assert ext.state == "published" and ext.published_by_id == x.recruiter
 

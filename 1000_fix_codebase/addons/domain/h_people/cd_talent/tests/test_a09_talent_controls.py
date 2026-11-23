@@ -628,9 +628,9 @@ def test_onboarding_completes_only_on_evidence(x, call):
         plan.with_user(x.recruiter).action_complete()
     emp = plan.employee_id.sudo()
     emp.write({"bank_account_number": "1234567890123", "routing_number": "123456789"})
-    with pytest.raises(UserError, match="employee code"):
-        plan.with_user(x.recruiter).action_complete()
-    emp.write({"employee_code": "E-A09-%d" % next(_SEQ)})
+    # M58-F1: a create mints the employee code, so the code gate is met; the
+    # evidence gates below still refuse
+    assert emp.employee_code
     with pytest.raises(UserError, match="pre-boarding document"):
         plan.with_user(x.recruiter).action_complete()
     _verify_documents(x, plan)
