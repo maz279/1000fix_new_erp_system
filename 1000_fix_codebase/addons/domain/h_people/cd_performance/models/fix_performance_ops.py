@@ -866,13 +866,39 @@ class FixSuccessionPlan(models.Model):
 class ResUsersPerformance(models.Model):
     _inherit = "res.users"
 
+    # The payroll roles read the incentive MONEY records, not the ratings.
+    PAYROLL_READERS = (
+        "cd_payroll_bd.group_payroll_officer",
+        "cd_payroll_bd.group_payroll_manager",
+    )
+
     def fix_reads_all_performance(self):
-        """The people-data readers, plus the M57 roles that decide performance
-        records (an approver or calibrator reads what it decides)."""
+        """M57-F15: HR and the M57 roles that decide performance records (an
+        approver or calibrator reads what it decides) read every scorecard,
+        goal, review, PIP and feedback row. Payroll's groups are deliberately
+        NOT here - ratings and "who said what" are S2 (spec §13, R41); payroll
+        reads the money records through fix_reads_all_payroll_money."""
         self.ensure_one()
-        if self.fix_reads_all_people():
+        for xmlid in (
+            "hr.group_hr_user",
+            "cd_hr_core.group_hr_officer",
+            "cd_performance.group_performance_officer",
+            APPROVER,
+            CALIBRATOR,
+        ):
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group and group in self.sudo().all_group_ids:
+                return True
+        return False
+
+    def fix_reads_all_payroll_money(self):
+        """The incentive money records (lines, adjustments, clawbacks, disputes,
+        recognition awards): payroll reads every one, and so do the performance
+        readers."""
+        self.ensure_one()
+        if self.fix_reads_all_performance():
             return True
-        for xmlid in (APPROVER, CALIBRATOR, "cd_performance.group_performance_officer"):
+        for xmlid in self.PAYROLL_READERS:
             group = self.env.ref(xmlid, raise_if_not_found=False)
             if group and group in self.sudo().all_group_ids:
                 return True

@@ -39,14 +39,14 @@
     <record id="rule_performance_recognition_own" model="ir.rule">
         <field name="name">fix.performance.recognition: own and direct reports unless HR or payroll</field>
         <field name="model_id" ref="model_fix_performance_recognition"/>
-        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_payroll_money() else 0, '=', 1)]</field>
         <!-- no groups: a global rule (an earlier version of this record had them) -->
         <field name="groups" eval="[(5, 0, 0)]"/>
     </record>
     <record id="rule_incentive_line_own" model="ir.rule">
         <field name="name">fix.incentive.line: own and direct reports unless HR or payroll</field>
         <field name="model_id" ref="model_fix_incentive_line"/>
-        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_payroll_money() else 0, '=', 1)]</field>
         <!-- no groups: a global rule (an earlier version of this record had them) -->
         <field name="groups" eval="[(5, 0, 0)]"/>
     </record>
@@ -56,12 +56,12 @@
     <record id="rule_incentive_dispute_own" model="ir.rule">
         <field name="name">fix.incentive.dispute: own and direct reports unless HR or payroll</field>
         <field name="model_id" ref="model_fix_incentive_dispute"/>
-        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_payroll_money() else 0, '=', 1)]</field>
     </record>
     <record id="rule_incentive_clawback_own" model="ir.rule">
         <field name="name">fix.incentive.clawback: own and direct reports unless HR or payroll</field>
         <field name="model_id" ref="model_fix_incentive_clawback"/>
-        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_payroll_money() else 0, '=', 1)]</field>
     </record>
     <record id="rule_compensation_proposal_own" model="ir.rule">
         <field name="name">fix.compensation.proposal: the proposer and the deciders</field>
@@ -80,6 +80,6 @@
     <record id="rule_incentive_adjustment_own" model="ir.rule">
         <field name="name">fix.incentive.adjustment: own and direct reports unless HR or payroll</field>
         <field name="model_id" ref="model_fix_incentive_adjustment"/>
-        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_payroll_money() else 0, '=', 1)]</field>
     </record>
 </odoo>
