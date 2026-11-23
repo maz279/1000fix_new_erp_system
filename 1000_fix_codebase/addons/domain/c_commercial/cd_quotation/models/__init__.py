@@ -25,3 +25,6 @@ from . import fix_a04_quote_money
 # fix.estimate after every file above defines them.
 # isort: split
 from . import fix_quote_capture2, fix_quote_capture3
+
+# A10 deep audit (2026-11-23, D-A10-4): the M24 envelope route for quote e-sign.
+from . import fix_quote_m24_esign

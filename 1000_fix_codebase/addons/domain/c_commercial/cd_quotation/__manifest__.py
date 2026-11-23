@@ -21,7 +21,7 @@ CD-M36-02/03: quotation and estimation.
   guarantees with routed DOFA release / claim and an expiry cron; roles
   (Quotation Author, Bid Coordinator, Tender Committee, Commercial Manager)
 """,
-    "version": "19.0.1.5.2",
+    "version": "19.0.1.6.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Quotations",
@@ -40,6 +40,10 @@ CD-M36-02/03: quotation and estimation.
         # P2: deliveries for goods lines; the contract scope on M08 contracts.
         "stock",
         "cd_contract_core",
+        # A10 deep audit (2026-11-23, D-A10-4): the quote e-signature runs
+        # through the M24 document kernel + envelope (one evidence model).
+        "cd_document_core",
+        "cd_esignature",
     ],
     "data": [
         "security/cd_quotation_groups.xml",
@@ -51,6 +55,10 @@ CD-M36-02/03: quotation and estimation.
         "data/fix_quotation_template_data.xml",
         # A04 ERP audit (20 Nov 2026, B2): decline and variation consumers.
         "data/fix_a04_quote_consumers.xml",
+        # A10 deep audit (2026-11-23, D-A10-4): the quotation PDF + the M24
+        # envelope completion consumer.
+        "report/fix_quotation_report.xml",
+        "data/fix_quotation_m24_consumers.xml",
         "views/fix_quotation_views.xml",
     ],
     "installable": True,
