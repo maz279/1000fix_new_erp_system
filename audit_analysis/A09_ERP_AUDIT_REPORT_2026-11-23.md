@@ -326,14 +326,23 @@ only when you approve (one switch), and the enacted tax tables are proposed pack
   first-90 retention; fix_dev: time-to-fill, first-90 retention) instead of 0.0.
   Evidence: `scratch/rebuild/evidence/A09-deploy/live_check_wave2.log`, `results-fix_dev.json`,
   `results-fix_real.json`.
+- Called directly on the deployed code (read-only), the identity read log pack on **fix_real** now
+  titles itself **"Identity Read Log — first 2000 of 5321 reads"** and serves 2,000 rows: the period
+  holds 5,321 reads and the pack says so, where it used to say "2000 reads" as though that were the
+  whole log (fix_dev reads "20 reads", under the cap).
 - Production data unchanged by the upgrade: 504 employees, **0 candidates, 0 offers, 0 payslips**.
 
 **Test evidence for wave 2** (`fix_test_a09_int`, the integrated database): cd_talent **133 passed**;
-cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; the closing run of
-the identity-residency suite, the performance suite (with the new officer test), the M21 control
-suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**. The wave-1 portal guard
-suites (545) stay green and the two M21 wave-2 portal tests pass; the live sweep above is the check
-the suites cannot make (the served screens).
+cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; cd_hr_core **327
+passed, 1 skipped**; the closing run of the identity-residency suite, the performance suite (with the new officer test), the M21 control
+suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**; the A09 portal guard
+files **509 passed** (including the two M21 wave-2 portal tests and the estate KPI-tile contract,
+which requires a ratio to be None — not 0 — while its denominator is empty, as the Talent tiles now
+are); the live sweep above is the check
+the suites cannot make (the served screens). The whole-estate portal suite (6,713 tests over every
+area) was attempted but its process was killed mid-run twice in this shared environment (at 57 % and
+26 %); the failures it had shown fell in A10/A11/A12 files another session was editing at the time,
+none in an A09 file.
 
 ## 5. Open items and what happens next
 

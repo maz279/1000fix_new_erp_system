@@ -45,7 +45,7 @@ quoted refs, the receipts variance against the two configured thresholds,
 the shortage receivable booked through the rider-COD ledger pattern, and the
 BRU-TRE-04 block while a prior day's variance is open.
 """,
-    "version": "19.0.1.6.0",
+    "version": "19.0.1.7.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
