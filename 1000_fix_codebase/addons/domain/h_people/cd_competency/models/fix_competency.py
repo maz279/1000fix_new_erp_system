@@ -1141,7 +1141,9 @@ class FixTrainingEnrollment(models.Model):
         is valid only once its grant is approved."""
         self._fix_assert_decider()
         Cert = self.env["fix.certification"].sudo()._guarded()
-        today = fields.Date.today()
+        # M22-F13: the pass and the certificate it drafts are dated on the
+        # Dhaka business day (the server date ran a day behind each evening)
+        today = dhaka_today(self.env)
         for rec in self:
             comp = rec.course_id.competency_id
             asmt = rec._fix_qualifying_assessment()
