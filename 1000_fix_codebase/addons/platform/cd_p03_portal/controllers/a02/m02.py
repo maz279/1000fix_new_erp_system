@@ -118,7 +118,9 @@ SURFACES = {
     "fix.field.cash.recon": {
         "order": "recon_date desc, id desc",
         "limit": 200,
-        "actions": {"action_submit", "action_confirm"},
+        # A08 wave 7 (M50): the treasury extension clears an open variance
+        # (cash/payroll recovery, or an investigated close) after confirmation.
+        "actions": {"action_submit", "action_confirm", "action_clear_variance"},
     },
     # fix.workshop.evidence (Field Evidence Hub) is already surfaced by the
     # M31 workshop module in this same area's SURFACES — declaring it twice

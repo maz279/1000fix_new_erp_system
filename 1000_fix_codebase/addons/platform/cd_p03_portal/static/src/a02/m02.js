@@ -648,10 +648,14 @@ export const SCREENS = {
     actions: [{ m: 'action_waive_fee', l: 'Waive Wasted-Visit Fee (dispatcher)', ask: 'Reason for waiving the fee', kwarg: 'reason', states: ['due'] }],
     empty: 'No failed visit. The technician sent to the site records one with + New Failed Visit Report, with a photo and the position it was taken at (BRU-FSM-09); the order returns to the dispatch queue.' },
   'M02-field-cash': { kind: 'model_list', title: 'Field Cash Reconciliation', title_bn: 'ফিল্ড নগদ মিলকরণ', model: 'fix.field.cash.recon', stateField: 'state',
-    cols: ['name', 'employee_id', 'recon_date', 'order_count', 'cash_collected', 'cash_handed_over', 'cash_outstanding', 'counted_amount', 'variance', 'state', 'confirmed_by_id'],
+    /* A08 wave 7 (M50): the treasury extension on this register — the day's M20
+     * receipts tie-out, the tolerance variance against them, and whether the
+     * shortfall is still open (which blocks the technician's next declaration). */
+    cols: ['name', 'employee_id', 'recon_date', 'order_count', 'cash_collected', 'cash_handed_over', 'cash_outstanding', 'counted_amount', 'receipts_amount', 'variance', 'receipts_variance', 'variance_state', 'state', 'confirmed_by_id'],
     actions: [
       { m: 'action_submit', l: 'Submit Count', states: ['draft'] },
-      { m: 'action_confirm', l: 'Confirm (dispatcher / finance)', states: ['submitted'] }
+      { m: 'action_confirm', l: 'Confirm (dispatcher / finance)', states: ['submitted'] },
+      { m: 'action_clear_variance', l: 'Clear Variance (finance)', states: ['confirmed'] }
     ],
     empty: 'No field cash day reconciled. + New Field Cash Reconciliation takes one technician\'s day: the cash their completed jobs collected and what reached a branch shift come from the jobs; the technician counts what they still hold, and someone else confirms (BRU-FSM-07).' },
 
