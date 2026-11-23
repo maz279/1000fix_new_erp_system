@@ -16,3 +16,6 @@ from . import (
 # isort: split
 # imported last: the M19 capture pass-2 registers extend the models above
 from . import fix_gl_capture
+
+# A10 deep audit (2026-11-23, D-A10-2): posted invoices file into M24.
+from . import fix_gl_autofile
