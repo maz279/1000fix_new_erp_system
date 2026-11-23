@@ -1726,7 +1726,6 @@ WRITABLE = {
             "job_band",
             "job_title",
             "joining_date",
-            "keycloak_id",
             "major_group",
             "marital",
             "medical_allowance",

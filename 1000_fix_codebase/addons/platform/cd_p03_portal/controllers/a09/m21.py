@@ -600,40 +600,38 @@ def org_distribution(env, date_from=None, date_to=None, **params):
 
 
 def form6a_register(env, date_from=None, date_to=None, **params):
-    """Form 6(a) worker register (BLR 2015 r.20 / BLA s.9), read as the caller:
-    the NID column is HR-only, so a non-HR caller is refused, not served."""
+    """Form 6(A) — the register of the issue of the letter of appointment, the
+    identity card and the service book (BLR 2015 r.19(7)), read as the caller:
+    it is an HR register, so a non-HR caller is refused, not served.
+
+    The columns are the export's own row keys. The pack used to declare the
+    old worker columns (code, father's name, NID ...), of which only the
+    serial and the name were filled once the export became the register of
+    issue (the 23 Nov 2026 deploy check found nine blank columns on screen)."""
     rows = env["hr.employee"].action_export_form6a_register()
-    cols = [
-        "serial",
-        "employee_code",
-        "name",
-        "father_name",
-        "mother_name",
-        "nid_number",
-        "department",
-        "designation",
-        "employment_type",
-        "joining_date",
-        "service_book_number",
-    ]
+    labels = {
+        "serial": "Sl.",
+        "register_serial": "Register of Workers Sl.",
+        "name": "Name of Worker",
+        "age": "Age",
+        "nature_of_work": "Nature of Work",
+        "appointment_letter_on": "Appointment Letter Issued On",
+        "identity_card_on": "Identity Card Issued On",
+        "service_book_on": "Service Book Issued On",
+        "signature": "Signature",
+        "remarks": "Remarks",
+    }
     return _pack(
-        "Form 6(a) Worker Register — %d workers" % len(rows),
-        cols,
-        {
-            "serial": "Sl.",
-            "employee_code": "Code",
-            "name": "Name",
-            "father_name": "Father's Name",
-            "mother_name": "Mother's Name",
-            "nid_number": "NID",
-            "department": "Department",
-            "designation": "Designation",
-            "employment_type": "Employment Nature",
-            "joining_date": "Joining Date",
-            "service_book_number": "Service Book No",
-        },
+        "Form 6(A) Register of Issue — %d workers" % len(rows),
+        list(labels),
+        labels,
         rows,
-        ["Labour Rules 2015 r.20: the register of workers (Form 6(a))."],
+        [
+            "Labour Rules 2015 r.19(7): Form 6(A) is the register of the issue of the "
+            "letter of appointment, the identity card and the service book. An issue "
+            "date is the date of the first VERIFIED copy; a document that was only "
+            "generated is shown with its generation date and said so in the remarks.",
+        ],
         empty="No employees registered.",
     )
 

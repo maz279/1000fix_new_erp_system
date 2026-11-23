@@ -166,3 +166,41 @@ def test_the_suite_reaches_the_area(odoo_env):
     fields; every one of them must now be guarded."""
     covered = [m for m in a09.SURFACES if hasattr(odoo_env[m], "_fix_guarded_fields")]
     assert len(covered) >= 43, sorted(covered)
+
+
+A09_MODULES = (
+    "cd_employee_core",
+    "cd_hr_core",
+    "cd_attendance",
+    "cd_competency",
+    "cd_payroll_bd",
+    "cd_performance",
+    "cd_talent",
+    "cd_hse",
+)
+
+
+def test_every_a09_selection_field_describes_itself(odoo_env):
+    """A selection whose description crashes takes down every form, filter and
+    export that shows it. fix.hr.master.change asked another field for
+    `.selection`, which Odoo 19 stores as a CALLABLE once that field was
+    extended: fields_get raised TypeError and the master-change form could not
+    be opened (A09 deploy check, 23 Nov 2026 - found on the deployed server,
+    reached by no suite). Every selection field of every A09 model, stored or
+    not, must describe itself."""
+    Data = odoo_env["ir.model.data"].sudo()
+    Model = odoo_env["ir.model"].sudo()
+    data = Data.search([("model", "=", "ir.model"), ("module", "in", list(A09_MODULES))])
+    names = {Model.browse(d.res_id).model for d in data if Model.browse(d.res_id).exists()}
+    broken, checked = [], 0
+    for name in sorted(n for n in names if n in odoo_env):
+        for fname, field in odoo_env[name]._fields.items():
+            if field.type != "selection":
+                continue
+            checked += 1
+            try:
+                odoo_env[name].fields_get([fname], attributes=["type", "selection"])
+            except Exception as exc:  # the test names every offender at once
+                broken.append("%s.%s: %s" % (name, fname, exc))
+    assert checked > 500, "the sweep reached only %d selection fields" % checked
+    assert not broken, broken

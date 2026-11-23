@@ -369,9 +369,11 @@ export const SCREENS = {
       {
         tab: 'organization',
         title: 'System Permissions & Security Identity',
-        note: 'Keycloak Identity Provider UUID and automated deprovisioning status (KPI-090).',
+        note: 'Keycloak Identity Provider UUID and automated deprovisioning status (KPI-090). The IdP UUID is written by the identity service only (provisioned on joining, removed on leaving) — it is shown, never typed.',
         fields: [
-          { name: 'keycloak_id', label: 'Keycloak IdP UUID' },
+          // M21-F9: the unguarded duplicate `keycloak_id` is gone from the model;
+          // the IdP id lives in keycloak_user_id alone (set by the identity consumer)
+          { name: 'keycloak_user_id', label: 'Keycloak IdP UUID', readonly: true },
           { name: 'keycloak_deprovision_status', label: 'IdP Deprovision Status (KPI-090)', readonly: true }
         ]
       },
