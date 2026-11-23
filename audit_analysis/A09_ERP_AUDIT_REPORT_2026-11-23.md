@@ -307,6 +307,27 @@ letterheaded PDF documents.
 The production-data changes that need your approval are **not applied**: the 2026-Act figures move
 only when you approve (one switch), and the enacted tax tables are proposed packs awaiting sign-off.
 
+**Wave 2 — deployed and verified on both servers, 2026-11-23 16:55.**
+- Backups before the upgrade: `fix_dev_pre_a09_20261123_1655.dump` (71,470,854 B) and
+  `fix_real_pre_a09_20261123_1655.dump` (74,820,358 B).
+- Upgraded on each database, fix_dev then fix_real: the seven A09 modules plus every module whose
+  generated isolation rules changed (cd_competency, cd_field_service, cd_msp_contract,
+  cd_service_order, cd_warranty_claims, cd_workshop, cd_contract_core, cd_quotation, cd_ewaste,
+  cd_inventory, cd_gl_ext, cd_rbac_ext, cd_p03_portal) — 18 modules, **exit 0 with 0 errors** in
+  both upgrade logs. Both listeners restarted (8090 at 17:06:45, 8069 at 17:07:18); assets purged
+  (0 on dev, 3 on real); the 2026-Act switch **absent** on both.
+- **An outage, and how it ended:** a concurrent session's deploy killed both listeners at ~17:08
+  (the documented hazard of a shared checkout). The watchdogs restored them without intervention —
+  8069 at 17:09:43, 8090 at 17:11:00 — 2–4 minutes down. No data was touched; the sweep below ran
+  after both were back.
+- The read-only sweep on the deployed code: **46 report packs, 169 list screens, 145 form schemas
+  and 7 module homes per server — 0 issues, 0 console errors on both.** The Talent KPI tiles now
+  read "—" where nothing was measured (fix_real: time-to-fill, offer accept rate, referral share,
+  first-90 retention; fix_dev: time-to-fill, first-90 retention) instead of 0.0.
+  Evidence: `scratch/rebuild/evidence/A09-deploy/live_check_wave2.log`, `results-fix_dev.json`,
+  `results-fix_real.json`.
+- Production data unchanged by the upgrade: 504 employees, **0 candidates, 0 offers, 0 payslips**.
+
 ## 5. Open items and what happens next
 
 Built and verified in wave 2 (§3/§4): M58-F4, F12, F13, F15, F17, F18, F20; M59-F10 and F11;
