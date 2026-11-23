@@ -109,10 +109,14 @@ def composite_score(
     inputs = {"first_time_fix": ftf, "sla_hit": sla, "csat": csat}
     if salvage is not None:
         inputs["salvage"] = salvage
-    base_inputs = [*inputs.values(), rework]
+    # a rework rate nobody measured is no rework evidence, not a crash: the
+    # validation below skips the components that have no fact source
+    rework_value = 0.0 if rework is None else rework
+    base_inputs = [*inputs.values(), rework_value]
     if rework_30d is not None:
         base_inputs.append(rework_30d)
-    if not all(0 <= v <= 1 for v in base_inputs):
+    measured = [v for v in base_inputs if v is not None]
+    if not all(0 <= v <= 1 for v in measured):
         raise ValueError("scorecard inputs must be 0..1")
 
     weighted = [(WEIGHTS[k], v) for k, v in inputs.items() if v is not None]
@@ -121,7 +125,7 @@ def composite_score(
         return 0.0
     positives = sum(w * v for w, v in weighted) / pos_weight_sum
 
-    penalty = WEIGHTS["rework_penalty"] * rework
+    penalty = WEIGHTS["rework_penalty"] * rework_value
     if rework_30d is not None:
         penalty += rework_clawback_penalty(rework_30d)
 
@@ -1301,7 +1305,10 @@ class FixIncentiveRun(models.Model):
         return " ".join(parts)
 
     def action_request_approval(self, justification=None):
-        voiding = bool(self.mapped("void_pending"))
+        # a bare bool(mapped("void_pending")) is always True for a non-empty
+        # recordset (a one-item list of False is truthy), which skipped the
+        # dispute window and the adjustments gate on every request
+        voiding = any(self.mapped("void_pending"))
         for rec in self:
             if rec.void_pending:
                 continue  # M57-F19: the routed void request of an approved run.
