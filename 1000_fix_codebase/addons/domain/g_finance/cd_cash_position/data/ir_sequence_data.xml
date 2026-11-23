@@ -87,5 +87,13 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A08 B13 (M50-F5 / FR-TRE-017): the technician's day -->
+        <record id="seq_fix_field_cash_reconciliation" model="ir.sequence">
+            <field name="name">Field Cash Reconciliation</field>
+            <field name="code">fix.field.cash.reconciliation</field>
+            <field name="prefix">FCR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

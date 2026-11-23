@@ -325,6 +325,129 @@ class FixCodSettlement(models.Model):
             )
         return partner
 
+    # ------------------------------------------- staff cash shortage ledger
+    # A08 B13 (FR-TRE-017, M50-F5): the field-technician reconciliation needs
+    # the same shortage receivable the rider settlement books (A02 pass 2
+    # M03-F8). The ledger path was embedded in action_settle /
+    # action_mark_recovered; it is exposed here for any staff cash model so
+    # field cash does not invent a second treatment.
+    @api.model
+    def _fix_staff_cash_partner(self, employee):
+        """The employee as a ledger party (a shortage with no partner is
+        nobody's balance)."""
+        if not employee:
+            raise UserError("Name the staff member who owes the cash shortage.")
+        employee = employee.sudo()
+        partner = employee.work_contact_id or employee.user_id.partner_id
+        if not partner:
+            raise UserError(
+                "%s has no work contact: the shortfall is booked against the employee, so "
+                "give the employee a work contact first." % employee.name
+            )
+        return partner
+
+    @api.model
+    def _fix_book_staff_cash_shortage(
+        self,
+        employee,
+        amount,
+        company,
+        entry_date,
+        reference,
+        debit_account,
+        credit_account,
+        branch=None,
+    ):
+        """Dr debit_account (employee as partner) / Cr credit_account.
+
+        The rider-COD settlement's shortage pattern, exposed for other staff
+        cash controls: the caller names the receivable and the account the
+        money should have reached (for field cash, the drawer cash the M20
+        field receipts debited). The caller keeps its own shortfall stamps."""
+        amount = round(float(amount or 0.0), 2)
+        if amount <= 0:
+            raise UserError("A staff cash shortage is a positive amount.")
+        ref = str(reference or "").strip()
+        if not ref:
+            raise UserError("A staff cash shortage carries the reference of its reconciliation.")
+        if not debit_account or not credit_account:
+            raise UserError("A staff cash shortage needs both GL accounts.")
+        partner = self._fix_staff_cash_partner(employee)
+        return post_treasury_move(
+            self.env,
+            company,
+            entry_date,
+            "Staff cash shortage %s — %s" % (ref, employee.name),
+            [
+                (
+                    debit_account,
+                    "Staff cash short %s (%s)" % (employee.name, ref),
+                    amount,
+                    0.0,
+                    partner,
+                ),
+                (
+                    credit_account,
+                    "Cash not handed in (%s)" % ref,
+                    0.0,
+                    amount,
+                    None,
+                ),
+            ],
+            branch=branch,
+            source="treasury",
+        )
+
+    @api.model
+    def _fix_recover_staff_cash_shortage(
+        self,
+        employee,
+        amount,
+        company,
+        entry_date,
+        reference,
+        debit_account,
+        credit_account,
+        branch=None,
+        partner_on_debit=False,
+    ):
+        """Dr debit_account / Cr credit_account (the employee as partner on
+        the credit, and on the debit for a payroll deduction). The recovery
+        leg of action_mark_recovered, exposed for other staff cash controls."""
+        amount = round(float(amount or 0.0), 2)
+        if amount <= 0:
+            raise UserError("A staff cash recovery is a positive amount.")
+        ref = str(reference or "").strip()
+        if not ref:
+            raise UserError("A staff cash recovery carries its reference.")
+        if not debit_account or not credit_account:
+            raise UserError("A staff cash recovery needs both GL accounts.")
+        partner = self._fix_staff_cash_partner(employee)
+        return post_treasury_move(
+            self.env,
+            company,
+            entry_date,
+            "Staff cash shortage recovered %s — %s" % (ref, employee.name),
+            [
+                (
+                    debit_account,
+                    "Staff cash shortage recovered %s" % ref,
+                    amount,
+                    0.0,
+                    partner if partner_on_debit else None,
+                ),
+                (
+                    credit_account,
+                    "Staff cash shortage recovered %s" % ref,
+                    0.0,
+                    amount,
+                    partner,
+                ),
+            ],
+            branch=branch,
+            source="treasury",
+        )
+
     @staticmethod
     def _cod_receipt_pending(order) -> bool:
         """A02 ERP audit M03-F9: the order's cash-on-delivery receipt is not

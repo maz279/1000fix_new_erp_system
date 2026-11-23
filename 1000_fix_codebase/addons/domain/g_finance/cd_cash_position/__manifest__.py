@@ -38,6 +38,12 @@ third-party courier (Pathao, RedX, Steadfast) for the delivered COD orders it
 carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
 clearing (gross), prepared by an accountant and settled by a different
 Accounting Administrator.
+
+A08 B13 (M50-F5, FR-TRE-017): fix.field.cash.reconciliation — one row per
+field technician per business day: the cash declared against the M20 field
+receipts, the two configured variance tiers, the shortage receivable booked
+through the rider-COD ledger pattern, and the BRU-TRE-04 block on a new day
+while a prior variance is open.
 """,
     "version": "19.0.1.6.0",
     "license": "LGPL-3",
@@ -59,7 +65,11 @@ Accounting Administrator.
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        # A08 B13 (M50-F5 / FR-TRE-017): the technician group loads before
+        # the ACLs that use it; the own-record rules load after them.
+        "security/fix_field_cash_groups.xml",
         "security/ir.model.access.csv",
+        "security/fix_field_cash_rules.xml",
         "data/ir_sequence_data.xml",
         # A04 report C7: consumers of the storefront refund and bond
         # encashment hand-offs.

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A08 B13 (M50-F5 / FR-TRE-017): tenant and own-record rules for the field
+     cash reconciliation. The generated fix_isolation_rules.xml covers the
+     module's pre-existing models.
+
+     The operating-unit rule is scoped to the FINANCE groups, not base.group_user:
+     Odoo ORs the group-specific rules a user holds, so a base-user OU rule OR'ed
+     with the technician's own-day rule would grant every day in the unit. A
+     technician therefore gets only their own day; finance gets the unit; a user
+     who holds both gets finance's wider view. The global company rule applies to
+     everyone. -->
+<odoo>
+    <!-- fix.field.cash.reconciliation -->
+    <record id="rule_fix_field_cash_reconciliation_company" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation: allowed companies</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_field_cash_reconciliation_operating_unit" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation: finance's allowed operating units</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation"/>
+        <field name="groups" eval="[(6, 0, [ref('account.group_account_readonly')])]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_field_cash_reconciliation_technician_own" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation: a technician sees their own day</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation"/>
+        <field name="groups" eval="[(4, ref('group_field_cash_technician'))]"/>
+        <field name="domain_force">[('technician_id.user_id', '=', user.id)]</field>
+    </record>
+
+    <!-- fix.field.cash.reconciliation.line (evidence) -->
+    <record id="rule_fix_field_cash_reconciliation_line_company" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_field_cash_reconciliation_line_operating_unit" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation.line: finance's allowed operating units</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation_line"/>
+        <field name="groups" eval="[(6, 0, [ref('account.group_account_readonly')])]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_field_cash_reconciliation_line_technician_own" model="ir.rule">
+        <field name="name">fix.field.cash.reconciliation.line: a technician sees their own day's evidence</field>
+        <field name="model_id" ref="model_fix_field_cash_reconciliation_line"/>
+        <field name="groups" eval="[(4, ref('group_field_cash_technician'))]"/>
+        <field name="domain_force">[('reconciliation_id.technician_id.user_id', '=', user.id)]</field>
+    </record>
+</odoo>
