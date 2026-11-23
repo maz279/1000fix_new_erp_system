@@ -867,6 +867,15 @@ class FixApprovableMixin(models.AbstractModel):
     def write(self, vals):
         if set(vals) <= _APPROVAL_BOOKKEEPING:
             return super().write(vals)
+        # A12 re-audit (M67-F3): the engine's own apply runs with TASK_KEY in
+        # context — the completing vote's approve method writes exactly the
+        # values it grants (a contract variation's new value, a baseline).
+        # That write IS the approval, not an uncovered change: measuring it
+        # here voided the request it was granting ("Voided by a Change") and
+        # the decision then failed. The dry-run vote holds a savepoint, so
+        # exempting it changes nothing.
+        if TASK_KEY in self.env.context:
+            return super().write(vals)
         pending = self.filtered(lambda r: r.approval_state == "pending")
         # A11 audit E4 (M63-6): the payee, counterparty, currency and type are
         # pinned like the amount. Same trust split: a user's change voids a
