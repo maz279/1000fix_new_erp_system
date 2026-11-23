@@ -328,6 +328,13 @@ only when you approve (one switch), and the enacted tax tables are proposed pack
   `results-fix_real.json`.
 - Production data unchanged by the upgrade: 504 employees, **0 candidates, 0 offers, 0 payslips**.
 
+**Test evidence for wave 2** (`fix_test_a09_int`, the integrated database): cd_talent **133 passed**;
+cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; the closing run of
+the identity-residency suite, the performance suite (with the new officer test), the M21 control
+suite and the field-service fitness gate **214 passed, 1 skipped, 0 failed**. The wave-1 portal guard
+suites (545) stay green and the two M21 wave-2 portal tests pass; the live sweep above is the check
+the suites cannot make (the served screens).
+
 ## 5. Open items and what happens next
 
 Built and verified in wave 2 (§3/§4): M58-F4, F12, F13, F15, F17, F18, F20; M59-F10 and F11;
