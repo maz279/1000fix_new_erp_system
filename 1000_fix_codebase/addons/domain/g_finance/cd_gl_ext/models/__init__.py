@@ -21,5 +21,4 @@ from . import (
 # fix.journal.posting.log of fix_gl_engine), the M19 capture pass-2 registers
 # and the A10 invoice auto-file (2026-11-23, D-A10-2) load after every base
 # they extend.
-from . import fix_gl_capture, fix_gl_chain, fix_gl_recon
-from . import fix_gl_autofile
+from . import fix_gl_autofile, fix_gl_capture, fix_gl_chain, fix_gl_recon
