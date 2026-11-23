@@ -904,3 +904,30 @@ def test_round2_workspace_surfaces_and_actions(odoo_env):
     assert not s["fix.compensation.proposal"]["writable"]
     assert not s["fix.incentive.dispute"]["writable"]
     assert "state" not in s["fix.incentive.scheme.version"]["writable"]
+
+
+def test_the_request_refuses_when_every_cfo_is_also_the_hr_director(r):
+    """M57-F2: on production data both signature groups hold the same accounts,
+    so the CFO step has no lawful decider. The request must say that - naming
+    the group - instead of routing a task nobody may sign."""
+    both = _user(r.env, OFFICER, HRD, CFO)
+    group = r.env.ref(CFO).sudo()
+    hrd = r.env.ref(HRD).sudo()
+    removed = group.all_user_ids.filtered(lambda u: u != both)
+    group.write({"user_ids": [(3, u.id) for u in removed]})
+    try:
+        holders = group.all_user_ids.filtered(lambda u: u.active and not u.share)
+        hrd_holders = hrd.all_user_ids.filtered(lambda u: u.active and not u.share)
+        assert not (holders - hrd_holders - both), "setup left a lawful CFO: %s" % (
+            holders - hrd_holders - both
+        ).mapped("name")
+        v = (
+            r.env["fix.incentive.scheme.version"]
+            .with_user(both)
+            .create({"scheme_id": r.scheme.id, "date_from": "2032-01-01", "band_base": 20000.0})
+        )
+        with pytest.raises(UserError, match="No lawful second decider"):
+            v.with_user(both).action_request_approval()
+        assert v.state == "draft"
+    finally:
+        group.write({"user_ids": [(4, u.id) for u in removed]})
