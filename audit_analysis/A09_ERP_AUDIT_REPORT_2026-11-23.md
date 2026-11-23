@@ -119,11 +119,10 @@ Flow
 
 *(The full register is the nine findings files; each row carries severity, evidence and a proposed fix.)*
 
-### 2.3 Six further defects the closing test runs found (fixed in this round)
+### 2.3 Nine further defects the closing test runs found (fixed in this round)
 
-Driving the new regression tests green on the integrated database exposed six code defects the
+Driving the regression suites green on the integrated database exposed nine code defects the
 auditors' probe pass had not reached (each is now fixed and covered by the run that caught it):
-
 1. **The monthly competence-coverage cron crashed** — `fix.certification._cron_competency_coverage`
    accumulated `fix.competency` records into a `fix.certification` recordset (`todo |= comp`), so
    `TypeError: inconsistent models` aborted the SPOF alert on every monthly run (M22 AUT-LMS-13).
@@ -150,6 +149,18 @@ auditors' probe pass had not reached (each is now fixed and covered by the run t
    be recorded twice on one accident (M59-F2). It is a `models.Constraint` now, and the upgrade
    creates it (verified on the test database).
 
+7. **The incentive approval gate never ran** — `fix.incentive.run.action_request_approval` set
+   `voiding = bool(self.mapped("void_pending"))`: a one-item list of `False` is truthy, so the
+   dispute-window and unapplied-adjustment gates were skipped on EVERY request (M57 BRU-PIC-12 /
+   M57-F20). `any(...)` now.
+8. **A scorecard with no facts crashed instead of scoring 0** — `composite_score` validated
+   `0 <= v <= 1` over components that are `None` when their fact source is empty, so the
+   renormalisation fix itself raised `TypeError` and a no-facts publish died (M57-F4/F7).
+9. **The Department of Labour notice had no capture path** — the incident close gate requires
+   `dol_notified` (BLA s.80(1) as replaced by the 2026 Act s.22) but nothing ever set it: every
+   reportable accident was permanently unclosable. `action_notify_dol` (guarded, Statutory
+   Notification Authority, reference required) records it, and the register form exposes it.
+
 Two further observations, not fixed here: `cd_contact_centre` still declares two constraints through
 `_sql_constraints` (outside A09; the same Odoo-19 no-op), and `hr.employee` carries both
 `spouse_complete_name` (standard) and `spouse_name` (M21) with the same label — cosmetic duplication
@@ -158,10 +169,11 @@ to decide in the M21 UI round.
 ## 3. What was fixed in code (this round)
 
 **79 distinct finding ids** are addressed in the code changes (the code cites each id at the fix);
-the integrated change set is about 4,600 changed lines across 41 files in eight modules plus the
-payroll engine. The work was built in nine parallel builder streams on their own databases, and
-integrated by the lead on a fresh database (`fix_test_a09_int`) where the upgrade of all changed
-modules loads with **no error**.
+the integrated change set is **9,388 changed lines across 89 code, test and contract files** in
+eight modules plus the payroll engine, landed as nine per-module commits. The work was built in nine
+parallel builder streams on their own databases, integrated by the lead on a fresh database
+(`fix_test_a09_int`) where the upgrade of all changed modules loads with **no error**, and closed
+with the test runs recorded in §4.
 
 Highlights by module (each with tests and the estate's mutation-check discipline):
 
