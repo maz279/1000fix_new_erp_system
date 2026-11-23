@@ -282,7 +282,10 @@ def test_an_exit_has_one_interview_by_someone_other_than_the_leaver(w):
 
 
 def test_recording_locks_the_answers_and_feeds_attrition_by_reason(w, call):
-    ex = _exit(w, w.leaver)
+    # the report judges the period on the CALLER's business day (the HR users
+    # here carry tz=UTC): date the leaver the day before the fixture's day so
+    # the last working day has unambiguously passed for the caller too
+    ex = _exit(w, w.leaver, last_working_day=w.today - timedelta(days=1))
     iv = (
         w.env["fix.hr.exit.interview"]
         .with_user(w.hro)

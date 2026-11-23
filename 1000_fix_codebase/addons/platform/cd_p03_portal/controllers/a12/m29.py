@@ -793,13 +793,23 @@ def kpis(env):
     sessions = env["fix.privileged.session"].search([])
     tests = env["fix.sod.test"].search([])
     vulns = env["fix.vulnerability"].search([("state", "=", "open"), ("severity", "=", "critical")])
+    # M29-D5: the tile answers "which controls FAIL their latest run" — a
+    # control that failed once and passed since must not inflate it forever
+    # (the weekly cron keeps every historical row by design).
+    latest = {}
+    for t in tests:
+        key = t.control_id.id
+        stamp = (t.tested_on, t.id)
+        if key not in latest or stamp > latest[key][0]:
+            latest[key] = (stamp, t)
+    sod_failures = sum(1 for _stamp, t in latest.values() if t.result == "fail")
     return {
         "users_active": users_active,
         "roles_active": _count("fix.role", [("active", "=", True)]),
         "requests_open": len(requests.filtered(lambda r: r.state in ("submitted", "approved"))),
         "sessions_open": len(sessions.filtered(lambda s: s.state == "open")),
-        "sod_failures": len(tests.filtered(lambda t: t.result == "fail")),
-        "sod_tests": len(tests),
+        "sod_failures": sod_failures,
+        "sod_tests": len(latest),
         "critical_vulns_overdue": len(vulns.filtered("is_overdue")),
         # M29 capture pass 2
         "breach_assessments_overdue": _breach_overdue(env),

@@ -52,11 +52,30 @@ class FixPayrollRecovery(models.Model):
     )
     operating_unit_id = fields.Many2one("operating.unit")
     recovery_type = fields.Selection(
-        [("overpayment", "Salary Overpayment"), ("advance", "Salary Advance")],
+        [
+            ("overpayment", "Salary Overpayment"),
+            ("advance", "Salary Advance"),
+            ("source", "External Source Recovery (A07)"),
+        ],
         string="Recovers",
         required=True,
         default="overpayment",
         index=True,
+    )
+    # M56-F6: the A07 bridge (m52_recovery.action_send_to_payroll) sends a
+    # booked asset/fine recovery of an employee into payroll through
+    # _fix_recovery_from_source. The source is named by model/id (the bridge
+    # module need not be installed for payroll to work), captured once, and
+    # the API is idempotent per source.
+    source_model = fields.Char(string="Source Model", readonly=True, index=True)
+    source_res_id = fields.Integer(string="Source Record", readonly=True, index=True)
+    source_name = fields.Char(string="Source", readonly=True)
+    source_cap_pct = fields.Float(
+        string="Source Cap (% of payment's net)",
+        readonly=True,
+        help="The statutory wage-deduction limit (percent) the source system recorded when it "
+        "sent the recovery: no single payment's net gives up more than this share to this "
+        "recovery.",
     )
     # an overpayment names the paid payslip it corrects (enforced below)
     correction_slip_id = fields.Many2one(
@@ -111,6 +130,10 @@ class FixPayrollRecovery(models.Model):
             "approved_on",
             "approved_digest",
             "line_ids",
+            "source_model",
+            "source_res_id",
+            "source_name",
+            "source_cap_pct",
         }
 
     def _payroll_state_locked_fields(self) -> set:
@@ -119,6 +142,7 @@ class FixPayrollRecovery(models.Model):
             locked |= {"correction_slip_id", "employee_id", "amount", "reason", "company_id"}
             locked |= {"recovery_type", "advance_id", "instalment"}
             locked |= {"currency_id", "operating_unit_id"}
+            locked |= {"source_model", "source_res_id", "source_name", "source_cap_pct"}
         return locked
 
     @api.depends("amount", "line_ids.amount")
@@ -144,6 +168,19 @@ class FixPayrollRecovery(models.Model):
                 raise ValidationError("A monthly instalment is not negative.")
             if rec.recovery_type == "advance":
                 rec._check_advance_schedule()
+                continue
+            if rec.recovery_type == "source":
+                if rec.correction_slip_id or rec.advance_id:
+                    raise ValidationError(
+                        "An external-source recovery names no payslip and no advance: the "
+                        "source document is its only origin."
+                    )
+                if not rec.source_model or not rec.source_res_id:
+                    raise ValidationError(
+                        "An external-source recovery names the source document it recovers."
+                    )
+                if rec.amount <= 0:
+                    raise ValidationError("An external-source recovery is a positive amount.")
                 continue
             slip = rec.correction_slip_id.sudo()
             if not slip:
@@ -239,6 +276,19 @@ class FixPayrollRecovery(models.Model):
                     )
                 ]
             )
+        if self.recovery_type == "source":
+            return digest_rows(
+                [
+                    (
+                        "source",
+                        str(self.id),
+                        "%s,%s" % (self.source_model or "", self.source_res_id or 0),
+                        str(self.employee_id.id),
+                        "%.2f" % self.amount,
+                        "%g" % (self.source_cap_pct or 0.0),
+                    )
+                ]
+            )
         return digest_rows(
             [
                 (
@@ -291,6 +341,93 @@ class FixPayrollRecovery(models.Model):
             rec._guarded().write({"state": "cancelled"})
         return True
 
+    # ---- M56-F6: the A07 bridge API -------------------------------------------
+    @api.model
+    def _fix_recovery_from_source(self, source, employee, amount, cap_pct, reason=None):
+        """The recovery API the A07 bridge (m52_recovery.action_send_to_payroll)
+        calls: `api_call(source, employee, amount, cap_pct, reason)`.
+
+        Creates ONE routed (maker-checker) recovery for an external source
+        document - a booked asset recharge or fine of an employee - and sends
+        it to a Payroll Manager's inbox. The maker is the calling user (the
+        bridge records who sent it); the checker is a Payroll Manager who made
+        none of it. Fail-closed, exactly like the bridge: refused when the
+        employee is missing, the amount is not positive, the caller recorded
+        no deduction-limit percent, or the company's overpayment-recovery
+        account role is not configured (the recovery would strand the run's
+        GL posting otherwise). Idempotent per source: sending the same source
+        again returns the recovery it already has.
+
+        Returns the fix.payroll.recovery record (display_name is what the
+        bridge stores as its payroll_ref)."""
+        # The caller is the A07 action's authorized operator (an HR Manager,
+        # no payroll group): the owning module's action has already checked
+        # the role, and the maker stays recorded as the caller (sudo keeps
+        # env.uid for create_uid). Reading and creating the recovery therefore
+        # runs elevated, exactly as the bridge calls it.
+        self = self.sudo()
+        if not employee:
+            raise UserError("The source recovery names no employee: nothing reaches payroll.")
+        try:
+            amount = round(float(amount), 2)
+        except (TypeError, ValueError) as err:
+            raise UserError("The amount an external source recovers is a number.") from err
+        if amount <= 0:
+            raise UserError("An external source recovery is a positive amount (got %.2f)." % amount)
+        try:
+            cap_pct = float(cap_pct or 0.0)
+        except (TypeError, ValueError) as err:
+            raise UserError(
+                "The deduction-limit percent an external source records is a " "number."
+            ) from err
+        if cap_pct <= 0:
+            raise UserError(
+                "The source system recorded no statutory wage-deduction limit percent: no "
+                "external recovery is deducted (fail closed)."
+            )
+        company = getattr(source, "company_id", False) or employee.company_id
+        company = company.sudo()
+        if not company.payroll_recovery_account_id:
+            raise UserError(
+                "Configure the Overpayment Recovery Account of %s before a source recovery is "
+                "sent to payroll: the deduction would have nowhere to be booked." % company.name
+            )
+        # idempotent per source (model, id): the bridge may re-send a source
+        # whose state is already in_payroll
+        existing = self.sudo().search(
+            [
+                ("source_model", "=", source._name),
+                ("source_res_id", "=", source.id),
+                ("state", "!=", "cancelled"),
+            ],
+            limit=1,
+        )
+        if existing:
+            return existing
+        reason = (reason or "").strip() or ("Recovery from %s" % source.display_name)
+        recovery = (
+            self.sudo()
+            ._guarded()
+            .create(
+                {
+                    "recovery_type": "source",
+                    "employee_id": employee.id,
+                    "company_id": company.id,
+                    "amount": amount,
+                    "reason": "%s [source %s,%s]" % (reason, source._name, source.id),
+                    "prepared_by_id": self.env.uid,
+                    "source_model": source._name,
+                    "source_res_id": source.id,
+                    "source_name": source.display_name,
+                    "source_cap_pct": cap_pct,
+                }
+            )
+        )
+        # maker-checker: the deduction starts only when a Payroll Manager who
+        # is neither the preparer nor the employee decides it from the inbox
+        recovery.action_request_approval()
+        return recovery
+
     # ---- what a calculation deducts ------------------------------------------
     @api.model
     def _due(self, employee, company, month, available, extra_domain=(), include_advance=False):
@@ -300,8 +437,21 @@ class FixPayrollRecovery(models.Model):
         EVERY payment of the month (run, off-cycle, bonus); together never
         more than the payment's net. An advance schedule is due only on the
         monthly run (`include_advance`), once its advance was paid, and at
-        most its own instalment a month."""
-        kinds = ["overpayment", "advance"] if include_advance else ["overpayment"]
+        most its own instalment a month.
+
+        M56-F6: a recovery an external source sent (A07 bridge) is deducted
+        like an overpayment, never more than its recorded source cap percent
+        of the payment's net.
+
+        M56-F11 (BRU-PAY-12): when the company sets an aggregate net-pay cap
+        (`payroll_recovery_net_cap_pct`, percent of the payment's net; 0 =
+        off, today's behaviour) and ALL recoveries due on this payment
+        together would take more than that share, the deduction is REFUSED
+        with the reason - it is never silently trimmed, which would pay the
+        recovery off at a rate nobody approved."""
+        kinds = (
+            ["overpayment", "source", "advance"] if include_advance else ["overpayment", "source"]
+        )
         recs = self.sudo().search(
             [
                 ("employee_id", "=", employee.id),
@@ -310,14 +460,14 @@ class FixPayrollRecovery(models.Model):
                 ("fully_recovered", "=", False),
                 ("recovery_type", "in", kinds),
                 "|",
-                ("recovery_type", "=", "overpayment"),
+                ("recovery_type", "in", ("overpayment", "source")),
                 ("advance_id.state", "in", ("paid", "posted")),
                 *extra_domain,
             ],
             order="id",
         )
         company_cap = company.payroll_recovery_monthly_cap or 0.0
-        available = max(available or 0.0, 0.0)
+        net = available = max(available or 0.0, 0.0)
         out = []
         for rec in recs:
             if rec.approved_digest != rec._digest():
@@ -330,11 +480,33 @@ class FixPayrollRecovery(models.Model):
                     rec.line_ids.filtered(lambda ln: ln.month == month).mapped("amount")
                 )
                 take = min(take, max(cap - this_month, 0.0))
+            if (rec.source_cap_pct or 0.0) > 0:
+                take = min(take, round(net * rec.source_cap_pct / 100.0, 2))
             take = round(min(take, available), 2)
             if take <= 0:
                 continue
             out.append((rec, take))
             available -= take
+        net_cap_pct = getattr(company, "payroll_recovery_net_cap_pct", 0.0) or 0.0
+        if net_cap_pct > 0 and out:
+            total = round(sum(amount for _rec, amount in out), 2)
+            budget = round(net * net_cap_pct / 100.0, 2)
+            if total > budget + 0.005:
+                raise UserError(
+                    "The recoveries due on %s's payment of %.2f total %.2f, over the "
+                    "company's aggregate recovery cap of %g%% of net (%.2f): the run is "
+                    "refused instead of over-deducting. Recoveries due: %s. Reduce the "
+                    "recoveries (or their caps) or review the company setting "
+                    "'Payroll Recovery: Aggregate Net-Pay Cap'."
+                    % (
+                        employee.name,
+                        net,
+                        total,
+                        net_cap_pct,
+                        budget,
+                        ", ".join("%s %.2f" % (rec.name, amount) for rec, amount in out),
+                    )
+                )
         return out
 
     @api.model

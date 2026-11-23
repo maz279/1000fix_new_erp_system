@@ -32,6 +32,17 @@
             <field name="method">consume_training_passed</field>
             <field name="module">cd_competency</field>
         </record>
+        <!-- M22-F4 / FR-LMS-022 / BRU-LMS-08: training removes availability.
+             The trainees' roster slots over the session window are flagged
+             (fix.roster.slot.on_leave — M55's availability marker); a
+             cancelled session releases them. -->
+        <record id="consumer_training_session_scheduled" model="fix.event.consumer">
+            <field name="name">M22: a scheduled session flags the trainees' roster slots out for training (M55 availability)</field>
+            <field name="event_type">training.session.scheduled</field>
+            <field name="model">fix.training.session</field>
+            <field name="method">consume_training_session_scheduled</field>
+            <field name="module">cd_competency</field>
+        </record>
 
         <record id="seq_fix_training_budget_exception" model="ir.sequence">
             <field name="name">Over-Budget Training Request</field>

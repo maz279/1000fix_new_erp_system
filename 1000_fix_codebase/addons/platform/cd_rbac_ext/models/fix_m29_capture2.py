@@ -249,7 +249,38 @@ class FixJmlEventSuspension(models.Model):
         count = super()._unassign_itsm_assets(employee)
         self._fix_revoke_leaver_devices(employee)
         self._fix_end_leaver_delegations(employee)
+        self._fix_release_leaver_licence_seats(employee)
         return count
+
+    @api.model
+    def _fix_release_leaver_licence_seats(self, employee):
+        """M66-3: a leaver's licence seats go back to the entitlement pool —
+        the hand-off already took the assets, the devices and the delegations;
+        without this the seat count (and the utilisation KPI) keeps paying for
+        people who left."""
+        if "fix.itsm.licence.seat" not in self.env:
+            return 0
+        seats = (
+            self.env["fix.itsm.licence.seat"]
+            .sudo()
+            .search([("employee_id", "=", employee.id), ("state", "=", "active")])
+        )
+        if seats:
+            seats._guarded().write(
+                {
+                    "state": "revoked",
+                    "revoked_on": fields.Date.context_today(self),
+                    "revoked_by_id": self.env.uid,
+                    "note": "Seat released by the leaver hand-off.",
+                }
+            )
+            self.env["fix.security.audit"].log_event(
+                "leaver_licence_seats",
+                "hr.employee,%d" % employee.id,
+                "%d licence seat(s) released on leaver (%s)"
+                % (len(seats), ", ".join(seats.mapped("licence_id.display_name"))),
+            )
+        return len(seats)
 
     @api.model
     def _fix_revoke_leaver_devices(self, employee):

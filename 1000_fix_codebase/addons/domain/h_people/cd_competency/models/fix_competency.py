@@ -31,6 +31,10 @@ from libs.py.fix_events import publish
 
 EXPIRING_WINDOW_DAYS = 30  # the value the code used; now a setting (below)
 LEAD_DAYS_PARAM = "cd_competency.expiry_lead_days"
+# M22-F2: the M31 bench gate's fail-closed switch. Default False = today's
+# deliberate open window (the COO / Technical Services ruling is still open);
+# the workshop call site adopts it through `fail_closed_param` below.
+WORKSHOP_GATE_PARAM = "cd_competency.workshop_gate_fail_closed"
 TIER_RANK = {"l1": 1, "l2": 2, "l3": 3, "l4": 4}
 
 TRAINING = "cd_competency.group_training"
@@ -126,6 +130,23 @@ def expiry_lead_days(env):
         return max(int(raw), 0)
     except (TypeError, ValueError):
         return EXPIRING_WINDOW_DAYS
+
+
+def flag_param(env, key):
+    """A boolean ir.config_parameter (unset / anything but 1/true/yes = False)."""
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    return str(raw or "").strip().lower() in ("1", "true", "yes")
+
+
+def dhaka_today(env, now=None):
+    """M22-F13 / UI-F8: the business day is Asia/Dhaka (UTC+6). The expiry
+    cron, the status compute and the dispatch gate used fields.Date.today()
+    (the SERVER-local date): with the process on UTC a certificate lapsed or
+    alerted up to 6 h late against the business day. The caller's tz is kept
+    when set, Dhaka otherwise — never the bare server clock. `now` (a naive
+    UTC datetime) exists so tests can pin the edge of the Dhaka day."""
+    user = env.user.with_context(tz=env.user.tz or "Asia/Dhaka")
+    return fields.Date.context_today(user, timestamp=now)
 
 
 class FixDeviceCategory(models.Model):
@@ -257,6 +278,15 @@ class FixCertification(models.Model):
     evidence_ref = fields.Char(
         string="Evidence Reference", help="Pointer into M24 documents — the certificate artefact"
     )
+    # M22-F8: the spec's fix.certification entity carries brand_critical (§
+    # entity table): an OEM-authorised certification the brand principal
+    # audits. Its expiry is the one that can stop warranty work on a line.
+    brand_critical = fields.Boolean(
+        string="Brand-Critical (OEM)",
+        tracking=True,
+        help="An OEM-authorised certification the brand principal audits; its expiry "
+        "alerts both the holder and their manager.",
+    )
     assessment_id = fields.Many2one(
         "fix.competency.assessment",
         string="Qualifying Assessment",
@@ -331,6 +361,22 @@ class FixCertification(models.Model):
             locked = locked | self._FROZEN_AFTER_DRAFT
         return locked
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        # M22-F11: a superuser create lands directly in state 'valid' — a full
+        # grant with no evidence, assessment, expiry or routing (probe C). The
+        # trusted path stays (seeds, migrations, data loading), but it is never
+        # silent: the mail thread names who made the grant (FR-LMS-040).
+        if self.env.su:
+            for rec in records.filtered(lambda r: r.state == "valid"):
+                rec.message_post(
+                    body="M22: certification granted by SUPERUSER %s — created directly in "
+                    "state Valid with no routed approval (override logged, FR-LMS-040)."
+                    % self.env.user.name
+                )
+        return records
+
     # No name field: without this, chatter, notifications and pickers showed
     # the raw "fix.certification,22" (sweep audit D-A09-04).
     @api.depends("employee_id", "competency_id")
@@ -343,7 +389,8 @@ class FixCertification(models.Model):
     # ---- status ---------------------------------------------------------------
     @api.depends("expires_on")
     def _compute_status(self):
-        today = fields.Date.today()
+        # M22-F13: judged against the Dhaka business day, not the server clock.
+        today = dhaka_today(self.env)
         lead = expiry_lead_days(self.env)
         for rec in self:
             if not rec.expires_on:
@@ -356,7 +403,7 @@ class FixCertification(models.Model):
                 rec.status = "active"
 
     def _search_status(self, operator, value):
-        today = fields.Date.today()
+        today = dhaka_today(self.env)
         soon = today + timedelta(days=expiry_lead_days(self.env))
         domains = {
             "expired": [("expires_on", "!=", False), ("expires_on", "<", today)],
@@ -402,7 +449,7 @@ class FixCertification(models.Model):
     # ---- the grant --------------------------------------------------------------
     def _fix_grant_gate(self):
         """Everything a grant rests on (BRU-LMS-04/06, FR-LMS-026)."""
-        today = fields.Date.today()
+        today = dhaka_today(self.env)
         for rec in self:
             if rec.state != "draft":
                 raise UserError("%s is not a draft certification." % rec.display_name)
@@ -556,7 +603,7 @@ class FixCertification(models.Model):
         """A verifier other than the one who suspended lifts a suspension."""
         require_group(self.env, VERIFIER, "Reinstating a certification")
         reason = self._fix_reason(reason)
-        today = fields.Date.today()
+        today = dhaka_today(self.env)
         for rec in self:
             if rec.state != "suspended":
                 raise UserError("Only a suspended certification is reinstated.")
@@ -602,7 +649,7 @@ class FixCertification(models.Model):
     # ---- expiry ---------------------------------------------------------------
     def _fix_lapse_expired(self):
         """Valid certificates past their expiry become lapsed (AUT-LMS-02)."""
-        today = fields.Date.today()
+        today = dhaka_today(self.env)
         lapsed = self.filtered(
             lambda r: r.state == "valid" and r.expires_on and r.expires_on < today
         )
@@ -671,7 +718,9 @@ class FixCertification(models.Model):
         Idempotent: a lapsed certificate is not lapsed again, an alerted one
         is not alerted again."""
         Cert = self.sudo()
-        today = fields.Date.today()
+        # M22-F13: the cron user's tz is Asia/Dhaka — the business day, never
+        # the server-local date.
+        today = dhaka_today(self.env)
         Cert.search([("state", "=", "valid"), ("expires_on", "<", today)])._fix_lapse_expired()
         soon = today + timedelta(days=expiry_lead_days(self.env))
         due = Cert.search(
@@ -685,15 +734,23 @@ class FixCertification(models.Model):
         todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
         for rec in due:
             emp = rec.employee_id
-            notify = emp.parent_id.user_id or emp.user_id
-            if todo and notify:
-                rec.activity_schedule(
-                    activity_type_id=todo.id,
-                    user_id=notify.id,
-                    date_deadline=rec.expires_on,
-                    summary="Renew %s for %s before %s"
-                    % (rec.competency_id.name, emp.name, rec.expires_on),
-                )
+            # M22-F8: the renewal alert went to the manager OR the employee;
+            # a brand-critical renewal nobody owns is missed. Both are told.
+            targets = emp.sudo().parent_id.user_id | emp.user_id
+            if todo and targets:
+                for user in targets:
+                    rec.activity_schedule(
+                        activity_type_id=todo.id,
+                        user_id=user.id,
+                        date_deadline=rec.expires_on,
+                        summary="Renew %s for %s before %s%s"
+                        % (
+                            rec.competency_id.name,
+                            emp.name,
+                            rec.expires_on,
+                            " (brand-critical)" if rec.brand_critical else "",
+                        ),
+                    )
             rec._guarded().write({"expiry_alerted_on": today})
             publish(
                 self.env,
@@ -705,9 +762,54 @@ class FixCertification(models.Model):
                     "competency": rec.competency_id.code,
                     "expires_on": str(rec.expires_on),
                     "days_remaining": (rec.expires_on - today).days,
+                    "brand_critical": bool(rec.brand_critical),
                 },
             )
         return True
+
+    # ---- AUT-LMS-13 -----------------------------------------------------------
+    @api.model
+    def _fix_competency_coverage(self):
+        """Competence coverage per dispatch-gating competency, and the single
+        points of failure: a gating competency with fewer than two valid
+        holders (FR-LMS-008). Shared by the monthly cron below and the M22
+        coverage report."""
+        today = dhaka_today(self.env)
+        gating = self.env["fix.competency"].search([("required_for_dispatch", "=", True)])
+        holders = {}
+        for cert in self.sudo().search([("state", "=", "valid")]):
+            if cert.expires_on and cert.expires_on < today:
+                continue
+            holders.setdefault(cert.competency_id.id, set()).add(cert.employee_id.id)
+        return {comp: len(holders.get(comp.id, ())) for comp in gating}, gating
+
+    @api.model
+    def _cron_competency_coverage(self):
+        """AUT-LMS-13 (ir.cron, monthly): recompute competence coverage by
+        dispatch-gating competency (device type / brand) and flag the single
+        points of failure to the Training Managers (the People Squad): a
+        gating competency with fewer than two valid holders stops the line
+        the day its one holder is out. Idempotent: one open to-do per
+        competency and user (open_activity_once)."""
+        coverage, gating = self._fix_competency_coverage()
+        todo = self.env["fix.competency"].browse()
+        for comp, count in coverage.items():
+            if count >= 2:
+                continue
+            what = (
+                "no valid holder"
+                if not count
+                else "exactly one valid holder (single point of failure)"
+            )
+            summary = "Competence SPOF: %s" % comp.code
+            for user in group_users(self.env, TRAINING, comp.company_id):
+                note = (
+                    "%s (%s) is dispatch-gating with %s. Cross-train a second technician "
+                    "before the line stops (AUT-LMS-13, FR-LMS-008)." % (comp.name, comp.code, what)
+                )
+                if open_activity_once(comp, user, summary, note):
+                    todo |= comp
+        return todo
 
     # ---- FR-LMS-039 -----------------------------------------------------------
     @api.model
@@ -745,6 +847,7 @@ class FixCertification(models.Model):
         brand_id=None,
         repair_tier=None,
         fail_closed=False,
+        fail_closed_param=None,
         requires_vehicle=False,
     ):
         """FR-LMS-039 — the dispatch eligibility check (brand + device + tier aware).
@@ -753,10 +856,19 @@ class FixCertification(models.Model):
         a device type, OEM brand, and repair tier when they hold a VALID
         (granted, not suspended, revoked or lapsed) certification, inside its
         dates, in a dispatch-gating competency whose scope matches.
+
+        M22-F2: `fail_closed_param` names an ir.config_parameter switch the
+        caller adopts (the M31 bench gate: cd_competency.workshop_gate_fail_closed,
+        default False = today's advisory window pending the COO ruling).
+        M22-F3: a repair tier demanded by the job is satisfied only by a
+        certification that carries one — an un-tiered certification never
+        passes a tiered requirement.
         """
+        if fail_closed_param and flag_param(self.env, fail_closed_param):
+            fail_closed = True
         if not employee:
             return False, "no technician assigned"
-        today = fields.Date.today()
+        today = dhaka_today(self.env)
         if requires_vehicle:
             problem = self._fix_driving_licence_problem(employee, today)
             if problem:
@@ -786,7 +898,10 @@ class FixCertification(models.Model):
             if brand_id_int and c_brand and c_brand != brand_id_int:
                 continue
             c_tier = cert.repair_tier or cert.competency_id.repair_tier or None
-            if req_rank and c_tier and TIER_RANK.get(c_tier, 0) < req_rank:
+            # M22-F3: the tier filter only bit when a tier was set anywhere;
+            # a tier-less "certified for laptop" passed an L4 job (probe D5).
+            # A demanded tier now requires a held tier at or above it.
+            if req_rank and (not c_tier or TIER_RANK.get(c_tier, 0) < req_rank):
                 tier_blocked |= cert
                 continue
             valid_certs |= cert
@@ -813,7 +928,7 @@ class FixCertification(models.Model):
                         % (
                             employee.name,
                             brand_rec.name or brand_id_int,
-                            (held_tier or "?").upper(),
+                            (held_tier or "none").upper(),
                             (repair_tier or "?").upper(),
                         )
                     )
@@ -842,7 +957,7 @@ class FixCertification(models.Model):
                         % (
                             employee.name,
                             device_type,
-                            (held_tier or "?").upper(),
+                            (held_tier or "none").upper(),
                             (repair_tier or "?").upper(),
                         )
                     )
@@ -1026,7 +1141,9 @@ class FixTrainingEnrollment(models.Model):
         is valid only once its grant is approved."""
         self._fix_assert_decider()
         Cert = self.env["fix.certification"].sudo()._guarded()
-        today = fields.Date.today()
+        # M22-F13: the pass and the certificate it drafts are dated on the
+        # Dhaka business day (the server date ran a day behind each evening)
+        today = dhaka_today(self.env)
         for rec in self:
             comp = rec.course_id.competency_id
             asmt = rec._fix_qualifying_assessment()
@@ -1130,6 +1247,19 @@ class FixWorkOrderEligibilityExt(models.Model):
             return True
         return waiver._fix_covers_target("fix.work.order", self.id, self.technician_id)
 
+    def _fix_waiver_covers_target(self, technician):
+        """M22-F12: does the job's waiver cover TECHNICIAN (the one a write is
+        about to assign)? A bare superuser flag covers the technician it was
+        set for, never a reassignment; an approved waiver record covers the
+        technician it names on this job."""
+        self.ensure_one()
+        if not self.certification_waiver:
+            return False
+        waiver = self.certification_waiver_id.sudo()
+        if not waiver:
+            return self.technician_id == technician
+        return waiver._fix_covers_target("fix.work.order", self.id, technician)
+
     def _fix_certification_problem(self, technician=None):
         """Why the technician may not take this job (None when they may)."""
         self.ensure_one()
@@ -1204,6 +1334,15 @@ class FixWorkOrderEligibilityExt(models.Model):
         for rec in records:
             if rec.technician_id:
                 rec.action_check_certification()
+        # M22-F11: a superuser waiver tick is the one trusted override left
+        # (guard passes for su) — it is logged on the job, never silent
+        # (FR-LMS-040).
+        if self.env.su:
+            for rec in records.filtered("certification_waiver"):
+                rec.message_post(
+                    body="M22: certification waiver SET by SUPERUSER %s with no waiver "
+                    "record (trusted path; override logged, FR-LMS-040)." % self.env.user.name
+                )
         return records
 
     def action_request_certification_waiver(self, technician_id=None, reason=None, waiver=None):
@@ -1227,6 +1366,18 @@ class FixWorkOrderEligibilityExt(models.Model):
         return {"waiver_id": req.id}
 
     def write(self, vals):
+        # M22-F12: the gate must refuse BEFORE the assignment is written. It
+        # ran after super().write(), so a caller that caught the UserError
+        # kept the blocked technician (auditor probe F9: the technician
+        # changed despite the "blocked" message). The waiver on the job
+        # covers the incoming technician only when it names them.
+        if vals.get("technician_id"):
+            target = self.env["hr.employee"].browse(vals["technician_id"]).exists()
+            if target:
+                for rec in self:
+                    reason = rec._fix_certification_problem(technician=target)
+                    if reason and not rec._fix_waiver_covers_target(target):
+                        raise UserError("M22 eligibility: assignment blocked — %s" % reason)
         result = super().write(vals)
         if vals.get("technician_id"):
             if "certification_waiver" not in vals:
@@ -1246,10 +1397,16 @@ class FixWorkOrderEligibilityExt(models.Model):
                             "certification_waiver_id": False,
                         }
                     )
-            for rec in self:
-                rec.action_check_certification()
         elif "repair_tier" in vals:
             self.filtered("technician_id").action_check_certification()
         if vals.get("state") == "in_progress":
             self._fix_assert_may_start()
+        # M22-F11: a superuser waiver tick with no waiver record is the
+        # trusted path — logged on the job, never silent (FR-LMS-040).
+        if self.env.su and vals.get("certification_waiver"):
+            for rec in self.filtered("certification_waiver"):
+                rec.message_post(
+                    body="M22: certification waiver SET by SUPERUSER %s with no waiver "
+                    "record (trusted path; override logged, FR-LMS-040)." % self.env.user.name
+                )
         return result

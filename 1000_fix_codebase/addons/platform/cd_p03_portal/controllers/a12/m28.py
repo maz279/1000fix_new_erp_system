@@ -631,11 +631,19 @@ def kpis(env):
     lat = sorted([ln.latency_ms for ln in logs if ln.latency_ms])
     p95 = lat[min(int(len(lat) * 0.95), len(lat) - 1)] if lat else None
     live = len(connectors.filtered(lambda c: c.state == "live"))
+    # M28: the bus backlog tiles. event_delivery is the SLO of DISPATCHED
+    # deliveries; these two say whether anything is still WAITING — the pair
+    # that was invisible while 19k events sat pending on the live estate.
+    health = env["fix.event.outbox"].relay_health() if hasattr(
+        env["fix.event.outbox"], "relay_health"
+    ) else {}
     return {
         "api_p95": p95,
         "uptime": None,
         "event_delivery": round(delivered / delivery_total * 100.0, 1) if delivery_total else None,
         "dlq_depth": len(dlq),
+        "bus_pending": health.get("bus_pending", 0),
+        "oldest_bus_pending_hours": health.get("oldest_bus_pending_hours", 0.0),
         "connectors_live": live,
         "sync_conflicts_today": conflicts,
         "connectors_total": len(connectors),

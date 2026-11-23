@@ -133,6 +133,16 @@ class FixIncentiveClawback(models.Model):
     source_run_id = fields.Many2one(
         related="source_line_id.run_id", string="Paid In Run", store=True
     )
+    # A09 ERP audit M57-F11: the run whose computation raised this clawback, so
+    # the approver sees it on that run's approval statement and approves it with
+    # the run (automatic clawbacks no longer deduct without approval/notice).
+    raised_run_id = fields.Many2one(
+        "fix.incentive.run",
+        string="Raised By Run",
+        readonly=True,
+        index=True,
+        ondelete="set null",
+    )
     service_order_id = fields.Many2one(
         "fix.service.order", string="Service Order", required=True, ondelete="restrict"
     )

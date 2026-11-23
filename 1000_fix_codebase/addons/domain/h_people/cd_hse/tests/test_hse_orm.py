@@ -48,11 +48,13 @@ def _incident(ctx, **vals):
 # --- incidents and the automatic statutory register -------------------------------
 
 
-def test_minor_incident_is_reported_without_register(ctx):
+def test_minor_incident_is_reported_and_opens_the_register_but_a_near_miss_does_not(ctx):
+    # BLA s.80(2) / BLR r.73(1): EVERY accident — a low-severity injury
+    # included — has a Form 28 entry opened at report; a near miss has none.
     incident = _incident(ctx, incident_type="injury", severity="low", employee_id=ctx.reporter.id)
     assert incident.name.startswith("HSE/")  # sequenced since the M59 rebuild
     assert incident.state == "reported"
-    assert not incident.statutory_record_id
+    assert incident.statutory_record_id
     assert _events(ctx.env, "hse.incident_reported", incident.id) == [
         {"type": "injury", "severity": "low"}
     ]

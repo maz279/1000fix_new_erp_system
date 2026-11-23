@@ -20,7 +20,7 @@ CD-M55-01 (P08-M02) — Wave 5 attendance:
 - biometric templates are S3 residency data: only the device reference
   lands here; the template itself routes through fix.identity.document
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Attendance",

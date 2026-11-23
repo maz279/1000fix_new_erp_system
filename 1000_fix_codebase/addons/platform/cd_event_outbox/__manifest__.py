@@ -14,7 +14,7 @@ the outbox and publishes to the bus. An event delivered twice produces one
 effect (idempotent consumers); a failed publish retries; a poisoned message
 dead-letters.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Integration",

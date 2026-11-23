@@ -28,6 +28,33 @@ def _measured(rows, key):
     return round(sum(r[key] for r in rows if isinstance(r[key], int | float)), 2)
 
 
+def _currency_total(env, records, field):
+    """M67-8: sum `field` across records in the caller company's currency.
+    Rows carry their own currency, so a raw sum mixes BDT with USD. A missing
+    rate makes the SUM wrong (the per-line ceiling already refuses there), so
+    the total says not measured instead of printing a mixed number."""
+    company = env.company
+    from odoo.addons.cd_ppm.models.fix_ppm import ppm_convert
+
+    total = 0.0
+    for rec in records:
+        currency = (
+            rec.currency_id if "currency_id" in rec._fields else company.currency_id
+        ) or company.currency_id
+        try:
+            total += ppm_convert(
+                env,
+                float(getattr(rec, field) or 0.0),
+                currency,
+                company.currency_id,
+                rec.company_id or company,
+                datetime.date.today(),
+            )
+        except Exception:
+            return NOT_MEASURED
+    return round(total, 2)
+
+
 SURFACES = {
     "fix.project": {
         "order": "id desc",
@@ -251,7 +278,7 @@ def portfolio_status(env, date_from=None, date_to=None, **params):
         ],
         totals={
             "project": "Total",
-            "budget": round(sum(r["budget"] for r in rows), 2),
+            "budget": _currency_total(env, projects, "budget"),
             "actual": _measured(rows, "actual"),
             "variance": _measured(rows, "variance"),
         },
@@ -605,8 +632,8 @@ def billing_status(env, date_from=None, date_to=None, **params):
         ],
         totals={
             "billing": "Total",
-            "amount": round(sum(r["amount"] for r in rows), 2),
-            "retention": round(sum(r["retention"] for r in rows), 2),
+            "amount": _currency_total(env, lines, "amount"),
+            "retention": _currency_total(env, lines, "retention_amount"),
         },
         empty="No billing lines.",
     )
@@ -796,7 +823,7 @@ def kpis(env):
         "billings_invoiced": len(
             billings.filtered(lambda b: b.invoice_id and b.state in ("invoiced", "paid"))
         ),
-        "portfolio_budget": round(sum(float(p.budget or 0.0) for p in projects), 2),
+        "portfolio_budget": _currency_total(env, projects, "budget"),
         # M67 capture audit: decisions waiting on a sponsor or a reviewer.
         "changes_pending": env["fix.project.change"].search_count([("state", "=", "submitted")]),
         "deliverables_awaiting": env["fix.project.deliverable"].search_count(

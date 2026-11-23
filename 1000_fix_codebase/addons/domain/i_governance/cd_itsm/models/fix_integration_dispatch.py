@@ -77,6 +77,10 @@ RECONCILIATION_NOT_RUN = (
     "traffic through the register."
 )
 DISPATCH_DISABLED = "dispatch disabled"
+# M28-D2: how long a not-sent webhook delivery may sit in limbo before the
+# dispatcher parks it in the DLQ for a human (configurable, days).
+NOT_SENT_GRACE_KEY = "cd_itsm.webhook_not_sent_grace_days"
+NOT_SENT_GRACE_DAYS = 7
 
 _HOST = re.compile(r"^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$")
 _JSON_TYPES = {
@@ -413,6 +417,33 @@ class FixWebhookDelivery(models.Model):
                     ("last_outcome", "=", "not sent: %s" % DISPATCH_DISABLED),
                 ]
             ).write({"state": "pending"})
+        # M28-D2: a row parked because its signing secret was missing gets
+        # another chance as soon as the vault holds the secret again — a
+        # refusal that clears must not strand the payload forever.
+        stuck_secret = self.sudo().search(
+            [
+                ("state", "=", "not_sent"),
+                ("last_outcome", "like", "not sent: signing secret unavailable%"),
+            ]
+        )
+        for row in stuck_secret:
+            if _vault_secret(row.subscription_id.secret_ref):
+                row.write({"state": "pending"})
+        # And nothing waits in limbo indefinitely: a not-sent row older than
+        # the grace window graduates to the DLQ, where the replay screen owns
+        # it (AD-03 posture: a human decides, with the reason on the row).
+        grace_days = _param_int(self.env, NOT_SENT_GRACE_KEY, NOT_SENT_GRACE_DAYS)
+        horizon = now - timedelta(days=grace_days)
+        stranded = self.sudo().search(
+            [("state", "=", "not_sent"), ("create_date", "<=", horizon)]
+        )
+        for row in stranded:
+            outcome = "not sent for over %d days: %s" % (
+                grace_days,
+                (row.last_outcome or "unknown").replace("not sent: ", ""),
+            )
+            row.write({"state": "dead", "last_outcome": outcome})
+            row._fix_dead_letter("Webhook %s" % outcome)
         return self.sudo().search(
             [
                 ("subscription_id.state", "in", ("active", "failing")),

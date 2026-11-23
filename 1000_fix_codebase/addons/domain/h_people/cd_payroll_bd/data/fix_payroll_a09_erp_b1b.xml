@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 ERP builder stream B1b (M56-F3/F4/F5, X-F10).
+     * The ENACTED income-tax tables as SOURCED statutory packs, seeded as
+       DRAFTS awaiting sign-off through the pack's own routed flow (one
+       Payroll Manager prepares, a SECOND approves from the M63 inbox).
+       Changing the figures payroll withholds by is an owner decision: the
+       baseline pack v1 (the superseded pre-enactment draft, "as coded,
+       unsourced") stays in force until each year's enacted pack is approved.
+       Source: PwC Worldwide Tax Summaries, Bangladesh individual taxes,
+       reviewed 31 Jul 2026 (handed to the builder by the A09 lead).
+     * X-F10: fix.event.consumer rows - published payslips and issued
+       certificates are archived as fix.document (M24) linked to the employee.
+     NOTE: this file must be listed in cd_payroll_bd's __manifest__ data
+     (owned by stream B1a / the lead). -->
+<odoo>
+    <data noupdate="1">
+        <record id="statutory_pack_fy2026_27_enacted" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="state">draft</field>
+            <field name="basis">sourced</field>
+            <field name="effective_from">2026-07-01</field>
+            <field name="effective_to">2027-06-30</field>
+            <field name="tax_table_rule">fa2025_26_2026_27</field>
+            <field name="tax_free_thresholds" eval='{"general": 400000.0, "female_senior": 450000.0, "disabled_third_gender": 525000.0, "freedom_fighter": 550000.0}'/>
+            <field name="guardian_extra_threshold">50000</field>
+            <field name="tax_slabs" eval='[[300000.0, 0.1], [400000.0, 0.15], [500000.0, 0.2], [2000000.0, 0.25], [None, 0.3]]'/>
+            <field name="minimum_tax">5000</field>
+            <field name="rebate_rate_percent">15</field>
+            <field name="rebate_cap">1000000</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="resignation_bands" eval='[[0, 7], [5, 15], [10, 30]]'/>
+            <field name="gratuity_bands" eval='{"min_years": 5, "days_upto_12": 30, "days_above_12": 45}'/>
+            <field name="ot_base_components" eval='["basic", "dearness", "ad_hoc"]'/>
+            <field name="festival_bonus_proportionate" eval="False"/>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">Enacted FY 2025-26 &amp; FY 2026-27 personal income tax: general 400,000; women and senior citizens (65+) 450,000; persons with physical challenges 525,000; third gender 525,000; war-wounded gazetted freedom fighters 550,000; parent / legal guardian of a physically challenged person +50,000. Bands above the threshold: next 300,000 @ 10%; next 400,000 @ 15%; next 500,000 @ 20%; next 2,000,000 @ 25%; rest @ 30%. Minimum tax where income exceeds the threshold: 5,000 (new taxpayers: 1,000). Source: PwC Worldwide Tax Summaries, Bangladesh individual taxes, reviewed 31 Jul 2026. Investment rebate 15% / 1,000,000 kept as today's value pending the tax adviser (one source reads 10% / 750,000).</field>
+        </record>
+        <record id="statutory_pack_fy2027_28_enacted" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="state">draft</field>
+            <field name="basis">sourced</field>
+            <field name="effective_from">2027-07-01</field>
+            <field name="effective_to">2028-06-30</field>
+            <field name="tax_table_rule">fa2027_28_2028_29</field>
+            <field name="tax_free_thresholds" eval='{"general": 450000.0, "female_senior": 500000.0, "disabled_third_gender": 575000.0, "freedom_fighter": 600000.0}'/>
+            <field name="guardian_extra_threshold">50000</field>
+            <field name="tax_slabs" eval='[[300000.0, 0.1], [400000.0, 0.15], [500000.0, 0.2], [2000000.0, 0.25], [26350000.0, 0.3], [None, 0.35]]'/>
+            <field name="minimum_tax">5000</field>
+            <field name="rebate_rate_percent">15</field>
+            <field name="rebate_cap">1000000</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="resignation_bands" eval='[[0, 7], [5, 15], [10, 30]]'/>
+            <field name="gratuity_bands" eval='{"min_years": 5, "days_upto_12": 30, "days_above_12": 45}'/>
+            <field name="ot_base_components" eval='["basic", "dearness", "ad_hoc"]'/>
+            <field name="festival_bonus_proportionate" eval="False"/>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">Enacted FY 2027-28 &amp; FY 2028-29 personal income tax: general 450,000; women / seniors 500,000; physically challenged 575,000; third gender 575,000; gazetted war-wounded freedom fighters and wounded July fighters 600,000; guardian +50,000. Bands: 300,000 @ 10%; 400,000 @ 15%; 500,000 @ 20%; 2,000,000 @ 25%; next 26,350,000 @ 30%; rest @ 35%. Minimum tax 5,000. Source: PwC Worldwide Tax Summaries, Bangladesh individual taxes, reviewed 31 Jul 2026.</field>
+        </record>
+        <record id="statutory_pack_fy2028_29_enacted" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="state">draft</field>
+            <field name="basis">sourced</field>
+            <field name="effective_from">2028-07-01</field>
+            <field name="effective_to">2029-06-30</field>
+            <field name="tax_table_rule">fa2027_28_2028_29</field>
+            <field name="tax_free_thresholds" eval='{"general": 450000.0, "female_senior": 500000.0, "disabled_third_gender": 575000.0, "freedom_fighter": 600000.0}'/>
+            <field name="guardian_extra_threshold">50000</field>
+            <field name="tax_slabs" eval='[[300000.0, 0.1], [400000.0, 0.15], [500000.0, 0.2], [2000000.0, 0.25], [26350000.0, 0.3], [None, 0.35]]'/>
+            <field name="minimum_tax">5000</field>
+            <field name="rebate_rate_percent">15</field>
+            <field name="rebate_cap">1000000</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="resignation_bands" eval='[[0, 7], [5, 15], [10, 30]]'/>
+            <field name="gratuity_bands" eval='{"min_years": 5, "days_upto_12": 30, "days_above_12": 45}'/>
+            <field name="ot_base_components" eval='["basic", "dearness", "ad_hoc"]'/>
+            <field name="festival_bonus_proportionate" eval="False"/>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">Enacted FY 2028-29 personal income tax (same table as FY 2027-28): general 450,000; women / seniors 500,000; physically challenged / third gender 575,000; gazetted war-wounded freedom fighters and wounded July fighters 600,000; guardian +50,000; then 30% to 26,350,000 and 35% above. Minimum tax 5,000. Source: PwC Worldwide Tax Summaries, Bangladesh individual taxes, reviewed 31 Jul 2026.</field>
+        </record>
+        <record id="statutory_pack_fy2029_30_enacted" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="state">draft</field>
+            <field name="basis">sourced</field>
+            <field name="effective_from">2029-07-01</field>
+            <field name="effective_to">2030-06-30</field>
+            <field name="tax_table_rule">fa2029_30</field>
+            <field name="tax_free_thresholds" eval='{"general": 500000.0, "female_senior": 550000.0, "disabled_third_gender": 625000.0, "freedom_fighter": 650000.0}'/>
+            <field name="guardian_extra_threshold">50000</field>
+            <field name="tax_slabs" eval='[[300000.0, 0.1], [400000.0, 0.15], [500000.0, 0.2], [2000000.0, 0.25], [26300000.0, 0.3], [None, 0.35]]'/>
+            <field name="minimum_tax">5000</field>
+            <field name="rebate_rate_percent">15</field>
+            <field name="rebate_cap">1000000</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="resignation_bands" eval='[[0, 7], [5, 15], [10, 30]]'/>
+            <field name="gratuity_bands" eval='{"min_years": 5, "days_upto_12": 30, "days_above_12": 45}'/>
+            <field name="ot_base_components" eval='["basic", "dearness", "ad_hoc"]'/>
+            <field name="festival_bonus_proportionate" eval="False"/>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">Enacted FY 2029-30 personal income tax: general 500,000; women / seniors 550,000; physically challenged / third gender 625,000; freedom fighters / July fighters 650,000; guardian +50,000; then 30% to 26,300,000 and 35% above. Minimum tax 5,000. Source: PwC Worldwide Tax Summaries, Bangladesh individual taxes, reviewed 31 Jul 2026.</field>
+        </record>
+
+        <!-- X-F10: M24 archival of what payroll issues -->
+        <record id="consumer_payslips_published_archive" model="fix.event.consumer">
+            <field name="name">M56: published payslips are archived as employee documents (M24)</field>
+            <field name="event_type">payroll.payslips_published</field>
+            <field name="model">fix.statutory.pack</field>
+            <field name="method">consume_payslips_published</field>
+            <field name="module">cd_payroll_bd</field>
+        </record>
+        <record id="consumer_certificate_issued_archive" model="fix.event.consumer">
+            <field name="name">M56: issued salary/tax certificates are archived as employee documents (M24)</field>
+            <field name="event_type">payroll.certificate_issued</field>
+            <field name="model">fix.statutory.pack</field>
+            <field name="method">consume_certificate_issued</field>
+            <field name="module">cd_payroll_bd</field>
+        </record>
+    </data>
+</odoo>

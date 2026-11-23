@@ -2,6 +2,7 @@
 import base64
 from datetime import UTC, date, datetime, timedelta
 
+from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -9,7 +10,9 @@ from libs.py.fix_events import get_migration_manager, normalize_bus_event, publi
 
 from .fix_hr_controls_common import mask
 
-# Bangladesh Labour Act 2006 statutory leave entitlements (SC-008, DoD-17), in days
+# Bangladesh Labour Act 2006 statutory leave entitlements (SC-008, DoD-17), in days.
+# These are the figures in force UNTIL the owner approves the 2026 amendment (see
+# statutory_leave_floors): read them through that function, never directly.
 STATUTORY_LEAVE = {
     "casual": 10,  # s. 115 casual leave with full wages (non-cumulative)
     "annual": 20,  # s. 117 casual+earned composite floor as practised (1 day per 18 days worked)
@@ -18,6 +21,32 @@ STATUTORY_LEAVE = {
     "maternity": 112,  # s. 46-48: 16 weeks (112 days: 8 weeks pre-natal, 8 weeks post-natal)
     "paternity": 10,  # policy floor (not statutory; recorded as corporate policy benefit)
 }
+# Bangladesh Labour (Amendment) Act 2026 (Act No. 43 of 2026, passed 10 Apr 2026;
+# ordinance 17 Nov 2025): s.46 maternity benefit is 120 days (60 days before and
+# 60 days after delivery); s.118(1) allows 13 festival holidays a year. Applying
+# them on production is an owner decision: the figures are in force only once the
+# parameter below is "approved" (the same opt-in switch as the module's migration
+# and seed step), so an existing 112-day maternity type is not "below the floor"
+# while the owner has not approved the change.
+LABOUR_ACT_2026_PARAM = "cd_hr_core.apply_labour_act_2026_figures"
+STATUTORY_LEAVE_2026 = {"maternity": 120, "festival": 13}
+
+
+def _labour_act_2026_applied(env):
+    """True once the owner approved the Labour (Amendment) Act 2026 figures."""
+    value = env["ir.config_parameter"].sudo().get_param(LABOUR_ACT_2026_PARAM) or ""
+    return str(value).strip() == "approved"
+
+
+def statutory_leave_floors(env):
+    """The statutory leave floors in force, in days (STATUTORY_LEAVE, or the 2026
+    figures for maternity and festival once the owner approved them)."""
+    floors = dict(STATUTORY_LEAVE)
+    if _labour_act_2026_applied(env):
+        floors.update(STATUTORY_LEAVE_2026)
+    return floors
+
+
 PROBATION_CAP_MONTHS = 6  # Labour Rules 2021 r.25: probation <= 6 months
 KPI_090_ORPHAN_HOURS = 24  # KPI-090: no account may outlive the leaver event by 24 h
 KPI_090_DEPROVISION_SLA_HOURS = 1.0  # KPI-090 deprovisioning target from the leaver event
@@ -34,9 +63,12 @@ IDENTITY_CONSUMER_GROUP = "hr-core-identity"
 # the HR employee officer group; payroll and the attendance registers read
 # them through sudo() inside their own group-checked runs.
 HR_PRIVATE = "hr.group_hr_user"
-# A write to any of these moves the employee (employee.moved for M29).
+# A direct write that CHANGES one of these moves the employee (employee.moved,
+# which opens one mover access review). A department on its own does not: a
+# re-organisation of departments is a master edit, not a move (A09 ERP audit
+# X-F15: the November load announced about five "moves" per employee). An
+# applied movement publishes its own, richer event.
 MOVER_FIELDS = {
-    "department_id",
     "job_id",
     "work_location_id",
     "position_id",
@@ -44,6 +76,18 @@ MOVER_FIELDS = {
     "branch_id",
     "job_band",
 }
+# A bulk loader that writes every employee (an import, a migration) wraps its
+# environment in hold_mover_event() so it does not publish thousands of "moves".
+# An object, never a flag: a JSON-RPC caller can put any key it likes in the
+# context, but it cannot put this object there, so no request can switch the
+# mover access review off.
+MOVER_EVENT_HOLD_KEY = "fix_mover_event_hold"
+_MOVER_EVENT_HOLD = object()
+
+
+def hold_mover_event(env):
+    """An environment whose hr.employee writes do not publish employee.moved."""
+    return env(context=dict(env.context, **{MOVER_EVENT_HOLD_KEY: _MOVER_EVENT_HOLD}))
 
 
 class HrEmployeeCdCoreExt(models.Model):
@@ -119,10 +163,25 @@ class HrEmployeeCdCoreExt(models.Model):
     )
     form7_endorsed_on = fields.Date(string="Form 7 Last Endorsed Date")
     form7_update_due_date = fields.Date(
-        string="Form 7 Update Due Date", compute="_compute_form7_clock", store=True
+        string="Form 7 Entry Due Date", compute="_compute_form7_clock", store=True
     )
     form7_update_overdue = fields.Boolean(
         string="Form 7 Update Overdue", compute="_compute_form7_clock", store=True
+    )
+    # which clock set the due date (shown on the form: a month is not 15 days)
+    form7_clock_rule = fields.Selection(
+        [
+            ("event", "Event to be entered (15 days)"),
+            ("permanence", "Opening entry after becoming permanent (one month)"),
+            ("appointment", "Book to be opened after appointment (15 days)"),
+        ],
+        string="Form 7 Clock",
+        compute="_compute_form7_clock",
+        store=True,
+    )
+    # the employee's contracts, for the Form 7 clock's dependency on a probation end
+    fix_contract_ids = fields.One2many(
+        "fix.employment.contract", "employee_id", string="Employment Contracts"
     )
     taxpayer_category = fields.Selection(
         [
@@ -228,7 +287,11 @@ class HrEmployeeCdCoreExt(models.Model):
     probation_months = fields.Integer(string="Probation Duration (Months)", default=3)
     joining_date = fields.Date(string="Date of Joining")
     confirmation_date = fields.Date(string="Permanent Confirmation Date")
-    keycloak_id = fields.Char(string="Keycloak IdP UUID")
+    # A09 ERP audit M21-F9: a second Keycloak field (keycloak_id) stood here,
+    # outside the guard, offered on the workspace form and consumed by nothing:
+    # an HR user could write any value and the record then showed it as the
+    # IdP id. The identity provider's id lives in keycloak_user_id alone
+    # (cd_employee_core, guarded; set by the identity consumer).
 
     # Academic Summary Fields (Primary Degree)
     degree_level = fields.Selection(
@@ -561,7 +624,8 @@ class HrEmployeeCdCoreExt(models.Model):
 
     # Bangladesh Statutory Master & Identity Fields (BLA 2006, Labour Rules 2015, NBR)
     father_name = fields.Char(
-        string="Father's Name", help="Father's Name (Form 7 Service Book, Form 6 Worker Register)"
+        string="Father's Name",
+        help="Father's Name (Form 7 Service Book; Form 8 register of workers)",
     )
     mother_name = fields.Char(string="Mother's Name", help="Mother's Name (Form 7 Service Book)")
     blood_group = fields.Selection(
@@ -768,31 +832,113 @@ class HrEmployeeCdCoreExt(models.Model):
         help="Hours from the leaver event to the confirmed removal (KPI-090 target <= 1 h)",
     )
 
-    @api.depends("form7_last_event_date", "form7_endorsed_on", "joining_date")
+    @api.depends(
+        "form7_last_event_date",
+        "form7_endorsed_on",
+        "joining_date",
+        "confirmation_date",
+        "employment_type",
+        "probation_months",
+        "fix_contract_ids.state",
+        "fix_contract_ids.contract_type",
+        "fix_contract_ids.probation_end",
+    )
     def _compute_form7_clock(self):
+        """When the next service-book entry falls due, and whether it is late.
+
+        A09 ERP audit M21-F22: the clock ran from the last event, or from the
+        joining date plus 15 days, for every employee. Bangladesh Labour Rules
+        2015 keep two clocks for the opening entry: r.21(1) puts it within one
+        month of becoming permanent (the confirmation date, or the end of the
+        probation for a worker not yet decided); r.22(1) has the book opened
+        within 15 days of the appointment when no probation applies. An event
+        still has to be entered (the module's event clock, unchanged). The
+        overdue flag depends on today's date, which is no field dependency: the
+        daily cron (_cron_form7_clock) re-derives it."""
         today = fields.Date.context_today(self)
         for rec in self:
-            event_dt = rec.form7_last_event_date or rec.joining_date
-            if event_dt:
-                due = fields.Date.to_date(event_dt) + timedelta(days=15)
-                rec.form7_update_due_date = due
-                endorsed = (
-                    fields.Date.to_date(rec.form7_endorsed_on) if rec.form7_endorsed_on else None
-                )
-                rec.form7_update_overdue = bool(
-                    (not endorsed or endorsed < fields.Date.to_date(event_dt)) and today > due
-                )
-            else:
+            base, rule = rec._fix_form7_base()
+            if not base:
                 rec.form7_update_due_date = False
                 rec.form7_update_overdue = False
+                rec.form7_clock_rule = False
+                continue
+            due = base + (relativedelta(months=1) if rule == "permanence" else timedelta(days=15))
+            endorsed = rec.form7_endorsed_on or False
+            # an event is entered by an endorsement on or after it; an opening
+            # entry by any verified entry (the book is open)
+            entered = bool(endorsed) and (rule != "event" or endorsed >= base)
+            rec.form7_update_due_date = due
+            rec.form7_clock_rule = rule
+            rec.form7_update_overdue = bool(not entered and today > due)
+
+    def _fix_probation_permanence_date(self):
+        """The day a worker still on probation becomes permanent: the day after
+        the earliest running probation ends, else the day after the master's own
+        probation length. False when no probation is on record."""
+        self.ensure_one()
+        srec = self.sudo()
+        ends = srec.fix_contract_ids.filtered(
+            lambda c: c.state == "active" and c.contract_type == "probation" and c.probation_end
+        ).mapped("probation_end")
+        if ends:
+            return min(ends) + timedelta(days=1)
+        if srec.employment_type == "probationary" and srec.joining_date and srec.probation_months:
+            return (
+                srec.joining_date + relativedelta(months=srec.probation_months) + timedelta(days=1)
+            )
+        return False
+
+    def _fix_form7_base(self):
+        """(date the clock runs from, rule) for one employee: an event that was
+        recorded, else becoming permanent, else the appointment."""
+        self.ensure_one()
+        event = self.form7_last_event_date or False
+        if event:
+            return event, "event"
+        permanence = self.confirmation_date or self._fix_probation_permanence_date()
+        if permanence:
+            return permanence, "permanence"
+        return self.joining_date or False, "appointment"
+
+    @api.model
+    def _fix_recompute_form7_clock(self):
+        """Upgrade step: the stored clock of every employee is re-derived under
+        the rules above (rows saved earlier carry the old joining-plus-15-days
+        due date). Idempotent; superuser only (run from the module's data file)."""
+        if not self.env.su:
+            raise AccessError("Run by the module upgrade only.")
+        employees = self.with_context(active_test=False).search([])
+        for name in ("form7_update_due_date", "form7_update_overdue", "form7_clock_rule"):
+            self.env.add_to_compute(self._fields[name], employees)
+        self.env.flush_all()
+        return len(employees)
+
+    @api.model
+    def _cron_form7_clock(self):
+        """Daily: a due date that passed overnight turns the overdue flag on
+        (the flag is stored, and today is not one of its dependencies)."""
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        employees = (
+            self.sudo()
+            .with_context(active_test=False, tz="Asia/Dhaka")
+            .search(
+                [("form7_update_due_date", "!=", False), ("form7_update_due_date", "<=", today)]
+            )
+        )
+        self.env.add_to_compute(self._fields["form7_update_overdue"], employees)
+        self.env.flush_all()
+        return len(employees)
 
     def action_generate_form7_service_book(self):
-        """BLR 2015 Rule 21 / BLA 2006 s.6-9: Generate Form 7 Service Book entry and reset 15-day clock."""
+        """BLR 2015 r.20 / BLA 2006 s.6-9: a Form 7 Service Book entry (a
+        generated, unsigned text: the book is endorsed when the signed scan of
+        the entry is verified, never by generating it)."""
         docs = self.env["fix.hr.document"]
         today = fields.Date.context_today(self)
         for rec in self.with_context(fix_identity_read_purpose="Form 7 service book (masked)"):
             payload = (
-                f"FORM 7 - SERVICE BOOK (Bangladesh Labour Rules 2015, Rule 21)\n"
+                f"FORM 7 - SERVICE BOOK (Bangladesh Labour Rules 2015, Rule 20)\n"
                 f"Service Book No: {rec.service_book_number or 'SB-' + (rec.employee_code or str(rec.id))}\n"
                 f"Worker Name: {rec.name}\n"
                 f"Father's Name: {rec.father_name or ''}\n"
@@ -831,8 +977,70 @@ class HrEmployeeCdCoreExt(models.Model):
             docs |= doc
         return docs
 
+    # A09 ERP audit M21-F2: the letter of appointment is NOT a numbered form
+    # (Form 6 is the identity card, BLR 2015 r.19(5)). r.19(4) names the ten
+    # particulars it must carry; the method keeps its name (the workspace
+    # actions and the callers know it by it).
+    NOT_RECORDED = "NOT RECORDED"
+    R194_COMPLIANCE = (
+        "The terms and conditions of this appointment are in accordance with the "
+        "Bangladesh Labour Act 2006 and the Bangladesh Labour Rules 2015."
+    )
+
+    def _fix_letter_particulars(self, contract):
+        """The r.19(4) particulars of one employee's letter of appointment as
+        (label, text), in the Rule's order, and the labels not on record. A
+        particular that is not on record reads NOT RECORDED, never a blank
+        line: a letter with a silent blank could be signed and issued."""
+        self.ensure_one()
+        division = dict(self._fields["permanent_division"].selection)
+        nature = dict(self._fields["employment_type"].selection)
+
+        def address(*parts):
+            return ", ".join(p for p in parts if p)
+
+        def work():
+            if self.job_title:
+                return self.job_title
+            return self.position_id.name if self.position_id else ""
+
+        particulars = [
+            ("Name", self.name or ""),
+            ("Father's Name", self.father_name or ""),
+            ("Mother's Name", self.mother_name or ""),
+            ("Spouse's Name", self.spouse_name or ""),
+            (
+                "Present Address",
+                address(self.private_street, self.private_city, self.private_district),
+            ),
+            (
+                "Permanent Address",
+                address(
+                    self.permanent_address,
+                    self.permanent_district,
+                    division.get(self.permanent_division, self.permanent_division),
+                ),
+            ),
+            ("Designation and Type of Work", work()),
+            ("Joining Date", str(contract.joining_date or "")),
+            (
+                "Class of Worker",
+                nature.get(self.employment_type, self.employment_type or ""),
+            ),
+            ("Wage Scale", contract.wage_scale or ""),
+            ("Increment Rate", contract.increment_rate or ""),
+            ("Other Financial Facilities", contract.other_facilities or ""),
+        ]
+        lines = ["%s: %s" % (label, text or self.NOT_RECORDED) for label, text in particulars]
+        # the tenth particular: the statement that the terms comply with the Act
+        lines.append("Compliance Statement: %s" % self.R194_COMPLIANCE)
+        missing = [label for label, text in particulars if not text]
+        return lines, missing
+
     def action_generate_form6_appointment(self):
-        """BLR 2015 Rule 19(1) / BLA 2006 s.5: Generate Form 6 Appointment Letter."""
+        """The letter of appointment of BLR 2015 r.19(4) (BLA 2006 s.5): a
+        generated, unsigned text carrying the particulars the Rule names. It
+        is unverified until a second HR person verifies the signed scan."""
         docs = self.env["fix.hr.document"]
         today = fields.Date.context_today(self)
         for rec in self:
@@ -850,8 +1058,8 @@ class HrEmployeeCdCoreExt(models.Model):
             )
             if not contract:
                 raise UserError(
-                    "%s has no employment contract: Form 6 states the contract's terms, so "
-                    "record the contract (Hire / Onboard) first." % rec.name
+                    "%s has no employment contract: the letter of appointment states the "
+                    "contract's terms, so record the contract (Hire / Onboard) first." % rec.name
                 )
             nature = dict(
                 self.env["fix.employment.contract"]._fields["contract_type"].selection
@@ -868,21 +1076,24 @@ class HrEmployeeCdCoreExt(models.Model):
                 )
                 if f in contract._fields
             )
-            payload = (
-                f"FORM 6 - APPOINTMENT LETTER (Bangladesh Labour Rules 2015, Rule 19)\n"
-                f"Employee: {rec.name} ({rec.employee_code or 'N/A'})\n"
-                f"Father's Name: {rec.father_name or ''}\n"
-                f"Mother's Name: {rec.mother_name or ''}\n"
-                f"Permanent Address: {rec.permanent_address or ''}\n"
-                f"Contract: {contract.name}\n"
-                f"Joining Date: {contract.joining_date}\n"
-                f"Employment Nature: {nature}\n"
-                f"Probation Ends: {contract.probation_end or 'not applicable'}\n"
-                f"Basic Wage: BDT {contract.basic_monthly or 0.0:,.2f}\n"
-                f"House Rent: BDT {contract.house_rent or 0.0:,.2f}\n"
-                f"Medical: BDT {contract.medical_allowance or 0.0:,.2f}\n"
-                f"Conveyance: BDT {contract.conveyance_allowance or 0.0:,.2f}\n"
-                f"Gross Salary: BDT {gross:,.2f}\n"
+            particulars, missing = rec._fix_letter_particulars(contract)
+            payload = "\n".join(
+                [
+                    "APPOINTMENT LETTER (Bangladesh Labour Rules 2015, Rule 19(4))",
+                    "Employer: %s" % (rec.company_id.name or ""),
+                    "Employee Code: %s" % (rec.employee_code or self.NOT_RECORDED),
+                    *particulars,
+                    "",
+                    "Employment Nature (contract): %s" % nature,
+                    "Probation Ends: %s" % (contract.probation_end or "not applicable"),
+                    f"Basic Wage: BDT {contract.basic_monthly or 0.0:,.2f}",
+                    f"House Rent: BDT {contract.house_rent or 0.0:,.2f}",
+                    f"Medical: BDT {contract.medical_allowance or 0.0:,.2f}",
+                    f"Conveyance: BDT {contract.conveyance_allowance or 0.0:,.2f}",
+                    f"Gross Salary: BDT {gross:,.2f}",
+                    "Contract: %s" % contract.name,
+                    "Generated: %s (unsigned: the signed scan is verified before issue)" % today,
+                ]
             ).encode()
             doc = (
                 self.env["fix.hr.document"]
@@ -891,26 +1102,62 @@ class HrEmployeeCdCoreExt(models.Model):
                     {
                         "employee_id": rec.id,
                         "doc_type": "appointment",
-                        "reference": f"FORM6/{rec.employee_code or rec.id}/{today}",
+                        "reference": f"APPT/{rec.employee_code or rec.id}/{today}",
                         "issued_on": today,
                         "generated": True,
-                        "file_name": f"Form6_Appointment_{rec.employee_code or rec.id}.txt",
+                        "file_name": f"AppointmentLetter_{rec.employee_code or rec.id}.txt",
                         "file_data": base64.b64encode(payload),
+                        "notes": (
+                            "Not on record at generation (BLR r.19(4)): %s" % "; ".join(missing)
+                            if missing
+                            else False
+                        ),
                     }
                 )
             )
             docs |= doc
         return docs
 
-    @api.model
-    def action_export_form6a_register(self, domain=None):
-        """BLR 2015 Rule 20 / BLA 2006 s.9: Export Form 6(a) Worker Register."""
-        # every NID read is logged (BRU-HCM-07); this names why it was read
-        emps = self.with_context(fix_identity_read_purpose="Form 6(a) register").search(
-            domain or []
+    # ---- the statutory registers (HR only) ----------------------------------
+    # BLR 2015 r.19(7): Form 6(A) is the register of the issue of the letter of
+    # appointment, the identity card (Form 6, r.19(5)) and the service book
+    # (Form 7, r.20). BLR r.23: the register of workers is Form 8. Neither
+    # carries a national ID (A09 ERP audit M21-F1): the NID stays in the
+    # Bangladesh-resident store, and these exports read none of it.
+    FORM6A_DOCUMENTS = (
+        ("appointment", "appointment letter"),
+        ("id_card", "identity card"),
+        ("service_book", "service book"),
+    )
+
+    def _fix_require_hr_register(self, what):
+        """The statutory registers are HR's (Employee Officer or Manager).
+
+        The record rules on hr.employee already keep a plain employee out; this
+        is the explicit gate, so a later loosening of those rules cannot widen
+        the registers with it (A09 ERP audit M21-F3)."""
+        if not (self.env.su or self.env.user.has_group(HR_PRIVATE)):
+            raise AccessError("Only HR may export the %s." % what)
+
+    def _fix_register_rows(self, domain):
+        """The workers on the books, in register order (joining date, then the
+        record): the serial of a worker is the same in the Register of Workers
+        and in Form 6(A). Read as the caller."""
+        return self.search(
+            [("left_date", "=", False), *(domain or [])], order="joining_date asc, id asc"
         )
+
+    def _fix_designation(self):
+        self.ensure_one()
+        return self.job_title or (self.position_id.name if self.position_id else "")
+
+    @api.model
+    def action_export_workers_register(self, domain=None):
+        """BLR 2015 r.23: the register of workers, in the shape of Form 8."""
+        self._fix_require_hr_register("Register of Workers")
+        nature = dict(self._fields["employment_type"].selection)
         rows = []
-        for idx, emp in enumerate(emps, start=1):
+        for idx, emp in enumerate(self._fix_register_rows(domain), start=1):
             rows.append(
                 {
                     "serial": idx,
@@ -918,13 +1165,71 @@ class HrEmployeeCdCoreExt(models.Model):
                     "name": emp.name or "",
                     "father_name": emp.father_name or "",
                     "mother_name": emp.mother_name or "",
-                    "nid_number": emp.nid_number or "",
                     "department": emp.department_id.name or "",
-                    "designation": emp.job_title
-                    or (emp.position_id.name if emp.position_id else ""),
-                    "employment_type": emp.employment_type or "",
+                    "designation": emp._fix_designation(),
+                    "employment_type": nature.get(emp.employment_type, emp.employment_type or ""),
                     "joining_date": str(emp.joining_date or ""),
                     "service_book_number": emp.service_book_number or "",
+                }
+            )
+        return rows
+
+    @api.model
+    def action_export_form6a_register(self, domain=None):
+        """BLR 2015 r.19(7): Form 6(A), the register of the issue of the letter
+        of appointment, the identity card and the service book, from the
+        employee's statutory documents (fix.hr.document).
+
+        The issue date of a document is the date of its first verified copy (the
+        signed scan a second HR person verified). A document that was only
+        generated is shown with its generation date and said so in the remarks."""
+        self._fix_require_hr_register("Form 6(A) register")
+        emps = self._fix_register_rows(domain)
+        today = fields.Date.context_today(self)
+        documents = self.env["fix.hr.document"].search(
+            [
+                ("employee_id", "in", emps.ids),
+                ("doc_type", "in", [t for t, _l in self.FORM6A_DOCUMENTS]),
+            ]
+        )
+        # (employee id, doc type) -> {"verified": date, "generated": date}
+        issued = {}
+        for doc in documents.sorted(lambda d: (d.issued_on or date.min, d.id)):
+            entry = issued.setdefault((doc.employee_id.id, doc.doc_type), {})
+            kind = "verified" if doc.verified else "generated"
+            if kind == "verified" or "verified" not in entry:
+                entry.setdefault(kind, doc.issued_on)
+        rows = []
+        for idx, emp in enumerate(emps, start=1):
+            remarks = []
+            cells = {}
+            for doc_type, label in self.FORM6A_DOCUMENTS:
+                entry = issued.get((emp.id, doc_type), {})
+                if "verified" in entry:
+                    cells[doc_type] = entry["verified"]
+                elif "generated" in entry:
+                    cells[doc_type] = entry["generated"]
+                    remarks.append(
+                        "%s generated %s, signed copy not verified" % (label, entry["generated"])
+                    )
+                else:
+                    cells[doc_type] = False
+                    remarks.append("%s not on record" % label)
+            age = relativedelta(today, emp.birthday).years if emp.birthday else False
+            rows.append(
+                {
+                    "serial": idx,
+                    # the worker's line in the Register of Workers (same order)
+                    "register_serial": idx,
+                    "name": emp.name or "",
+                    "age": age,
+                    "nature_of_work": emp._fix_designation(),
+                    "appointment_letter_on": cells["appointment"],
+                    "identity_card_on": cells["id_card"],
+                    "service_book_on": cells["service_book"],
+                    # signed by the worker on the printed register
+                    "signature": "",
+                    "remarks": "; ".join(remarks),
                 }
             )
         return rows
@@ -1172,21 +1477,30 @@ class HrEmployeeCdCoreExt(models.Model):
         # A09 audit M21-13 (E11): a direct position, branch, operating-unit or
         # band change moved the employee without telling M29.
         # An applied movement publishes its own, richer employee.moved.
-        if movers and not self.env.context.get("fix_movement_event"):
+        # A09 ERP audit X-F15: a department on its own is no longer a move, and
+        # a bulk loader holds the event (hold_mover_event).
+        if (
+            movers
+            and not self.env.context.get("fix_movement_event")
+            and self.env.context.get(MOVER_EVENT_HOLD_KEY) is not _MOVER_EVENT_HOLD
+        ):
             for rec in self:
                 old = before.get(rec.id, {})
-                if not any(rec.sudo()[f] != old.get(f) for f in movers):
+                srec = rec.sudo()
+                changed = [f for f in movers if srec[f] != old.get(f)]
+                if not changed:
                     continue
-                publish(
-                    self.env,
-                    "employee.moved",
-                    "hr.employee",
-                    rec.id,
-                    {
-                        "employee_code": rec.employee_code or "",
-                        "department": rec.department_id.name or "",
-                    },
-                )
+                payload = {
+                    "employee_code": srec.employee_code or "",
+                    "department": srec.department_id.name or "",
+                    "changed_fields": changed,
+                }
+                # what the mover access review names (consume_employee_moved)
+                for field, key in (("operating_unit_id", "branch"), ("position_id", "position")):
+                    if field in changed:
+                        payload["from_%s" % key] = old[field].name if old[field] else ""
+                        payload["to_%s" % key] = srec[field].name if srec[field] else ""
+                publish(self.env, "employee.moved", "hr.employee", rec.id, payload)
         return result
 
 
@@ -1223,8 +1537,8 @@ class FixOrgPosition(models.Model):
 
 
 class FixEmploymentContract(models.Model):
-    """Labour Act 2006 employment artefacts (P08-M01-T05, R06-M01-T02) — where the
-    category-H statutory density (+52%) lives on M24 templates."""
+    """Labour Act 2006 employment artefacts (P08-M01-T05, R06-M01-T02), rendered
+    through the M24 document templates."""
 
     _name = "fix.employment.contract"
     _description = "Employment Contract"
@@ -1277,6 +1591,23 @@ class FixEmploymentContract(models.Model):
     adhoc_allowance = fields.Monetary(
         string="Ad-hoc / Interim Allowance", currency_field="currency_id"
     )
+    # BLR 2015 r.19(4): the letter of appointment also states the wage scale
+    # and the increment rate, and the other financial facilities. They are
+    # terms of the contract (frozen with the others once it leaves draft) and
+    # optional; the letter says NOT RECORDED for one left blank rather than
+    # printing a blank line (A09 ERP audit M21-F2).
+    wage_scale = fields.Char(
+        string="Wage Scale",
+        help="BLR 2015 r.19(4): the wage scale (pay grade and range) of the appointment",
+    )
+    increment_rate = fields.Char(
+        string="Increment Rate",
+        help="BLR 2015 r.19(4): the increment the wage scale carries, e.g. '5% of basic a year'",
+    )
+    other_facilities = fields.Text(
+        string="Other Financial Facilities",
+        help="BLR 2015 r.19(4): festival bonus, attendance allowance, gratuity and the like",
+    )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -1297,11 +1628,12 @@ class FixEmploymentContract(models.Model):
         "fix.identity.document (Z4 residency), referenced, never copied",
     )
 
-    # M24 Document Engine Integration (+52% Category H statutory density)
+    # M24 Document Engine Integration
     template_id = fields.Many2one(
         "fix.document.template",
         string="M24 Document Template",
-        help="M24 governed document template for Bangladesh Labour Rules Form 6",
+        help="M24 governed document template for the employment contract (the letter of "
+        "appointment of BLR 2015 r.19(4) is not a numbered form)",
     )
     document_id = fields.Many2one(
         "fix.document",
@@ -1309,11 +1641,9 @@ class FixEmploymentContract(models.Model):
         readonly=True,
         help="Governed contract artefact produced by M24 document engine",
     )
-    statutory_density_score = fields.Float(
-        string="Statutory Density (%)",
-        default=52.0,
-        help="Statutory density rating exceeding standard contracts (+52% Category H density)",
-    )
+    # A09 ERP audit M21-F11: a "statutory density score" (a constant 52%) stood
+    # here as a writable field and was printed on the contract. It measured
+    # nothing: it is removed from the model, the form and the document.
     legal_signoff_state = fields.Selection(
         [
             ("pending", "Pending Signoff"),
@@ -1337,7 +1667,9 @@ class FixEmploymentContract(models.Model):
     # fix_hr_contract_controls.py (A09 P0-b: guarded, routed, versioned).
 
     def action_generate_contract_document(self):
-        """Generate official Labour Rules 2015 Form 6 contract via M24 document engine.
+        """Generate the statutory employment contract through the M24 document
+        engine (BLA 2006 s.5; the letter of appointment of BLR 2015 r.19(4) is
+        not a numbered form - Form 6 is the identity card).
 
         Returns the generated fix.document records (one per contract; the
         loop used to `return` after the first contract of a multi-record call)."""
@@ -1346,16 +1678,17 @@ class FixEmploymentContract(models.Model):
             rec._validate_statutory()
             template = rec.template_id
             if not template:
-                # Default to Form 6 contract template
+                # Default to the employment contract template
                 template = self.env["fix.document.template"].search(
                     [("document_type", "=", "contract")], limit=1
                 )
 
-            # Create ir.attachment containing Form 6 appointment / contract details
+            # Create ir.attachment containing the employment contract details
             content = (
                 f"1000FiX SERVICES LTD - STATUTORY EMPLOYMENT CONTRACT\n"
-                f"Statutory Form: Form 6, Bangladesh Labour Rules 2015\n"
-                f"Statutory Density: {rec.statutory_density_score}% (Category H)\n"
+                f"Statutory Basis: Bangladesh Labour Act 2006 (Act XLII of 2006) s.5 and "
+                f"Bangladesh Labour Rules 2015 r.19(4) - the letter of appointment is not a "
+                f"numbered form\n"
                 f"Contract Ref: {rec.name}\n"
                 f"Employee: {rec.employee_id.name} (Code: {rec.employee_id.employee_code or 'N/A'})\n"
                 f"Type: {rec.contract_type}\n"
@@ -1386,7 +1719,8 @@ class FixEmploymentContract(models.Model):
                     "res_model": "fix.employment.contract",
                     "res_id": rec.id,
                     "isolation_tier": "T1",
-                    "description": f"Labour Rules Form 6 employment contract for {rec.employee_id.name}",
+                    "description": "Employment contract for %s (BLA 2006 s.5; BLR 2015 r.19(4))"
+                    % rec.employee_id.name,
                 }
             )
             rec.document_id = doc.id
@@ -1398,7 +1732,6 @@ class FixEmploymentContract(models.Model):
                 {
                     "contract": rec.name,
                     "document_id": doc.id,
-                    "statutory_density": rec.statutory_density_score,
                 },
             )
             docs |= doc
@@ -1450,15 +1783,27 @@ class FixLeaveType(models.Model):
     )
     verified_on = fields.Date(
         string="Verified On",
-        default=fields.Date.today,
-        help="Date statutory citation verified current (DoD-17)",
+        # A09 ERP audit M21-F12: a default of today stamped every new type
+        # "verified" with nobody recorded as the verifier. The date is set by
+        # Verify Citation, which records who verified.
+        default=False,
+        help="Date statutory citation verified current (DoD-17). Set by Verify Citation, "
+        "which records who verified it.",
+    )
+    # B2b seeds an unpaid leave type and payroll reads this flag: an approved
+    # day of an unpaid type reduces pay.
+    is_unpaid = fields.Boolean(
+        string="Unpaid Leave",
+        default=False,
+        help="Approved days of this type reduce pay",
     )
 
     def action_validate_statutory(self):
-        """The entitlement must be at least the statutory floor."""
+        """The entitlement must be at least the statutory floor in force."""
+        floors = statutory_leave_floors(self.env)
         for rec in self:
             if rec.is_statutory:
-                floor = STATUTORY_LEAVE.get(rec.code)
+                floor = floors.get(rec.code)
                 if floor and rec.entitlement_days < floor:
                     raise ValidationError(
                         "%s entitlement below the statutory floor (%d days)" % (rec.code, floor)

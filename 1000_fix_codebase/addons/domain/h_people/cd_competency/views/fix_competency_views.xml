@@ -58,6 +58,7 @@
                         <group>
                             <field name="issued_on"/>
                             <field name="expires_on"/>
+                            <field name="brand_critical"/>
                             <field name="evidence_ref"/>
                             <field name="certificate_file" filename="certificate_filename"/>
                             <field name="certificate_filename" invisible="1"/>

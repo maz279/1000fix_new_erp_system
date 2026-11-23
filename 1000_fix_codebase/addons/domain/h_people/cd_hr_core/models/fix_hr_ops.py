@@ -644,11 +644,15 @@ class FixHrDocument(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     employee_id = fields.Many2one("hr.employee", required=True, ondelete="cascade", index=True)
+    # A09 ERP audit M21-F2: Form 6 is the identity card (BLR 2015 r.19(5)) and
+    # Form 7 the service book (r.20). The letter of appointment (r.19(4)) is
+    # not a numbered form, and "Form 11" is the discharge inability
+    # certificate (r.28), not an ID card.
     doc_type = fields.Selection(
         [
-            ("appointment", "Appointment Letter"),
-            ("id_card", "Employee ID Card (Form 11)"),
-            ("service_book", "Form 7 Service Book"),
+            ("appointment", "Appointment Letter (BLR r.19(4))"),
+            ("id_card", "Identity Card (Form 6)"),
+            ("service_book", "Service Book (Form 7)"),
             ("experience", "Experience Certificate"),
             ("nda", "Confidentiality Undertaking (NDA)"),
             ("nid_smart", "National ID (Smart Card)"),

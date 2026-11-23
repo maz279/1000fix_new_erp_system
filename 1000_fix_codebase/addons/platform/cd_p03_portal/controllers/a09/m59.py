@@ -63,6 +63,7 @@ SURFACES = {
         "limit": 300,
         "actions": {
             "action_notify_dife",
+            "action_notify_dol",
             "action_request_approval",
             "action_recall_approval",
             "action_record_return_to_work",

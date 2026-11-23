@@ -35,7 +35,8 @@
         "employee_id",
         "competency",
         "expires_on",
-        "days_remaining"
+        "days_remaining",
+        "brand_critical"
       ],
       "properties": {
         "employee_id": {
@@ -48,7 +49,10 @@
           "type": "string"
         },
         "days_remaining": {
-          "description": "Type not statically derivable from `(rec.expires_on - today).days` (addons/domain/h_people/cd_competency/models/fix_competency.py:689)."
+          "description": "Type not statically derivable from `(rec.expires_on - today).days` (addons/domain/h_people/cd_competency/models/fix_competency.py:755)."
+        },
+        "brand_critical": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

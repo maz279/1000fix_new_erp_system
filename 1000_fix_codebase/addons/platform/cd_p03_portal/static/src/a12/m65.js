@@ -75,7 +75,9 @@ export const MODULE = {
 
 export const SCREENS = {
   'M65-entities': { kind: 'model_list', model: 'fix.entity',
-    cols: ['code', 'legal_name', 'legal_name_bn', 'active'] },
+    /* M65-4: the screen is "Entities per Country" — the country column was
+       missing, so it read as a flat entity list. */
+    cols: ['code', 'legal_name', 'legal_name_bn', 'country_id', 'active'] },
   'M65-structure': { kind: 'table_report', module: 'M65', report: 'entity_structure', title: 'Entity Structure', period: false },
   'M65-packs': { kind: 'model_list', model: 'fix.country.pack', stateField: 'state',
     cols: ['name', 'code', 'kind', 'version', 'certified_by_id', 'certified_on', 'loaded_at', 'load_summary', 'state'],

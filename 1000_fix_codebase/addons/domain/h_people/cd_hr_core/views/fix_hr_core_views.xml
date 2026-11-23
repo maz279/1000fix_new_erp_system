@@ -11,7 +11,6 @@
                 <field name="employee_id"/>
                 <field name="contract_type"/>
                 <field name="joining_date"/>
-                <field name="statutory_density_score"/>
                 <field name="basic_monthly"/>
                 <field name="legal_signoff_state"/>
                 <field name="state"/>
@@ -63,7 +62,6 @@
                                 <group string="M24 Template Engine">
                                     <field name="template_id"/>
                                     <field name="document_id"/>
-                                    <field name="statutory_density_score"/>
                                 </group>
                                 <group string="Legal Signoff &amp; Compliance">
                                     <field name="legal_signoff_state"/>

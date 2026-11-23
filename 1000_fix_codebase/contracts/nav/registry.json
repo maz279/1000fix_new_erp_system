@@ -4624,10 +4624,10 @@
    "id": "M23",
    "area": "A10",
    "en": "Quality Management (ISO)",
-   "bn": "কোয়ালিটি ম্যানেজমেন্ট",
+   "bn": "গুণমান ব্যবস্থাপনা (আইএসও)",
    "icon": "✅",
    "rail": "quality",
-   "desc": "ISO 9001:2015 operating system — process register, NCRs, CAPA with verification, audits, management review.",
+   "desc": "Quality policy and objectives, the ISO process register, checklist authoring and quality gates, NCR management with RCA (5-Why/8D), CAPA with verification, the internal audit programme, certification and surveillance, management review, and Pareto/CoPQ analytics.",
    "groups": [
     {
      "en": "Framework",
@@ -4639,15 +4639,33 @@
        "t": "g"
       },
       {
+       "id": "M23-objectives",
+       "en": "Quality Objectives (cascade)",
+       "bn": "গুণগত উদ্দেশ্য",
+       "t": "g"
+      },
+      {
        "id": "M23-processes",
        "en": "Process Register (ISO map)",
        "bn": "প্রক্রিয়া রেজিস্টার",
        "t": "g"
       },
       {
+       "id": "M23-changes",
+       "en": "Process Change Assessments",
+       "bn": "প্রক্রিয়া পরিবর্তন মূল্যায়ন",
+       "t": "g"
+      },
+      {
        "id": "M23-checklists",
        "en": "Checklist Authoring",
        "bn": "চেকলিস্ট রচনা",
+       "t": "g"
+      },
+      {
+       "id": "M23-checklist-items",
+       "en": "Checklist Items",
+       "bn": "চেকলিস্ট আইটেম",
        "t": "g"
       },
       {
@@ -4669,15 +4687,21 @@
       },
       {
        "id": "M23-rca",
-       "en": "RCA (5-Why / 8D)",
+       "en": "RCA (5-Why / Ishikawa / 8D)",
        "bn": "মূল কারণ",
-       "t": "c"
+       "t": "g"
       },
       {
        "id": "M23-capa",
        "en": "CAPA & Verification",
        "bn": "ক্যাপা",
-       "t": "c"
+       "t": "g"
+      },
+      {
+       "id": "M23-capa-actions",
+       "en": "CAPA Action Plan",
+       "bn": "ক্যাপা কর্মপরিকল্পনা",
+       "t": "g"
       }
      ]
     },
@@ -4685,10 +4709,28 @@
      "en": "Audits",
      "screens": [
       {
+       "id": "M23-programmes",
+       "en": "Annual Audit Programme",
+       "bn": "বার্ষিক অডিট কর্মসূচি",
+       "t": "g"
+      },
+      {
        "id": "M23-internal",
-       "en": "Internal Audit Programme",
+       "en": "Internal Audits",
        "bn": "অভ্যন্তরীণ অডিট",
-       "t": "c"
+       "t": "g"
+      },
+      {
+       "id": "M23-findings",
+       "en": "Audit Findings",
+       "bn": "অডিট পর্যবেক্ষণ",
+       "t": "g"
+      },
+      {
+       "id": "M23-auditors",
+       "en": "Auditor Register",
+       "bn": "অডিটর রেজিস্টার",
+       "t": "g"
       },
       {
        "id": "M23-external",
@@ -4697,10 +4739,28 @@
        "t": "g"
       },
       {
+       "id": "M23-evidence",
+       "en": "External Evidence Releases",
+       "bn": "প্রমাণ প্রদান",
+       "t": "g"
+      },
+      {
        "id": "M23-review",
        "en": "Management Review",
        "bn": "ব্যবস্থাপনা পর্যালোচনা",
-       "t": "c"
+       "t": "g"
+      },
+      {
+       "id": "M23-review-inputs",
+       "en": "Review Inputs (9.3.2)",
+       "bn": "পর্যালোচনা উপাদান",
+       "t": "g"
+      },
+      {
+       "id": "M23-review-actions",
+       "en": "Review Actions (9.3.3)",
+       "bn": "পর্যালোচনা কর্ম",
+       "t": "g"
       }
      ]
     },
@@ -4718,28 +4778,45 @@
        "en": "Cost of Poor Quality",
        "bn": "নিম্ন গুণগত ব্যয়",
        "t": "r"
+      },
+      {
+       "id": "M23-qms-copq",
+       "en": "CoPQ Ledger",
+       "bn": "নিম্ন গুণগত ব্যয় খতিয়ান",
+       "t": "g"
       }
      ]
     }
    ],
    "reports": [
     "NCR & CAPA Register",
-    "Audit Programme Status",
     "Repeat-Failure Escalation",
-    "CoPQ Analysis",
-    "Management Review Pack"
+    "Audit Programme Status",
+    "Management Review Pack",
+    "CoPQ Analysis"
    ],
    "forms": [
     "NCR",
     "CAPA",
     "Audit Finding",
-    "Checklist Template"
+    "Checklist Template",
+    "Review Action",
+    "Quality Objective",
+    "Process Change Assessment",
+    "Quality Gate",
+    "Root-Cause Analysis",
+    "Internal Audit",
+    "Audit Programme",
+    "Auditor",
+    "Certification / Surveillance",
+    "Evidence Release",
+    "CoPQ Entry"
    ],
    "cross": [
-    "M01 QC gates",
-    "M31 workshop QC",
-    "M34 complaint signals",
-    "P11 auditor app"
+    "M01 Service Orders",
+    "M34 Complaints",
+    "M42 Suppliers",
+    "M24 Documents"
    ],
    "freg": {
     "src": 78,
@@ -4787,22 +4864,43 @@
     ]
    },
    "kpis": [
-    "Major NCs",
-    "CAPA On-Time",
-    "Open NCRs",
-    "Audit Findings (open)",
-    "First-Pass QC",
-    "CoPQ"
+    {
+     "l": "Major NCs",
+     "m": "major_ncs"
+    },
+    {
+     "l": "CAPA On-Time",
+     "m": "capa_on_time",
+     "suffix": "%"
+    },
+    {
+     "l": "Open NCRs",
+     "m": "open_ncrs"
+    },
+    {
+     "l": "Open Audit Findings",
+     "m": "audit_findings"
+    },
+    {
+     "l": "First-Pass QC",
+     "m": "first_pass_qc",
+     "suffix": "%"
+    },
+    {
+     "l": "CoPQ",
+     "m": "copq",
+     "prefix": "৳ "
+    }
    ]
   },
   {
    "id": "M24",
    "area": "A10",
    "en": "Documents & E-Signature",
-   "bn": "দলিল ও ই-স্বাক্ষর",
-   "icon": "🗂️",
+   "bn": "নথি ও ই-স্বাক্ষর",
+   "icon": "📄",
    "rail": "quality",
-   "desc": "Auto-filing from transactions, bilingual OCR search, e-signature envelopes, retention 5–10y, evidence packs.",
+   "desc": "Governed document repository with bilingual full-text search, controlled documents and template generation, e-signature envelopes with tamper-evidence, retention enforcement, legal holds and defensible disposal.",
    "groups": [
     {
      "en": "Repository",
@@ -4817,7 +4915,31 @@
        "id": "M24-search",
        "en": "Bilingual Full-Text + OCR",
        "bn": "পূর্ণ-পাঠ অনুসন্ধান",
-       "t": "c"
+       "t": "r"
+      },
+      {
+       "id": "M24-classes",
+       "en": "Document Classes",
+       "bn": "দলিলের শ্রেণি",
+       "t": "g"
+      },
+      {
+       "id": "M24-exceptions",
+       "en": "Classification Exceptions",
+       "bn": "শ্রেণিবিন্যাস ব্যতিক্রম",
+       "t": "g"
+      },
+      {
+       "id": "M24-physical",
+       "en": "Paper Originals Register",
+       "bn": "মূল কাগজের নিবন্ধন",
+       "t": "g"
+      },
+      {
+       "id": "M24-integrity",
+       "en": "Integrity Sweeps",
+       "bn": "অখণ্ডতা যাচাই",
+       "t": "g"
       }
      ]
     },
@@ -4828,12 +4950,24 @@
        "id": "M24-controlled",
        "en": "Controlled Documents",
        "bn": "নিয়ন্ত্রিত দলিল",
-       "t": "c"
+       "t": "g"
       },
       {
        "id": "M24-generation",
        "en": "Templates & Generation",
        "bn": "টেমপ্লেট",
+       "t": "g"
+      },
+      {
+       "id": "M24-distribution",
+       "en": "Distributions",
+       "bn": "বিতরণ",
+       "t": "g"
+      },
+      {
+       "id": "M24-acks",
+       "en": "Acknowledgements",
+       "bn": "প্রাপ্তি স্বীকার",
        "t": "g"
       }
      ]
@@ -4851,6 +4985,12 @@
        "id": "M24-audit",
        "en": "Tamper Evidence & Audit",
        "bn": "ট্যাম্পার প্রমাণ",
+       "t": "g"
+      },
+      {
+       "id": "M24-wet",
+       "en": "Wet-Ink Signatures",
+       "bn": "কালির স্বাক্ষর",
        "t": "g"
       }
      ]
@@ -4875,27 +5015,81 @@
        "en": "Defensible Disposal",
        "bn": "নিষ্পত্তি",
        "t": "g"
+      },
+      {
+       "id": "M24-hold-orders",
+       "en": "Legal Hold Orders",
+       "bn": "আইনি আটক আদেশ",
+       "t": "g"
+      },
+      {
+       "id": "M24-batches",
+       "en": "Disposal Batches",
+       "bn": "নিষ্পত্তি ব্যাচ",
+       "t": "g"
+      },
+      {
+       "id": "M24-violations",
+       "en": "Retention Violations",
+       "bn": "সংরক্ষণ লঙ্ঘন",
+       "t": "g"
+      }
+     ]
+    },
+    {
+     "en": "Evidence & Release",
+     "screens": [
+      {
+       "id": "M24-packs",
+       "en": "Evidence Packs",
+       "bn": "প্রমাণ প্যাক",
+       "t": "g"
+      },
+      {
+       "id": "M24-releases",
+       "en": "External Releases",
+       "bn": "বাহ্যিক প্রকাশ",
+       "t": "g"
+      },
+      {
+       "id": "M24-access-log",
+       "en": "Access Log",
+       "bn": "প্রবেশ লগ",
+       "t": "g"
       }
      ]
     }
    ],
    "reports": [
-    "Retention Compliance",
-    "Signature Status",
     "Repository Growth",
-    "Access Audit Export"
+    "Access Audit Export",
+    "Signature Status",
+    "Retention Compliance"
    ],
    "forms": [
     "Upload",
+    "Controlled Document",
+    "Document Template",
     "Signature Envelope",
-    "Share Token",
-    "Retention Policy"
+    "Retention Policy",
+    "Place Legal Hold",
+    "Workshop Evidence Item",
+    "Physical Record",
+    "Integrity Sweep",
+    "Document Class",
+    "Distribution",
+    "Wet-Ink Signature",
+    "Legal Hold Order",
+    "Disposal Batch",
+    "Retention Violation",
+    "Evidence Pack",
+    "Share Token"
    ],
    "cross": [
-    "Every transaction auto-files",
-    "M36 quote e-sign",
-    "M09 evidence packs",
-    "M23 controlled docs"
+    "M23 QMS",
+    "M08 Contracts",
+    "M60 GRC",
+    "M21 HR"
    ],
    "freg": {
     "src": 56,
@@ -4938,12 +5132,31 @@
     ]
    },
    "kpis": [
-    "Documents",
-    "Auto-Filed",
-    "Search p95",
-    "Pending e-Signatures",
-    "Legal Holds",
-    "Evidence Packs < 5 min"
+    {
+     "l": "Documents",
+     "m": "documents"
+    },
+    {
+     "l": "Auto-Filed",
+     "m": "auto_filed"
+    },
+    {
+     "l": "Search p95",
+     "m": "search_p95",
+     "src": false
+    },
+    {
+     "l": "Pending e-Signatures",
+     "m": "pending_esignatures"
+    },
+    {
+     "l": "Legal Holds",
+     "m": "legal_holds"
+    },
+    {
+     "l": "Evidence Packs",
+     "m": "evidence_packs_5min"
+    }
    ]
   },
   {
@@ -11211,11 +11424,22 @@
    "id": "M60",
    "area": "A10",
    "en": "Governance, Risk & Compliance",
-   "bn": "গভর্নেন্স ও ঝুঁকি",
-   "icon": "⚖️",
+   "bn": "শাসন, ঝুঁকি ও সম্মতি",
+   "icon": "🛡️",
    "rail": "quality",
-   "desc": "Enterprise risk register, internal control testing, SoD rules, licence register, PDPA governance, whistleblowing.",
+   "desc": "Enterprise risk register and appetite aggregation, the internal control framework with testing, segregation-of-duties rules, delegated authority, compliance obligations, the corporate licence register, policy governance and attestation, legal matters, PDPA requests and whistleblowing.",
    "groups": [
+    {
+     "en": "Record Coverage",
+     "screens": [
+      {
+       "id": "M60-compliance-framework",
+       "en": "Compliance Framework",
+       "bn": "Compliance Framework",
+       "t": "g"
+      }
+     ]
+    },
     {
      "en": "Risk",
      "screens": [
@@ -11226,10 +11450,34 @@
        "t": "g"
       },
       {
+       "id": "M60-appetite-set",
+       "en": "Risk Appetite",
+       "bn": "ঝুঁকি ক্ষমতা নির্ধারণ",
+       "t": "g"
+      },
+      {
        "id": "M60-appetite",
        "en": "Appetite & Aggregation",
        "bn": "ঝুঁকি ক্ষমতা",
        "t": "r"
+      },
+      {
+       "id": "M60-assessments",
+       "en": "Risk Assessments",
+       "bn": "ঝুঁকি মূল্যায়ন",
+       "t": "g"
+      },
+      {
+       "id": "M60-treatments",
+       "en": "Treatment Actions",
+       "bn": "ঝুঁকি প্রতিকার",
+       "t": "g"
+      },
+      {
+       "id": "M60-events",
+       "en": "Risk Events",
+       "bn": "ঝুঁকি ঘটনা",
+       "t": "g"
       }
      ]
     },
@@ -11246,7 +11494,7 @@
        "id": "M60-testing",
        "en": "Control Testing",
        "bn": "নিয়ন্ত্রণ পরীক্ষা",
-       "t": "c"
+       "t": "g"
       },
       {
        "id": "M60-sod",
@@ -11258,6 +11506,18 @@
        "id": "M60-authority",
        "en": "Delegated Authority",
        "bn": "প্রতিনিধি ক্ষমতা",
+       "t": "g"
+      },
+      {
+       "id": "M60-sod-tests",
+       "en": "SoD Test Runs",
+       "bn": "দায়িত্ব বিভাজন পরীক্ষা",
+       "t": "g"
+      },
+      {
+       "id": "M60-sod-exceptions",
+       "en": "SoD Exceptions",
+       "bn": "দায়িত্ব বিভাজন ব্যতিক্রম",
        "t": "g"
       }
      ]
@@ -11282,6 +11542,36 @@
        "en": "Policy Governance",
        "bn": "নীতি শাসন",
        "t": "g"
+      },
+      {
+       "id": "M60-occurrences",
+       "en": "Obligation Calendar",
+       "bn": "বাধ্যবাধকতা পঞ্জিকা",
+       "t": "g"
+      },
+      {
+       "id": "M60-reg-changes",
+       "en": "Regulatory Changes",
+       "bn": "নিয়ন্ত্রক পরিবর্তন",
+       "t": "g"
+      },
+      {
+       "id": "M60-attestations",
+       "en": "Policy Attestations",
+       "bn": "নীতি স্বীকৃতি",
+       "t": "g"
+      },
+      {
+       "id": "M60-policy-exceptions",
+       "en": "Policy Exceptions",
+       "bn": "নীতি ব্যতিক্রম",
+       "t": "g"
+      },
+      {
+       "id": "M60-retention",
+       "en": "Retention Schedule",
+       "bn": "সংরক্ষণ সূচি",
+       "t": "g"
       }
      ]
     },
@@ -11298,12 +11588,48 @@
        "id": "M60-pdpa",
        "en": "PDPA Governance",
        "bn": "পিডিপিএ শাসন",
-       "t": "c"
+       "t": "g"
       },
       {
        "id": "M60-whistle",
        "en": "Whistleblowing",
        "bn": "হুইসেলব্লোয়িং",
+       "t": "g"
+      },
+      {
+       "id": "M60-holds",
+       "en": "Legal Holds",
+       "bn": "আইনি আটক",
+       "t": "g"
+      },
+      {
+       "id": "M60-ip",
+       "en": "IP Register",
+       "bn": "মেধাস্বত্ব রেজিস্টার",
+       "t": "g"
+      },
+      {
+       "id": "M60-ropa",
+       "en": "Records of Processing",
+       "bn": "প্রক্রিয়াকরণ রেকর্ড",
+       "t": "g"
+      },
+      {
+       "id": "M60-transfers",
+       "en": "Cross-Border Transfers",
+       "bn": "আন্তঃসীমান্ত স্থানান্তর",
+       "t": "g"
+      },
+      {
+       "id": "M60-breaches",
+       "en": "Breach Register",
+       "bn": "লঙ্ঘন রেজিস্টার",
+       "t": "g"
+      },
+      {
+       "id": "M60-pias",
+       "en": "Privacy Impact Assessments",
+       "bn": "গোপনীয়তা প্রভাব মূল্যায়ন",
        "t": "g"
       }
      ]
@@ -11311,23 +11637,46 @@
    ],
    "reports": [
     "Risk Heat Map",
+    "Board Risk Pack",
     "Control Deficiency Log",
     "Licence Expiry Register",
-    "Attestation Status",
-    "Board Risk Pack"
+    "Attestation Status"
    ],
    "forms": [
     "Risk",
+    "Risk Appetite",
+    "Risk Assessment",
+    "Risk Treatment",
+    "Risk Event",
+    "Internal Control",
     "Control Test",
+    "SoD Rule",
+    "SoD Test Run",
+    "SoD Exception",
+    "Compliance Obligation",
+    "Compliance Framework",
+    "Obligation Occurrence",
     "Licence",
+    "Regulatory Change",
     "Policy",
+    "Policy Attestation",
+    "Policy Exception",
+    "Retention Policy",
+    "Legal Matter",
+    "Place Legal Hold",
+    "IP Asset",
+    "Data Subject Request",
+    "Processing Activity",
+    "Cross-Border Transfer",
+    "Data Breach",
+    "Privacy Impact Assessment",
     "Whistleblow Report"
    ],
    "cross": [
-    "M29 SoD enforcement",
-    "M23 ISO interface",
-    "M51 statutory",
-    "M33 DSR handling"
+    "M23 QMS",
+    "M51 Tax",
+    "M24 Documents",
+    "M19 GL"
    ],
    "freg": {
     "src": 70,
@@ -11375,22 +11724,40 @@
     ]
    },
    "kpis": [
-    "Risks Above Appetite",
-    "Control Tests Due",
-    "Licence Gaps",
-    "Policy Attestations",
-    "Legal Matters Open",
-    "DSRs (SLA 30d)"
+    {
+     "l": "Risks Above Appetite",
+     "m": "risks_above_appetite"
+    },
+    {
+     "l": "Control Tests Due",
+     "m": "control_tests_due"
+    },
+    {
+     "l": "Licence Gaps",
+     "m": "licence_gaps"
+    },
+    {
+     "l": "Policy Attestations",
+     "m": "policy_attestations"
+    },
+    {
+     "l": "Legal Matters Open",
+     "m": "legal_matters_open"
+    },
+    {
+     "l": "DSRs Pending",
+     "m": "dsr_pending"
+    }
    ]
   },
   {
    "id": "M61",
    "area": "A10",
    "en": "Knowledge & Technical Library",
-   "bn": "জ্ঞান ও কারিগরি লাইব্রেরি",
+   "bn": "জ্ঞান ও কারিগরি গ্রন্থাগার",
    "icon": "📚",
    "rail": "quality",
-   "desc": "Repair procedures & fault→fix, troubleshooting trees, offline distribution to technician app, brand bulletins.",
+   "desc": "Article library across seven types, field captures and their improvement queue, review workflow and version history, troubleshooting trees with decision steps, manuals and schematics with their licence terms, operational links that surface content on a job, technician offline sets, usefulness feedback and article health, expertise, and brand bulletins and recalls.",
    "groups": [
     {
      "en": "Authoring",
@@ -11402,16 +11769,28 @@
        "t": "g"
       },
       {
-       "id": "M61-trees",
-       "en": "Troubleshooting Trees",
-       "bn": "সমস্যা নিরসন ট্রি",
-       "t": "f"
+       "id": "M61-captures",
+       "en": "Field Captures & Improvement Queue",
+       "bn": "মাঠের জ্ঞান সংগ্রহ",
+       "t": "g"
       },
       {
        "id": "M61-review",
        "en": "Review Workflow",
        "bn": "পর্যালোচনা প্রবাহ",
-       "t": "c"
+       "t": "g"
+      },
+      {
+       "id": "M61-versions",
+       "en": "Version History",
+       "bn": "সংস্করণের ইতিহাস",
+       "t": "g"
+      },
+      {
+       "id": "M61-trees",
+       "en": "Troubleshooting Trees",
+       "bn": "সমস্যা নিরসন ট্রি",
+       "t": "g"
       }
      ]
     },
@@ -11436,9 +11815,21 @@
      "en": "Distribution",
      "screens": [
       {
+       "id": "M61-links",
+       "en": "Operational Links",
+       "bn": "কার্যক্রম সংযোগ",
+       "t": "g"
+      },
+      {
        "id": "M61-context",
        "en": "Context-Aware Surfacing",
        "bn": "প্রসঙ্গ-সচেতন",
+       "t": "g"
+      },
+      {
+       "id": "M61-offline-sets",
+       "en": "Technician Offline Sets",
+       "bn": "টেকনিশিয়ান অফলাইন সেট",
        "t": "g"
       },
       {
@@ -11453,9 +11844,21 @@
      "en": "Feedback",
      "screens": [
       {
+       "id": "M61-feedback",
+       "en": "Usefulness Feedback",
+       "bn": "উপযোগিতা মতামত",
+       "t": "g"
+      },
+      {
        "id": "M61-health",
        "en": "Article Health & Gaps",
        "bn": "নিবন্ধ স্বাস্থ্য",
+       "t": "r"
+      },
+      {
+       "id": "M61-expertise",
+       "en": "Expertise Map",
+       "bn": "দক্ষতার মানচিত্র",
        "t": "r"
       },
       {
@@ -11463,26 +11866,50 @@
        "en": "Brand Bulletins & Recalls",
        "bn": "ব্র্যান্ড বুলেটিন",
        "t": "g"
+      },
+      {
+       "id": "M61-recipients",
+       "en": "Recall Recipients",
+       "bn": "প্রাপক শাখা",
+       "t": "g"
+      },
+      {
+       "id": "M61-recalls",
+       "en": "Recall Routing",
+       "bn": "রিকল রাউটিং",
+       "t": "r"
       }
      ]
     }
    ],
    "reports": [
-    "Coverage Analysis",
-    "Article Usage & Usefulness",
+    "Contribution Leaderboard",
     "Gap Report by Brand/Model",
-    "Contribution Leaderboard"
+    "Article Usage & Usefulness",
+    "Coverage Analysis",
+    "Recall Routing",
+    "Expertise Map"
    ],
    "forms": [
     "Article",
+    "Field Capture",
+    "Review Request",
     "Troubleshooting Tree",
-    "Bulletin"
+    "Library Entry",
+    "Media Asset",
+    "Knowledge Link",
+    "Offline Set",
+    "Usefulness Feedback",
+    "Bulletin",
+    "Bulletin Recipient"
    ],
    "cross": [
-    "M32 RAG grounding",
-    "M31 repair methods",
-    "P02 offline library",
-    "M01 diagnostic trees"
+    "M02 Dispatch knowledge links",
+    "M32 Bengali NLU",
+    "M22 Training",
+    "M23 QMS",
+    "M01 Fault codes",
+    "M37 Device models"
    ],
    "freg": {
     "src": 48,
@@ -11530,12 +11957,32 @@
     ]
    },
    "kpis": [
-    "Articles",
-    "Coverage (top faults)",
-    "Offline Synced Techs",
-    "Usefulness Score",
-    "Reviews Due",
-    "Brand Bulletins MTD"
+    {
+     "l": "Articles",
+     "m": "articles"
+    },
+    {
+     "l": "Coverage (Serviced Models)",
+     "m": "coverage_serviced",
+     "suffix": "%"
+    },
+    {
+     "l": "Offline Articles",
+     "m": "offline_articles"
+    },
+    {
+     "l": "Resolved It (Feedback)",
+     "m": "usefulness_score",
+     "suffix": "%"
+    },
+    {
+     "l": "Reviews Due",
+     "m": "reviews_due"
+    },
+    {
+     "l": "Brand Bulletins MTD",
+     "m": "brand_bulletins_mtd"
+    }
    ]
   },
   {
@@ -12968,10 +13415,10 @@
   "areas": 12,
   "portals": 12,
   "modules": 67,
-  "groups": 278,
-  "screens": 827,
-  "reports": 348,
-  "forms": 267,
+  "groups": 280,
+  "screens": 877,
+  "reports": 350,
+  "forms": 322,
   "sub_triples": 600,
   "functions": 5104,
   "journeys": 10,

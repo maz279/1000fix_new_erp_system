@@ -19,11 +19,24 @@ import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
+
+# M28: set to true only on a deployment whose external publisher (Redis/Kafka)
+# actually runs — it stands the no-bus drain cron down.
+BUS_PUBLISHER_KEY = "fix_event_outbox.bus_publisher"
+
+
+def _require_server_code(env, what):
+    """Cron bodies and relay services are public methods, so JSON-RPC can
+    reach them: refuse anyone but server code (M28-D10, the cd_itsm pattern).
+    The estate's ir.cron rows run as the superuser, so the production crons
+    pass; an interactive caller does not."""
+    if not env.su:
+        raise AccessError("%s runs from the server only." % what)
 
 
 class FixEventConsumer(models.Model):
@@ -75,7 +88,23 @@ class FixEventConsumer(models.Model):
         return event_type == self.event_type
 
     def action_backfill(self, since=None):
-        """Deliberately replay this consumer's events since `since` (default: all)."""
+        """Deliberately replay this consumer's events since `since` (default: all).
+
+        M28-D5: this has the same effect as the second-admin-gated replay
+        (full-history redelivery of a topic), so it is an Integration-Admin
+        action and leaves an audit row — not a button any internal user can
+        press over RPC."""
+        if not self.env.su:
+            try:
+                allowed = self.env.user.has_group("cd_itsm.group_integration_admin")
+            except Exception:
+                allowed = False
+            if not allowed:
+                raise AccessError(
+                    "Backfill redelivers a topic's whole history: only an "
+                    "Integration Admin runs it (ask for fix.event.consumer.replay "
+                    "otherwise)."
+                )
         Outbox = self.env["fix.event.outbox"].sudo()
         for sub in self:
             start = fields.Datetime.to_datetime(since) if since else None
@@ -92,6 +121,20 @@ class FixEventConsumer(models.Model):
                 {"active_from": min(events.mapped("create_date") or [sub.active_from])}
             )
             events.write({"relayed_at": False})
+            # The audit trail of who replayed what (M28-D5): an event on the
+            # outbox, which the M28 audit screens read like any other.
+            Outbox.emit(
+                "integration.consumer_backfilled",
+                "fix.event.consumer",
+                sub.id,
+                {
+                    "consumer": sub.name,
+                    "event_type": sub.event_type,
+                    "since": str(start or "all"),
+                    "events_queued": len(events),
+                    "by": self.env.user.login,
+                },
+            )
         return True
 
 
@@ -147,6 +190,7 @@ class FixEventOutbox(models.Model):
     @api.model
     def cron_relay(self, limit=500):
         """Hand each unrelayed event to its subscriptions. Returns the count handled."""
+        _require_server_code(self.env, "Event relay")
         subs = self.env["fix.event.consumer"].sudo().search([("active", "=", True)])
         Outbox = self.sudo()
         if not subs:
@@ -230,17 +274,65 @@ class FixEventOutbox(models.Model):
         oldest = self.sudo().search([("relayed_at", "=", False)], order="create_date asc", limit=1)
         Delivery = self.env["fix.event.consumer.delivery"].sudo()
         age = (fields.Datetime.now() - oldest.create_date).total_seconds() / 60.0 if oldest else 0.0
+        oldest_bus = self.sudo().search(
+            [("status", "=", "pending")], order="create_date asc", limit=1
+        )
+        bus_age = (
+            (fields.Datetime.now() - oldest_bus.create_date).total_seconds() / 3600.0
+            if oldest_bus
+            else 0.0
+        )
         return {
             "unrelayed": self.sudo().search_count([("relayed_at", "=", False)]),
             "oldest_unrelayed_minutes": round(age, 1),
             "failed_deliveries": Delivery.search_count([("state", "=", "failed")]),
             "dead_letters": Delivery.search_count([("state", "=", "dead")]),
             "bus_pending": self.sudo().search_count([("status", "=", "pending")]),
+            "oldest_bus_pending_hours": round(bus_age, 1),
         }
 
     @api.model
+    def cron_mark_relayed_published(self, limit=5000):
+        """M28: bound the bus backlog when no external publisher runs.
+
+        This estate's Redis/Kafka publisher does not run (the module header
+        says so): `status='pending'` then counts events that were ALREADY
+        delivered to every in-Odoo consumer — a phantom backlog that grew to
+        26k+ rows and nothing ever drained, alerted on, or purged. When
+        `fix_event_outbox.bus_publisher` is off, a relayed event that no
+        webhook delivery still needs is FINISHED: mark it published so the
+        counter, the retention purge and the M28 tiles tell the truth. Set the
+        parameter to true on a deployment with a real publisher — then this
+        cron stands down and pending really means pending.
+        """
+        _require_server_code(self.env, "Bus drain")
+        flag = self.env["ir.config_parameter"].sudo().get_param(BUS_PUBLISHER_KEY, "") or ""
+        if flag.strip().lower() in ("1", "true", "yes", "on"):
+            return 0
+        batch = self.sudo().search(
+            [("status", "=", "pending"), ("relayed_at", "!=", False)],
+            order="id asc",
+            limit=limit,
+        )
+        if not batch:
+            return 0
+        if "fix.webhook.delivery" in self.env:
+            held = (
+                self.env["fix.webhook.delivery"]
+                .sudo()
+                .search([("event_id", "in", batch.ids), ("state", "not in", ("sent",))])
+                .event_id
+            )
+            batch -= held
+        if batch:
+            batch.mark_published()
+        return len(batch)
+
+    @api.model
     def cron_relay_age_alert(self):
-        """Outbox-age alert: warn when the relay falls behind or dead-letters."""
+        """Outbox-age alert: warn when the relay falls behind, dead-letters, or
+        the bus backlog stops draining (M28: the 26k-row silent backlog)."""
+        _require_server_code(self.env, "Event relay alert")
         limit = int(
             self.env["ir.config_parameter"]
             .sudo()
@@ -248,7 +340,13 @@ class FixEventOutbox(models.Model):
         )
         health = self.relay_health()
         lagging = health["oldest_unrelayed_minutes"] > limit
-        if lagging or health["dead_letters"]:
+        bus_hours = float(
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("fix_event_outbox.bus_alert_hours", 24)
+        )
+        bus_stuck = health["oldest_bus_pending_hours"] > bus_hours
+        if lagging or health["dead_letters"] or bus_stuck:
             _logger.warning("event relay unhealthy: %s", health)
             last = self.sudo().search(
                 [("event_type", "=", "outbox.relay_unhealthy")], order="create_date desc", limit=1

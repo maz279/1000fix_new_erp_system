@@ -97,10 +97,12 @@ def c(odoo_env):
 
     x = C()
     x.env = env
-    # the certification models (status, lapse cron, eligibility window) keep
-    # the UTC clock, so x.today does too; only the roster slots (M55) sit on
-    # the context date — see _rostered below.
-    x.today = fields.Date.today()
+    # B5 (M22-F13): the certification models (status, lapse cron, eligibility
+    # window) judge "today" on the Dhaka business day — the UTC clock the old
+    # comment described ran a day behind after 18:00 UTC. The fixture follows
+    # the same rule; only the roster slots (M55) sit on the context date —
+    # see _rostered below.
+    x.today = fields.Date.context_today(env.user.with_context(tz=env.user.tz or "Asia/Dhaka"))
     x.plain = _user(env)
     x.trn = _user(env, TRAINING)
     x.trn2 = _user(env, TRAINING)

@@ -878,7 +878,9 @@ class FixProjectMilestone(models.Model):
 
     @api.model
     def cron_flag_overdue_milestones(self):
-        """R3/M67-11: flag pending milestones past their due date."""
+        """R3/M67-11: flag pending milestones past their due date. A re-planned
+        milestone (due date extended, or completed) clears the flag again —
+        overdue is a live state, not a scar."""
         today = fields.Date.context_today(self)
         overdue = self.sudo().search(
             [("state", "=", "pending"), ("overdue", "=", False), ("due_date", "<", today)]
@@ -888,6 +890,16 @@ class FixProjectMilestone(models.Model):
             milestone.message_post(
                 body="Milestone is past its due date %s and still pending." % milestone.due_date
             )
+        recovered = self.sudo().search(
+            [
+                ("overdue", "=", True),
+                "|",
+                ("state", "!=", "pending"),
+                ("due_date", ">=", today),
+            ]
+        )
+        if recovered:
+            recovered.sudo()._guarded().write({"overdue": False})
         return True
 
     @api.model

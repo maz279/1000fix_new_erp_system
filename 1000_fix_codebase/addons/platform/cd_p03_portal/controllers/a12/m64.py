@@ -429,23 +429,23 @@ def impact_analysis(env, date_from=None, date_to=None, **params):
                 "rules": len(rules.filtered(lambda r, m=model: r.res_model == m)),
                 "steward_requests": len(requests.filtered(lambda r, m=model: r.res_model == m)),
                 "duplicate_pairs": len(dups.filtered(lambda d, m=model: d.res_model == m)),
-                "xref_domains": len({x.code_list for x in xrefs}),
             }
         )
     return _pack(
         "Impact Analysis - %d governed master model(s)" % len(rows),
-        ["model", "rules", "steward_requests", "duplicate_pairs", "xref_domains"],
+        ["model", "rules", "steward_requests", "duplicate_pairs"],
         {
             "model": "Master Model",
             "rules": "DQ Rules",
             "steward_requests": "Steward Requests",
             "duplicate_pairs": "Duplicate Pairs",
-            "xref_domains": "Xref Domains",
         },
         rows,
         [
             "Impact is the count of governance records tied to the model: changing the model "
-            "means reviewing exactly these."
+            "means reviewing exactly these. Cross-references are code-list scoped, not model "
+            "scoped: %d distinct code list(s) carry xref mappings estate-wide."
+            % len({x.code_list for x in xrefs}),
         ],
         empty="No governed master models.",
     )

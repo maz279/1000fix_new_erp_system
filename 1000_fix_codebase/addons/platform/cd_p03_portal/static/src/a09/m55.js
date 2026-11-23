@@ -17,7 +17,7 @@ export const MODULE = {
     { l: 'Attendance Today', m: 'attendance_today' },
     { l: 'Exceptions Pending', m: 'exceptions_pending' },
     { l: 'Overtime Requests Approved (month)', m: 'overtime_preapproved' },
-    { l: 'Roster Coverage', m: 'roster_coverage', suffix: '%' },
+    { l: 'Roster Punch Coverage', m: 'roster_coverage', suffix: '%' },
     { l: 'Leave Pending', m: 'leave_pending' },
     { l: 'Geofence Clock-Ins', m: 'geofence_clockins' },
     { l: 'Rosters Awaiting Publication', m: 'rosters_awaiting' },
@@ -63,14 +63,14 @@ export const MODULE = {
       { id: 'M55-capacity', en: 'Capacity Forecast', bn: 'সক্ষমতা পূর্বাভাস', t: 'g' }
     ]}
   ],
-  reports: ['Attendance Summary', 'Overtime Analysis', 'Leave Utilisation', 'Leave Balances', 'Roster vs Actual', 'Coverage Gaps'],
+  reports: ['Attendance Summary', 'Overtime Analysis', 'Leave Utilisation', 'Leave Balances', 'Roster vs Actual', 'Coverage Gaps', 'Statutory Preflight'],
   forms: ['Leave Request', 'Leave Type', 'Roster', 'Shift Pattern', 'Exception Regularisation', 'Biometric Device', 'Overtime Request', 'Night-Work Consent', 'Biometric Consent', 'Roster Publication', 'Roster Change Request', 'Working-Time Rule', 'Holiday', 'On-Call / Standby', 'On-Call Callout', 'Capacity Forecast', 'Timesheet Line'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M57 Incentives', 'M02 Dispatch'],
   freg: { src: 74, sub: [
     ['1', 'Capture (4 modes)', 12, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'source', 'approval_state'], screens: ['M55-daily', 'M55-devices', 'M55-geofence', 'M55-bio-consent', 'M55-hook-events'], reports: ['Attendance Summary'], forms: ['Exception Regularisation', 'Biometric Device', 'Biometric Consent'] }],
     ['2', 'Working Time & OT', 9, { model: 'fix.overtime.request', cols: ['employee_id', 'date', 'hours', 'retrospective', 'state'], screens: ['M55-ot', 'M55-rules', 'M55-night', 'M55-wt-rules'], reports: ['Overtime Analysis'], forms: ['Overtime Request', 'Night-Work Consent', 'Working-Time Rule'] }],
     ['3', 'Leave', 10, { model: 'fix.leave.request', cols: ['employee_id', 'leave_type_id', 'date_from', 'date_to', 'state'], screens: ['M55-leave', 'M55-balances', 'M55-calendar', 'M55-accrual', 'M55-leave-types'], reports: ['Leave Utilisation', 'Leave Balances'], forms: ['Leave Request', 'Leave Type'] }],
-    ['4', 'Holidays', 5, { model: 'fix.hr.holiday', cols: ['name', 'date', 'holiday_type', 'tentative'], screens: ['M55-holidays'], reports: [], forms: ['Holiday'] }],
+    ['4', 'Holidays', 5, { model: 'fix.hr.holiday', cols: ['name', 'date', 'holiday_type', 'tentative'], screens: ['M55-holidays'], reports: ['Statutory Preflight'], forms: ['Holiday'] }],
     ['5', 'Shifts & Rosters', 13, { model: 'fix.roster.slot', cols: ['employee_id', 'date', 'shift_id', 'branch_id', 'on_leave'], screens: ['M55-shifts', 'M55-rosters', 'M55-roster-changes'], reports: ['Roster vs Actual'], forms: ['Roster', 'Shift Pattern', 'Roster Change Request'] }],
     ['6', 'On-Call', 6, { model: 'fix.hr.oncall', cols: ['name', 'employee_id', 'date_from', 'date_to', 'state'], screens: ['M55-oncall', 'M55-callouts'], reports: ['Coverage Gaps'], forms: ['On-Call / Standby', 'On-Call Callout'] }],
     ['7', 'Availability Publication', 7, { model: 'fix.roster.publication', cols: ['name', 'date_from', 'date_to', 'branch_id', 'state'], screens: ['M55-availability', 'M55-publications', 'M55-capacity', 'M55-roster-changes'], reports: ['Roster vs Actual', 'Coverage Gaps'], forms: ['Roster Publication', 'Capacity Forecast', 'Roster Change Request'] }],
@@ -231,6 +231,8 @@ export const SCREENS = {
   'M55-rpt-balances': { kind: 'table_report', module: 'M55', report: 'leave_balances', title: 'Leave Balances', period: true },
   'M55-rpt-roster': { kind: 'table_report', module: 'M55', report: 'roster_vs_actual', title: 'Roster vs Actual', period: true },
   'M55-rpt-gaps': { kind: 'table_report', module: 'M55', report: 'coverage_gaps', title: 'Coverage Gaps', period: true },
+  'M55-rpt-preflight': { kind: 'table_report', module: 'M55', report: 'statutory_preflight', title: 'Statutory Preflight', period: false,
+    note: 'Readiness rows before a leave year runs: how many of the statutory festival days (BLA s.118) the holiday calendar has typed festival. The holiday list itself is the business\'s decision — nothing is seeded here.' },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M55-form-leave': {
@@ -1055,7 +1057,8 @@ export const REPORT_ROUTES = {
   'M55:Leave Utilisation': 'M55-rpt-leave',
   'M55:Leave Balances': 'M55-rpt-balances',
   'M55:Roster vs Actual': 'M55-rpt-roster',
-  'M55:Coverage Gaps': 'M55-rpt-gaps'
+  'M55:Coverage Gaps': 'M55-rpt-gaps',
+  'M55:Statutory Preflight': 'M55-rpt-preflight'
 };
 
 export const FORM_MODELS = {

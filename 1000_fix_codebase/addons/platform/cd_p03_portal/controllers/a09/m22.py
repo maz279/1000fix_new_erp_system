@@ -1,7 +1,15 @@
 # A09 · M22 Learning & Certification — surfaces, packs and KPIs over the
 # competency framework, skill matrix, certifications, courses/enrolments,
 # assessments, learning paths, OJT records and audit evidence.
+#
+# A09 R2 fixes (M22-F9, UI-F3, UI-F8, UI-F11): every pack honours the period
+# the screen offers on its own business date field (an as-at snapshot says so
+# and never takes a future date); the KPI formulas measure what their labels
+# promise (brands, the real technician population, the configured lead time);
+# "today" is the caller's Dhaka business day, never the server clock.
 import datetime
+
+from odoo import fields
 
 SURFACES = {
     "fix.competency": {"order": "code", "limit": 300, "actions": set()},
@@ -130,14 +138,59 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _today():
-    return datetime.date.today()
+def _today(env):
+    """UI-F8: the caller's business day (Asia/Dhaka when they set no tz) —
+    the same rule m21.py uses; datetime.date.today() ran 6 h behind each
+    Dhaka evening."""
+    return fields.Date.context_today(env.user.with_context(tz=env.user.tz or "Asia/Dhaka"))
+
+
+def _lead_days(env):
+    """M22-F9: the configured alert lead time (cd_competency.expiry_lead_days,
+    default 30) — the coverage report hardcoded 30."""
+    raw = env["ir.config_parameter"].sudo().get_param("cd_competency.expiry_lead_days", "30")
+    try:
+        return max(int(raw), 0)
+    except (TypeError, ValueError):
+        return 30
+
+
+def _as_of(date_to, env):
+    """An as-at snapshot date: the period end, never a future day."""
+    today = _today(env)
+    return min(date_to, today) if date_to else today
+
+
+def _period(date_from, date_to, env):
+    """(from, to) for a flow pack: the offered period, 'to' never future for
+    historical facts."""
+    today = _today(env)
+    start = date_from or datetime.date(1900, 1, 1)
+    end = min(date_to, today) if date_to else today
+    return start, end
+
+
+def _technicians(env):
+    """M22-F9 / UI-F11: the estate's technician population — the same rule the
+    M02 dispatch suggestion uses (the Field Service / Technician group's OWN
+    members, not the dispatchers/managers the group is implied into and not the
+    Administrator), not a 'tech'-in-position-name guess with a silent `or 1`
+    denominator."""
+    group = env.ref("cd_field_service.group_fix_field_service_user", raise_if_not_found=False)
+    if not group:
+        return env["hr.employee"]
+    users = group.sudo().user_ids.filtered(lambda u: u.active and not u.share)
+    return env["hr.employee"].search([]).filtered(lambda e: e.user_id and e.user_id in users)
 
 
 def certification_coverage(env, date_from=None, date_to=None, **params):
-    """Certification coverage by brand/competency: valid vs expired holders."""
-    certs = env["fix.certification"].search([])
-    today = _today()
+    """Certification coverage by brand/competency: valid vs expired holders.
+    UI-F3: an AS-AT snapshot — certificates issued up to the period end (a
+    future date is never taken), status judged at that same day. M22-F9:
+    'expiring' uses the configured alert lead time, not a hardcoded 30 days."""
+    as_of = _as_of(date_to, env)
+    certs = env["fix.certification"].search([("issued_on", "<=", as_of)])
+    lead = _lead_days(env)
     groups = {}
     for cert in certs:
         if cert.state not in ("valid", "lapsed"):
@@ -146,9 +199,9 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
         key = comp.name
         g = groups.setdefault(key, {"holders": set(), "valid": 0, "expired": 0, "expiring": 0})
         g["holders"].add(cert.employee_id.id)
-        if cert.state == "lapsed" or (cert.expires_on and cert.expires_on < today):
+        if cert.state == "lapsed" or (cert.expires_on and cert.expires_on < as_of):
             g["expired"] += 1
-        elif cert.expires_on and (cert.expires_on - today).days <= 30:
+        elif cert.expires_on and (cert.expires_on - as_of).days <= lead:
             g["expiring"] += 1
         else:
             g["valid"] += 1
@@ -163,19 +216,21 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
         for k, v in sorted(groups.items())
     ]
     return _pack(
-        "Certification Coverage by Brand / Competency",
+        "Certification Coverage by Brand / Competency — as at %s" % as_of,
         ["competency", "holders", "valid", "expiring", "expired"],
         {
             "competency": "Competency",
             "holders": "Certified Staff",
             "valid": "Valid",
-            "expiring": "Expiring 30d",
+            "expiring": "Expiring %dd" % lead,
             "expired": "Expired",
         },
         rows,
         [
-            "Granted certificates only. A certificate counts as expired when it lapsed or its "
-            "expiry date has passed; expiring means inside the alert lead time."
+            "Granted certificates issued up to the as-at date, status judged at that day. A "
+            "certificate counts as expired when it lapsed or its expiry date has passed; "
+            "expiring means inside the configured alert lead time "
+            "(cd_competency.expiry_lead_days)."
         ],
         totals={
             "competency": "Total",
@@ -189,13 +244,16 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
 
 
 def expiry_forecast(env, date_from=None, date_to=None, **params):
-    """Expiry forecast: certificates expiring in the next 180 days, by month."""
+    """Expiry forecast: certificates expiring in the offered window (default:
+    the next 180 days from today). UI-F3: a forecast, so a future period end
+    is legitimate — the pack's business date is expires_on."""
     certs = env["fix.certification"].search([("expires_on", "!=", False), ("state", "=", "valid")])
-    today = _today()
-    horizon = today + datetime.timedelta(days=180)
+    today = _today(env)
+    start = date_from or today
+    end = date_to or today + datetime.timedelta(days=180)
     rows = []
     for cert in certs:
-        if today <= cert.expires_on <= horizon:
+        if start <= cert.expires_on <= end:
             rows.append(
                 {
                     "employee": cert.employee_id.name,
@@ -207,7 +265,7 @@ def expiry_forecast(env, date_from=None, date_to=None, **params):
             )
     rows.sort(key=lambda r: r["days_left"])
     return _pack(
-        "Expiry Forecast — next 180 days",
+        "Expiry Forecast — %s to %s" % (start, end),
         ["employee", "competency", "expires_on", "days_left", "status"],
         {
             "employee": "Employee",
@@ -226,16 +284,41 @@ def expiry_forecast(env, date_from=None, date_to=None, **params):
 
 
 def training_effectiveness(env, date_from=None, date_to=None, **params):
-    """Training effectiveness: enrolments, completions and pass rate per course."""
+    """Training effectiveness: enrolments, completions and pass rate per
+    course. UI-F3: with a period offered, an enrolment counts when its
+    session ran in the window (no session: when it was completed in it)."""
+    start, end = _period(date_from, date_to, env)
+
+    def _in_period(enrolment):
+        if date_from is None and date_to is None:
+            return True  # no period offered: the course's whole history
+        if enrolment.session_id and enrolment.session_id.date_start:
+            day = fields.Date.to_date(enrolment.session_id.date_start)
+        elif enrolment.completed_on:
+            day = enrolment.completed_on
+        else:
+            return False
+        return start <= day <= end
+
     courses = env["fix.training.course"].search([])
     rows = []
     for course in courses:
-        enrolments = env["fix.training.enrollment"].search(
-            [("course_id", "=", course.id), ("state", "!=", "withdrawn")]
+        enrolments = (
+            env["fix.training.enrollment"]
+            .search([("course_id", "=", course.id), ("state", "!=", "withdrawn")])
+            .filtered(_in_period)
         )
         # FR-LMS-035: the evaluated before / after on the targeted measure
-        evals = env["fix.training.effectiveness"].search(
-            [("course_id", "=", course.id), ("state", "=", "evaluated")]
+        evals = (
+            env["fix.training.effectiveness"]
+            .search([("course_id", "=", course.id), ("state", "=", "evaluated")])
+            .filtered(
+                lambda e: (date_from is None and date_to is None)
+                or (
+                    e.session_id.date_start
+                    and start <= fields.Date.to_date(e.session_id.date_start) <= end
+                )
+            )
         )
         # A09 M22-28: the model's completion state is 'passed' ('completed'
         # never existed, so the KPI was always 0 %).
@@ -269,6 +352,8 @@ def training_effectiveness(env, date_from=None, date_to=None, **params):
         [
             "Completion counts enrolments in the passed state (withdrawn seats excluded); a "
             "course with no enrolments shows zero rather than a fabricated rate.",
+            "With a period offered, an enrolment counts when its session ran in the window "
+            "(no session: when it was completed in it); %s to %s." % (start, end),
             "Evaluations are effectiveness records (before / after on the operational measure "
             "the training targeted, FR-LMS-035) evaluated with a conclusion.",
         ],
@@ -285,13 +370,20 @@ def training_effectiveness(env, date_from=None, date_to=None, **params):
 
 def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
     """Skill-gap heatmap derived from the records that exist: valid
-    certifications (L3+ evidence) and the latest assessment level per
-    employee/competency. There is no separate skill-matrix model."""
+    certifications (L3+ evidence) and the latest PASSED assessment level per
+    employee/competency (M22-F9: a failed attempt never showed a held level —
+    the gap analysis requires a passed assessment, and so does the heatmap).
+    UI-F3: with a period offered, only assessments assessed in it count.
+    There is no separate skill-matrix model."""
     competencies = env["fix.competency"].search([])
     # A09 M22-09: only a granted certificate inside its dates counts; the
     # status is judged against today on every read.
     certs = env["fix.certification"].search([("state", "=", "valid"), ("status", "!=", "expired")])
-    assessments = env["fix.competency.assessment"].search([], order="assessed_on desc")
+    domain = [("passed", "=", True)]
+    if date_from or date_to:
+        start, end = _period(date_from, date_to, env)
+        domain += [("assessed_on", ">=", start), ("assessed_on", "<=", end)]
+    assessments = env["fix.competency.assessment"].search(domain, order="assessed_on desc")
     rows = []
     for comp in competencies:
         held = certs.filtered(lambda c, cid=comp.id: c.competency_id.id == cid)
@@ -346,8 +438,9 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
         rows,
         [
             "The heatmap is built from the records that exist: valid certifications count as L3+ "
-            "evidence, and the latest assessment per employee supplies the level. A competency "
-            "with no assessments shows zero in the level columns (it does not invent a level)."
+            "evidence, and the latest PASSED assessment per employee supplies the level (a "
+            "failed attempt holds no level — as the gap analysis). A competency with no "
+            "assessments shows zero in the level columns (it does not invent a level)."
         ],
         totals={
             "competency": "Total",
@@ -363,8 +456,14 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
 
 
 def audit_evidence_pack(env, date_from=None, date_to=None, **params):
-    """Audit evidence pack: evidence records with their standard clause."""
-    records = env["fix.audit.evidence"].search([])
+    """Audit evidence pack: evidence records with their standard clause.
+    UI-F3: the pack's business date is collected_on; evidence is a fact of
+    the past, so a future period end is never taken."""
+    start, end = _period(date_from, date_to, env)
+    domain = []
+    if date_from or date_to:
+        domain += [("collected_on", ">=", start), ("collected_on", "<=", end)]
+    records = env["fix.audit.evidence"].search(domain)
     rows = []
     for rec in records:
         rows.append(
@@ -402,11 +501,16 @@ def audit_evidence_pack(env, date_from=None, date_to=None, **params):
 def role_gap_analysis(env, date_from=None, date_to=None, **params):
     """FR-LMS-005: each employee in a role's positions against each competency
     requirement of that role in force; one row per requirement not met. Read
-    as the caller, so assessment results stay S2 (BRU-LMS-12)."""
+    as the caller, so assessment results stay S2 (BRU-LMS-12).
+    UI-F3: an AS-AT snapshot — requirements in force at the period end (never
+    a future day) are the ones measured."""
+    as_of = _as_of(date_to, env)
     levels = {"l1": "L1", "l2": "L2", "l3": "L3", "l4": "L4"}
     rows = []
     for gap in env["fix.learning.path"].search([])._fix_gap_rows():
         req, emp = gap["requirement"], gap["employee"]
+        if req.effective_from and req.effective_from > as_of:
+            continue  # not yet in force on the as-at day
         rows.append(
             {
                 "employee": emp.name,
@@ -422,7 +526,7 @@ def role_gap_analysis(env, date_from=None, date_to=None, **params):
         )
     rows.sort(key=lambda r: (r["mandatory"] != "Yes", -r["gap"], r["employee"]))
     return _pack(
-        "Role Gap Analysis - employees against their role's competency requirements",
+        "Role Gap Analysis — requirements in force as at %s" % as_of,
         [
             "employee",
             "position",
@@ -449,13 +553,85 @@ def role_gap_analysis(env, date_from=None, date_to=None, **params):
         [
             "Held = the latest passed assessment by an independent assessor; a granted "
             "certification in date counts as L3. A learning path measures the employees in "
-            "its Applies-to-Positions against its competency requirements in force.",
+            "its Applies-to-Positions against its competency requirements in force on the "
+            "as-at day (a future period end is never taken).",
             "Raise Training Needs from Gaps on the Learning Paths list opens a need for "
             "every gap that has none.",
         ],
         totals={"employee": "Total gaps: %d" % len(rows)},
         empty="No gaps: every measured employee meets the requirements, or no learning path "
         "names its positions and requirements yet.",
+    )
+
+
+def gate_readiness(env, date_from=None, date_to=None, **params):
+    """M22-F2 readiness: the dispatch gate is only as good as its config.
+    One row per fix.device device type: is any dispatch-gating competency
+    scoped to it, and does that competency carry a repair tier (M22-F3: a
+    tier-less gating competency lets an un-tiered certification satisfy no
+    tiered job — every tiered gate refuses until it is tiered)? An as-at
+    snapshot (the competency register in force now)."""
+    today = _today(env)
+    gating = env["fix.competency"].search([("required_for_dispatch", "=", True)])
+    # fix.device.device_type is a RELATED selection: its own `selection` is
+    # empty, so _description_selection on it returns [] and the pack listed no
+    # device type at all. Read the source field on fix.device.model instead.
+    # Odoo's Environment has no .get(): the membership lookup is the one that
+    # works (ruff SIM401's env.get() suggestion would AttributeError).
+    has_device = "fix.device" in env
+    device_model = env["fix.device"] if has_device else None
+    field = device_model._fields.get("device_type") if device_model else None
+    selection = field._description_selection(env) if field else []
+    if not selection and "fix.device.model" in env:
+        field = env["fix.device.model"]._fields.get("device_type")
+        selection = field._description_selection(env) if field else []
+    rows = []
+    for key, label in selection:
+        comps = gating.filtered(
+            lambda c, k=key: (c.device_type and k in [t.strip() for t in c.device_type.split(",")])
+            or (c.device_category_id and c.device_category_id.code == k)
+        )
+        unscoped_tier = comps.filtered(lambda c: not c.repair_tier)
+        rows.append(
+            {
+                "device_type": "%s (%s)" % (key, label) if label else key,
+                "gating_competencies": len(comps),
+                "without_tier": len(unscoped_tier),
+                "state": (
+                    "Gated"
+                    if comps and not unscoped_tier
+                    else (
+                        "Gated, tier missing"
+                        if comps
+                        else "UNGATED (fail-closed on M02" ", fail-open on M31 until the switch)"
+                    )
+                ),
+            }
+        )
+    return _pack(
+        "Dispatch Gate Readiness — as at %s" % today,
+        ["device_type", "gating_competencies", "without_tier", "state"],
+        {
+            "device_type": "Device Type",
+            "gating_competencies": "Gating Competencies",
+            "without_tier": "Without Repair Tier",
+            "state": "Gate State",
+        },
+        rows,
+        [
+            "M22-F2/F3: a device type with no dispatch-gating competency is refused by the "
+            "M02 work-order gate (fail-closed) but PASSES the M31 bench gate while "
+            "cd_competency.workshop_gate_fail_closed is off (the COO ruling is open). A "
+            "gating competency with no repair tier lets no tiered job pass (M22-F3)."
+        ],
+        totals={
+            "device_type": "Total ungated",
+            "gating_competencies": sum(r["gating_competencies"] for r in rows),
+            "without_tier": sum(r["without_tier"] for r in rows),
+            "state": "%d of %d"
+            % (sum(1 for r in rows if r["state"].startswith("UNGATED")), len(rows)),
+        },
+        empty="No device types defined.",
     )
 
 
@@ -466,13 +642,13 @@ REPORTS = {
     "training_effectiveness": training_effectiveness,
     "skill_gap_heatmap": skill_gap_heatmap,
     "audit_evidence": audit_evidence_pack,
+    "gate_readiness": gate_readiness,
 }
 
 
 def kpis(env):
-    today = _today()
+    today = _today(env)
     certs = env["fix.certification"].search([("state", "in", ("valid", "lapsed"))])
-    employees = env["hr.employee"].search([])
     certified = {
         c.employee_id.id
         for c in certs
@@ -495,14 +671,16 @@ def kpis(env):
     assessments = env["fix.competency.assessment"].search([])
     passed = len(assessments.filtered(lambda a: a.passed))
     ojt = env["fix.ojt.record"].search([])
-    technicians = (
-        len(
-            [e for e in employees if e.position_id and "tech" in (e.position_id.name or "").lower()]
-        )
-        or 1
-    )
-    hours = sum(float(r.hours or 0.0) for r in ojt) / technicians
-    brands = len({c.competency_id.id for c in certs})
+    # M22-F9 / UI-F11: the denominator is the estate's technician population
+    # (the M02 dispatch pool, as the M21 'Technicians' KPI), not a
+    # 'tech'-in-position-name guess; with no technicians the honest answer is
+    # 0, not a division by a silent 1.
+    technicians = len(_technicians(env))
+    hours = sum(float(r.hours or 0.0) for r in ojt) / technicians if technicians else 0.0
+    # M22-F9: 'Brand Certifications' counted distinct competencies; it counts
+    # the DISTINCT BRANDS the held certifications name (cert brand, else the
+    # competency's OEM scope).
+    brands = len({b.id for b in (c.brand_id or c.competency_id.brand_id for c in certs) if b})
     return {
         "certified_technicians": len(certified),
         "expiring_30d": expiring,

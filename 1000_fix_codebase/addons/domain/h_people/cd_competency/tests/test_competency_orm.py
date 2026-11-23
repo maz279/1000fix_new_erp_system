@@ -21,7 +21,10 @@ def ctx(odoo_env):
     Competency = env["fix.competency"]
     return SimpleNamespace(
         env=env,
-        today=fields.Date.today(),
+        # B5 (M22-F13): the status compute judges "today" on the Dhaka
+        # business day; the fixture follows it (the plain UTC date ran a day
+        # behind after 18:00 UTC).
+        today=fields.Date.context_today(env.user.with_context(tz=env.user.tz or "Asia/Dhaka")),
         phone=Competency.create(
             {"code": "SP-L2", "name": "Smartphone L2", "device_type": "smartphone,tablet"}
         ),

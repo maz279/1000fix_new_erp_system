@@ -120,6 +120,11 @@ def w(odoo_env):
             "payroll_pf_payable_account_id": _account(
                 env, co, "2103", "PF Payable", "liability_current"
             ).id,
+            # M56-F8 prevalidation: an overpayment recovery the run carries
+            # needs its own account role
+            "payroll_recovery_account_id": _account(
+                env, co, "1201", "Employee Receivable", "asset_receivable"
+            ).id,
             "payroll_beftn_account_no": CO_ACC,
             "payroll_beftn_routing_no": CO_ROUTING,
         }
@@ -492,6 +497,10 @@ def test_a_new_pack_needs_a_second_payroll_manager_and_applies_from_its_date(w):
                 "state": "approved",
             }
         )
+    # the register's versions are sequential across the seeded packs too (the
+    # baseline and the enacted proposals are already in the register), so the
+    # new pack takes the next two numbers
+    top = max(w.env["fix.statutory.pack"].sudo().search([]).mapped("version") or [0])
     v2 = Pack.create(
         {"effective_from": PS, "ot_divisor_hours": 104.0, "exemption_ceiling": 450000.0}
     )
@@ -502,7 +511,7 @@ def test_a_new_pack_needs_a_second_payroll_manager_and_applies_from_its_date(w):
             "exemption_ceiling": 450000.0,
         }
     )
-    assert v2.version == 2 and later.version == 3 and v2.company_id == w.co
+    assert v2.version == top + 1 and later.version == top + 2 and v2.company_id == w.co
     # a sourced pack needs its citation and evidence
     v2.write({"basis": "sourced"})
     with pytest.raises(UserError, match="citation and the evidence"), w.env.cr.savepoint():
@@ -531,7 +540,7 @@ def test_a_new_pack_needs_a_second_payroll_manager_and_applies_from_its_date(w):
     p = calculated(w)
     slip = slip_of(p, w.karim)
     assert slip.statutory_pack_id == v2 and slip.ot_divisor_hours == 104.0
-    assert "pack=v2 (sourced)" in slip.statutory_basis
+    assert "pack=v%d (sourced)" % v2.version in slip.statutory_basis
 
 
 # ================================================================ FR-PAY-004 YTD TDS
@@ -589,17 +598,11 @@ def test_the_gratuity_provision_cron_accrues_once_per_employee_and_month(w):
     Accrual = w.env["fix.payroll.gratuity.accrual"].sudo()
     with pytest.raises(UserError, match="month end"), w.env.cr.savepoint():
         Accrual.cron_accrue_gratuity(as_of="2026-01-30")
-    Accrual.cron_accrue_gratuity(as_of="2026-01-31")
-    Accrual.cron_accrue_gratuity(as_of="2026-01-31")  # idempotent
-    mine = Accrual.search([("employee_id", "in", (w.karim | w.nasrin).ids)])
-    assert len(mine) == 2
-    karim = mine.filtered(lambda r: r.employee_id == w.karim)
-    # 6 completed years at 1,000 a day x 30 days (the existing separation rule)
-    assert (karim.completed_years, karim.liability, karim.accrual) == (6, 180000.0, 180000.0)
-    assert "pack=v1 (as coded, unsourced)" in karim.statutory_basis
-    assert not karim.move_id  # finance has not configured the provision accounts
-    # February: the movement is the difference only; the provision is posted
-    # once finance configures the accounts
+    # X-F3: eligible contracts exist but finance configured no gratuity
+    # accounts - the accrual REFUSES loudly now (it used to write rows with
+    # move=NONE, an unrecorded BLA liability)
+    with pytest.raises(UserError, match="not configured"), w.env.cr.savepoint():
+        Accrual.cron_accrue_gratuity(as_of="2026-01-31")
     w.co.write(
         {
             "payroll_gratuity_expense_account_id": _account(
@@ -610,6 +613,16 @@ def test_the_gratuity_provision_cron_accrues_once_per_employee_and_month(w):
             ).id,
         }
     )
+    Accrual.cron_accrue_gratuity(as_of="2026-01-31")
+    Accrual.cron_accrue_gratuity(as_of="2026-01-31")  # idempotent
+    mine = Accrual.search([("employee_id", "in", (w.karim | w.nasrin).ids)])
+    assert len(mine) == 2
+    karim = mine.filtered(lambda r: r.employee_id == w.karim)
+    # 6 completed years at 1,000 a day x 30 days (the existing separation rule)
+    assert (karim.completed_years, karim.liability, karim.accrual) == (6, 180000.0, 180000.0)
+    assert "pack=v1 (as coded, unsourced)" in karim.statutory_basis
+    assert karim.move_id and karim.move_id.state == "posted"
+    # February: the movement is the difference only
     Accrual.cron_accrue_gratuity(as_of="2026-02-28")
     feb = Accrual.search([("employee_id", "=", w.karim.id), ("month", "=", "2026-02")])
     assert (feb.previous_liability, feb.accrual) == (180000.0, 0.0)
@@ -1483,16 +1496,17 @@ def test_an_overpayment_is_recovered_from_the_next_runs_within_the_monthly_cap(w
         w.as_(w.officer)["fix.payslip"].browse(slip_of(feb, w.karim).id).write(
             {"recovery_deduction": 0.0}
         )
-    # posting books the recovery once finance names the account
+    # posting books the recovery; M56-F8 names the posting role at approval,
+    # so a missing account is refused there (before any payment)
+    recovery_account = w.co.sudo().payroll_recovery_account_id
+    w.co.sudo().payroll_recovery_account_id = False
+    with pytest.raises(UserError, match="Overpayment Recovery Account"), w.env.cr.savepoint():
+        feb.action_request_approval()
+    w.co.sudo().payroll_recovery_account_id = recovery_account
     feb.action_request_approval()
     decide(w, feb, w.manager)
     w.as_(w.releaser)["fix.payroll.period"].browse(feb.id).action_pay()
     poster = w.as_(w.manager2)["fix.payroll.period"].browse(feb.id)
-    with pytest.raises(UserError, match="Overpayment Recovery Account"), w.env.cr.savepoint():
-        poster.action_post()
-    w.co.payroll_recovery_account_id = _account(
-        w.env, w.co, "1201", "Employee Receivable", "asset_receivable"
-    ).id
     poster.action_post()
     feb.invalidate_recordset()
     rec_line = feb.gl_move_id.line_ids.filtered(lambda ln: ln.account_id.code == "1201")
@@ -1615,13 +1629,15 @@ def test_an_mfs_return_marks_failed_wallets_and_finance_reissues_them(w):
 
 def _approved_recovery(w, amount, cap=0.0, source="any_payment"):
     jan = paid(w)
+    # the fixture configures the recovery role already; reuse it (code 1201)
+    account = w.co.sudo().payroll_recovery_account_id or _account(
+        w.env, w.co, "1201", "Employee Receivable", "asset_receivable"
+    )
     w.co.sudo().write(
         {
             "payroll_recovery_source": source,
             "payroll_recovery_monthly_cap": cap,
-            "payroll_recovery_account_id": _account(
-                w.env, w.co, "1201", "Employee Receivable", "asset_receivable"
-            ).id,
+            "payroll_recovery_account_id": account.id,
         }
     )
     rec = w.as_(w.officer)["fix.payroll.recovery"].create(

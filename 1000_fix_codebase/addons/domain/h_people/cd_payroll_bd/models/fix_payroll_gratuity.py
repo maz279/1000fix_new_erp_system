@@ -12,6 +12,7 @@
 # the month's net movement per company is posted (Dr expense / Cr provision,
 # reversed for a release); until then the rows are the provision register.
 import calendar
+import logging
 from datetime import date
 from decimal import Decimal
 
@@ -23,6 +24,8 @@ from libs.py.payroll_engine import completed_years, gratuity
 
 from .fix_payroll_disbursement import post_two_line_entry
 from .fix_payroll_statutory import statutory_basis
+
+_logger = logging.getLogger(__name__)
 
 
 class FixPayrollGratuityAccrual(models.Model):
@@ -130,12 +133,35 @@ class FixPayrollGratuityAccrual(models.Model):
         return rows
 
     def _post(self, company, rows, month, as_of):
-        """The month's net movement to the GL, once finance configured it."""
-        if not (
-            company.payroll_journal_id
-            and company.payroll_gratuity_expense_account_id
-            and company.payroll_gratuity_provision_account_id
-        ):
+        """The month's net movement to the GL. X-F3 / M56-F8: when the month
+        has eligible contracts and finance has not configured the gratuity
+        accounts, the accrual now RAISES (and logs) instead of silently
+        writing rows with move=NONE - a silent BLA 30-days-per-year provision
+        that never reaches the ledger is exactly the unrecorded liability the
+        audit flagged. A month with nothing to move still posts nothing."""
+        company = company.sudo()
+        missing = [
+            company._fields[fname].string
+            for fname in (
+                "payroll_journal_id",
+                "payroll_gratuity_expense_account_id",
+                "payroll_gratuity_provision_account_id",
+            )
+            if not company[fname]
+        ]
+        if missing:
+            net_zero = company.currency_id.is_zero(
+                company.currency_id.round(sum(rows.mapped("accrual")))
+            )
+            if rows and not net_zero:
+                message = (
+                    "Gratuity provision %s of %s cannot be posted: %s not configured. The "
+                    "provision rows are kept, but the BLA 30-days-per-year liability reaches "
+                    "no ledger until finance configures the accounts."
+                    % (month, company.name, ", ".join(missing))
+                )
+                _logger.error("X-F3: %s", message)
+                raise UserError(message)
             return
         net = company.currency_id.round(sum(rows.mapped("accrual")))
         if company.currency_id.is_zero(net):

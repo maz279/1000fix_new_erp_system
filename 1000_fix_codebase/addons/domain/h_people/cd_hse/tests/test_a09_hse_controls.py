@@ -142,9 +142,25 @@ def _serious(x, user=None):
 
 
 def _notify(x, incident):
+    """The statutory notices a reportable accident needs before it closes:
+    the Form 27 dispatch to DIFE, the written notice to the Department of
+    Labour office (s.80(1) / 2026 Act s.22) and the six instant-notice
+    authorities (BLR r.69(1))."""
+    from odoo.addons.cd_hse.models.fix_hse_notice import NOTICE_AUTHORITIES
+
     reg = incident.statutory_record_id
     reg.with_user(x.hse).write({"dife_notice_file": FORM27})
     reg.with_user(x.notifier).action_notify_dife(notice_ref="DIFE/2026/0042")
+    reg.with_user(x.notifier).action_notify_dol(notice_ref="DOL/2026/0011")
+    for code, _label in NOTICE_AUTHORITIES:
+        x.env["fix.hse.notice.recipient"].create(
+            {
+                "register_id": reg.id,
+                "authority": code,
+                "notified_on": fields.Datetime.now(),
+                "reference": "r.69(1) call",
+            }
+        )
     return reg
 
 
@@ -286,7 +302,9 @@ def test_escalated_incident_enters_the_register_and_cannot_close_unnotified(x):
         severity="low",
         injured_employee_id=x.plain.employee_id.id,
     )
-    assert not inc.sudo().statutory_record_id
+    # BLA s.80(2) / BLR r.73(1): every accident has its Form 28 entry at
+    # report, the low-severity injury included
+    assert inc.sudo().statutory_record_id
     with pytest.raises(AccessError):
         inc.with_user(x.plain).action_escalate(reason="hospitalised")
     inc.with_user(x.hse).action_escalate(reason="Hospitalised overnight")

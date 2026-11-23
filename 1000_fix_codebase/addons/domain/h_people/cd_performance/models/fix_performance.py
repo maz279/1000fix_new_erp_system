@@ -22,6 +22,11 @@ import re
 from datetime import date, timedelta
 
 from odoo import api, fields, models
+
+# M01 owns the Asia/Dhaka business-day conversion (M57-F6): reuse it, never
+# reimplement it. The month boundary of a scorecard is the Dhaka business day,
+# not UTC midnight.
+from odoo.addons.cd_service_order.models.fix_service_order import _dhaka_date
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -52,6 +57,21 @@ DISPUTE_DAYS_PARAM = "cd_performance.incentive_dispute_days"
 # BRU-PIC-11: a rework or credit within this many days of the order's
 # completion claws its share of the paid incentive back (0 = no clawback).
 CLAWBACK_DAYS_PARAM = "cd_performance.incentive_clawback_days"
+# M57-F4: the smallest share of the composite's configured weight that must
+# have a fact source before a scorecard may be published (0.0 = no gate; the
+# composite still renormalises over the components that have data). The figure
+# is an OWNER decision (recommend 0.6).
+MIN_FACT_COVERAGE_PARAM = "cd_performance.min_fact_coverage"
+
+
+def float_param(env, key, default=0.0):
+    """A setting held as a decimal share (0..1); anything unreadable is the
+    default."""
+    raw = env["ir.config_parameter"].sudo().get_param(key, str(default))
+    try:
+        return round(max(float(str(raw).strip() or 0.0), 0.0), 4)
+    except (TypeError, ValueError):
+        return default
 
 
 def rework_clawback_penalty(rework_30d_rate: float) -> float:
@@ -72,37 +92,40 @@ def rework_clawback_penalty(rework_30d_rate: float) -> float:
 
 
 def composite_score(
-    ftf: float,
-    sla: float,
-    csat: float,
+    ftf: float | None,
+    sla: float | None,
+    csat: float | None,
     rework: float = 0.0,
     salvage: float | None = None,
     rework_30d: float | None = None,
 ) -> float:
     """The explainable composite: weighted positives summing to 1.00 minus rework
-    penalty. All inputs 0..1; result clamped 0..1 so top band (>=0.90) is reachable."""
-    base_inputs = [ftf, sla, csat, rework]
+    penalty. All inputs 0..1; result clamped 0..1 so top band (>=0.90) is reachable.
+
+    M57-F4/F7: a positive component whose value is None has no fact source —
+    it is EXCLUDED and the composite renormalises over the weighted components
+    that have data, so missing data is never scored as the worst score. With
+    every component missing there is nothing to score: 0.0."""
+    inputs = {"first_time_fix": ftf, "sla_hit": sla, "csat": csat}
     if salvage is not None:
-        base_inputs.append(salvage)
+        inputs["salvage"] = salvage
+    # a rework rate nobody measured is no rework evidence, not a crash: the
+    # validation below skips the components that have no fact source
+    rework_value = 0.0 if rework is None else rework
+    base_inputs = [*inputs.values(), rework_value]
     if rework_30d is not None:
         base_inputs.append(rework_30d)
-    if not all(0 <= v <= 1 for v in base_inputs):
+    measured = [v for v in base_inputs if v is not None]
+    if not all(0 <= v <= 1 for v in measured):
         raise ValueError("scorecard inputs must be 0..1")
 
-    if salvage is None:
-        pos_weight_sum = WEIGHTS["first_time_fix"] + WEIGHTS["sla_hit"] + WEIGHTS["csat"]
-        positives = (
-            WEIGHTS["first_time_fix"] * ftf + WEIGHTS["sla_hit"] * sla + WEIGHTS["csat"] * csat
-        ) / pos_weight_sum
-    else:
-        positives = (
-            WEIGHTS["first_time_fix"] * ftf
-            + WEIGHTS["sla_hit"] * sla
-            + WEIGHTS["csat"] * csat
-            + WEIGHTS["salvage"] * salvage
-        )
+    weighted = [(WEIGHTS[k], v) for k, v in inputs.items() if v is not None]
+    pos_weight_sum = sum(w for w, _v in weighted)
+    if pos_weight_sum <= 0:
+        return 0.0
+    positives = sum(w * v for w, v in weighted) / pos_weight_sum
 
-    penalty = WEIGHTS["rework_penalty"] * rework
+    penalty = WEIGHTS["rework_penalty"] * rework_value
     if rework_30d is not None:
         penalty += rework_clawback_penalty(rework_30d)
 
@@ -211,6 +234,36 @@ class FixPerformanceScorecard(models.Model):
         default=0.0,
         help="Monthly target for salvage recovery; 0 uses 3-factor normalisation",
     )
+    # M57-F4/F7: which components the computation found facts for. A component
+    # without facts is excluded from the composite (renormalised), not scored 0.
+    # Defaults True so a typed seed card behaves as before; the computation
+    # from service orders writes the real flags.
+    sla_has_facts = fields.Boolean(
+        string="SLA Has Data", default=True, help="False: no counted order carries a deadline."
+    )
+    csat_has_facts = fields.Boolean(
+        string="CSAT Has Data", default=True, help="False: no customer survey rating exists."
+    )
+    salvage_has_facts = fields.Boolean(
+        string="Salvage Has Data",
+        default=True,
+        help="False: no fact source records salvage value yet (the computation "
+        "always writes 0 today), so the component is excluded even when a "
+        "target is set.",
+    )
+    facts_coverage = fields.Float(
+        string="Fact Coverage (0-1)",
+        compute="_compute_score",
+        store=True,
+        help="The share of the composite's configured weight that has a fact source.",
+    )
+    insufficient_data = fields.Boolean(
+        string="Insufficient Data",
+        compute="_compute_score",
+        store=True,
+        help="True when fact coverage is below the ruled minimum "
+        "(cd_performance.min_fact_coverage; 0 = no gate).",
+    )
     salvage_ratio = fields.Float(
         string="Salvage Achievement (0-1)", compute="_compute_score", store=True
     )
@@ -240,6 +293,7 @@ class FixPerformanceScorecard(models.Model):
     _KPI_FIELDS = frozenset(
         {"first_time_fix", "sla_hit", "csat", "rework_rate", "rework_30d_rate", "salvage_value"}
     )
+    _FACT_FLAG_FIELDS = frozenset({"sla_has_facts", "csat_has_facts", "salvage_has_facts"})
     _FROZEN_WHEN_PUBLISHED = frozenset(
         {"employee_id", "period", "company_id", "salvage_target", "operating_unit_id"}
     )
@@ -249,6 +303,7 @@ class FixPerformanceScorecard(models.Model):
         return (
             super()._fix_guarded_fields()
             | self._KPI_FIELDS
+            | self._FACT_FLAG_FIELDS
             | {
                 "state",
                 "facts_orders",
@@ -274,11 +329,15 @@ class FixPerformanceScorecard(models.Model):
         "rework_30d_rate",
         "salvage_value",
         "salvage_target",
+        "sla_has_facts",
+        "csat_has_facts",
+        "salvage_has_facts",
     )
     def _compute_score(self):
         for rec in self:
+            salvage_configured = bool(rec.salvage_target and rec.salvage_target > 0)
             salvage_norm = None
-            if rec.salvage_target and rec.salvage_target > 0:
+            if salvage_configured and rec.salvage_has_facts:
                 salvage_norm = max(0.0, min(1.0, (rec.salvage_value or 0.0) / rec.salvage_target))
                 rec.salvage_ratio = round(salvage_norm, 4)
             else:
@@ -291,11 +350,26 @@ class FixPerformanceScorecard(models.Model):
             )
             rec.score = composite_score(
                 rec.first_time_fix or 0.0,
-                rec.sla_hit or 0.0,
-                rec.csat or 0.0,
+                rec.sla_hit if rec.sla_has_facts else None,
+                rec.csat if rec.csat_has_facts else None,
                 rec.rework_rate or 0.0,
                 salvage=salvage_norm,
                 rework_30d=r30,
+            )
+            # M57-F4: coverage = the configured weight that has a fact source.
+            configured = WEIGHTS["first_time_fix"] + WEIGHTS["sla_hit"] + WEIGHTS["csat"]
+            if salvage_configured:
+                configured += WEIGHTS["salvage"]
+            covered = (
+                WEIGHTS["first_time_fix"]
+                + (WEIGHTS["sla_hit"] if rec.sla_has_facts else 0.0)
+                + (WEIGHTS["csat"] if rec.csat_has_facts else 0.0)
+            )
+            if salvage_configured and rec.salvage_has_facts:
+                covered += WEIGHTS["salvage"]
+            rec.facts_coverage = round(covered / configured, 4) if configured else 0.0
+            rec.insufficient_data = rec.facts_coverage < float_param(
+                self.env, MIN_FACT_COVERAGE_PARAM
             )
 
     @api.constrains("period")
@@ -325,12 +399,16 @@ class FixPerformanceScorecard(models.Model):
 
     def _fix_counted_orders(self):
         """The service orders this scorecard counts: the employee's orders
-        completed (delivered or closed) in the period."""
+        completed (delivered or closed) in the period, attributed to the
+        technician the order names at its close. M57-F6: the period bounds are
+        the Asia/Dhaka business day (M01's own conversion), not UTC midnight —
+        an order delivered at 02:30 Dhaka on the 1st belongs to the new month.
+        The SQL window is widened a day each side, then the Dhaka date decides."""
         self.ensure_one()
         start, end = period_bounds(self.period)
-        lo = fields.Datetime.to_datetime(start)
-        hi = fields.Datetime.to_datetime(end + timedelta(days=1))
-        return (
+        lo = fields.Datetime.to_datetime(start - timedelta(days=1))
+        hi = fields.Datetime.to_datetime(end + timedelta(days=2))
+        candidates = (
             self.env["fix.service.order"]
             .sudo()
             .search(
@@ -350,11 +428,22 @@ class FixPerformanceScorecard(models.Model):
                 ]
             )
         )
+        return candidates.filtered(
+            lambda o: start <= _dhaka_date(o.delivered_at or o.closed_at) <= end
+        )
 
     def _fix_service_order_facts(self):
         """FTF, SLA, CSAT and rework for this employee and month, from the
         service orders they completed (M01) and, when M34 is installed, the
-        customers' survey ratings. Returns (values, orders counted, basis)."""
+        customers' survey ratings. Returns (values, orders counted, basis).
+
+        M57-F4: a component whose fact source is empty (no order with a
+        deadline -> SLA; no survey rating -> CSAT; no salvage fact at all) is
+        flagged without facts and excluded from the renormalised composite,
+        never scored as zero. M57-F5: a rework order is not a first-time fix
+        for whoever does the rework (excluded from the FTF numerator AND
+        denominator), and only a rework that reached intake counts as rework
+        against the original technician (a draft or cancelled one does not)."""
         self.ensure_one()
         SO = self.env["fix.service.order"].sudo()
         orders = self._fix_counted_orders()
@@ -362,9 +451,18 @@ class FixPerformanceScorecard(models.Model):
         basis = ["%d completed service order(s) in %s" % (n, self.period)]
         if not n:
             zero = dict.fromkeys(self._KPI_FIELDS, 0.0)
+            zero.update(
+                {"sla_has_facts": False, "csat_has_facts": False, "salvage_has_facts": False}
+            )
             return zero, 0, "; ".join([*basis, "no facts: every KPI is 0"])
 
-        reworks = SO.search([("rework_of_id", "in", orders.ids)])
+        reworks = SO.search(
+            [
+                ("rework_of_id", "in", orders.ids),
+                # M57-F5: a cancelled or draft rework order is no rework yet.
+                ("state", "not in", ("draft", "cancelled")),
+            ]
+        )
         reworked = set(reworks.mapped("rework_of_id").ids)
         reworked_30d = set()
         for rw in reworks:
@@ -381,7 +479,11 @@ class FixPerformanceScorecard(models.Model):
                 ._read_group([("order_id", "in", orders.ids)], ["order_id"], ["__count"])
             ):
                 work_counts[row[0].id] = row[1]
-        first_time = [o for o in orders if o.id not in reworked and work_counts.get(o.id, 0) <= 1]
+        # M57-F5: a rework order is excluded from both sides of first-time fix.
+        non_rework_orders = [o for o in orders if not (o.rework_of_id or o.is_rework)]
+        first_time = [
+            o for o in non_rework_orders if o.id not in reworked and work_counts.get(o.id, 0) <= 1
+        ]
 
         with_deadline = orders.filtered(lambda o: o.sla_resolution_deadline)
         hits = with_deadline.filtered(
@@ -392,9 +494,13 @@ class FixPerformanceScorecard(models.Model):
             )
         )
         sla = len(hits) / len(with_deadline) if with_deadline else 0.0
-        basis.append("SLA over %d order(s) with a deadline" % len(with_deadline))
+        if with_deadline:
+            basis.append("SLA over %d order(s) with a deadline" % len(with_deadline))
+        else:
+            basis.append("SLA: no order carries a deadline - component excluded")
 
         csat = 0.0
+        csat_has_facts = False
         if "fix.survey" in self.env:
             Survey = self.env["fix.survey"].sudo()
             domain = [("service_order_id", "in", orders.ids), ("rating", "!=", False)]
@@ -408,17 +514,25 @@ class FixPerformanceScorecard(models.Model):
             surveys = Survey.search(domain)
             if surveys:
                 csat = sum((int(s.rating) - 1) / 4.0 for s in surveys) / len(surveys)
-            basis.append("CSAT from %d survey rating(s)" % len(surveys))
+                csat_has_facts = True
+            basis.append(
+                "CSAT from %d survey rating(s)%s"
+                % (len(surveys), "" if surveys else " - component excluded")
+            )
         else:
-            basis.append("CSAT 0: the M34 survey module is not installed")
-        basis.append("salvage 0: no fact source")
+            basis.append("CSAT: the M34 survey module is not installed - component excluded")
+        basis.append("salvage: no fact source - component excluded")
+        ftf_base = len(non_rework_orders) or n
         values = {
-            "first_time_fix": round(len(first_time) / n, 4),
+            "first_time_fix": round(len(first_time) / ftf_base, 4),
             "sla_hit": round(sla, 4),
             "csat": round(max(0.0, min(1.0, csat)), 4),
             "rework_rate": round(len(reworked) / n, 4),
             "rework_30d_rate": round(len(reworked_30d) / n, 4),
             "salvage_value": 0.0,
+            "sla_has_facts": bool(with_deadline),
+            "csat_has_facts": csat_has_facts,
+            "salvage_has_facts": False,
         }
         return values, n, "; ".join(basis)
 
@@ -450,6 +564,15 @@ class FixPerformanceScorecard(models.Model):
             if not rec.computed_at and not self.env.su:
                 raise UserError(
                     "Compute the scorecard from the service orders before publishing it."
+                )
+            # M57-F4: a ruled minimum coverage gates publication (0 = no gate).
+            minimum = float_param(self.env, MIN_FACT_COVERAGE_PARAM)
+            if minimum > 0 and (rec.facts_coverage or 0.0) < minimum:
+                raise UserError(
+                    "%s covers only %.0f%% of the composite's configured weight with facts "
+                    "(the ruled minimum is %.0f%%): it is flagged insufficient data. Gather "
+                    "the facts or rule a lower minimum (cd_performance.min_fact_coverage)."
+                    % (rec.display_name, (rec.facts_coverage or 0.0) * 100, minimum * 100)
                 )
             rec._guarded().write(
                 {
@@ -508,7 +631,12 @@ class FixIncentiveRun(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     state = fields.Selection(
-        [("draft", "Draft"), ("computed", "Computed"), ("approved", "Approved")],
+        [
+            ("draft", "Draft"),
+            ("computed", "Computed"),
+            ("approved", "Approved"),
+            ("void", "Voided (before payment)"),
+        ],
         default="draft",
         required=True,
         tracking=True,
@@ -521,6 +649,20 @@ class FixIncentiveRun(models.Model):
     approved_at = fields.Datetime(string="Approved At", readonly=True)
     approved_total = fields.Monetary(
         string="Approved Total", currency_field="currency_id", readonly=True
+    )
+    # M57-F19: a routed void of an approved run before any line is paid.
+    void_pending = fields.Boolean(
+        string="Void Requested", readonly=True, copy=False, help="A void awaits its second decider."
+    )
+    void_requested_by_id = fields.Many2one("res.users", string="Void Requested By", readonly=True)
+    voided_by_id = fields.Many2one("res.users", string="Voided By", readonly=True)
+    voided_at = fields.Datetime(string="Voided At", readonly=True)
+    void_reason = fields.Text(string="Void Reason", readonly=True)
+    # M57-F11: the clawbacks this run's computation raised against past runs;
+    # they stand on the run's approval statement (the approver approves them
+    # with the run).
+    raised_clawback_ids = fields.One2many(
+        "fix.incentive.clawback", "raised_run_id", string="Clawbacks Raised by This Run"
     )
     dispute_deadline = fields.Date(
         string="Disputes Close On",
@@ -550,6 +692,11 @@ class FixIncentiveRun(models.Model):
             "approved_at",
             "approved_total",
             "dispute_deadline",
+            "void_pending",
+            "void_requested_by_id",
+            "voided_by_id",
+            "voided_at",
+            "void_reason",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -578,7 +725,12 @@ class FixIncentiveRun(models.Model):
         return self.mapped("line_ids.employee_id")
 
     def _approval_preparers(self):
-        return self.mapped("computed_by_id") | self.mapped("create_uid")
+        preparers = self.mapped("computed_by_id") | self.mapped("create_uid")
+        # M57-F19: the void decision is a second person — never the one who
+        # requested the void nor the approver of the original computation.
+        if any(rec.void_pending for rec in self):
+            preparers |= self.mapped("void_requested_by_id") | self.mapped("approved_by_id")
+        return preparers
 
     # ---- writes -------------------------------------------------------------
     def write(self, vals):
@@ -624,7 +776,12 @@ class FixIncentiveRun(models.Model):
     def _fix_proration(self, employee, version, start, end):
         """Days the employee earns in the period: joiners from their joining
         date, leavers to their left date, less approved long leave, and the
-        scheme's minimum service. Calendar days."""
+        scheme's minimum service. Calendar days.
+
+        M57-F9 (AUT-PIC-12, BRU-PIC-15, FR-PIC-028): while the scheme version
+        rules `pip_ineligible` (default True), an employee on an ACTIVE PIP or
+        under an OPEN disciplinary case (BLA s.23/24) is not eligible for the
+        incentive of the period."""
         emp = employee.sudo()
         period_days = (end - start).days + 1
         join = emp.joining_date if "joining_date" in emp._fields else False
@@ -639,6 +796,42 @@ class FixIncentiveRun(models.Model):
                 "eligibility_note": note,
             }
 
+        if getattr(version, "pip_ineligible", True):
+            pip = self.env["fix.performance.pip"]
+            active_pip = pip.sudo().search(
+                [
+                    ("employee_id", "=", emp.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("state", "=", "active"),
+                ],
+                limit=1,
+            )
+            if active_pip:
+                return out(
+                    False,
+                    0,
+                    "not eligible: on an active PIP (%s to %s), and the scheme version "
+                    "excludes a PIP from the incentive"
+                    % (active_pip.start_date, active_pip.end_date),
+                )
+            if "fix.hr.disciplinary.case" in self.env:
+                Case = self.env["fix.hr.disciplinary.case"]
+                open_case = Case.sudo().search(
+                    [
+                        ("employee_id", "=", emp.id),
+                        ("company_id", "=", self.company_id.id),
+                        ("state", "not in", ("decided", "cancelled")),
+                    ],
+                    limit=1,
+                )
+                if open_case:
+                    return out(
+                        False,
+                        0,
+                        "not eligible: under an open disciplinary case (%s, state %s), and "
+                        "the scheme version excludes an open case from the incentive"
+                        % (open_case.name, open_case.state),
+                    )
         if version.min_service_days:
             if not join:
                 return out(
@@ -746,9 +939,11 @@ class FixIncentiveRun(models.Model):
     def _fix_raise_clawbacks(self):
         """Clawbacks for orders paid in earlier APPROVED runs that were
         reworked or credited within the window. Each order of each paid line
-        is clawed back once."""
+        is clawed back once. M57-F11: the employee is notified the moment a
+        clawback is raised against them, and the clawback stands on this run's
+        approval statement (the approver approves the clawbacks with the run)."""
         self.ensure_one()
-        days = int_param(self.env, CLAWBACK_DAYS_PARAM)
+        days = self._fix_window_days(CLAWBACK_DAYS_PARAM)
         Clawback = self.env["fix.incentive.clawback"].sudo()._guarded()
         if not days:
             return Clawback.browse()
@@ -785,11 +980,12 @@ class FixIncentiveRun(models.Model):
                 if not trigger:
                     continue
                 kind, ref, when = trigger
-                created |= Clawback.create(
+                cb = Clawback.create(
                     {
                         "company_id": self.company_id.id,
                         "employee_id": line.employee_id.id,
                         "source_line_id": line.id,
+                        "raised_run_id": self.id,
                         "service_order_id": order.id,
                         "trigger": kind,
                         "trigger_ref": ref,
@@ -798,12 +994,61 @@ class FixIncentiveRun(models.Model):
                         "currency_id": line.currency_id.id,
                     }
                 )
+                created |= cb
+                # M57-F11: notice before any deduction, not after the fact.
+                note = (
+                    "A clawback of %.2f BDT was raised against your %s incentive: %s %s on "
+                    "service order %s. It is recovered from a later run's incentive, never "
+                    "more than you earn in a run, and it is approved with the %s run."
+                    % (
+                        cb.amount,
+                        line.run_id.period,
+                        kind,
+                        ref,
+                        order.display_name,
+                        self.period,
+                    )
+                )
+                cb.message_post(body=note)
+                user = line.employee_id.sudo().user_id
+                if user and user.active:
+                    cb.message_subscribe(partner_ids=user.partner_id.ids)
+                    cb.activity_schedule(
+                        "mail.mail_activity_data_todo",
+                        date_deadline=fields.Date.context_today(self),
+                        summary="An incentive clawback was raised: %s" % cb.name,
+                        note=note,
+                        user_id=user.id,
+                    )
         return created
+
+    # ---- transitions ----------------------------------------------------------
+    def _fix_window_days(self, param_key):
+        """M57-F10: the dispute / clawback window. The scheme version the run
+        computed under may rule its own figure (visible and editable on the
+        version form, frozen with its terms); 0 on the version falls back to
+        the estate parameter (0 = off). The figures are an OWNER decision
+        (recommend: dispute 5 days, clawback 30 days)."""
+        self.ensure_one()
+        version_days = False
+        version = self.scheme_version_id
+        if not version and self.state == "draft":
+            try:
+                _scheme, version = self._fix_scheme_version()
+            except UserError:
+                version = self.env["fix.incentive.scheme.version"]
+        field = "dispute_days" if param_key == DISPUTE_DAYS_PARAM else "clawback_days"
+        if version and field in version._fields:
+            version_days = version.sudo()[field]
+        if version_days:
+            return max(int(version_days), 0)
+        return int_param(self.env, param_key)
 
     def _fix_recover_clawbacks(self, lines):
         """Recover open clawbacks from this run's incentive lines, never more
         than the employee earns in the run: an incentive is not turned into a
-        wage deduction. What is left stays open for the next run."""
+        wage deduction. What is left stays open for the next run. M57-F11: the
+        employee is notified when a clawback is deducted from this run."""
         self.ensure_one()
         Clawback = self.env["fix.incentive.clawback"].sudo()
         Line = self.env["fix.incentive.line"]._guarded()
@@ -845,6 +1090,28 @@ class FixIncentiveRun(models.Model):
                     "currency_id": self.currency_id.id,
                 }
             )
+            # M57-F11: the deduction is notified, never a surprise line.
+            note = (
+                "A clawback of %.2f BDT (%s on service order %s) is deducted from your %s "
+                "incentive; %.2f BDT of it remains open."
+                % (
+                    take,
+                    cb.trigger,
+                    cb.service_order_id.display_name,
+                    self.period,
+                    cb.remaining_amount - take,
+                )
+            )
+            cb.message_post(body=note)
+            user = cb.employee_id.sudo().user_id
+            if user and user.active:
+                cb.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=fields.Date.context_today(self),
+                    summary="Clawback deducted from your %s incentive" % self.period,
+                    note=note,
+                    user_id=user.id,
+                )
         return recovered
 
     # ---- transitions ----------------------------------------------------------
@@ -919,7 +1186,7 @@ class FixIncentiveRun(models.Model):
             lines = self.env["fix.incentive.line"]._guarded().create(vals_list)
             rec._fix_raise_clawbacks()
             rec._fix_recover_clawbacks(lines)
-            window = int_param(self.env, DISPUTE_DAYS_PARAM)
+            window = rec._fix_window_days(DISPUTE_DAYS_PARAM)
             today = fields.Date.context_today(self)
             rec._guarded().write(
                 {
@@ -979,21 +1246,159 @@ class FixIncentiveRun(models.Model):
                     % (rec.period, len(blocking), ", ".join(blocking.mapped("employee_id.name")))
                 )
 
-    def action_request_approval(self, justification=None):
+    def _fix_assert_adjustments_applied(self):
+        """M57-F20: an approved adjustment of the period that no line of this
+        run carries yet blocks the approval — the run is reset and recomputed
+        so the adjustment becomes a visible line, or the adjustment is
+        cancelled."""
         for rec in self:
+            waiting = (
+                self.env["fix.incentive.adjustment"]
+                .sudo()
+                .search(
+                    [
+                        ("company_id", "=", rec.company_id.id),
+                        ("period", "=", rec.period),
+                        ("state", "=", "approved"),
+                    ]
+                )
+            )
+            if waiting:
+                raise UserError(
+                    "%s still has %d approved, unapplied adjustment(s) (%s): reset and "
+                    "recompute the run so they become visible lines, or cancel them."
+                    % (rec.period, len(waiting), ", ".join(waiting.mapped("name")))
+                )
+
+    def _fix_clawback_statement(self):
+        """M57-F11: the clawbacks the approver approves WITH this run."""
+        self.ensure_one()
+        raised = self.sudo().raised_clawback_ids
+        recovered = self.sudo().line_ids.filtered(lambda line: line.line_type == "clawback")
+        if not (raised or recovered):
+            return ""
+        parts = []
+        if raised:
+            parts.append(
+                "Clawbacks raised by this computation, approved with this run: %s."
+                % "; ".join(
+                    "%s %.2f BDT (%s on %s, from the %s run)"
+                    % (
+                        cb.employee_id.name,
+                        cb.amount,
+                        cb.trigger,
+                        cb.service_order_id.display_name,
+                        cb.source_run_id.period,
+                    )
+                    for cb in raised
+                )
+            )
+        if recovered:
+            parts.append(
+                "Clawbacks recovered from this run's incentives: %s."
+                % "; ".join(
+                    "%s %.2f BDT (%s)"
+                    % (line.employee_id.name, -line.amount, line.clawback_id.name)
+                    for line in recovered
+                )
+            )
+        return " ".join(parts)
+
+    def action_request_approval(self, justification=None):
+        # a bare bool(mapped("void_pending")) is always True for a non-empty
+        # recordset (a one-item list of False is truthy), which skipped the
+        # dispute window and the adjustments gate on every request
+        voiding = any(self.mapped("void_pending"))
+        for rec in self:
+            if rec.void_pending:
+                continue  # M57-F19: the routed void request of an approved run.
             if rec.state != "computed" or not rec.line_ids:
                 raise UserError("Compute the run before requesting its approval.")
-        self._fix_assert_disputes_settled(requesting=True)
+        if not voiding:
+            self._fix_assert_disputes_settled(requesting=True)
+            self._fix_assert_adjustments_applied()
+        # M57-F11: the clawbacks stand on the approval statement the approver
+        # decides on (request justification + the run's chatter).
+        parts = []
+        for rec in self:
+            part = rec._fix_clawback_statement()
+            if part:
+                parts.append(part)
+                rec.message_post(body="Approval statement — %s" % part)
+        statement = " ".join(parts)
+        if statement:
+            justification = "%s | %s" % (justification, statement) if justification else statement
         return super().action_request_approval(justification=justification)
 
+    def action_request_void(self, justification=None):
+        """M57-F19: a routed void of an approved run before payment. Only while
+        no line has reached a payslip; a second person (never the requester,
+        the computer, the original approver or anyone with a line) decides it
+        through the same M63 inbox."""
+        require_group(self.env, OFFICER, "Requesting that a run be voided")
+        for rec in self:
+            if rec.state != "approved":
+                raise UserError("Only an approved run can be voided, before it is paid.")
+            if rec.approval_state == "pending":
+                raise UserError("%s already has a decision waiting." % rec.display_name)
+            attached = rec.sudo().line_ids.filtered("applied_to_payslip")
+            if attached:
+                raise UserError(
+                    "%d line(s) of the %s run are already on a payslip: a paid run is not "
+                    "voided, it is corrected." % (len(attached), rec.period)
+                )
+            rec._guarded().write(
+                {
+                    "void_pending": True,
+                    "void_requested_by_id": self.env.user.id,
+                    "void_reason": justification or False,
+                }
+            )
+        return self.action_request_approval(justification=justification)
+
+    def _fix_apply_void(self, rec):
+        """The routed void decision: the run's lines go, the clawbacks it
+        raised are released for a later run, its adjustments return to
+        approved-unapplied, and the run is void before any payment."""
+        attached = rec.sudo().line_ids.filtered("applied_to_payslip")
+        if attached:
+            raise UserError(
+                "%d line(s) are already on a payslip: the run cannot be voided." % len(attached)
+            )
+        rec.line_ids._guarded().unlink()
+        self.env["fix.incentive.adjustment"].sudo().search(
+            [("applied_run_id", "=", rec.id)]
+        )._guarded().write({"state": "approved", "applied_run_id": False, "applied_line_id": False})
+        rec._guarded().write(
+            {
+                "state": "void",
+                "void_pending": False,
+                "voided_by_id": rec._people_decider().id,
+                "voided_at": fields.Datetime.now(),
+                "approval_state": "approved",
+            }
+        )
+        rec.message_post(
+            body="Run voided before payment by %s (requested by %s): %s"
+            % (rec.voided_by_id.name, rec.void_requested_by_id.name, rec.void_reason or "")
+        )
+        return True
+
     def action_approve(self):
-        """Run by the approval engine from the approver's inbox task."""
+        """Run by the approval engine from the approver's inbox task: the
+        approval of the computation, or of a requested void (M57-F19)."""
         self._approval_assert_routed()
         self._people_assert_not_conflicted()
-        self._fix_assert_disputes_settled()
         for rec in self:
+            if rec.void_pending:
+                if rec.state != "approved":
+                    raise UserError("Only an approved run can be voided.")
+                rec._fix_apply_void(rec)
+                continue
             if rec.state != "computed":
                 raise UserError("Only a computed incentive run can be approved.")
+            self._fix_assert_disputes_settled()
+            self._fix_assert_adjustments_applied()
             version = rec.sudo().scheme_version_id
             if version and version.state != "approved":
                 raise UserError("Scheme version %s is no longer approved." % version.display_name)

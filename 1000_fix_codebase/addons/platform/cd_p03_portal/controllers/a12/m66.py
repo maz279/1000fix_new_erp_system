@@ -253,7 +253,16 @@ def sla_report(env, date_from=None, date_to=None, **params):
     open_count = len(
         [r for r in rows if r["state"] in ("New", "Assigned", "In Progress", "Awaiting User")]
     )
-    breach_count = len([r for r in rows if r["escalated"] == "Yes"])
+    # M66-7: the report's headline counts OPEN escalated tickets (the flag
+    # stays set on closed tickets by design, as breach history).
+    breach_count = len(
+        [
+            r
+            for r in rows
+            if r["escalated"] == "Yes"
+            and r["state"] in ("New", "Assigned", "In Progress", "Awaiting User")
+        ]
+    )
     return _pack(
         "ITSM Ticket SLA — %d open of %d, %d escalated" % (open_count, len(rows), breach_count),
         [
@@ -414,7 +423,15 @@ def kpis(env):
                 lambda t: t.state in ("new", "assigned", "in_progress", "awaiting_user")
             )
         ),
-        "tickets_escalated": len(tickets.filtered(lambda t: t.escalated)),
+        # M66-7: "escalated" means an OPEN ticket currently escalated — the
+        # flag is never cleared on close, so counting every historic breach
+        # inflated the tile forever.
+        "tickets_escalated": len(
+            tickets.filtered(
+                lambda t: t.escalated
+                and t.state in ("new", "assigned", "in_progress", "awaiting_user")
+            )
+        ),
         "tickets_total": len(tickets),
         "changes_pending": len(changes.filtered(lambda c: c.approval_state == "pending")),
         "changes_total": len(changes),

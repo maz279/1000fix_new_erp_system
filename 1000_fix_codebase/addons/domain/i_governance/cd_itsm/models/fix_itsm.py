@@ -446,7 +446,12 @@ class FixItsmTicket(models.Model):
             calendar = Calendar
         return calendar if calendar and calendar.active else Calendar
 
-    @api.depends("catalogue_id", "create_date", "sla_paused_hours")
+    @api.depends(
+        "catalogue_id",
+        "catalogue_id.target_hours",
+        "create_date",
+        "sla_paused_hours",
+    )
     def _compute_sla(self):
         default_hours = itsm_param_float(self.env, SLA_DEFAULT_HOURS_PARAM, SLA_DEFAULT_HOURS)
         Request = self.env["fix.approval.request"].sudo()
@@ -1021,6 +1026,35 @@ class FixItsmTicket(models.Model):
             )
             holder = ticket.assigned_user_id or ticket.assigned_to.user_id
             people = (holder or ticket._queue_owner()) | manager
+            if not people:
+                # M66-1 / O-A12-01 residual: an empty queue and no escalation
+                # manager must never mean silence. The company admin is the
+                # guaranteed last-resort sink, and the condition is logged so
+                # the desk's emptiness is visible outside the ticket too.
+                admin = self.env.ref("base.user_admin", raise_if_not_found=False)
+                if admin and admin.active:
+                    people = admin
+                _logger.warning(
+                    "ITSM SLA escalation on %s told NOBODY: no agent holds the queue for "
+                    "company %s and %s is unset. Last resort: %s.",
+                    ticket.display_name,
+                    ticket.sudo().company_id.name,
+                    SLA_ESCALATION_MANAGER_PARAM,
+                    ", ".join(people.mapped("login")) or "nobody at all",
+                )
+                ticket.message_post(
+                    body="SLA breach, tier %d: past the %.1f h target by %.1f h — "
+                    "<b>NOBODY HOLDS THE QUEUE</b>: staff %s or set %s. Last resort "
+                    "notified: %s."
+                    % (
+                        level,
+                        ticket.sla_target_hours,
+                        overdue,
+                        AGENT_GROUP,
+                        SLA_ESCALATION_MANAGER_PARAM,
+                        ", ".join(people.mapped("name")) or "nobody at all",
+                    )
+                )
             ticket.message_post(
                 body="SLA breach, tier %d: past the %.1f h target (deadline %s) by %.1f h; "
                 "priority raised to %s; told: %s."

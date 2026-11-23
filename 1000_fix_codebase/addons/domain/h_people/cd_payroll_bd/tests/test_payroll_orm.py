@@ -165,7 +165,7 @@ def test_payslip_untaxed_with_overtime(odoo_env):
 
 def test_payslip_contract_allowances_and_ita2023_exemption(odoo_env):
     """RAP-M56-01 & RAP-M56-03: contract with basic 40,000 + HR 12,000 + med 4,000 + conv 2,500
-    -> gross 58,500; ITA 2023 Para 27 exemption min(employment_income/3, 450,000)."""
+    -> gross 58,500; ITA 2023 Para 27 consolidated exemption min(gross x 12 / 3, 450,000)."""
     env = odoo_env
     emp = _employee(env, "Tariq Allowance")
     _contract(env, emp, 40000.0).write(
@@ -187,9 +187,13 @@ def test_payslip_contract_allowances_and_ita2023_exemption(odoo_env):
     assert slip.conveyance_allowance == 2500.0
     assert slip.allowances_total == 18500.0
     assert slip.gross == 58500.0
-    assert slip.annual_exemption == 218000.0
-    assert slip.tax_withheld == 508.33
-    assert slip.net == 53991.67
+    # ITA 2023 Sixth Schedule Part 1 Para 27 (consolidated): medical is part of
+    # gross salary now (no separate medical exemption), so the exemption is
+    # 1/3 of 58,500 x 12 = 234,000 (< the 450,000 ceiling). In-force baseline
+    # table: 468,000 taxable - 375,000 threshold = 93,000 at 10% = 9,300/yr
+    assert slip.annual_exemption == 234000.0
+    assert slip.tax_withheld == 775.0
+    assert slip.net == 57725.0
 
 
 def test_payslip_general_slab_tax(odoo_env):
@@ -383,6 +387,19 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     _contract(env, karim, 30000.0)
     _contract(env, nasrin, 60000.0)
     _contract(env, draft_only, 90000.0, state="draft")
+    # M56-F12: PF is deducted only from members of the APPROVED register now
+    # (an empty register pays no PF at all). The two are members at 10/10 -
+    # the ruled case this test's figures were always computed under.
+    for emp in (karim, nasrin):
+        member = env["fix.pf.member"].create(
+            {
+                "employee_id": emp.id,
+                "joined_fund_on": date(2020, 1, 1),
+                "employee_rate": 10.0,
+                "employer_rate": 10.0,
+            }
+        )
+        member.action_approve()
     other_company = env["res.company"].create({"name": "Sister Concern Ltd"})
     outsider = _employee(env, "Other Company Staff", company=other_company)
     _contract(env, outsider, 45000.0)

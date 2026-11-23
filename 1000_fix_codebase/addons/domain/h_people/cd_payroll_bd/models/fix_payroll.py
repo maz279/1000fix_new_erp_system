@@ -204,6 +204,15 @@ PAYSLIP_GUARDED_FIELDS = frozenset(
         "retro_oncall_amount",
         "retro_adjustment_total",
         "recovery_deduction",
+        # A09 round 3: unpaid leave (M55-F4) and premium work (M55-F3)
+        "unpaid_leave_days",
+        "unpaid_leave_deduction",
+        "holiday_work_hours",
+        "holiday_work_pay",
+        "rest_day_work_hours",
+        "rest_day_work_pay",
+        "callout_hours",
+        "callout_pay",
     }
 )
 # Set by action_publish_payslips on a paid run: the only payslip fields that
@@ -521,6 +530,10 @@ class FixPayrollPeriod(models.Model):
         # both off until the business sets their figures
         issues += self.env["fix.payroll.variance"]._variance_issues(self)
         issues += self.env["fix.payroll.bank.check"]._bank_check_issues(self)
+        # M56-F8: a component the run carries with no configured account role
+        # is refused HERE, with the role named - before approval and payment,
+        # not at posting
+        issues += self._component_account_issues()
         return issues
 
     def _raise_prevalidation(self):
@@ -618,9 +631,46 @@ class FixPayrollPeriod(models.Model):
             )
 
     # ---- who is paid (C2, I3) -------------------------------------------------
+    def _contract_versions_in_period(self, anchor, start, end, left=None):
+        """[(contract, window_start, window_end)] every contract version in
+        force during the period, each with the days it was in force (M57-F3):
+        a raise effective mid-month is paid for the days each version ran,
+        with the same calendar-day proration the joiner/leaver rule uses, so
+        arrears need no off-cycle payment. A version runs from its
+        effective_date (the original contract from its joining date) until the
+        next version's effective date; the anchor's superseded chain carries
+        the earlier versions of the same employment."""
+        chain = [anchor]
+        prev = anchor.previous_contract_id if "previous_contract_id" in anchor._fields else False
+        while prev and prev.state == "superseded":
+            chain.append(prev)
+            prev = prev.previous_contract_id
+        versions = sorted(
+            (
+                (contract, contract.effective_date or contract.joining_date)
+                if "effective_date" in contract._fields
+                else (contract, contract.joining_date)
+                for contract in chain
+            ),
+            key=lambda cv: (cv[1], cv[0].id),
+        )
+        out = []
+        for idx, (contract, from_day) in enumerate(versions):
+            next_from = versions[idx + 1][1] if idx + 1 < len(versions) else None
+            window_end = min(
+                end, left or end, (next_from - timedelta(days=1)) if next_from else end
+            )
+            window_start = max(start, from_day, contract.joining_date)
+            if window_end >= window_start:
+                out.append((contract, window_start, window_end))
+        return out
+
     def _payroll_population(self):
-        """([(employee, contract, paid_days)], [(employee, reason)], [employees
-        with two active contracts]) for this period."""
+        """([(employee, contract, paid_days, versions)], [(employee, reason)],
+        [employees with two active contracts]) for this period. `versions` is
+        [(contract, days)] - the version-aware pay plan (M57-F3); with a
+        single version in force it is [(contract, paid_days)] and the
+        calculation is exactly what it was."""
         self.ensure_one()
         start, end = self.period_start, self.period_end
         employees = (
@@ -629,12 +679,24 @@ class FixPayrollPeriod(models.Model):
             .search([("company_id", "=", self.company_id.id)])
         )
         contracts = self.env["fix.employment.contract"].search(
-            [("employee_id", "in", employees.ids), ("state", "in", ("active", "terminated"))],
+            [
+                ("employee_id", "in", employees.ids),
+                ("state", "in", ("active", "terminated", "superseded")),
+            ],
             order="joining_date desc, id desc",
         )
         by_emp = {}
         for contract in contracts:
             by_emp.setdefault(contract.employee_id.id, []).append(contract)
+        # M56-F7: an employee whose ONLY contract is a draft (or cancelled)
+        # version was dropped without a word. The readiness preflight names
+        # them; a roster employee with no contract of any state stays out of
+        # the noise.
+        any_state = set(
+            self.env["fix.employment.contract"]
+            .search([("employee_id", "in", employees.ids)])
+            .employee_id.ids
+        )
         plan, skipped, conflicts = [], [], []
         period_days = (end - start).days + 1
         for emp in employees:
@@ -658,6 +720,8 @@ class FixPayrollPeriod(models.Model):
                 if not active:
                     if own:
                         skipped.append((emp, "no active contract"))
+                    elif emp.id in any_state:
+                        skipped.append((emp, "no active contract (only draft/expired versions)"))
                     continue
                 contract = active[0]
                 if not emp.active:
@@ -670,7 +734,11 @@ class FixPayrollPeriod(models.Model):
             if contract.joining_date > end:
                 skipped.append((emp, "joins on %s, after the period" % contract.joining_date))
                 continue
-            plan.append((emp, contract, min(paid_days, period_days)))
+            paid_days = min(paid_days, period_days)
+            versions = self._contract_versions_in_period(contract, start, end, left=left)
+            if not versions:  # defensive: an anchor outside the windows
+                versions = [(contract, max(start, contract.joining_date), min(end, left or end))]
+            plan.append((emp, contract, paid_days, versions))
         return plan, skipped, conflicts
 
     def _payable_overtime_hours(self, employee, until=None):
@@ -691,6 +759,96 @@ class FixPayrollPeriod(models.Model):
             ]
         )
         return Decimal(str(sum(records.mapped("overtime_hours"))))
+
+    def _premium_work_hours(self, employee, until=None):
+        """(festival-holiday hours, weekly rest-day hours) of the locked month
+        the employee is paid for ON TOP of the ordinary overtime (M55-F3):
+        hours of approved (or approval-free) clock-ins on a confirmed festival
+        holiday or the weekly rest day, less the part of that day already paid
+        as ordinary overtime - nothing is paid twice. A day that is both is
+        counted once, as holiday work. Ineligible employees get nothing, as
+        for ordinary overtime (BLA s.108)."""
+        self.ensure_one()
+        if not employee.sudo().overtime_eligible:
+            return Decimal("0"), Decimal("0")
+        end = min(self.period_end, until) if until else self.period_end
+        records = (
+            self.env["fix.attendance.record"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("approval_state", "in", ("approved", "not_required")),
+                    ("check_in", ">=", fields.Datetime.to_datetime(self.period_start)),
+                    ("check_in", "<", fields.Datetime.to_datetime(end + timedelta(days=1))),
+                ]
+            )
+        )
+        holiday, rest = Decimal("0"), Decimal("0")
+        for att in records:
+            paid = Decimal(str(att.overtime_hours or 0.0))
+            if (att.holiday_hours or 0.0) > 0:
+                holiday += max(Decimal(str(att.holiday_hours)) - paid, Decimal("0"))
+            elif (att.rest_day_hours or 0.0) > 0:
+                rest += max(Decimal(str(att.rest_day_hours)) - paid, Decimal("0"))
+        return holiday, rest
+
+    def _callout_hours(self, employee, until=None):
+        """Manager-VERIFIED on-call callout hours of the period (M55-F3): the
+        callouts M55 verified and approved, valued like overtime work."""
+        self.ensure_one()
+        if "fix.oncall.callout" not in self.env:
+            return Decimal("0")
+        end = min(self.period_end, until) if until else self.period_end
+        recs = (
+            self.env["fix.oncall.callout"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("state", "=", "verified"),
+                    ("called_at", ">=", fields.Datetime.to_datetime(self.period_start)),
+                    ("called_at", "<", fields.Datetime.to_datetime(end + timedelta(days=1))),
+                ]
+            )
+        )
+        return Decimal(str(sum(recs.mapped("hours"))))
+
+    def _unpaid_leave_windows(self, employee, start, end, left=None):
+        """[(from, to)] the APPROVED unpaid-leave days of the period (M55-F4).
+        A leave type counts as unpaid only when cd_hr_core's `is_unpaid` flag
+        exists and is set on it (read defensively: another stream adds the
+        flag); paid leave types reduce nothing. The days reduce the month's
+        pay at the same day-rate convention the joiner/leaver proration
+        uses."""
+        self.ensure_one()
+        Leave = self.env.get("fix.leave.request", None)
+        if Leave is None:
+            return []
+        types = self.env.get("fix.leave.type")
+        if types is None or "is_unpaid" not in types._fields:
+            return []
+        last = min(end, left) if left else end
+        if last < start:
+            return []
+        leaves = Leave.sudo().search(
+            [
+                ("employee_id", "=", employee.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "=", "approved"),
+                ("date_from", "<=", last),
+                ("date_to", ">=", start),
+            ]
+        )
+        windows = []
+        for leave in leaves.filtered(lambda row: row.leave_type_id.is_unpaid):
+            frm = max(fields.Date.to_date(leave.approved_date_from or leave.date_from), start)
+            to = min(fields.Date.to_date(leave.approved_date_to or leave.date_to), last)
+            if to >= frm:
+                windows.append((frm, to))
+        return windows
 
     def _oncall_allowance(self, employee):
         """(amount, records): the standby allowance of the employee's COMPLETED
@@ -804,7 +962,15 @@ class FixPayrollPeriod(models.Model):
         return values, notes, used
 
     def _incentive_lines(self, employee, released_slip_ids):
-        """I4: the approved, unattached M57 incentive lines of this period.
+        """I4 + M57-F1: the approved, unattached M57 incentive lines this run
+        pays.
+
+        M57-F1: an incentive run for month M can only be approved after M's
+        payroll is committed (scorecards need the whole month, then a dispute
+        window, then a routed approval), so the normal order is salary first,
+        incentive days later. A period therefore picks up every approved,
+        still-unattached line whose RUN PERIOD ends on or before the payroll
+        period end - not only this period's own month - and pays it once.
 
         A line counts once: lines already attached to a slip that still
         exists elsewhere are left alone; lines attached to one of this run's
@@ -814,13 +980,16 @@ class FixPayrollPeriod(models.Model):
         if "fix.incentive.line" not in self.env:
             return None
         Line = self.env["fix.incentive.line"].sudo()
-        ym = self.period_start.strftime("%Y-%m")
+        # run.period is YYYY-MM: comparing against the period END's month is
+        # the month-granular form of "the run period ends on or before the
+        # payroll period end" (a run of 2026-10 ends 2026-10-31).
+        cutoff = self.period_end.strftime("%Y-%m")
         lines = Line.search(
             [
                 ("employee_id", "=", employee.id),
                 ("company_id", "=", self.company_id.id),
                 ("run_id.state", "=", "approved"),
-                ("run_id.period", "in", list({self.name, ym})),
+                ("run_id.period", "<=", cutoff),
             ]
         )
         attached_ids = {line.payslip_ref_id for line in lines if line.payslip_ref_id}
@@ -832,6 +1001,57 @@ class FixPayrollPeriod(models.Model):
                 or line.payslip_ref_id not in live
             )
         )
+
+    def _attach_incentive_line(self, slip, line):
+        """Record that `line` is paid on `slip`. A line of THIS period's month
+        goes through M57's own attach action (I4). An older run's line (the
+        normal order, M57-F1) is written by payroll itself under the same
+        conditions - M57's attach action refuses a period mismatch by design,
+        which is what stranded approved incentive lines forever."""
+        self.ensure_one()
+        ym = self.period_start.strftime("%Y-%m")
+        run = line.run_id.sudo()
+        if run.period in (self.name, ym):
+            line._fix_attach_payslip(slip)
+            return
+        if (
+            line.payslip_ref_id
+            and line.payslip_ref_id != slip.id
+            and self.env["fix.payslip"].sudo().browse(line.payslip_ref_id).exists()
+        ):
+            raise UserError(
+                "Incentive line %s (run %s) is already paid on payslip %s."
+                % (line.id, run.period, line.payslip_ref_id)
+            )
+        line.sudo()._guarded().write({"payslip_ref_id": slip.id, "applied_to_payslip": True})
+
+    def _stranded_incentive_lines(self, paid_employees):
+        """M57-F1: approved, unattached incentive lines due on or before this
+        period whose employee is NOT paid in this run - they cannot be
+        attached here (a leaver, a conflict, a skip) and are named so someone
+        acts on them."""
+        self.ensure_one()
+        if "fix.incentive.line" not in self.env:
+            return []
+        Line = self.env["fix.incentive.line"].sudo()
+        cutoff = self.period_end.strftime("%Y-%m")
+        lines = Line.search(
+            [
+                ("company_id", "=", self.company_id.id),
+                ("run_id.state", "=", "approved"),
+                ("run_id.period", "<=", cutoff),
+            ]
+        )
+        attached_ids = {line.payslip_ref_id for line in lines if line.payslip_ref_id}
+        live = set(self.env["fix.payslip"].sudo().browse(list(attached_ids)).exists().ids)
+        out = []
+        for line in lines:
+            if line.payslip_ref_id and line.payslip_ref_id in live:
+                continue
+            if line.employee_id in paid_employees:
+                continue  # this run pays it
+            out.append(line)
+        return out
 
     def _ytd_prior(self, employee):
         """(prior employment income, prior tax) of the employee in this
@@ -873,10 +1093,30 @@ class FixPayrollPeriod(models.Model):
         tax += sum(bonus.mapped("tax_withheld"))
         return round(income, 2), round(tax, 2)
 
+    # The earnings components a month pays from the contract (M55-F4: the
+    # unpaid-leave day rate and the M57-F3 version proration both apply to
+    # every one of them).
+    EARNINGS_FIELDS = (
+        "basic",
+        "house_rent",
+        "medical_allowance",
+        "conveyance_allowance",
+        "technical_allowance",
+        "other_allowance",
+        "dearness_allowance",
+        "adhoc_allowance",
+    )
+
     def _slip_plan(self, released):
         """What a calculation of this period pays, without writing anything:
         ([{vals, incentive_lines, adjustments, employee}], notes, skipped).
-        The calculation creates the slips from it; the trial run only reads it."""
+        The calculation creates the slips from it; the trial run only reads it.
+
+        M57-F3: every contract version in force is paid for its own days.
+        M55-F4: approved unpaid leave reduces the pay for those days at the
+        same day-rate convention. M55-F3: festival-holiday, weekly rest-day
+        and verified callout hours are paid through overtime components at
+        the company's overtime rate, separately labelled, never twice."""
         self.ensure_one()
         rec = self
         plan, skipped, conflicts = rec._payroll_population()
@@ -895,11 +1135,25 @@ class FixPayrollPeriod(models.Model):
         ceiling = pack.exemption_ceiling or float(SALARY_EXEMPTION_CEILING)
         tds_method = company.payroll_tds_method or "monthly_annualised"
         entries, notes = [], []
-        for emp, contract, paid_days in plan:
-            factor = Decimal(paid_days) / Decimal(period_days)
+        for emp, contract, paid_days, versions in plan:
+            vdays = {c.id: (we - ws).days + 1 for c, ws, we in versions}
 
-            def earned(amount, factor=factor):
-                return float(q2(Decimal(str(amount or 0.0)) * factor))
+            def vearned(field, vdays=vdays, versions=versions):
+                """The month's `field` over the version windows, each version
+                for the days it was in force (M57-F3).
+
+                The slip calls the basic `basic`; the contract names it
+                `basic_monthly` (the only component whose two names differ).
+                """
+                if field == "basic":
+                    field = "basic_monthly"
+                return sum(
+                    (
+                        q2(Decimal(str(c[field] or 0.0)) * Decimal(vdays.get(c.id, 0)))
+                        for c, _ws, _we in versions
+                    ),
+                    Decimal("0"),
+                ) / Decimal(period_days)
 
             # The employee master's sensitive fields (bank, routing, tax
             # profile) are HR-group fields a payroll officer does not read
@@ -907,6 +1161,33 @@ class FixPayrollPeriod(models.Model):
             master = emp.sudo()
             left = master.left_date
             left = left if left and left <= rec.period_end else None
+            # M55-F4: the approved unpaid-leave days of the period, per
+            # version window (the day rate is the version's own)
+            udays = {c.id: 0 for c, _ws, _we in versions}
+            for vf, vt in rec._unpaid_leave_windows(emp, rec.period_start, rec.period_end, left):
+                for c, ws, we in versions:
+                    s, e = max(vf, ws), min(vt, we)
+                    if e >= s:
+                        udays[c.id] += (e - s).days + 1
+            unpaid_days = sum(udays.values())
+
+            def ulded(field, udays=udays, versions=versions):
+                """What the unpaid leave takes off `field`, at the same
+                day-rate convention as proration (M55-F4). The slip's `basic`
+                is the contract's `basic_monthly`."""
+                if field == "basic":
+                    field = "basic_monthly"
+                return sum(
+                    (
+                        q2(Decimal(str(c[field] or 0.0)) * Decimal(udays.get(c.id, 0)))
+                        for c, _ws, _we in versions
+                    ),
+                    Decimal("0"),
+                ) / Decimal(period_days)
+
+            def month_value(field):
+                return q2(vearned(field) - ulded(field))
+
             ot_hours = rec._payable_overtime_hours(emp, until=left)
             # Only REAL payment details are carried onto the payslip: the
             # employee master's registered account and BEFTN routing code or,
@@ -938,6 +1219,43 @@ class FixPayrollPeriod(models.Model):
             cost_ou = (
                 master.operating_unit_id or contract.operating_unit_id or rec.operating_unit_id
             )
+            # M55-F3: holiday / rest-day / callout work through overtime
+            # components, at the ordinary overtime rate (the company
+            # multipliers default to today's s.108 2x treatment)
+            eff_days = max(sum(vdays.values()) - unpaid_days, 0)
+            factor = Decimal(eff_days) / Decimal(period_days)
+            holiday_h, rest_h = rec._premium_work_hours(emp, until=left)
+            callout_h = rec._callout_hours(emp, until=left)
+            ot_base = sum(
+                (month_value(f) for f in ("basic", "dearness_allowance", "adhoc_allowance")),
+                Decimal("0"),
+            )
+            divisor_eff = Decimal(str(divisor)) * factor
+
+            def premium(hours, multiplier, divisor_eff=divisor_eff, ot_base=ot_base):
+                if hours <= 0 or divisor_eff <= 0:
+                    return Decimal("0")
+                mult = Decimal(str(multiplier)) if (multiplier or 0) > 0 else Decimal("2")
+                return q2(ot_base / divisor_eff * hours * mult)
+
+            holiday_pay = premium(holiday_h, company.payroll_holiday_work_multiplier)
+            rest_pay = premium(rest_h, company.payroll_rest_day_work_multiplier)
+            callout_pay = premium(callout_h, company.payroll_callout_multiplier)
+            premium_total = holiday_pay + rest_pay + callout_pay
+            if holiday_h or rest_h or callout_h:
+                notes.append(
+                    "%s holiday work %.2f h (%.2f), rest-day work %.2f h (%.2f), verified "
+                    "callouts %.2f h (%.2f) at the overtime rate"
+                    % (
+                        emp.name,
+                        holiday_h,
+                        holiday_pay,
+                        rest_h,
+                        rest_pay,
+                        callout_h,
+                        callout_pay,
+                    )
+                )
             vals = {
                 "period_id": rec.id,
                 "company_id": company.id,
@@ -946,25 +1264,41 @@ class FixPayrollPeriod(models.Model):
                 "paid_days": paid_days,
                 "period_days": period_days,
                 "joined_date": contract.joining_date,
-                "basic": earned(contract.basic_monthly),
-                "house_rent": earned(contract.house_rent),
-                "medical_allowance": earned(contract.medical_allowance),
-                "conveyance_allowance": earned(contract.conveyance_allowance),
-                "technical_allowance": earned(contract.technical_allowance),
-                # on-call and the retro carry-forward ride Other Allowance:
-                # outside the s.108 overtime base, inside gross and tax
-                "other_allowance": earned(contract.other_allowance)
+                "basic": float(month_value("basic")),
+                "house_rent": float(month_value("house_rent")),
+                "medical_allowance": float(month_value("medical_allowance")),
+                "conveyance_allowance": float(month_value("conveyance_allowance")),
+                "technical_allowance": float(month_value("technical_allowance")),
+                # on-call, the retro carry-forward and the premium work
+                # components ride Other Allowance: outside the s.108 overtime
+                # base, inside gross and tax (the labelled fields carry the
+                # detail)
+                "other_allowance": float(month_value("other_allowance"))
                 + oncall
-                + retro["retro_adjustment_total"],
+                + retro["retro_adjustment_total"]
+                + float(premium_total),
                 "oncall_allowance": oncall,
-                "dearness_allowance": earned(contract.dearness_allowance),
-                "adhoc_allowance": earned(contract.adhoc_allowance),
+                "dearness_allowance": float(month_value("dearness_allowance")),
+                "adhoc_allowance": float(month_value("adhoc_allowance")),
                 "ot_hours": float(ot_hours),
                 # A prorated basic keeps the full month's hourly rate: the
-                # divisor is prorated with it.
+                # divisor is prorated with it (unpaid leave reduces it like
+                # the days it replaces).
                 "ot_divisor_hours": float(divisor * factor),
                 "exemption_ceiling": ceiling,
                 "incentive": inc_amount,
+                # M55-F4: the unpaid days and what they took off the month
+                "unpaid_leave_days": unpaid_days,
+                "unpaid_leave_deduction": float(
+                    q2(sum((ulded(f) for f in self.EARNINGS_FIELDS), Decimal("0")))
+                ),
+                # M55-F3: the premium work components, separately labelled
+                "holiday_work_hours": float(holiday_h),
+                "holiday_work_pay": float(holiday_pay),
+                "rest_day_work_hours": float(rest_h),
+                "rest_day_work_pay": float(rest_pay),
+                "callout_hours": float(callout_h),
+                "callout_pay": float(callout_pay),
                 # C2: the employee's own tax profile (the contract fields this
                 # read before do not exist)
                 "taxpayer_category": master.taxpayer_category or "general",
@@ -976,8 +1310,8 @@ class FixPayrollPeriod(models.Model):
                 "investment_allowance": self.env["fix.investment.declaration"]._allowance_for(
                     emp, company, rec.period_start
                 ),
-                # FR-PAY-020: the member's own rates once the company keeps a
-                # provident fund register; unchanged until it does
+                # FR-PAY-020 + M56-F12: a member's own rates from the
+                # approved register; no membership, no PF
                 **self.env["fix.pf.member"]._slip_rates(
                     emp, company, rec.period_start, rec.period_end
                 ),
@@ -1006,6 +1340,11 @@ class FixPayrollPeriod(models.Model):
                 ),
                 **retro,
             }
+            if unpaid_days:
+                notes.append(
+                    "%s approved unpaid leave %d day(s): pay reduced by %.2f (already off the "
+                    "earnings above)" % (emp.name, unpaid_days, vals["unpaid_leave_deduction"])
+                )
             if paid_days < period_days:
                 why = []
                 if contract.joining_date > rec.period_start:
@@ -1015,6 +1354,15 @@ class FixPayrollPeriod(models.Model):
                 notes.append(
                     "%s paid %d of %d days (%s)"
                     % (emp.name, paid_days, period_days, ", ".join(why))
+                )
+            if len(versions) > 1:
+                notes.append(
+                    "%s paid over %d contract versions: %s"
+                    % (
+                        emp.name,
+                        len(versions),
+                        ", ".join("%s %s-%s" % (c.name or c.id, ws, we) for c, ws, we in versions),
+                    )
                 )
             entries.append(
                 {"vals": vals, "incentive_lines": inc_lines, "adjustments": used, "employee": emp}
@@ -1033,6 +1381,10 @@ class FixPayrollPeriod(models.Model):
             # holds no unlink ACL on payslips: only this transition removes them.
             released = set(rec.sudo().payslip_ids.ids)
             entries, notes, skipped = rec._slip_plan(released)
+            # M56-F1: a run that would compute slips for no real employee at
+            # all is refused with the reason - the first live run silently
+            # produced nothing because no employee had a contract.
+            rec._refuse_if_employees_missing(entries, skipped)
             rec._guarded().write({"calculator_id": self.env.user.id})
             # the recoveries the replaced slips took are released first (through
             # the ORM, so each recovery's balance is recomputed)
@@ -1041,7 +1393,7 @@ class FixPayrollPeriod(models.Model):
             for entry in entries:
                 slip = self.env["fix.payslip"]._guarded().create(entry["vals"])
                 for line in entry["incentive_lines"] or []:
-                    line._fix_attach_payslip(slip)
+                    rec._attach_incentive_line(slip, line)
                 # I8: M55 marks each adjustment consumed on this slip
                 for adj in entry["adjustments"]:
                     adj._fix_consume(slip)
@@ -1054,6 +1406,19 @@ class FixPayrollPeriod(models.Model):
             note_lines = ["Paid %d employee(s)." % len(entries)]
             note_lines += notes
             note_lines += ["Skipped %s: %s." % (emp.name, why) for emp, why in skipped]
+            # M57-F1: older approved incentive lines nobody could attach
+            for line in rec._stranded_incentive_lines(
+                self.env["hr.employee"].browse([e["employee"].id for e in entries])
+            ):
+                note_lines.append(
+                    "Unattached incentive line of %s (run %s, %.2f) due on or before this "
+                    "period cannot be paid here: the employee is not in the run."
+                    % (
+                        line.employee_id.name,
+                        line.run_id.period,
+                        line.amount,
+                    )
+                )
             note = "\n".join(note_lines)
             rec._guarded().write({"state": "calculated", "calculation_note": note})
             # BRU-PAY-06: this run against the previous paid period
@@ -1061,6 +1426,206 @@ class FixPayrollPeriod(models.Model):
             # M56-1: who changed their salary account inside the cool-off
             self.env["fix.payroll.bank.check"]._refresh(rec)
             rec.message_post(body=note.replace("\n", "<br/>"))
+
+    def _refuse_if_employees_missing(self, entries, skipped):
+        """M56-F1: refuse a run that computes slips for ZERO real employees -
+        with the reasons, so a missing contract master stops being a silent
+        empty pay month."""
+        self.ensure_one()
+        if entries:
+            return
+        reasons = "; ".join("%s: %s" % (emp.name, why) for emp, why in skipped[:12]) or (
+            "no employee of %s is in scope" % self.company_id.name
+        )
+        more = "" if len(skipped) <= 12 else " (+%d more)" % (len(skipped) - 12)
+        raise UserError(
+            "Payroll period %s would compute payslips for NO employee: %s%s. Fix the master "
+            "data (contract, bank details, leaving dates) before running payroll."
+            % (self.name, reasons, more)
+        )
+
+    # ---- payroll readiness preflight (M56-F1/F7/F8, X-F3) ---------------------
+    # Account roles that are needed ONLY when the run carries the component.
+    CONDITIONAL_GL_ROLES = (
+        ("payroll_recovery_account_id", "Overpayment Recovery"),
+        ("payroll_gratuity_expense_account_id", "Gratuity Expense"),
+        ("payroll_gratuity_provision_account_id", "Gratuity Provision"),
+        ("payroll_wppf_expense_account_id", "WPPF Expense"),
+        ("payroll_wppf_payable_account_id", "WPPF Payable"),
+        ("payroll_wppf_bank_account_id", "WPPF / BWWF Paying Bank"),
+    )
+
+    def _payroll_readiness(self):
+        """What stands between this company and a complete, postable run -
+        VISIBILITY only (M56-F1/F7/F8, X-F3; nothing here invents a figure).
+        {"employees": [...], "accounts": [...], "pf_register": str,
+        "incentive": [...], "settlements": [...], "warnings": [...]}.
+
+        `warnings` carries the statutory pack's own advisory notes when the
+        B1b tax-table warning API is present (fix.statutory.pack.
+        _fix_tax_table_note(company, period): an unsourced table in force, or
+        a sourced one awaiting approval). Read defensively with getattr: the
+        payroll module works the same before that API lands, and a note is a
+        WARNING, never a refusal."""
+        self.ensure_one()
+        company = self.company_id.sudo()
+        plan, skipped, _conflicts = self._payroll_population()
+        employees = []
+        for emp, why in skipped:
+            if "contract" in why:
+                employees.append("%s: %s" % (emp.name, why))
+        for emp, _contract, _days, _versions in plan:
+            master = emp.sudo()
+            problems = []
+            channel, provider, wallet = master_payment_channel(emp)
+            if channel == "bank":
+                acc, routing, _bank, problem = master_bank_details(emp)
+                if problem or not acc or not routing:
+                    problems.append(problem or "no registered salary account and routing number")
+            elif not provider or not (wallet or "").strip():
+                problems.append("paid by MFS but no provider or wallet on the master")
+            if not master.taxpayer_category:
+                problems.append("no tax profile (taxpayer category) on the master")
+            if problems:
+                employees.append("%s: %s" % (emp.name, "; ".join(problems)))
+        accounts = []
+        if not company.payroll_journal_id:
+            accounts.append("Payroll Journal")
+        accounts += [label for fname, label in PAYROLL_GL_ACCOUNTS if not company[fname]]
+        accounts += [
+            "%s (needed when a run/document carries the component)" % label
+            for fname, label in self.CONDITIONAL_GL_ROLES
+            if not company[fname]
+        ]
+        if (
+            not (company.payroll_beftn_account_no or "").strip()
+            or not (company.payroll_beftn_routing_no or "").strip()
+        ):
+            accounts.append("Originating BEFTN account/routing (off-cycle, bonus and MFS releases)")
+        members = (
+            self.env["fix.pf.member"]
+            .sudo()
+            .search_count([("company_id", "=", company.id), ("state", "=", "active")])
+            if "fix.pf.member" in self.env
+            else 0
+        )
+        pf_register = (
+            "%d active provident-fund member(s): only members contribute, at their own rates"
+            % members
+            if members
+            else "no approved provident-fund membership: no PF is deducted from anyone "
+            "(M56-F12 - a fund that does not exist is not deducted by default)"
+        )
+        incentive = [
+            "%s's line of run %s (%.2f)" % (line.employee_id.name, line.run_id.period, line.amount)
+            for line in self._stranded_incentive_lines(
+                self.env["hr.employee"].browse([emp.id for emp, _c, _d, _v in plan])
+            )
+        ]
+        settlements = self._settlement_due_notes()
+        warnings = []
+        tax_note = getattr(self.env.get("fix.statutory.pack"), "_fix_tax_table_note", None)
+        if callable(tax_note):
+            txt = tax_note(company, self.period_start)
+            if isinstance(txt, str) and txt.strip():
+                warnings.append(txt.strip())
+        return {
+            "employees": employees,
+            "accounts": accounts,
+            "pf_register": pf_register,
+            "incentive": incentive,
+            "settlements": settlements,
+            "warnings": warnings,
+        }
+
+    def _readiness_note(self):
+        """The readiness preflight as note lines (for the trial run)."""
+        self.ensure_one()
+        report = self._payroll_readiness()
+        lines = ["READINESS - PF register: %s." % report["pf_register"]]
+        if report["employees"]:
+            lines.append(
+                "READINESS - employees in scope not ready: %s." % "; ".join(report["employees"])
+            )
+        if report["accounts"]:
+            lines.append(
+                "READINESS - unconfigured company account roles: %s."
+                % "; ".join(report["accounts"])
+            )
+        if report["incentive"]:
+            lines.append(
+                "READINESS - older approved incentive lines that cannot be attached: %s."
+                % "; ".join(report["incentive"])
+            )
+        lines += report["settlements"]
+        lines += ["READINESS WARNING - %s" % txt for txt in report["warnings"]]
+        return lines
+
+    def _component_account_issues(self):
+        """M56-F8: the account roles THIS run's carried components need. A
+        missing role for a component the run actually carries is a
+        prevalidation REFUSAL with the named role - never a paid run that
+        cannot post (or a gratuity row with move=NONE)."""
+        self.ensure_one()
+        company = self.company_id.sudo()
+        slips = self.sudo().payslip_ids
+        if not slips:
+            return []
+        issues = []
+        if not company.payroll_journal_id:
+            issues.append("the Payroll Journal role is not configured")
+        roles = [
+            ("payroll_salary_expense_account_id", "Salary & Wage Expense"),
+            ("payroll_net_payable_account_id", "Net Salary Payable"),
+        ]
+        if any((s.tax_withheld or 0.0) > 0 for s in slips):
+            roles.append(("payroll_tax_payable_account_id", "Income Tax (TDS) Payable"))
+        if any((s.pf_employee or 0.0) > 0 or (s.pf_employer or 0.0) > 0 for s in slips):
+            roles.append(("payroll_pf_expense_account_id", "Employer PF Contribution Expense"))
+            roles.append(("payroll_pf_payable_account_id", "Provident Fund Payable"))
+        if any((s.recovery_deduction or 0.0) > 0 for s in slips):
+            roles.append(("payroll_recovery_account_id", "Overpayment Recovery"))
+        for fname, label in roles:
+            if not company[fname]:
+                issues.append(
+                    "the run carries %s but the account role '%s' is not configured on %s"
+                    % (label, company._fields[fname].string, company.name)
+                )
+        return issues
+
+    def _settlement_due_notes(self):
+        """M56-F21: every still-unpaid final settlement of the company with
+        its statutory clock: 'overdue by N days' / 'due in N days' (30
+        working days from the last working day, Friday/Saturday weekend,
+        company holidays excluded)."""
+        self.ensure_one()
+        notes = []
+        today = fields.Date.context_today(self)
+        OffCycle = self.env.get("fix.payroll.offcycle")
+        if OffCycle is None:
+            return notes
+        for oc in OffCycle.sudo().search(
+            [
+                ("company_id", "=", self.company_id.id),
+                ("payment_type", "=", "settlement"),
+                ("state", "in", ("draft", "approved")),
+            ]
+        ):
+            due = oc.settlement_due_on
+            if not due:
+                continue
+            if today > due:
+                notes.append(
+                    "READINESS - settlement %s of %s is OVERDUE by %d day(s) (due %s, BLA "
+                    "s.30/s.123(2) 30 working days from the last working day)"
+                    % (oc.name, oc.employee_id.name, (today - due).days, due)
+                )
+            else:
+                notes.append(
+                    "READINESS - settlement %s of %s is due in %d day(s) (%s)"
+                    % (oc.name, oc.employee_id.name, (due - today).days, due)
+                )
+        return notes
 
     def action_trial_run(self):
         """FR-PAY-039: a trial calculation that never pays. It computes every
@@ -1079,6 +1644,7 @@ class FixPayrollPeriod(models.Model):
             # read-only: the run's own slips' incentive lines and adjustments
             # count as available, exactly as a recalculation would see them
             entries, notes, skipped = rec._slip_plan(set(rec.sudo().payslip_ids.ids))
+            rec._refuse_if_employees_missing(entries, skipped)
             Slip = self.env["fix.payslip"]
             virtual = Slip.browse()
             for entry in entries:
@@ -1099,6 +1665,9 @@ class FixPayrollPeriod(models.Model):
                 lines.append("Attendance is not locked yet: these figures may still change.")
             lines += notes
             lines += ["Skipped %s: %s." % (emp.name, why) for emp, why in skipped]
+            # M56-F1/F7/F8 + X-F3: the readiness preflight (visibility only -
+            # what blocks is refused where it is checked)
+            lines += rec._readiness_note()
             rec._guarded().write(
                 {
                     "trial_run_on": fields.Datetime.now(),
@@ -1267,7 +1836,17 @@ class FixPayrollPeriod(models.Model):
 
         Refused when the accounting is not configured, posted once only, and
         debits == credits is checked before the entry is posted. Emits
-        payroll.posted for M54's W6 consumption."""
+        payroll.posted for M54's W6 consumption.
+
+        M56-F2: the operating persona is a Payroll Manager who holds NO
+        accounting group. Authorization (payroll group, state precondition,
+        the approved snapshot) is checked here, BEFORE the elevated posting
+        env: the journal and account configuration are read as sudo and the
+        entry posts through env(su=True) - whose uid is still the operator's,
+        so M19's posting log records who posted. The estate's pattern for a
+        non-accounting operator (cd_ap_ext posts through sudo journals)."""
+        if not (self.env.su or self.env.user.has_group(PAYROLL_OFFICER)):
+            raise AccessError("Only payroll posts a payroll run to the GL.")
         for rec in self:
             if rec.gl_move_id:
                 raise UserError(
@@ -1312,7 +1891,7 @@ class FixPayrollPeriod(models.Model):
                         "GL Unbalanced for operating unit %s: Debits (%.2f) != Credits (%.2f) "
                         "for period %s"
                         % (
-                            self.env["operating.unit"].browse(ou_id).name or "(none)",
+                            self.env["operating.unit"].sudo().browse(ou_id).name or "(none)",
                             debit,
                             credit,
                             rec.name,
@@ -1338,8 +1917,10 @@ class FixPayrollPeriod(models.Model):
                 )
             # cd_gl_ext's posting helper: posts the entry and attaches the
             # operating-unit and branch dimensions to every line (AS-03).
+            # Posted with an elevated env (M56-F2): the uid is the operator's,
+            # so the posting log names who posted.
             move, _dimensions = post_with_dimensions(
-                self.env,
+                self.env(su=True),
                 {
                     "move_type": "entry",
                     "ref": f"Payroll GL Posting - {rec.name}",
@@ -1709,6 +2290,38 @@ class FixPayslip(models.Model):
     )
     retro_adjustment_total = fields.Monetary(
         string="Retro Adjustments (net)", currency_field="currency_id", readonly=True
+    )
+    # ---- A09 round 3 ----------------------------------------------------------
+    # M55-F4: approved unpaid leave of the period, at the proration day rate
+    unpaid_leave_days = fields.Float(
+        string="Approved Unpaid Leave (days)",
+        readonly=True,
+        help="Days of approved unpaid leave inside the period (a leave type cd_hr_core marks "
+        "is_unpaid). Their pay is already off the earnings above; the deduction figure shows "
+        "how much.",
+    )
+    unpaid_leave_deduction = fields.Monetary(
+        string="Unpaid Leave Deduction (in the earnings above)",
+        currency_field="currency_id",
+        readonly=True,
+        help="What the unpaid leave days took off the month's earnings, at the same day-rate "
+        "convention as the joiner/leaver proration. Not an extra deduction: the earnings on "
+        "this slip are already net of it.",
+    )
+    # M55-F3: holiday / rest-day / callout work, paid through overtime
+    # components at the company's overtime rate (never twice: hours already
+    # paid as ordinary overtime are excluded; included in Other Allowance)
+    holiday_work_hours = fields.Float(string="Festival-Holiday Work Hours", readonly=True)
+    holiday_work_pay = fields.Monetary(
+        string="Festival-Holiday Work Pay", currency_field="currency_id", readonly=True
+    )
+    rest_day_work_hours = fields.Float(string="Weekly Rest-Day Work Hours", readonly=True)
+    rest_day_work_pay = fields.Monetary(
+        string="Weekly Rest-Day Work Pay", currency_field="currency_id", readonly=True
+    )
+    callout_hours = fields.Float(string="Verified Callout Hours", readonly=True)
+    callout_pay = fields.Monetary(
+        string="Verified Callout Pay", currency_field="currency_id", readonly=True
     )
     correction_offcycle_ids = fields.One2many(
         "fix.payroll.offcycle", "correction_slip_id", string="Post-Payment Corrections"
@@ -2406,4 +3019,41 @@ class ResCompanyPayrollAccounting(models.Model):
         string="ITA 2023 Para 27 Exemption Ceiling (BDT)",
         default=0.0,
         help="Optional company override for ITA 2023 Sixth Schedule Part 1 Para 27 ceiling (default BDT 450,000)",
+    )
+    # ---- M56-F11 (BRU-PAY-12): the aggregate recovery net-pay cap -----------
+    payroll_recovery_net_cap_pct = fields.Float(
+        string="Payroll Recovery: Aggregate Net-Pay Cap (%)",
+        default=0.0,
+        help="The largest share of an employee's NET pay that ALL recoveries together may "
+        "take from one payment (run, off-cycle, bonus). 0 = off (today's behaviour: "
+        "unbounded, capped only by the net itself). When set and the recoveries due would "
+        "take more, the deduction is refused with the reason - never silently trimmed. "
+        "BLA ss.121-127 set no percentage cap (audit-verified), so the figure is a business "
+        "ruling (OWNER); HR still owes the statutory wage-deduction limit.",
+    )
+    # ---- M55-F3 (A09 round 3): holiday / rest-day / callout work pay ---------
+    # The FORMULA defaults equal today's ordinary overtime treatment (s.108:
+    # basic + dearness + ad-hoc over the pack divisor, x2). No new statutory
+    # figure is introduced; the statutory festival-holiday formula (substitute
+    # leave + additional basic wages, BLA s.118 as amended) is an adviser
+    # decision and stays an OWNER item until ruled.
+    payroll_holiday_work_multiplier = fields.Float(
+        string="Festival-Holiday Work Multiplier",
+        default=2.0,
+        help="Approved hours worked on a confirmed festival holiday, beyond any hours already "
+        "paid as ordinary overtime, are paid at the ordinary overtime hourly rate times this "
+        "multiplier. Default 2.0 = today's s.108 overtime treatment.",
+    )
+    payroll_rest_day_work_multiplier = fields.Float(
+        string="Weekly Rest-Day Work Multiplier",
+        default=2.0,
+        help="Approved hours worked on the weekly rest day, beyond any hours already paid as "
+        "ordinary overtime, are paid at the ordinary overtime hourly rate times this "
+        "multiplier. Default 2.0 = today's s.108 overtime treatment.",
+    )
+    payroll_callout_multiplier = fields.Float(
+        string="On-Call Callout Multiplier",
+        default=2.0,
+        help="Manager-verified on-call callout hours are paid at the ordinary overtime hourly "
+        "rate times this multiplier. Default 2.0 = today's s.108 overtime treatment.",
     )

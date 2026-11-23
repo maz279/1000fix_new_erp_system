@@ -324,144 +324,15 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <template id="report_payslip_bn">
-        <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="doc">
-                <div class="page" style="font-family: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b; padding: 20px;">
-                    <!-- Corporate Header -->
-                    <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <h2 style="margin: 0; color: #0f766e; font-size: 22px; font-weight: bold;">১০০০ ফিক্স সার্ভিসেস লিমিটেড</h2>
-                            <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">1000 FiX Services Ltd. — বাংলাদেশের বৃহত্তম আইএসও ৯০০১:২০১৫ সার্টিফাইড সেবা প্রদানকারী প্রতিষ্ঠান</p>
-                            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">হটলাইন: ১৬৭৪৩ | ওয়েবসাইট: https://1000fix.com</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="background-color: #f0fdfa; border: 1px solid #0f766e; color: #0f766e; font-weight: bold; padding: 6px 12px; border-radius: 4px; display: inline-block;">
-                                মাসিক বেতন স্লিপ ও কর কর্তন বিবরণী
-                            </div>
-                            <p style="margin: 4px 0 0 0; font-size: 10px; color: #64748b;">তারিখ: <span t-esc="datetime.datetime.now().strftime('%d/%m/%Y')"/></p>
-                        </div>
-                    </div>
-
-                    <!-- Employee and Period Summary Table -->
-                    <table style="width: 100%; margin-bottom: 16px; border-collapse: collapse; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
-                        <tr>
-                            <td style="padding: 6px 10px; width: 25%; font-weight: bold; color: #475569;">কর্মীর নাম:</td>
-                            <td style="padding: 6px 10px; width: 25%;"><span t-field="doc.employee_id.name"/></td>
-                            <td style="padding: 6px 10px; width: 25%; font-weight: bold; color: #475569;">বেতন সময়কাল:</td>
-                            <td style="padding: 6px 10px; width: 25%;"><span t-field="doc.period_id.name"/></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">কর্মী পরিচিতি নং:</td>
-                            <td style="padding: 6px 10px;">EMP<span t-field="doc.employee_id.id"/></td>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">ব্যাংক হিসাব নং:</td>
-                            <td style="padding: 6px 10px;"><span t-field="doc.bank_account_no"/></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">ব্যাংকের নাম ও শাখা:</td>
-                            <td style="padding: 6px 10px;"><span t-field="doc.bank_name"/></td>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">রাউটিং নম্বর:</td>
-                            <td style="padding: 6px 10px;"><span t-field="doc.routing_no"/></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">করদাতা বিভাগ:</td>
-                            <td style="padding: 6px 10px;"><span t-field="doc.taxpayer_category"/></td>
-                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">কর অঞ্চল:</td>
-                            <td style="padding: 6px 10px;"><span t-field="doc.minimum_tax_location"/></td>
-                        </tr>
-                    </table>
-
-                    <!-- Two-Column Breakdown: Earnings and Deductions -->
-                    <div style="display: flex; gap: 16px; margin-bottom: 16px;">
-                        <!-- Earnings Column -->
-                        <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-                            <div style="background-color: #0f766e; color: white; padding: 6px 10px; font-weight: bold; font-size: 13px;">
-                                উপার্জন বিবরণী (Earnings)
-                            </div>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px;">মূল বেতন (Basic Monthly)</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.basic)"/></td>
-                                </tr>
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px;">অতিরিক্ত কর্মঘণ্টা ভাতা (<span t-field="doc.ot_hours"/> ঘণ্টা)</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.overtime)"/></td>
-                                </tr>
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px;">পারফরম্যান্স প্রণোদনা (Incentive M57)</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.incentive)"/></td>
-                                </tr>
-                                <tr style="background-color: #f8fafc; font-weight: bold;">
-                                    <td style="padding: 8px 10px; color: #0f766e;">মোট অর্জিত আয় (Gross Earnings)</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: #0f766e;">৳ <span t-esc="'{0:,.2f}'.format(doc.gross)"/></td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <!-- Deductions Column -->
-                        <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-                            <div style="background-color: #b91c1c; color: white; padding: 6px 10px; font-weight: bold; font-size: 13px;">
-                                কর্তন বিবরণী (Deductions)
-                            </div>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px;">প্রভিডেন্ট ফান্ড - কর্মী অংশ (<span t-field="doc.pf_employee_pct"/>%)</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employee)"/></td>
-                                </tr>
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px;">উৎসে আয়কর কর্তন (TDS Income Tax)</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.tax_withheld)"/></td>
-                                </tr>
-                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 8px 10px; color: #64748b; font-size: 11px;">(প্রতিষ্ঠান পিএফ অবদান: ১০%)</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: #64748b; font-size: 11px;">(৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employer)"/>)</td>
-                                </tr>
-                                <tr style="background-color: #fef2f2; font-weight: bold;">
-                                    <td style="padding: 8px 10px; color: #b91c1c;">মোট কর্তন (Total Deductions)</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employee + doc.tax_withheld)"/></td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Net Payable Banner -->
-                    <div style="background-color: #ecfdf5; border: 2px solid #059669; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 15px; font-weight: bold; color: #065f46;">নিট প্রদেয় বেতন (Net Payable via BEFTN):</div>
-                            <div style="font-size: 11px; color: #047857;">বাংলাদেশ ব্যাংক অনুমোদিত ইলেকট্রনিক ফান্ড ট্রান্সফারের মাধ্যমে সরাসরি ব্যাংক হিসাবে প্রেরিত।</div>
-                        </div>
-                        <div style="font-size: 24px; font-weight: bold; color: #065f46;">
-                            ৳ <span t-esc="'{0:,.2f}'.format(doc.net)"/>
-                        </div>
-                    </div>
-
-                    <!-- Statutory & Compliance Footnote -->
-                    <div style="background-color: #f8fafc; border-left: 4px solid #0f766e; padding: 10px 14px; margin-bottom: 25px; font-size: 10px; color: #475569;">
-                        <strong>সংবিধিবদ্ধ নিশ্চয়তা ও আইনি ভিত্তি:</strong><br/>
-                        ১. এই বেতন হিসাবটি বাংলাদেশ শ্রম আইন ২০০৬, শ্রম (সংশোধনী) আইন ২০২৬ এবং আয়কর আইন ২০২৩ এর বিধানাবলী কঠোরভাবে অনুসরণ করে স্বয়ংক্রিয় অ্যালগরিদমে প্রস্তুতকৃত।<br/>
-                        ২. প্রভিডেন্ট ফান্ড কর্তন এবং সমপরিমাণ প্রতিষ্ঠান অনুদান বাংলাদেশ শ্রম বিধিমালা ২০১৫ এর বিধি ৩৫১ অনুযায়ী নির্ধারিত ট্রাস্ট তহবিলে সংরক্ষিত।<br/>
-                        ৩. উৎসে আয়কর কর্তন ধারা ১২৪/১৪০ অনুসারে সরকারি কোষাগারে সরাসরি ই-চালানের মাধ্যমে জমাকৃত।
-                    </div>
-
-                    <!-- Signatures Section -->
-                    <div style="display: flex; justify-content: space-between; margin-top: 45px; text-align: center; font-size: 11px;">
-                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
-                            <strong>হিসাব প্রস্তুতকারক</strong><br/>
-                            <span style="font-size: 10px; color: #64748b;">(Maker / Payroll Officer)</span>
-                        </div>
-                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
-                            <strong>যাচাইকারী কর্মকর্তা</strong><br/>
-                            <span style="font-size: 10px; color: #64748b;">(Internal Audit / Compliance)</span>
-                        </div>
-                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
-                            <strong>অনুমোদনকারী কর্তৃপক্ষ</strong><br/>
-                            <span style="font-size: 10px; color: #64748b;">(Checker / Head of Finance)</span>
-                        </div>
-                    </div>
-                </div>
-            </t>
-        </t>
-    </template>
+    <!-- A09 M56-F13: a second template with this same id used to live here and
+         was dead weight - the manifest loads report/report_payslip_bn.xml
+         AFTER this file, so that template's arch always won and this one never
+         rendered. Worse, it printed the FULL bank account and cited
+         "শ্রম বিধিমালা ২০১৫ এর বিধি ৩৫১" and TDS "ধারা ১২৪/১৪০", none of which
+         any repository source confirms. It is deleted; the live, self-
+         explaining payslip is report/report_payslip_bn.xml (one row per
+         allowance, retro/recovery rows, masked account, the pinned
+         statutory_basis string). -->
 
     <!-- ======================================================== -->
     <!-- MENU ENTRIES                                              -->

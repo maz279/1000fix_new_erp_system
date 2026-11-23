@@ -25,6 +25,7 @@
 #     and never once payroll has taken the period.
 from datetime import date, datetime, time, timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -67,6 +68,30 @@ PAYROLL_PAID_STATES = ("paid", "posted")
 def _day_bounds(day):
     start = datetime.combine(day, time.min)
     return start, start + timedelta(days=1)
+
+
+DHAKA_TZ = "Asia/Dhaka"  # the business day (brief: UTC+6, weekend Fri-Sat)
+
+
+def _dhaka_day_bounds_utc(day):
+    """(start, end) naive-UTC datetimes of the Dhaka calendar day `day`: the
+    stored datetimes are UTC while the business day is Asia/Dhaka, so a UTC
+    midnight window is 6 h off every evening."""
+    tz = pytz.timezone(DHAKA_TZ)
+    start = (
+        tz.localize(datetime.combine(fields.Date.to_date(day), time.min))
+        .astimezone(pytz.utc)
+        .replace(tzinfo=None)
+    )
+    return start, start + timedelta(days=1)
+
+
+def _dhaka_wall(moment):
+    """A stored (UTC) datetime as the Dhaka wall-clock hour (float), for the
+    roster shift comparisons (a shift template's hours are local)."""
+    moment = fields.Datetime.to_datetime(moment)
+    local = pytz.utc.localize(moment).astimezone(pytz.timezone(DHAKA_TZ))
+    return local.hour + local.minute / 60.0
 
 
 def _locked_lock(env, company, day):
@@ -355,6 +380,78 @@ class FixBiometricDevice(models.Model):
         device.last_sync_at = fields.Datetime.now()
         return rec.with_env(self.env)
 
+    # --- M55-F7: device health (AUT-WFM-04) ----------------------------------------
+    @api.model
+    def cron_check_device_health(self):
+        """AUT-WFM-04 (M55-F7): every ACTIVE terminal whose last ingest sync
+        is older than `fix.attendance.device_stale_hours`
+        (ir.config_parameter, default 1.0 per AUT-WFM-04's "alert within 1 h")
+        is flagged: a to-do for the attendance supervisors of its company, a
+        chatter note and an event for the record. The terminal's own status is
+        left to the supervisor: setting it offline here would refuse the
+        terminal's FIRST revived punch (action_ingest_punch refuses an offline
+        device), so an automatic offline would brick a recovered terminal.
+
+        Note: last_sync_at advances only on ingest, so a quiet-but-healthy
+        terminal with no traffic inside the interval also alerts — the
+        interval (and a push-based heartbeat, if wanted) is the business's."""
+        self = self.sudo()
+        try:
+            hours = float(
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param("fix.attendance.device_stale_hours", "1.0")
+                or "1.0"
+            )
+        except ValueError:
+            hours = 1.0
+        cutoff = fields.Datetime.now() - timedelta(hours=max(hours, 0.0))
+        stale = self.search([("active", "=", True)]).filtered(
+            lambda d: (d.last_sync_at or d.create_date)
+            and (d.last_sync_at or d.create_date) < cutoff
+        )
+        for device in stale:
+            device._fix_flag_stale(hours)
+        return len(stale)
+
+    def _fix_flag_stale(self, hours):
+        """One to-do per supervisor of the company (idempotent per device and
+        per note) and one event for the record."""
+        self.ensure_one()
+        stale_since = self.last_sync_at or self.create_date
+        summary = "Biometric terminal not syncing: %s" % self.name
+        note = (
+            "No ingest sync since %s (older than the configured %.1f h). Branch fallback: "
+            "capture continues through the mobile app or manual entries with a reason."
+            % (stale_since, hours)
+        )
+        already = self.env["mail.activity"].search(
+            [("res_model", "=", self._name), ("res_id", "=", self.id), ("summary", "=", summary)]
+        )
+        if not already:
+            group = self.env.ref(SUPERVISOR_GROUP, raise_if_not_found=False)
+            users = (group.sudo().user_ids if group else self.env["res.users"]).filtered(
+                lambda u: u.active and not u.share and self.company_id in u.company_ids
+            )
+            for user in users:
+                self.activity_schedule(
+                    "mail.mail_activity_data_todo", summary=summary, note=note, user_id=user.id
+                )
+            self.message_post(body="%s. %s" % (summary, note))
+        publish(
+            self.env,
+            "attendance.device.stale",
+            self._name,
+            self.id,
+            {
+                "device": self.device_id,
+                "last_sync_at": str(stale_since or ""),
+                "stale_hours": hours,
+                "branch": self.branch_id.name or "",
+            },
+        )
+        return True
+
 
 class FixAttendanceRecord(models.Model):
     """A check-in/out pair. Immutable once the period is LOCKED."""
@@ -454,7 +551,8 @@ class FixAttendanceRecord(models.Model):
         compute="_compute_hours",
         store=True,
         help="BRU-WFM-02: the recorded overtime that an APPROVED overtime request covers, "
-        "at most 2 h a day (s.100/108), and none for an employee not eligible (s.108). "
+        "at most 2 h a day (s.100/108), and none for an employee not eligible (s.108); "
+        "capped per employee-week at the weekly limit less 48 h (M55-F23, s.102). "
         "This is what payroll pays.",
     )
     unapproved_overtime_hours = fields.Float(
@@ -478,6 +576,14 @@ class FixAttendanceRecord(models.Model):
         compute="_compute_hours",
         store=True,
         help="FR-WFM-020: hours worked on a confirmed public holiday of the calendar.",
+    )
+    festival_hours = fields.Float(
+        string="Festival-Holiday Hours",
+        compute="_compute_hours",
+        store=True,
+        help="M55-F3/F12 (BLA s.118): hours worked on a confirmed FESTIVAL holiday of the "
+        "calendar — the statutory festival days that count against the festival entitlement. "
+        "What payroll reads for festival-day work.",
     )
     weekly_worked_hours = fields.Float(
         string="Weekly Worked Hours", compute="_compute_weekly_totals"
@@ -567,7 +673,9 @@ class FixAttendanceRecord(models.Model):
     def _fix_value_day(self, items, emp, day, company):
         """items: [(token, check_in, check_out, state, rest_day)] of one day.
 
-        Returns {token: (worked, recorded_ot, payable_ot, rest, holiday)}."""
+        Returns {token: (worked, recorded_ot, payable_ot, rest, holiday, festival)}.
+        The payable figure here still carries only the DAILY caps; the weekly
+        payable ceiling (M55-F23) is applied by _compute_hours afterwards."""
         rows = sorted(
             (
                 (ci, token, (co - ci).total_seconds() / 3600.0, state, rest)
@@ -577,14 +685,21 @@ class FixAttendanceRecord(models.Model):
             key=lambda r: (r[0], str(r[1])),
         )
         rest_day = any(r[4] for r in rows)
-        holiday = bool(
-            company
-            and self.env["fix.hr.holiday"]
+        # a confirmed holiday of the calendar; festival rows (BLA s.118: the
+        # statutory festival days with wages) are valued separately so payroll
+        # can pay festival-day work as such (M55-F3/F12)
+        holiday_row = (
+            self.env["fix.hr.holiday"]
             .sudo()
-            .search_count(
-                [("date", "=", day), ("company_id", "=", company.id), ("tentative", "=", False)]
+            .search(
+                [("date", "=", day), ("company_id", "=", company.id), ("tentative", "=", False)],
+                limit=1,
             )
+            if company
+            else self.env["fix.hr.holiday"]
         )
+        holiday = bool(holiday_row)
+        festival = bool(holiday_row and holiday_row.holiday_type == "festival")
         eligible = (
             bool(emp.sudo().overtime_eligible) if "overtime_eligible" in emp._fields else True
         )
@@ -622,12 +737,14 @@ class FixAttendanceRecord(models.Model):
                 round(payable, 2),
                 round(span, 2) if rest_day else 0.0,
                 round(span, 2) if holiday else 0.0,
+                round(span, 2) if festival else 0.0,
             )
         return out
 
     @api.depends("check_in", "check_out", "approval_state", "is_rest_day", "employee_id")
     def _compute_hours(self):
         values = {}
+        daily_payable = {}  # rec id -> payable after the DAILY caps only
         for rec in self:
             if rec.check_in:
                 cdate = rec.check_in.date()
@@ -663,13 +780,99 @@ class FixAttendanceRecord(models.Model):
                     result = rec._fix_value_day(items, rec.employee_id, key[1], rec.company_id).get(
                         "new"
                     )
-            worked, recorded, payable, rest, holiday = result or (0.0, 0.0, 0.0, 0.0, 0.0)
+            worked, recorded, payable, rest, holiday, festival = result or (
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            )
             rec.worked_hours = worked
             rec.recorded_overtime_hours = recorded
-            rec.overtime_hours = payable
-            rec.unapproved_overtime_hours = round(recorded - payable, 2)
             rec.rest_day_hours = rest
             rec.holiday_hours = holiday
+            rec.festival_hours = festival
+            if rec.id and isinstance(rec.id, int):
+                daily_payable[rec.id] = payable
+            else:  # an unsaved form has no week siblings to share a budget with
+                rec.overtime_hours = payable
+                rec.unapproved_overtime_hours = round(recorded - payable, 2)
+        self._fix_apply_weekly_payable_cap(daily_payable)
+
+    def _fix_weekly_payable_cap(self, company, day):
+        """M55-F23: the employee-week's payable-overtime ceiling, from the
+        working-time rule version in force: weekly_limit_hours - 48 h (s.102:
+        the 48 h ordinary week). None while the rule sets no weekly limit —
+        then payable overtime is capped per day only."""
+        values = self.env["fix.working.time.rule"]._fix_values_for(company, day)
+        weekly = values["weekly_limit_hours"]
+        if not weekly:
+            return None
+        return max(weekly - STANDARD_WEEKLY_HOURS, 0.0)
+
+    def _fix_apply_weekly_payable_cap(self, daily_payable):
+        """Cap the batch's payable overtime per employee-week (M55-F23).
+
+        The week's records are valued in check-in order; once the ceiling is
+        spent the rest of the week's approved overtime stays recorded but not
+        payable (unapproved_overtime_hours). Stored records of the same week
+        that are NOT in this batch keep the payable figure they were valued
+        with and consume the budget first (in check-in order among
+        themselves); _fix_recompute_days re-values the whole week whenever a
+        day of it changes, so the split never goes stale."""
+        if not daily_payable:
+            return
+        groups = {}
+        for rec in self:
+            if rec.id and isinstance(rec.id, int) and rec.employee_id and rec.week_start:
+                groups.setdefault((rec.employee_id.id, rec.week_start), []).append(rec)
+        if not groups:
+            return
+        employees = sorted({e for e, _w in groups})
+        weeks = {w for _e, w in groups}
+        siblings = self.sudo().search(
+            [
+                ("employee_id", "in", employees),
+                ("approval_state", "!=", "rejected"),
+                ("check_in", ">=", fields.Datetime.to_datetime(min(weeks))),
+                ("check_in", "<", fields.Datetime.to_datetime(max(weeks) + timedelta(days=7))),
+            ]
+        )
+        by_week = {}
+        for sib in siblings:
+            if sib.week_start:
+                by_week.setdefault((sib.employee_id.id, sib.week_start), []).append(sib)
+        caps = {}
+        for (_emp_id, week_start), recs in groups.items():
+            for rec in recs:
+                if rec.company_id.id not in caps:
+                    caps[rec.company_id.id] = self._fix_weekly_payable_cap(
+                        rec.company_id, week_start
+                    )
+        for (emp_id, week_start), recs in groups.items():
+            cap = caps.get(recs[0].company_id.id)
+            if cap is None:  # no weekly limit in force: the daily caps stand
+                for rec in recs:
+                    rec.overtime_hours = daily_payable.get(rec.id, 0.0)
+                    rec.unapproved_overtime_hours = round(
+                        rec.recorded_overtime_hours - rec.overtime_hours, 2
+                    )
+                continue
+            week_recs = sorted(
+                by_week.get((emp_id, week_start), []), key=lambda r: (r.check_in, r.id or 0)
+            )
+            batch_ids = {r.id for r in recs}
+            # stored payable of the week that this batch is NOT re-valuing
+            outside = [r for r in week_recs if r.id not in batch_ids]
+            remaining = cap - sum(r.overtime_hours or 0.0 for r in outside)
+            for rec in sorted(recs, key=lambda r: (r.check_in, r.id or 0)):
+                payable = min(daily_payable.get(rec.id, 0.0), max(remaining, 0.0))
+                remaining -= payable
+                rec.overtime_hours = round(payable, 2)
+                rec.unapproved_overtime_hours = round(
+                    rec.recorded_overtime_hours - rec.overtime_hours, 2
+                )
 
     def _fix_company(self):
         return self.company_id or self.env.company
@@ -981,10 +1184,24 @@ class FixAttendanceRecord(models.Model):
 
     def _fix_recompute_days(self, keys):
         """Re-value every record of the given employee-days (split shifts,
-        overtime approvals and holidays change the siblings' figures)."""
+        overtime approvals and holidays change the siblings' figures), and of
+        their whole ISO weeks: the weekly payable-overtime ceiling (M55-F23)
+        distributes one budget over the week, so a day that changes can move
+        payable overtime onto or off its week-mates."""
         recs = self.env["fix.attendance.record"]
+        weeks = {}
         for key in {k for k in keys if k}:
+            emp_id, day = key
             recs |= self._fix_day_records(key)
+            weeks[(emp_id, day - timedelta(days=day.weekday()))] = True
+        for emp_id, week_start in weeks:
+            recs |= self.sudo().search(
+                [
+                    ("employee_id", "=", emp_id),
+                    ("check_in", ">=", fields.Datetime.to_datetime(week_start)),
+                    ("check_in", "<", fields.Datetime.to_datetime(week_start + timedelta(days=7))),
+                ]
+            )
         recs = recs.sudo()
         if not recs:
             return
@@ -995,6 +1212,7 @@ class FixAttendanceRecord(models.Model):
             "unapproved_overtime_hours",
             "rest_day_hours",
             "holiday_hours",
+            "festival_hours",
             "week_start",
             "compliance_status",
             "statutory_notes",
@@ -1217,6 +1435,165 @@ class FixAttendanceRecord(models.Model):
                 continue
         return routed
 
+    # --- M55-F9 (part): the ordinary exceptions the roster can prove -------------
+    @api.model
+    def cron_detect_attendance_exceptions(self):
+        """FR-WFM-011 (M55-F9, part): end-of-day detection over YESTERDAY's
+        Dhaka business day — a still-open shift (missing punch-out), a late
+        arrival and an early departure against the rostered shift. Each is
+        flagged on the attendance record (approval_state pending with its
+        reason), so the routing cron carries it to a decider exactly like the
+        capture flags. Absence-without-leave and fraud signals are DEFERRED:
+        they need more than the roster and the punches hold."""
+        day = fields.Date.context_today(self.with_context(tz="Asia/Dhaka")) - timedelta(days=1)
+        return self._fix_detect_day_exceptions(day)
+
+    @api.model
+    def _fix_detect_day_exceptions(self, day=None):
+        """Detect the ordinary exceptions of one Dhaka day. Idempotent: only
+        records still `not_required` are flagged, so a decided or already
+        flagged record is never re-flagged."""
+        if day is None:
+            day = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        day = fields.Date.to_date(day)
+        start_utc, end_utc = _dhaka_day_bounds_utc(day)
+        records = self.sudo().search([("check_in", ">=", start_utc), ("check_in", "<", end_utc)])
+        slots = self.env["fix.roster.slot"].sudo().search([("date", "=", day)])
+        by_emp = {}
+        for rec in records:
+            by_emp.setdefault(rec.employee_id.id, []).append(rec)
+        reasons = {}  # record -> [reason, ...]: one flagged record can be late AND early
+        for slot in slots.filtered(lambda s: not s.on_leave):
+            emp_recs = sorted(by_emp.get(slot.employee_id.id, []), key=lambda r: r.check_in)
+            if not emp_recs:
+                continue  # a rostered day with no punch at all is the AWOL case: DEFERRED
+            shift = slot.shift_id
+            first, last = emp_recs[0], emp_recs[-1]
+            crosses_midnight = shift.end_hour <= shift.start_hour
+            # late arrival: the first punch is after the rostered start
+            if first.check_in and first.approval_state == "not_required":
+                late_by = _dhaka_wall(first.check_in) - shift.start_hour
+                if late_by > 1.0 / 60:  # more than a minute: a same-second punch is on time
+                    reasons.setdefault(first.id, []).append(
+                        "Late arrival (FR-WFM-011): first punch %.2f:00 Dhaka is %.1f h after "
+                        "the rostered %.2f:00 start of %s"
+                        % (_dhaka_wall(first.check_in), late_by, shift.start_hour, shift.name)
+                    )
+            # early departure: the last punch-out is before the rostered end
+            # (only for shifts that end on the same calendar day — a shift that
+            # crosses midnight ends tomorrow and yesterday's records cannot
+            # prove it)
+            if last.check_out and last.approval_state == "not_required" and not crosses_midnight:
+                early_by = shift.end_hour - _dhaka_wall(last.check_out)
+                if early_by > 1.0 / 60:
+                    reasons.setdefault(last.id, []).append(
+                        "Early departure (FR-WFM-011): last punch-out %.2f:00 Dhaka is %.1f h "
+                        "before the rostered %.2f:00 end of %s"
+                        % (_dhaka_wall(last.check_out), early_by, shift.end_hour, shift.name)
+                    )
+            # missing punch-out: a shift left open after its day ended
+            for rec in emp_recs:
+                if not rec.check_out and rec.approval_state == "not_required":
+                    reasons.setdefault(rec.id, []).append(
+                        "Missing punch-out (FR-WFM-011): checked in at %s and the day has "
+                        "ended with no check-out" % rec.check_in
+                    )
+        flagged = self.browse([rid for rid in reasons if rid])
+        for rec in flagged:
+            rec._guarded().write(
+                {
+                    "approval_state": "pending",
+                    "approval_reason": "; ".join(reasons[rec.id]),
+                }
+            )
+        if flagged:
+            flagged._fix_recompute_days([r._fix_day_key() for r in flagged])
+        return len(flagged)
+
+    # --- M55-F7: exception ageing before the payroll cut-off ----------------------
+    @api.model
+    def cron_escalate_pending_exceptions(self):
+        """AUT-WFM-06 (M55-F7): escalate attendance exceptions still pending
+        once the payroll cut-off is close. The window is the company setting
+        `fix_attendance_exception_escalate_days` (N days before the next
+        payroll period starts; 0, the default, keeps it off — the figure is
+        the business's). Inside the window every still-pending record gets a
+        to-do for the attendance supervisors of its company and an event for
+        the record. Idempotent: one open escalation per record."""
+        self = self.sudo()
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        # Odoo's Environment has __contains__/__getitem__ but NO .get(); a
+        # cross-area model is looked up the membership way (ruff SIM401's
+        # env.get() suggestion does not exist on the Environment).
+        in_estate = "fix.payroll.period" in self.env
+        Period = self.env["fix.payroll.period"] if in_estate else None
+        escalated = 0
+        for company in self.env["res.company"].search([]):
+            days = company.fix_attendance_exception_escalate_days or 0
+            if not days or Period is None:
+                continue
+            domain = [("period_start", ">=", today)]
+            if "company_id" in Period._fields:
+                domain.append(("company_id", "=", company.id))
+            nxt = Period.search(domain, order="period_start", limit=1)
+            if not nxt:
+                continue
+            window_from = nxt.period_start - timedelta(days=days)
+            if not (window_from <= today <= nxt.period_start):
+                continue
+            pending = self.search(
+                [("approval_state", "=", "pending"), ("company_id", "=", company.id)]
+            )
+            for rec in pending:
+                escalated += 1 if rec._fix_escalate_pending(nxt) else 0
+        return escalated
+
+    def _fix_escalate_pending(self, payroll_period):
+        """One to-do per supervisor of the company and one event, once."""
+        self.ensure_one()
+        summary = "Attendance exception pending before payroll %s" % payroll_period.name
+        open_escalations = self.env["mail.activity"].search(
+            [
+                ("res_model", "=", self._name),
+                ("res_id", "=", self.id),
+                ("summary", "=", summary),
+            ]
+        )
+        if open_escalations:
+            return False
+        note = (
+            "%s (%s) is still pending approval and payroll period %s starts %s: decide it "
+            "before the lock."
+            % (
+                self.display_label,
+                self.approval_reason or "flagged",
+                payroll_period.name,
+                payroll_period.period_start,
+            )
+        )
+        group = self.env.ref(SUPERVISOR_GROUP, raise_if_not_found=False)
+        users = (group.sudo().user_ids if group else self.env["res.users"]).filtered(
+            lambda u: u.active and not u.share and self.company_id in u.company_ids
+        )
+        for user in users:
+            self.activity_schedule(
+                "mail.mail_activity_data_todo", summary=summary, note=note, user_id=user.id
+            )
+        self.message_post(body="%s. %s" % (summary, note))
+        publish(
+            self.env,
+            "attendance.exception.escalated",
+            self._name,
+            self.id,
+            {
+                "employee": self.employee_id.name,
+                "reason": self.approval_reason,
+                "payroll_period": payroll_period.name,
+                "cut_off": str(payroll_period.period_start),
+            },
+        )
+        return True
+
     def _fix_assert_supervisor(self):
         if not (self.env.su or self.env.user.has_group(SUPERVISOR_GROUP)):
             raise AccessError("Only an Attendance Supervisor marks a weekly rest day.")
@@ -1269,6 +1646,57 @@ class FixAttendanceRecord(models.Model):
         if company:
             domain.append(("company_id", "=", company.id))
         return self.sudo().search(domain, order="check_in")
+
+    # --- M55-F3/F4: the figures payroll (cd_payroll_bd) reads ---------------------
+    @api.model
+    def _fix_payroll_period_domain(self, employee, date_from, date_to):
+        """Records of `employee` checking in inside [date_from, date_to]
+        (superuser read: payroll must see every operating unit). The window is
+        the same one pending_in_period uses, so both sides of the payroll
+        interface agree on the period."""
+        end = fields.Date.to_date(date_to) + timedelta(days=1)
+        return [
+            ("employee_id", "=", employee.id),
+            ("check_in", ">=", fields.Datetime.to_datetime(date_from)),
+            ("check_in", "<", fields.Datetime.to_datetime(end)),
+        ]
+
+    @api.model
+    def _fix_payroll_rest_day_hours(self, employee, date_from, date_to):
+        """APPROVED weekly rest-day worked hours of `employee` in the period
+        (BLA s.103/108): the rest_day_hours of decided records only."""
+        records = self.sudo().search(
+            [
+                *self._fix_payroll_period_domain(employee, date_from, date_to),
+                ("approval_state", "in", PAYABLE_STATES),
+            ]
+        )
+        return round(sum(records.mapped("rest_day_hours")), 2)
+
+    @api.model
+    def _fix_payroll_holiday_hours(self, employee, date_from, date_to):
+        """APPROVED public-holiday worked hours of `employee` in the period
+        (any confirmed holiday of the calendar; FR-WFM-020)."""
+        records = self.sudo().search(
+            [
+                *self._fix_payroll_period_domain(employee, date_from, date_to),
+                ("approval_state", "in", PAYABLE_STATES),
+            ]
+        )
+        return round(sum(records.mapped("holiday_hours")), 2)
+
+    @api.model
+    def _fix_payroll_festival_hours(self, employee, date_from, date_to):
+        """APPROVED FESTIVAL-holiday worked hours of `employee` in the period
+        (BLA s.118: the statutory festival days). This is the figure the
+        2-days'-wages / substitute-holiday ruling (OWNER) prices."""
+        records = self.sudo().search(
+            [
+                *self._fix_payroll_period_domain(employee, date_from, date_to),
+                ("approval_state", "in", PAYABLE_STATES),
+            ]
+        )
+        return round(sum(records.mapped("festival_hours")), 2)
 
     def action_checkout(self):
         for rec in self:
@@ -1625,7 +2053,8 @@ class FixWorkOrderAvailabilityExt(models.Model):
 
     _inherit = "fix.work.order"
 
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    # M55-F16: operating_unit_id was re-declared here while cd_service_order's
+    # own fix.work.order model already defines it — M02's declaration stands.
 
     def action_check_technician_availability(self):
         # Every record is checked: an early `return True` inside the loop used
@@ -1722,4 +2151,176 @@ class FixWorkOrderAvailabilityExt(models.Model):
         if vals.get("technician_id"):
             for rec in self:
                 rec.action_check_technician_availability()
+        return result
+
+
+class ResCompanyAttendanceOps(models.Model):
+    """M55-F7 (AUT-WFM-06): the exception-ageing window."""
+
+    _inherit = "res.company"
+
+    fix_attendance_exception_escalate_days = fields.Integer(
+        string="Escalate Pending Exceptions N Days Before Payroll",
+        default=0,
+        help="AUT-WFM-06: this many days before the next payroll period starts, every "
+        "attendance exception still pending is escalated to the attendance supervisors. "
+        "0 (the default) keeps the escalation off. The figure is the business's (OWNER).",
+    )
+
+
+class FixLeaveRequestPayrollFigures(models.Model):
+    """M55-F4 (attendance side): the approved unpaid-leave days payroll reads.
+
+    The `is_unpaid` flag on fix.leave.type arrives with the B2b leave-catalogue
+    work; it is read defensively so this helper works before and after it
+    lands (before it lands no type is unpaid and the figure is honestly 0)."""
+
+    _inherit = "fix.leave.request"
+
+    @api.model
+    def _fix_payroll_unpaid_leave_days(self, employee, date_from, date_to):
+        """APPROVED unpaid-leave DAYS of `employee` inside [date_from,
+        date_to]: only the days of each approved leave that fall in the
+        period (a leave spanning the boundary is split at it). Superuser
+        read: payroll must see every operating unit."""
+        date_from = fields.Date.to_date(date_from)
+        date_to = fields.Date.to_date(date_to)
+        leaves = self.sudo().search(
+            [
+                ("employee_id", "=", employee.id),
+                ("state", "=", "approved"),
+                ("date_from", "<=", date_to),
+                ("date_to", ">=", date_from),
+            ]
+        )
+        days = 0.0
+        for leave in leaves:
+            leave_type = leave.leave_type_id
+            if hasattr(leave_type, "_fix_is_unpaid"):
+                # cd_hr_core's predicate (the is_unpaid flag, falling back to
+                # the seeded code) is the one source of truth
+                unpaid = leave_type._fix_is_unpaid()
+            else:
+                unpaid = "is_unpaid" in leave_type._fields and bool(leave_type.is_unpaid)
+            if not unpaid:
+                continue
+            overlap = (min(leave.date_to, date_to) - max(leave.date_from, date_from)).days + 1
+            days += max(overlap, 0)
+        return days
+
+
+class HrEmployeeLeaveBalanceBatch(models.Model):
+    """M55-F17: the leave-balances pack's batch reader for the s.117 ledger.
+
+    Computes what hr.employee._fix_unused_annual_leave_days (cd_hr_core)
+    computes, but reads the annual leave types, the annual leave requests and
+    the employment contracts ONCE for the whole batch instead of once per
+    employee — the pack's 504-employee projection envelope (T-12 ≤ 500 ms).
+    The accrual BASIS stays cd_hr_core's: each service year is measured with
+    the employee's own _fix_leave_days_worked, so a change there (B2b's
+    worked-days basis) flows through unchanged. test_a09_erp_b4_ops.py keeps
+    the batch and the single ledgers equal."""
+
+    _inherit = "hr.employee"
+
+    def _fix_unused_annual_leave_days_batch(self, as_of):
+        from dateutil.relativedelta import relativedelta
+        from odoo.addons.cd_hr_core.models.fix_leave_controls import (
+            ANNUAL_LEAVE_DAYS_PER_EARNED_DAY,
+        )
+
+        result = {emp.id: 0.0 for emp in self}
+        if not self:
+            return result
+        emp_ids = self.ids
+        annual_types = {
+            t.company_id.id: t
+            for t in self.env["fix.leave.type"].sudo().search([("code", "=", "annual")])
+        }
+        leaves = (
+            self.env["fix.leave.request"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "in", emp_ids),
+                    ("leave_type_id.code", "=", "annual"),
+                    ("state", "in", ("approved", "rejected")),
+                ]
+            )
+        )
+        by_emp = {}
+        for leave in leaves:
+            by_emp.setdefault(leave.employee_id.id, []).append(leave)
+        contract_joins = {}
+        if "fix.employment.contract" in self.env:
+            contracts = (
+                self.env["fix.employment.contract"]
+                .sudo()
+                .search([("employee_id", "in", emp_ids), ("state", "!=", "draft")])
+            )
+            for contract in contracts:
+                if contract.joining_date:
+                    contract_joins.setdefault(contract.employee_id.id, []).append(
+                        contract.joining_date
+                    )
+        for emp in self:
+            annual = annual_types.get(emp.sudo().company_id.id)
+            if not annual:
+                continue
+            # the service start, as _fix_service_start computes it (cd_hr_core)
+            dates = [
+                emp.sudo()[name]
+                for name in ("joining_date", "joined_date")
+                if name in emp.sudo()._fields and emp.sudo()[name]
+            ]
+            dates += contract_joins.get(emp.id, [])
+            if not dates:
+                continue
+            start = min(dates)
+            left = emp.sudo().left_date if "left_date" in emp.sudo()._fields else False
+            # the completed service years, as _fix_annual_leave_years walks them
+            years = []
+            k = 0
+            while True:
+                y_start = start + relativedelta(years=k)
+                y_end = start + relativedelta(years=k + 1) - timedelta(days=1)
+                if y_end >= as_of:
+                    break
+                if left and y_start > left:
+                    break
+                years.append((y_start, min(y_end, left) if left else y_end))
+                k += 1
+            taken = [
+                lv
+                for lv in by_emp.get(emp.id, [])
+                if lv.state == "approved" and lv.date_from <= as_of
+            ]
+            refused = [
+                lv
+                for lv in by_emp.get(emp.id, [])
+                if lv.state == "rejected" and lv.date_from <= as_of
+            ]
+            # the ledger events, as _fix_annual_leave_balance replays them
+            events = []
+            for y_start, y_end in years:
+                worked = emp._fix_leave_days_worked(y_start, y_end)
+                events.append(
+                    (
+                        y_end + timedelta(days=1),
+                        0,
+                        float(worked // ANNUAL_LEAVE_DAYS_PER_EARNED_DAY),
+                    )
+                )
+            events += [(lv.date_from, 1, -float(lv.days)) for lv in taken]
+            cap = annual.carry_forward_limit or 0
+            balance = 0.0
+            for when, _kind, n in sorted(events):
+                if n > 0:
+                    extra = float(sum(r.days for r in refused if r.date_from < when))
+                    balance += n
+                    if cap:
+                        balance = min(balance, cap + extra)
+                else:
+                    balance += n
+            result[emp.id] = max(balance, 0.0)
         return result

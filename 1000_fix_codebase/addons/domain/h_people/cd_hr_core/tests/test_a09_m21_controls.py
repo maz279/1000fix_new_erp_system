@@ -1016,8 +1016,9 @@ def test_a_mover_opens_one_access_review_and_changes_no_access(w):
     mover_user = _user(w.env)
     emp = _emp(w.env, mover_user)
     groups_before = mover_user.group_ids
-    dept = w.env["hr.department"].create({"name": "A09 Mover Destination"})
-    emp.write({"department_id": dept.id})  # announced as employee.moved
+    # X-F15: a department alone is not a move; a job change is
+    job = w.env["hr.job"].create({"name": "A09 Mover Destination"})
+    emp.write({"job_id": job.id})  # announced as employee.moved
     assert _events(w.env, "employee.moved", emp.id)
     with pytest.raises(AccessError):
         w.env(user=w.plain.id)["hr.employee"].consume_employee_moved(
@@ -1131,8 +1132,28 @@ def test_nominee_shares_total_at_most_100(w):
 def test_form6a_register_is_a_report_for_hr_and_refused_to_others(w, call):
     out = call(w.env(user=w.hro.id), "model_report", module="M21", report="form6a_register")
     assert "error" not in out and out["rows"]
+    # Form 6(A) is the register of ISSUE (BLR 2015 r.19(7)): every declared
+    # column is a key of every row. The pack still declared the old worker
+    # columns here and printed nine of eleven blank (A09 deploy check,
+    # 23 Nov 2026).
+    assert {"appointment_letter_on", "identity_card_on", "service_book_on"} <= set(out["cols"])
+    assert all(c in row for row in out["rows"] for c in out["cols"])
     out = call(w.env(user=w.plain.id), "model_report", module="M21", report="form6a_register")
     assert "error" in out
+
+
+def test_master_change_form_schema_loads(w, call):
+    """A09 deploy check (23 Nov 2026): the form's two "proposed" selections asked
+    another field for `.selection`, which Odoo 19 stores as a callable once that
+    field was extended - fields_get raised TypeError and the master-change form
+    could not be opened at all."""
+    asked = [{"name": "proposed_mfs_provider"}, {"name": "proposed_marital"}]
+    res = call(w.env, "model_form", model="fix.hr.master.change", fields=asked, record_id=False)
+    assert "error" not in res, res
+    # the form route serves a selection's options as {key, label} choices
+    served = {f["name"]: [c["key"] for c in f.get("choices") or []] for f in res["fields"]}
+    assert "bkash" in served["proposed_mfs_provider"]
+    assert "unspecified" in served["proposed_marital"]
 
 
 def test_kpis_count_employees_with_a_verified_service_book(w):

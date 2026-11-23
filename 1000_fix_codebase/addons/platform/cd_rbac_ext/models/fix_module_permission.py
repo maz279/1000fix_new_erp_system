@@ -141,19 +141,38 @@ class FixJmlPermissionLine(models.Model):
     can_export = fields.Boolean(string="Export")
     can_email = fields.Boolean(string="E-mail")
 
+    def _fix_cap_from_roles(self):
+        """M29-D4: the cap as the roles REALLY allow it now, derived from the
+        event's roles — not the stored `allowed_level` column, which a forged
+        grid write could carry (readonly is a view attribute, not an ORM one).
+        Falls back to the stored column when the deriving method is absent."""
+        self.ensure_one()
+        event = self.event_id
+        derive = getattr(event, "_fix_role_allowance", None)
+        if derive and getattr(event, "role_id", False):
+            try:
+                allowed = derive(event._fix_roles())
+                cap = (allowed.get(self.module_code) or (None, None))[0]
+                if cap:
+                    return cap
+            except Exception:  # derivation is display-grade; the column stands
+                pass
+        return self.allowed_level
+
     @api.constrains("level", "can_approve", "can_print", "can_export", "can_email")
     def _check_within_roles(self):
         for line in self:
-            if RANK.get(line.level, 0) > RANK.get(line.allowed_level or "none", 0):
+            cap = line._fix_cap_from_roles()
+            if RANK.get(line.level, 0) > RANK.get(cap or "none", 0):
                 raise ValidationError(
                     "%s: the chosen roles allow %s, not %s. To give more, add a role."
                     % (
                         line.module_name or line.module_code,
-                        level_label(line.allowed_level),
+                        level_label(cap),
                         level_label(line.level),
                     )
                 )
-            if line.can_approve and RANK.get(line.allowed_level or "none", 0) < RANK["edit"]:
+            if line.can_approve and RANK.get(cap or "none", 0) < RANK["edit"]:
                 raise ValidationError(
                     "%s: the chosen roles do not allow approving or processing records."
                     % (line.module_name or line.module_code)

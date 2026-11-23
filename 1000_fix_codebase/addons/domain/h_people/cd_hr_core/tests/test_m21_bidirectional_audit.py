@@ -59,8 +59,13 @@ def test_an_unchanged_save_announces_no_move(w):
     before = len(_events(w.env, "employee.moved", emp.id))
     emp.write({"department_id": dept.id, "job_band": emp.job_band, "job_title": "Same"})
     assert len(_events(w.env, "employee.moved", emp.id)) == before
+    # X-F15: a department alone is context, not an access move — an actual
+    # mover field (job) announces one
     other = w.env["hr.department"].create({"name": "M21 Audit Dept 2"})
     emp.write({"department_id": other.id})
+    assert len(_events(w.env, "employee.moved", emp.id)) == before
+    job = w.env["hr.job"].create({"name": "M21 Audit Job"})
+    emp.write({"job_id": job.id})
     assert len(_events(w.env, "employee.moved", emp.id)) == before + 1
 
 

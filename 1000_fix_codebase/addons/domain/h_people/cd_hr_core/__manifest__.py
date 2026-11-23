@@ -11,7 +11,8 @@ master slice (cd_employee_core):
   basic salary (Monetary, AS-10); lifecycle with renewal escalation
 - fix.leave.type / fix.leave.request — statutory entitlements per the
   Bangladesh Labour Act 2006 (annual 20, sick 14, maternity 16 weeks,
-  festival 11) with earned-rate validation and encashment flag
+  festival 11; the 2026 amendment's 120 days / 13 days once the owner approves
+  them) with earned-rate validation and encashment flag
 - fix.org.position — reporting lines and position management
 - hr.employee extension — employee code + residency routing: the NID, birth
   registration and e-TIN go to the Bangladesh-resident store (Z4) through
@@ -20,7 +21,7 @@ master slice (cd_employee_core):
 - joiner/mover/leaver events (AS-08) verified to drive M29 provisioning at
   full scale (P08-M01-T06)
 """,
-    "version": "19.0.0.6.0",
+    "version": "19.0.0.7.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources",
@@ -58,6 +59,9 @@ master slice (cd_employee_core):
         "data/hr_ops_sequences.xml",
         "data/employment_contract_templates.xml",
         "data/identity_lifecycle_cron.xml",
+        # A09 ERP audit (stream B2): the Form 7 clock's daily cron and its
+        # upgrade-time recompute (M21-F22)
+        "data/fix_a09_erp_b2_data.xml",
         # M21 crons and the employee.left relay consumer (A09 C3/C5)
         "data/fix_a09_m21_data.xml",
         "views/fix_hr_core_views.xml",

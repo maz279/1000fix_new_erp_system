@@ -126,8 +126,10 @@ class FixBranch(models.Model):
                             "A branch's %s is structural: %s (with every record "
                             "rule and OU default that resolves through it) "
                             "cannot be moved by an edit. Raise a governed "
-                            "change (a new branch, or the M64 provisioning "
-                            "path) instead." % (rec._fields[name].string, rec.display_name)
+                            "change instead: a fix.org.change (effective-dated, "
+                            "two-person apply, applied by the daily cron) for "
+                            "the move, or a new branch with its own OU."
+                            % (rec._fields[name].string, rec.display_name)
                         )
         if vals.get("manager_id") == self.env.uid and not self._fix_guard_open():
             raise UserError(

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 ERP audit (2026-11-23), builder stream B2 - the Form 7 clock (M21-F22).
+
+     The overdue flag of the service-book clock is stored and depends on
+     today's date, which is not a field dependency: a due date that passed
+     overnight was flagged only when the employee was saved again. The daily
+     cron below re-derives it; a cron method without its ir.cron never runs,
+     and a deployment test asserts this wiring. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_m21_form7_clock" model="ir.cron">
+            <field name="name">M21: Form 7 service-book clock (flag entries past their due date)</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_form7_clock()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+
+    <!-- Every upgrade: re-derive the stored clock under the rules in force
+         (rows saved earlier carry the old joining-date-plus-15-days due date). -->
+    <function model="hr.employee" name="_fix_recompute_form7_clock"/>
+</odoo>

@@ -32,7 +32,7 @@ CD-M57-01 (P08-M04):
 - emits scorecard.published / incentive.granted / incentive.approved /
   recognition.awarded (P08-M04-T09)
 """,
-    "version": "19.0.0.5.0",
+    "version": "19.0.0.5.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Performance",

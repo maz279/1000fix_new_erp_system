@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  hr.employee.employee_code — the master's code sequence (A09 ERP audit, M58-F1).
+
+  A hire through M58 (candidate -> employee) dead-ended at onboarding completion:
+  the employee had no code and the completion gate refuses without one ("M29 keys
+  the identity on it").  The code is now minted at creation (hr_employee_ext.py,
+  _fix_next_employee_code) from this sequence.  A hand-typed code is still
+  honoured and is never overwritten; a code the sequence would repeat is skipped.
+
+  The prefix continues the shape of the real codes on production (2026-11-23
+  measurement, ids/patterns only): 427 of 504 carry `CS-####` with the highest at
+  4891, 75 carry `CC-###` with the highest at 527, one USL-2678 and one numeric
+  1000000.  The next CS number is therefore 4892; the sequence is used for new
+  hires only, so existing codes are untouched and the CC- prefix stays a
+  hand-typed choice where a branch uses it.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_hr_employee_code" model="ir.sequence">
+            <field name="name">Employee code (CS-####)</field>
+            <field name="code">hr.employee.code</field>
+            <field name="prefix">CS-</field>
+            <field name="padding">4</field>
+            <field name="number_next">4892</field>
+            <field name="number_increment">1</field>
+            <field name="implementation">standard</field>
+            <field name="company_id" eval="False" />
+        </record>
+    </data>
+</odoo>

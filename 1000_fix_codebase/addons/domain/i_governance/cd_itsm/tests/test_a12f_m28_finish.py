@@ -1288,10 +1288,16 @@ def test_a12f_m28_8_retention_purges_only_settled_events_past_it(c):
     old_done = emit(c, "f28.r")
     old_unrelayed = emit(c, "f28.r")
     old_dead = emit(c, "f28.r")
+    old_pending = emit(c, "f28.r")
     young = emit(c, "f28.r")
     other_type = emit(c, "f28.no_topic")
     now = fields.Datetime.now()
     (old_done | old_dead | young | other_type).write({"relayed_at": now})
+    # M28-D3: retention may only delete what the bus confirmed published —
+    # old_pending is settled in-process but still pending for the bus, so it
+    # must survive the cutoff.
+    old_pending.write({"relayed_at": now})
+    old_done.write({"status": "published"})
     consumer_row = (
         c.env["fix.event.consumer"]
         .sudo()
@@ -1310,13 +1316,16 @@ def test_a12f_m28_8_retention_purges_only_settled_events_past_it(c):
     c.env.flush_all()
     c.env.cr.execute(
         "UPDATE fix_event_outbox SET create_date = create_date - interval '30 days' WHERE id IN %s",
-        ((old_done | old_unrelayed | old_dead | other_type)._ids,),
+        ((old_done | old_unrelayed | old_dead | old_pending | other_type)._ids,),
     )
     c.env.invalidate_all()
     before = audits(c, "integration.events_purged")
     assert the_topic.cron_purge_retention() == 1
     assert not old_done.exists()
-    assert old_unrelayed.exists() and old_dead.exists() and young.exists()
+    assert (
+        old_unrelayed.exists() and old_dead.exists() and young.exists()
+    ), "unrelayed/dead/young survive"
+    assert old_pending.exists(), "M28-D3: a bus-pending event survives its retention cutoff"
     assert other_type.exists(), "a type with no topic was purged"
     assert audits(c, "integration.events_purged") == before + 1
     assert c.env.ref("cd_itsm.ir_cron_event_retention_purge").active

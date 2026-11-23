@@ -9,6 +9,8 @@
 #   * action_create_settlement_payment() turns a SETTLED exit into a DRAFT
 #     off-cycle payment of exactly that net, which then goes through its own
 #     routed approval, release, BEFTN file and GL entry.
+from datetime import timedelta
+
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
@@ -23,6 +25,41 @@ from .fix_payroll_statutory import (
 # A fixed-term contract the expiry cron moved to "expired" is what a
 # contract-end exit is settled on; it was refused before (M21 audit E7).
 RAN_STATES = ("active", "terminated", "expired", "superseded")
+
+# M56-F21: BLA 2006 s.30 and s.123(2) - every due is payable within 30
+# WORKING days of the termination (sourced statutory figure: Friday/Saturday
+# weekend, confirmed company holidays excluded).
+SETTLEMENT_DUE_WORKING_DAYS = 30
+
+
+def settlement_due_date(env, company, last_working_day):
+    """The statutory final-settlement due date: `last_working_day` plus 30
+    WORKING days. A working day is no Friday, no Saturday (the estate's
+    weekend) and no confirmed company holiday of `fix.hr.holiday`. False when
+    there is no last working day."""
+    if not last_working_day:
+        return False
+    day = fields.Date.to_date(last_working_day)
+    holidays = set()
+    Holiday = env.get("fix.hr.holiday")
+    if Holiday is not None:
+        holidays = {
+            fields.Date.to_date(h.date)
+            for h in Holiday.sudo().search(
+                [
+                    ("company_id", "=", company.id if company else False),
+                    ("date", ">", day),
+                    ("tentative", "=", False),
+                ]
+            )
+        }
+    left = SETTLEMENT_DUE_WORKING_DAYS
+    while left > 0:
+        day += timedelta(days=1)
+        if day.weekday() in (4, 5) or day in holidays:  # Friday, Saturday
+            continue
+        left -= 1
+    return day
 
 
 def separation_contract(env, employee, as_of, pinned=None):

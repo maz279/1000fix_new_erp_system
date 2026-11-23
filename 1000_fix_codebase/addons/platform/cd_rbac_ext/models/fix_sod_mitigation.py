@@ -77,7 +77,12 @@ class FixSodMitigation(models.Model):
 
     @api.depends("state", "valid_from", "valid_until")
     def _compute_is_live(self):
-        today = fields.Date.context_today(self)
+        # M29-D2: the Dhaka calendar, not the UTC date the sudo/cron env
+        # would give (the 884ddf8f bug class): between 00:00 and 06:00 Dhaka
+        # an exception whose window just ended was still waiving blocks.
+        from .fix_access_ops import local_today
+
+        today = local_today(self)
         for rec in self:
             rec.is_live = bool(
                 rec.state == "approved"
@@ -140,7 +145,11 @@ class FixSodMitigation(models.Model):
     @api.model
     def _fix_valid_for(self, control, user):
         """Approved exceptions covering `user` × `control` today."""
-        today = fields.Date.context_today(self)
+        # M29-D2: Dhaka-calendar window (this runs inside sudo grant paths
+        # where context_today would fall back to the UTC date).
+        from .fix_access_ops import local_today
+
+        today = local_today(self)
         return self.sudo().search(
             [
                 ("control_id", "=", control.id),

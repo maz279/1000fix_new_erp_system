@@ -369,9 +369,11 @@ export const SCREENS = {
       {
         tab: 'organization',
         title: 'System Permissions & Security Identity',
-        note: 'Keycloak Identity Provider UUID and automated deprovisioning status (KPI-090).',
+        note: 'Keycloak Identity Provider UUID and automated deprovisioning status (KPI-090). The IdP UUID is written by the identity service only (provisioned on joining, removed on leaving) — it is shown, never typed.',
         fields: [
-          { name: 'keycloak_id', label: 'Keycloak IdP UUID' },
+          // M21-F9: the unguarded duplicate `keycloak_id` is gone from the model;
+          // the IdP id lives in keycloak_user_id alone (set by the identity consumer)
+          { name: 'keycloak_user_id', label: 'Keycloak IdP UUID', readonly: true },
           { name: 'keycloak_deprovision_status', label: 'IdP Deprovision Status (KPI-090)', readonly: true }
         ]
       },
@@ -674,10 +676,9 @@ export const SCREENS = {
       {
         tab: 'signoff',
         title: 'M24 Governance & Legal Counsel Signoff',
-        note: 'Statutory density score (+52% Category H) and legal signoff control before activation.',
+        note: 'Legal counsel signoff control before activation. The former "statutory density score" was decorative metadata, not a business figure, and has been removed (A09 ERP audit M21-F11).',
         fields: [
-          { name: 'template_id', label: 'M24 Form 6 Contract Template' },
-          { name: 'statutory_density_score', label: 'Statutory Density Score (%)' },
+          { name: 'template_id', label: 'M24 Contract Template' },
           { name: 'legal_signoff_state', label: 'Legal Counsel Signoff State', readonly: true },
           { name: 'signed_by_legal_counsel', label: 'Approved Legal Counsel', readonly: true },
           { name: 'legal_signoff_on', label: 'Signed Off On', readonly: true },

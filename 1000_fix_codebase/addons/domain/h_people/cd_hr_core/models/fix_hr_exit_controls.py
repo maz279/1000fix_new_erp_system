@@ -325,6 +325,8 @@ class FixHrExitControls(models.Model):
                 )
             if tick == "clearance_assets":
                 rec._fix_refuse_outstanding_itsm_assets()
+                # X-F2: a leaver cannot clear while they still hold work.
+                rec._fix_refuse_open_work()
             rec._guarded().write({tick: True, "%s_by_id" % tick: self.env.uid})
         return True
 
@@ -356,6 +358,59 @@ class FixHrExitControls(models.Model):
                 % (employee.sudo().name, ", ".join(assets.mapped("asset_tag")))
             )
 
+    def _fix_refuse_open_work(self):
+        """X-F2 (exit-clearance side): a leaver cannot clear while they still
+        hold work — open work orders and field orders still assigned to them
+        (M02) and a booked vehicle assignment (M46). The models belong to
+        other areas and may be absent: each is read defensively, by name and
+        as sudo (the clearing officer has no register access). The consumers
+        that reassign or block those records when the leaver event fires live
+        in their own areas (a_service_delivery, e_supply_chain,
+        f_asset_facilities — A09 X-F2)."""
+        self.ensure_one()
+        employee = self.employee_id
+        problems = []
+        if "fix.work.order" in self.env:
+            wos = (
+                self.env["fix.work.order"]
+                .sudo()
+                .search(
+                    [
+                        ("technician_id", "=", employee.id),
+                        ("state", "in", ("pending", "assigned", "in_progress")),
+                    ]
+                )
+            )
+            if wos:
+                problems.append("open work order(s) %s" % ", ".join(wos.mapped("name")))
+        if "fix.field.order" in self.env:
+            fos = (
+                self.env["fix.field.order"]
+                .sudo()
+                .search(
+                    [
+                        ("technician_id", "=", employee.id),
+                        ("state", "not in", ("completed", "cancelled", "declined")),
+                    ]
+                )
+            )
+            if fos:
+                problems.append("open field order(s) %s" % ", ".join(fos.mapped("name")))
+        if "fix.vehicle.assignment" in self.env:
+            vas = (
+                self.env["fix.vehicle.assignment"]
+                .sudo()
+                .search([("technician_id", "=", employee.id), ("active", "=", True)])
+            )
+            if vas:
+                problems.append("vehicle booking(s) %s" % ", ".join(vas.mapped("name")))
+        if problems:
+            raise UserError(
+                "%s still holds work and cannot clear: %s. Reassign or release it first "
+                "(A09 X-F2: a leaver does not clear while holding work)."
+                % (employee.sudo().name, "; ".join(problems))
+            )
+
     def action_clear_it(self):
         return self._fix_tick("clearance_it")
 
@@ -377,6 +432,8 @@ class FixHrExitControls(models.Model):
                 raise UserError("Every clearance line must be ticked by its owner before clearing")
             # An asset allocated after the tick still blocks (BRU-ITS-13).
             rec._fix_refuse_outstanding_itsm_assets()
+            # Work assigned after the tick still blocks (X-F2).
+            rec._fix_refuse_open_work()
             rec.employee_id.sudo().write(
                 {"form7_last_event_date": rec.last_working_day or fields.Date.context_today(self)}
             )
