@@ -730,7 +730,9 @@ def test_an_employee_reads_only_their_own_published_payslip(w):
     assert [r["id"] for r in res["rows"]] == [mine.id], res
     # the Bengali payslip prints for the employee's own slip, never another's
     html = me["fix.payslip"].fix_my_payslip_html(mine.id)
-    assert "বেতন বিবরণী" in html and "M56 Karim" in html and KARIM_ACC in html
+    assert "বেতন বিবরণী" in html and "M56 Karim" in html
+    # M56-F13: the account prints masked to its last four digits, never in full
+    assert KARIM_ACC not in html and "•••• " + KARIM_ACC[-4:] in html
     with pytest.raises(AccessError, match="only your own"), w.env.cr.savepoint():
         me["fix.payslip"].fix_my_payslip_html(colleague.id)
     # payroll still reads every slip; publication stamps are not typed

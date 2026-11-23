@@ -66,6 +66,42 @@ def w(odoo_env):
             "company_id": co.id,
         }
     )
+    # M56-F8 prevalidation: approval refuses a run whose posting roles are not
+    # configured — the control attacks below approve real runs, so the fixture
+    # configures the journal and the account roles a run carries
+    journal = env["account.journal"].create(
+        {"name": "Payroll", "code": "P0P%d" % n, "type": "general", "company_id": co.id}
+    )
+
+    def _account(code, name, account_type):
+        return (
+            env["account.account"]
+            .with_company(co)
+            .create(
+                {
+                    "code": code,
+                    "name": name,
+                    "account_type": account_type,
+                    "company_ids": [Command.set([co.id])],
+                }
+            )
+        )
+
+    co.write(
+        {
+            "payroll_journal_id": journal.id,
+            "payroll_salary_expense_account_id": _account("6101", "Salaries", "expense").id,
+            "payroll_pf_expense_account_id": _account("6102", "Employer PF", "expense").id,
+            "payroll_net_payable_account_id": _account(
+                "2101", "Salaries Payable", "liability_current"
+            ).id,
+            "payroll_tax_payable_account_id": _account(
+                "2102", "TDS Payable", "liability_current"
+            ).id,
+            "payroll_pf_payable_account_id": _account("2103", "PF Payable", "liability_current").id,
+            "payroll_recovery_account_id": _account("1205", "Recovery", "asset_receivable").id,
+        }
+    )
     cenv = env(context=dict(env.context, allowed_company_ids=[co.id]))
 
     def user(login, *groups):
