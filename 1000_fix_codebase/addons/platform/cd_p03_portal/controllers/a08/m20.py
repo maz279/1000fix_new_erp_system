@@ -1075,6 +1075,28 @@ def revenue_leakage(env, **_params):
     ]
     rows += [
         {
+            "kind": "Subscription period not invoiced"
+            if r["stream"] == "subscription"
+            else "Contract period not invoiced",
+            "reference": "%s (%s to %s)" % (r["reference"], r["period_start"], r["period_end"]),
+            "customer": r["customer"] or "",
+            "age_days": r["age_days"],
+            "detail": "Candidate BDT %.2f. Escalation: %s" % (r["amount"], r["escalation"]),
+        }
+        for r in data.get("unbilled_periods") or []
+    ]
+    rows += [
+        {
+            "kind": "Warranty claim not invoiced",
+            "reference": r["claim"],
+            "customer": r["customer"] or "",
+            "age_days": r["age_days"],
+            "detail": "Approved recovery BDT %.2f. Escalation: %s" % (r["amount"], r["escalation"]),
+        }
+        for r in data.get("unbilled_claims") or []
+    ]
+    rows += [
+        {
             "kind": "Billing event %s" % (r["state"] or "").replace("_", " "),
             "reference": r["source"],
             "customer": "",
@@ -1096,10 +1118,13 @@ def revenue_leakage(env, **_params):
         rows,
         [
             "Service orders that were closed without an invoice, oldest first.",
+            "Due subscription and contract periods, and approved warranty claims, that no "
+            "invoice covers — every billable stream, not only service orders.",
             "Billing events that failed or were skipped; they stay listed until billed "
             "and never expire silently.",
         ],
-        empty="No leakage: every closed order is invoiced and no billing event failed.",
+        empty="No leakage: every closed order, period and claim is invoiced and no billing "
+        "event failed.",
     )
 
 

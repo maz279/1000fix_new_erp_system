@@ -1811,7 +1811,18 @@ def compute_customer_statement(env, customer_id, date_from: date, date_to: date)
 
 def compute_leakage(env, company_id=None) -> dict:
     """FR-ARB-043/044: delivered-but-unbilled work and aged billable events —
-    the two places revenue silently dies."""
+    the two places revenue silently dies. A08 M20-F4: the basis is every
+    billable stream, not only closed service orders — due subscription cycles,
+    due contract periods and approved-not-invoiced warranty claims are
+    reconciled on the same footing (FR-ARB-001/002)."""
+    # Local import: fix_billable_streams extends fix.billable.event, which is
+    # defined in this module, so it must load after this file.
+    from .fix_billable_streams import (
+        due_contract_periods,
+        due_subscription_periods,
+        recoverable_claims,
+    )
+
     Invoice = env["fix.ar.invoice"]
     domain = [("state", "=", "closed")]
     if company_id:
@@ -1846,6 +1857,65 @@ def compute_leakage(env, company_id=None) -> dict:
         )
     unbilled.sort(key=lambda r: -r["age_days"])
 
+    # A08 M20-F4: the other revenue streams' delivered-but-unbilled basis.
+    # The same candidate scans the queue intake uses, so a period or claim is
+    # either queued/invoiced or visible here — never silently absent.
+    unbilled_periods = []
+    for cand in due_subscription_periods(env) + due_contract_periods(env):
+        if company_id and cand["company"].id != company_id:
+            continue
+        marker = cand["period_start"]
+        age_days = (today - marker).days if marker else 0
+        unbilled_periods.append(
+            {
+                "stream": cand["source_type"],
+                "source_model": cand["source_model"],
+                "source_id": cand["source_id"],
+                "company_id": cand["company"].id,
+                "operating_unit_id": cand["operating_unit"].id or False,
+                "customer_id": cand["customer"].id or False,
+                "reference": cand["record"].display_name,
+                "customer": cand["customer"].name or "",
+                "period_start": str(cand["period_start"]),
+                "period_end": str(cand["period_end"] or ""),
+                "amount": cand["amount"],
+                "age_days": age_days,
+                "escalation": "60+ days"
+                if age_days > 60
+                else "30+ days"
+                if age_days > 30
+                else "recent",
+            }
+        )
+    unbilled_periods.sort(key=lambda r: -r["age_days"])
+
+    unbilled_claims = []
+    for cand in recoverable_claims(env):
+        if company_id and cand["company"].id != company_id:
+            continue
+        marker = cand["period_start"]
+        marker = marker.date() if isinstance(marker, datetime) else marker
+        age_days = (today - marker).days if marker else 0
+        unbilled_claims.append(
+            {
+                "claim_id": cand["source_id"],
+                "claim": cand["record"].claim_no,
+                "company_id": cand["company"].id,
+                "operating_unit_id": cand["operating_unit"].id or False,
+                "customer_id": cand["customer"].id or False,
+                "customer": cand["customer"].name or "",
+                "amount": cand["amount"],
+                "decided_on": str(marker or ""),
+                "age_days": age_days,
+                "escalation": "60+ days"
+                if age_days > 60
+                else "30+ days"
+                if age_days > 30
+                else "recent",
+            }
+        )
+    unbilled_claims.sort(key=lambda r: -r["age_days"])
+
     events_domain = [("state", "in", ["failed", "skipped"])]
     if company_id:
         events_domain.append(("company_id", "=", company_id))
@@ -1864,6 +1934,10 @@ def compute_leakage(env, company_id=None) -> dict:
     failed_events.sort(key=lambda r: -r["age_days"])
     return {
         "unbilled_closed_orders": unbilled,
+        "unbilled_periods": unbilled_periods,
+        "unbilled_claims": unbilled_claims,
         "failed_events": failed_events,
-        "basis": "closed service orders without an invoice + billable events failed/skipped (never silently expired)",
+        "basis": "closed service orders without an invoice + due subscription/contract "
+        "periods without an invoice + recoverable warranty claims not fully invoiced "
+        "+ billable events failed/skipped (never silently expired)",
     }

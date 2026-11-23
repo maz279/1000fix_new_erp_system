@@ -94,6 +94,7 @@ UNBILLED_SOURCES = [
     ("marketplace", "Marketplace / e-commerce order (M12/M38)"),
     ("subscription", "Subscription cycle (M39)"),
     ("managed_service", "Managed / data service (M05/M06)"),
+    ("warranty_claim", "Warranty claim (M09)"),
     ("other", "Other delivered work"),
 ]
 UNBILLED_RESOLUTIONS = [
@@ -2049,10 +2050,126 @@ class FixArUnbilledException(models.Model):
                 rec.message_post(body="Unbilled for %s days: escalated to %s." % (age, level))
 
     @api.model
+    def _fix_invoice_for_exception(self, rec):
+        """The invoice that bills this exception's source, across the
+        streams the reconciliation now covers (A08 M20-F4)."""
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        if rec.source_model == "fix.contract":
+            periods = (
+                self.env["fix.contract.billing.period"]
+                .sudo()
+                .search([("contract_id", "=", rec.source_id)])
+            )
+            if periods:
+                return Invoice.search(
+                    [
+                        ("source_model", "=", periods._name),
+                        ("source_id", "in", periods.ids),
+                        ("state", "!=", "cancelled"),
+                    ],
+                    limit=1,
+                )
+            return Invoice
+        if rec.source_model == "fix.subscription":
+            charges = (
+                self.env["fix.subscription.charge"]
+                .sudo()
+                .search([("subscription_id", "=", rec.source_id)])
+            )
+            if charges:
+                return Invoice.search(
+                    [
+                        ("source_model", "=", charges._name),
+                        ("source_id", "in", charges.ids),
+                        ("state", "!=", "cancelled"),
+                    ],
+                    limit=1,
+                )
+            return Invoice
+        if rec.source_model == "fix.warranty.claim":
+            claim = self.env["fix.warranty.claim"].sudo().browse(rec.source_id).exists()
+            if not claim:
+                return Invoice
+            invoices = self.env["fix.a04.claim.consumers"].sudo()._claim_invoices(claim)
+            return invoices[:1]
+        return Invoice.search(
+            [
+                ("source_model", "=", rec.source_model),
+                ("source_id", "=", rec.source_id),
+                ("state", "!=", "cancelled"),
+            ],
+            limit=1,
+        )
+
+    @api.model
+    def _fix_raise_stream_exceptions(self, data):
+        """Create the delivered-but-unbilled exceptions for the new streams:
+        one per contract / subscription / claim still unbilled (the unique
+        (source_model, source_id, company_id) key makes a re-run a no-op)."""
+        created = 0
+        for row in data.get("unbilled_periods") or []:
+            company = self.env["res.company"].browse(row["company_id"])
+            if self.sudo().search_count(
+                [
+                    ("source_model", "=", row["source_model"]),
+                    ("source_id", "=", row["source_id"]),
+                    ("company_id", "=", company.id),
+                ]
+            ):
+                continue
+            self.sudo()._guarded().create(
+                {
+                    "company_id": company.id,
+                    "operating_unit_id": row["operating_unit_id"],
+                    "source_module": "contract"
+                    if row["stream"] == "contract_period"
+                    else "subscription",
+                    "source_model": row["source_model"],
+                    "source_id": row["source_id"],
+                    "source_ref": "%s (%s to %s)"
+                    % (row["reference"], row["period_start"], row["period_end"]),
+                    "customer_id": row["customer_id"] or False,
+                    "delivered_at": fields.Date.to_date(row["period_start"]) or fields.Date.today(),
+                    "estimated_value": row["amount"],
+                    "detected_by": "reconciliation",
+                }
+            )
+            created += 1
+        for row in data.get("unbilled_claims") or []:
+            if not row["customer_id"]:
+                continue  # a brand with no billing partner: nothing to bill yet
+            company = self.env["res.company"].browse(row["company_id"])
+            if self.sudo().search_count(
+                [
+                    ("source_model", "=", "fix.warranty.claim"),
+                    ("source_id", "=", row["claim_id"]),
+                    ("company_id", "=", company.id),
+                ]
+            ):
+                continue
+            self.sudo()._guarded().create(
+                {
+                    "company_id": company.id,
+                    "operating_unit_id": row["operating_unit_id"],
+                    "source_module": "warranty_claim",
+                    "source_model": "fix.warranty.claim",
+                    "source_id": row["claim_id"],
+                    "source_ref": row["claim"],
+                    "customer_id": row["customer_id"],
+                    "delivered_at": fields.Date.to_date(row["decided_on"]) or fields.Date.today(),
+                    "estimated_value": row["amount"],
+                    "detected_by": "reconciliation",
+                }
+            )
+            created += 1
+        return created
+
+    @api.model
     def _cron_reconcile(self):
-        """AUT-ARB-17: closed service orders with no invoice become
-        exceptions; an exception whose source got invoiced resolves itself;
-        every open one ages and escalates."""
+        """AUT-ARB-17: delivered-but-unbilled work becomes an exception —
+        closed service orders, due subscription/contract periods and
+        recoverable claims (A08 M20-F4); an exception whose source got
+        invoiced resolves itself; every open one ages and escalates."""
         data = compute_leakage(self.env)
         Order = self.env["fix.service.order"].sudo()
         created = 0
@@ -2083,15 +2200,20 @@ class FixArUnbilledException(models.Model):
                 }
             )
             created += 1
-        Invoice = self.env["fix.ar.invoice"].sudo()
+        created += self._fix_raise_stream_exceptions(data)
+        # A contract/subscription/claim exception only resolves when the
+        # stream's own scan no longer calls it unbilled (a partly billed
+        # contract has an invoice but an unbilled period too).
+        still_unbilled = {
+            (row["source_model"], row["source_id"]) for row in (data.get("unbilled_periods") or [])
+        } | {("fix.warranty.claim", row["claim_id"]) for row in (data.get("unbilled_claims") or [])}
         auto = 0
         for rec in self.sudo().search(
             [("state", "!=", "resolved"), ("source_model", "!=", False), ("source_id", "!=", 0)]
         ):
-            hit = Invoice.search(
-                [("source_model", "=", rec.source_model), ("source_id", "=", rec.source_id)],
-                limit=1,
-            )
+            if (rec.source_model, rec.source_id) in still_unbilled:
+                continue
+            hit = self._fix_invoice_for_exception(rec)
             if hit:
                 rec._guarded().write(
                     {

@@ -13,6 +13,20 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A08 M20-F4 (CD-M20-04): the estate's other revenue streams. Due
+             subscription cycles and contract periods, and approved warranty
+             claims, become queue rows here; the row is the candidate, the
+             manual "Generate now" / process cron raises the invoice through
+             the source module's own path. -->
+        <record id="ir_cron_ar_event_intake_streams" model="ir.cron">
+            <field name="name">AR: billable-event intake (subscription, contract, claim streams)</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_intake_streams()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
         <record id="ir_cron_ar_event_process" model="ir.cron">
             <field name="name">AR: generate invoices for due billable events</field>
             <field name="model_id" ref="model_fix_billable_event"/>
