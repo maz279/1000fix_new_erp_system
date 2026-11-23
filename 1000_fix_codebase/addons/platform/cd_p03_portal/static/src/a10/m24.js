@@ -49,7 +49,7 @@ export const MODULE = {
       { id: 'M24-access-log', en: 'Access Log', bn: 'প্রবেশ লগ', t: 'g' }
     ]}
   ],
-  reports: ['Retention Compliance', 'Signature Status', 'Repository Growth', 'Access Audit Export'],
+  reports: ['Retention Compliance', 'Signature Status', 'Repository Growth', 'Document Governance Signals'],
   /* 13 Nov 2026 capture audit: every sub-module page captures its own record.
    * Before it, Auto-Filing and Retention & Holds offered "+ New Document" (an
    * upload), Versioning listed every document, the envelope form could add no
@@ -80,7 +80,7 @@ export const MODULE = {
     ['2', 'Auto-Filing', 6, { model: 'fix.document', cols: ['name', 'document_type', 'res_model', 'res_id', 'template_id'], screens: ['M24-generation', 'M24-browser'], reports: [], forms: ['Document Template'], create: 'M24-form-template', domain: [['res_model', '!=', false]] }],
     /* the class decides retention, tier and mandatory metadata; a capture that
      * cannot be classified waits in the exception queue (BRU-DMS-08) */
-    ['3', 'Classification & Search', 9, { model: 'fix.document.class', cols: ['code', 'name', 'document_type', 'isolation_tier', 'retention_class_id', 'state'], screens: ['M24-classes', 'M24-exceptions', 'M24-search', 'M24-browser'], reports: ['Access Audit Export'], forms: ['Document Class', 'Upload'], create: 'M24-form-class' }],
+    ['3', 'Classification & Search', 9, { model: 'fix.document.class', cols: ['code', 'name', 'document_type', 'isolation_tier', 'retention_class_id', 'state'], screens: ['M24-classes', 'M24-exceptions', 'M24-search', 'M24-browser'], reports: ['Document Governance Signals'], forms: ['Document Class', 'Upload'], create: 'M24-form-class' }],
     ['4', 'Versioning & Control', 7, { model: 'fix.document', cols: ['name', 'version', 'control_state', 'is_current', 'previous_version_id'], screens: ['M24-controlled', 'M24-distribution', 'M24-acks'], reports: [], forms: ['Controlled Document', 'Distribution'], create: 'M24-form-controlled', domain: [['is_controlled', '=', true]] }],
     ['5', 'E-Signature', 10, { model: 'fix.esignature.envelope', cols: ['name', 'document_id', 'state', 'completed_at', 'verification_result'], screens: ['M24-envelopes', 'M24-audit', 'M24-wet'], reports: ['Signature Status'], forms: ['Signature Envelope', 'Wet-Ink Signature'] }],
     /* a hold acts on an existing document or on a scope (Records Officer);
@@ -100,7 +100,9 @@ export const SCREENS = {
       { m: 'action_release_hold', l: 'Release Hold', asks: [{ label: 'Why is the hold released?', kwarg: 'reason' }] }
     ],
     empty: 'No document is filed yet. + New Document uploads one; transactions file theirs automatically.' },
-  'M24-search': { kind: 'table_report', module: 'M24', report: 'access_audit', title: 'Bilingual Full-Text + OCR', period: false },
+  'M24-search': { kind: 'model_list', model: 'fix.document',
+    cols: ['name', 'name_bn', 'document_type', 'isolation_tier', 'retention_expires', 'state'],
+    empty: 'No document matches. Full-text and OCR search are planned — this lists filed documents by name in English and Bengali.' },
   'M24-controlled': { kind: 'model_list', model: 'fix.document', domain: [['is_controlled', '=', true]],
     empty: 'No controlled document yet. + New Controlled Document starts a policy, procedure or form as a draft.',
     cols: ['name', 'version', 'control_state', 'is_current', 'document_type', 'approved_by_id', 'published_on'],
@@ -146,7 +148,7 @@ export const SCREENS = {
   'M24-rpt-retention': { kind: 'table_report', module: 'M24', report: 'retention_compliance', title: 'Retention Compliance', period: false },
   'M24-rpt-signature': { kind: 'table_report', module: 'M24', report: 'signature_status', title: 'Signature Status', period: false },
   'M24-rpt-growth': { kind: 'table_report', module: 'M24', report: 'repository_growth', title: 'Repository Growth', period: false },
-  'M24-rpt-audit': { kind: 'table_report', module: 'M24', report: 'access_audit', title: 'Access Audit Export', period: false },
+  'M24-rpt-audit': { kind: 'table_report', module: 'M24', report: 'access_audit', title: 'Document Governance Signals', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M24-form-document': {
@@ -689,7 +691,7 @@ export const REPORT_ROUTES = {
   'M24:Retention Compliance': 'M24-rpt-retention',
   'M24:Signature Status': 'M24-rpt-signature',
   'M24:Repository Growth': 'M24-rpt-growth',
-  'M24:Access Audit Export': 'M24-rpt-audit'
+  'M24:Document Governance Signals': 'M24-rpt-audit'
 };
 
 export const FORM_MODELS = {

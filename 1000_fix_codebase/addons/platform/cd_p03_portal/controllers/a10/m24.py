@@ -277,7 +277,7 @@ def access_audit(env, date_from=None, date_to=None, **params):
         )
     rows.sort(key=lambda r: r["document"])
     return _pack(
-        "Access Audit Export",
+        "Document Governance Signals",
         [
             "document",
             "type",
@@ -297,7 +297,11 @@ def access_audit(env, date_from=None, date_to=None, **params):
             "active": "Active",
         },
         rows,
-        ["An evidence export of the repository's governance signals for a given point in time."],
+        [
+            "The repository's governance signals for a given point in time: type, linkage, "
+            "isolation tier, retention and hold. External-release accesses are logged on the "
+            "Access Log screen; internal reads are not logged yet (planned)."
+        ],
         empty="No documents in the repository.",
     )
 
