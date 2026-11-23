@@ -95,3 +95,6 @@ access_fix_currency_rate_entry_account_manager,fix.currency.rate.entry.account.m
 access_fix_auditor_access_grant_account_readonly,fix.auditor.access.grant.account.readonly,model_fix_auditor_access_grant,account.group_account_readonly,1,0,0,0
 access_fix_auditor_access_grant_account_user,fix.auditor.access.grant.account.user,model_fix_auditor_access_grant,account.group_account_user,1,1,1,0
 access_fix_auditor_access_grant_account_manager,fix.auditor.access.grant.account.manager,model_fix_auditor_access_grant,account.group_account_manager,1,1,1,1
+access_fix_journal_chain_head_account_readonly,fix.journal.chain.head.account.readonly,model_fix_journal_chain_head,account.group_account_readonly,1,0,0,0
+access_fix_journal_chain_head_account_user,fix.journal.chain.head.account.user,model_fix_journal_chain_head,account.group_account_user,1,0,0,0
+access_fix_journal_chain_head_account_manager,fix.journal.chain.head.account.manager,model_fix_journal_chain_head,account.group_account_manager,1,0,0,0

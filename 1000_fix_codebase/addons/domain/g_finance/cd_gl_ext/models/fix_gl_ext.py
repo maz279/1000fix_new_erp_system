@@ -1010,6 +1010,18 @@ class FixPeriodClose(models.Model):
                     "period first (BRU-FIN-05, AUT-FIN-07)." % (close.period_end, "; ".join(bits))
                 )
 
+    def _fix_check_subledger_reconciled(self):
+        """FR-FIN-022 / BRU-FIN-20 (A08 M19-F10): every subledger must reconcile
+        to its control account before the period may hard-close. The proofs are
+        the engine's (fix_gl_recon): customer AR, vendor AP, VAT output and VAT
+        input. A variance names the account and the amount; a control account
+        that cannot be resolved fails closed and names the parameter to set
+        (the close never passes by skipping a reconciliation it could not run)."""
+        self.ensure_one()
+        from .fix_gl_recon import assert_subledgers_reconciled
+
+        assert_subledgers_reconciled(self.env, self.company_id, self.period_end)
+
     def action_ready(self):
         require_role(self.env, ACCOUNT_USER, "The close ready check")
         for close in self:
@@ -1025,6 +1037,7 @@ class FixPeriodClose(models.Model):
             close._fix_check_suspense_clear()
             close._fix_check_vat_return_reconciled()
             close._fix_check_no_pending_entries()
+            close._fix_check_subledger_reconciled()
             if close.suspense_closing:
                 raise UserError(
                     "Suspense account must be zero at close (AR-006 §5.4) — "
@@ -1088,6 +1101,9 @@ class FixPeriodClose(models.Model):
             # AUT-FIN-07: nothing may land between the ready check and the
             # close itself — a draft raised after ready still blocks (M19-F1).
             close._fix_check_no_pending_entries()
+            # FR-FIN-022 / BRU-FIN-20: the subledger proofs are re-run at close
+            # time too — a variance raised after `ready` still blocks.
+            close._fix_check_subledger_reconciled()
             lock = close._fix_set_company_lock()
             close._guarded().write(
                 {
