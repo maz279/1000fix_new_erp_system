@@ -12,11 +12,18 @@
             <field name="value">7</field>
         </record>
         <!-- BRU-TAO-14 / T-03: the retention period is "configurable" and no
-             repository source states it. 0 = no automatic erasure, which is
-             what the code did before this change. -->
+             repository source states it. OWNER DECISION 2026-11-23: 180 days
+             for an ordinary applicant, 365 for one who consented to the talent
+             pool (0 would mean no automatic erasure). The 19.0.0.7.0 migration
+             moves an existing 0 to these figures; the value is the business's
+             to change. -->
         <record id="param_candidate_retention_days" model="ir.config_parameter">
             <field name="key">cd_talent.candidate_retention_days</field>
-            <field name="value">0</field>
+            <field name="value">180</field>
+        </record>
+        <record id="param_talent_pool_retention_days" model="ir.config_parameter">
+            <field name="key">cd_talent.talent_pool_retention_days</field>
+            <field name="value">365</field>
         </record>
         <!-- BRU-TAO-17 / BLA 2006 s.2(63) and s.34: no child (under 14) is
              employed. Whether 1000FiX hires adolescents (14-18) at all is for
@@ -34,13 +41,14 @@
             <field name="value">0</field>
         </record>
         <!-- M58-F15: how many days an offer stays open for acceptance - the
-             default validity of a new offer. No repository source states the
-             figure (OWNER decision). 0 = no default: the validity date is
-             entered on each offer, and an offer without one cannot be issued
-             (an undated offer never lapsed and blocked the candidate). -->
+             default validity of a new offer. OWNER DECISION 2026-11-23:
+             14 days. 0 would mean no default (the date entered on each offer);
+             an offer without a date cannot be issued either way (an undated
+             offer never lapsed and blocked the candidate). The 19.0.0.7.0
+             migration moves an existing 0 to 14. -->
         <record id="param_offer_validity_days" model="ir.config_parameter">
             <field name="key">cd_talent.offer_validity_days</field>
-            <field name="value">0</field>
+            <field name="value">14</field>
         </record>
     </data>
 

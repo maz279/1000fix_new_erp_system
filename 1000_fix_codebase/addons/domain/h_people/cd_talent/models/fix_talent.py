@@ -897,10 +897,14 @@ class FixCandidate(models.Model):
             raise AccessError("Only Recruitment works a candidate with no requisition.")
         if not (reason or "").strip():
             raise UserError("State the outcome communicated to the candidate.")
-        days = _int_param(self.env, "cd_talent.candidate_retention_days", 0)
+        # M58-F3: the owner's figures (2026-11-23) - 180 days for an ordinary
+        # applicant, 365 for one who consented to the talent pool.
+        plain_days = _int_param(self.env, "cd_talent.candidate_retention_days", 0)
+        pool_days = _int_param(self.env, "cd_talent.talent_pool_retention_days", 0)
         for rec in self:
             if rec.state in ("hired", "rejected"):
                 raise UserError("%s is already %s." % (rec.name, rec.state))
+            days = pool_days if (pool_days and rec.talent_pool_consent) else plain_days
             vals = {
                 "state": "rejected",
                 "rejection_reason": reason.strip(),

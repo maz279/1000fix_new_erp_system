@@ -275,11 +275,17 @@ Today it does not.
 An offer above the salary band can be approved by the CFO (Tier 4), but a raise or promotion above
 the band is refused outright.
 *Recommendation:* allow it on the same CFO (Tier 4) approval (being built).
+*Decision (owner, 2026-11-23):* **build it.** Done: `fix.band.exception` — the CFO tier approves,
+from the M63 inbox, a named employee and grade up to a monthly gross; the band check honours it
+(M57-F18 closed).
 
 **D28 — Performance visibility.**
 Payroll and HR generalists can read every rating, review and 360-degree feedback.
 *Recommendation:* payroll sees published incentive amounts only; ratings and feedback are
 HR-only (being built).
+*Decision (owner, 2026-11-23):* **split now.** Done: payroll's groups read the incentive money
+records (runs, lines, adjustments, clawbacks, disputes, recognition awards) and no longer the
+scorecards, goals, reviews, PIPs or feedback (M57-F15 closed).
 
 ---
 
@@ -290,6 +296,10 @@ The retention period is 0, so rejected candidates' data (including national ID i
 moved to the protected store) is kept forever.
 *Recommendation:* 180 days after the decision, 365 days for candidates who consent to stay in the
 talent pool. Until a period is set the system will refuse to capture a candidate's national ID.
+*Decision (owner, 2026-11-23):* **180 days / 365 with talent-pool consent.** Set as
+`cd_talent.candidate_retention_days = 180` and `cd_talent.talent_pool_retention_days = 365`, with
+the 19.0.0.7.0 migration moving the old 0 (M58-F3 closed). Also decided the same day:
+`cd_talent.offer_validity_days = 14` — a new offer's default acceptance window (M58-F15).
 
 **D30 — Minimum hiring age.**
 14 — the legal floor for light work. Technician work involves electrical repair.

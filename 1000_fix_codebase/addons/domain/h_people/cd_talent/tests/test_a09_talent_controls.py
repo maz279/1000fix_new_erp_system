@@ -706,7 +706,12 @@ def test_expired_offers_expire_and_erasure_follows_the_retention_setting(x):
     gone = _candidate(x, req, nid_number="12345678901234567")
     gone.with_user(x.recruiter).action_reject(reason="Not selected")
     Cand = x.env["fix.candidate"]
-    assert not gone.retention_until  # 0 days: no automatic erasure (decision)
+    # M58-F3 (owner decision 2026-11-23): 180 days for an ordinary applicant,
+    # 365 for one who consented to the talent pool
+    assert gone.retention_until
+    pool = _candidate(x, req, talent_pool_consent=True)
+    pool.with_user(x.recruiter).action_reject(reason="Not selected, pool kept")
+    assert (pool.retention_until - gone.retention_until).days == 185
     x.env["ir.config_parameter"].sudo().set_param("cd_talent.candidate_retention_days", "30")
     late = _candidate(x, req)
     late.with_user(x.recruiter).action_reject(reason="Not selected")
