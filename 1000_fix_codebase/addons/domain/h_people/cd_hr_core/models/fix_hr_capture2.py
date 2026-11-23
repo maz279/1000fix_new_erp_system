@@ -886,14 +886,19 @@ class FixHrMasterChangePersonal(models.Model):
     proposed_private_email = fields.Char(string="Proposed Personal Email")
     proposed_emergency_contact = fields.Char(string="Proposed Emergency Contact")
     proposed_emergency_contact_relation = fields.Selection(
-        lambda self: self.env["hr.employee"]._fields["emergency_contact_relation"].selection,
+        # the source field's RESOLVED list: Odoo 19 keeps a selection that was
+        # extended (selection_add) as a callable, and returning `.selection`
+        # itself crashes fields_get (A09 deploy check, 23 Nov 2026)
+        lambda self: self.env["hr.employee"]
+        ._fields["emergency_contact_relation"]
+        ._description_selection(self.env),
         string="Proposed Emergency Contact Relation",
     )
     proposed_emergency_phone = fields.Char(string="Proposed Emergency Phone")
     proposed_emergency_phone_alt = fields.Char(string="Proposed Alternative Emergency Phone")
     proposed_emergency_contact_address = fields.Text(string="Proposed Emergency Contact Address")
     proposed_marital = fields.Selection(
-        lambda self: self.env["hr.employee"]._fields["marital"].selection,
+        lambda self: self.env["hr.employee"]._fields["marital"]._description_selection(self.env),
         string="Proposed Marital Status",
     )
     proposed_spouse_name = fields.Char(string="Proposed Spouse Name")

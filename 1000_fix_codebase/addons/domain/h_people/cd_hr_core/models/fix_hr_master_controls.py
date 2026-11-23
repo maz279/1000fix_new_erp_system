@@ -661,8 +661,16 @@ class FixHrMasterChange(models.Model):
     proposed_bank_branch_name = fields.Char()
     proposed_routing_number = fields.Char(string="Proposed BEFTN Routing")
     proposed_bank_account_number = fields.Char()
+    # Odoo 19 keeps a list selection as a CALLABLE on the field: returning
+    # `.selection` here handed back a function, and fields_get crashed
+    # (TypeError: 'function' object is not iterable) - the master-change form
+    # could not be opened at all (A09 deploy check, 23 Nov 2026). The resolved
+    # list is the field's own API and follows any selection_add on the master.
     proposed_mfs_provider = fields.Selection(
-        lambda self: self.env["hr.employee"]._fields["mfs_provider"].selection
+        lambda self: self.env["hr.employee"]
+        ._fields["mfs_provider"]
+        ._description_selection(self.env),
+        string="Proposed MFS Provider",
     )
     proposed_mfs_account_number = fields.Char()
     proposed_nid_number = fields.Char(string="Proposed NID")
