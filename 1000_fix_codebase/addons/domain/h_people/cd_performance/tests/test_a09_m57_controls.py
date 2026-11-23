@@ -301,7 +301,9 @@ def test_scorecard_is_computed_from_service_order_facts(w):
     # order 3 missed its SLA deadline.
     assert card.facts_orders == 4
     assert card.rework_rate == 0.25 and card.rework_30d_rate == 0.25
-    assert card.first_time_fix == 0.75
+    # M57-F5: the rework ORDER is not a first-time fix either — it leaves both
+    # sides of the ratio (2 of 3 non-rework orders), not 3 of 4
+    assert card.first_time_fix == 0.6667
     assert card.sla_hit == 0.75
     assert card.computed_by_id == w.officer
     card.with_user(w.officer).action_publish()
