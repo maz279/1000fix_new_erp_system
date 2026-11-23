@@ -133,8 +133,12 @@ credit); P03 workspace surfaces for every new register (`f3bd13c3`).
   content, multiple documents (PO / statement of account).
 - M52: approved-bill cancellation path, near-duplicate detection at entry, invoice-line coding
   dimensions.
-- M50: field-technician cash reconciliation (FR-TRE-017, spec P0 — in build), account-purpose
-  segregation per treasury role, manual instruction debit seat.
+- M50: the treasury CONTROLS over field cash — M02 already owns the per-technician-per-day
+  register (`fix.field.cash.recon`, FR-FSM-056; the audit's "entirely missing" was overstated and
+  is corrected in the register), so FR-TRE-017's missing pieces (receipts tie-out, tolerance and
+  escalation tiers, prior-day-variance block, shortfall booking) are being added as an EXTENSION
+  of that one register — plus account-purpose segregation per treasury role and the manual
+  instruction debit seat.
 - M19: year-end close console, purge of 163 stale demo FX rates, widening subledger
   reconciliation from 4 to 7 subledgers.
 - M51: tax determination record, Mushak 6.5 register, income-tax pack, import-tax record,
