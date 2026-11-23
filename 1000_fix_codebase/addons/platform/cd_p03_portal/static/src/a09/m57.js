@@ -45,13 +45,15 @@ export const MODULE = {
       { id: 'M57-comp-cycles', en: 'Compensation Review Cycles', bn: 'বেতন পর্যালোচনা চক্র', t: 'g' },
       { id: 'M57-comp', en: 'Salary Bands', bn: 'বেতন ব্যান্ড', t: 'g' },
       { id: 'M57-proposals', en: 'Compensation Proposals', bn: 'বেতন প্রস্তাব', t: 'g' },
+      { id: 'M57-band-exceptions', en: 'Above-Band Exceptions', bn: 'ব্যান্ডের ঊর্ধ্বে ব্যতিক্রম', t: 'g' },
       { id: 'M57-succession', en: 'Succession', bn: 'উত্তরসূরি', t: 'g' }
     ]}
   ],
   reports: ['Rating Distribution', 'Incentive Payout by Scheme', 'Technician Scorecards', 'Calibration Summary', 'PIP Outcomes'],
   forms: ['Goal', 'KPI Definition', 'Technician Scorecard', 'Review Cycle', 'Review', 'PIP',
     'Feedback Request', 'Calibration Session', 'Incentive Scheme', 'Scheme Version', 'Incentive Run',
-    'Incentive Adjustment', 'Recognition', 'Compensation Cycle', 'Salary Band', 'Succession Plan'],
+    'Incentive Adjustment', 'Recognition', 'Compensation Cycle', 'Salary Band', 'Succession Plan',
+    'Above-Band Exception'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M01 Service Orders', 'M54 Costing'],
   freg: { src: 58, sub: [
     ['1', 'Goals & KPIs', 11, { model: 'fix.performance.goal', cols: ['name', 'employee_id', 'period', 'target_value', 'actual_value'], screens: ['M57-goals', 'M57-kpi-defs', 'M57-kpis'], reports: ['Technician Scorecards'], forms: ['Goal', 'KPI Definition', 'Technician Scorecard'] }],
@@ -138,6 +140,10 @@ export const SCREENS = {
     actions: [{ m: 'action_calibration_review', l: 'Calibrate and Route to Compensation', ask: 'Calibration note (optionally start with an adjusted basic, e.g. 31000 aligned with peers)', kwarg: 'calibration' },
               { m: 'action_calibration_return', l: 'Return to Manager', ask: 'Why it is returned', kwarg: 'note' },
               { m: 'action_withdraw', l: 'Withdraw (proposer)' }] },
+  'M57-band-exceptions': { kind: 'model_list', model: 'fix.band.exception', stateField: 'state', create: true,
+    cols: ['name', 'employee_id', 'grade', 'approved_monthly_gross', 'contract_id', 'approval_state', 'state', 'approved_by_id', 'approved_on'],
+    actions: [{ m: 'action_request_approval', l: 'Request CFO-Tier Approval' },
+              { m: 'action_cancel', l: 'Withdraw', ask: 'Why it is withdrawn', kwarg: 'reason' }] },
   'M57-recognition': { kind: 'model_list', model: 'fix.performance.recognition', stateField: 'state',
     cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount', 'citation', 'approval_state', 'state'],
     actions: [{ m: 'action_award', l: 'Award (no prize)' }, { m: 'action_request_approval', l: 'Request Prize Approval' },
@@ -901,6 +907,48 @@ export const SCREENS = {
     ]
   },
 
+  'M57-form-band-exception': {
+    kind: 'model_form',
+    model: 'fix.band.exception',
+    title: 'Above-Band Salary Exception',
+    back: 'M57-band-exceptions',
+    create: true,
+    status: { field: 'state', labels: {
+      draft: 'Draft — awaiting the CFO tier', approved: 'Approved', cancelled: 'Withdrawn' } },
+    tabs: [
+      { id: 'exception', label: 'Exception', bn: 'ব্যতিক্রম', icon: '📈', badge: '5' },
+      { id: 'decision', label: 'Decision', bn: 'সিদ্ধান্ত', icon: '🖋️', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'exception',
+        title: 'What the CFO Tier Is Asked to Allow (decision D27)',
+        note: 'A monthly gross above the grade band is not a hard refusal: raise this once, with the reason, for the employee and grade; a contract or proposal up to this figure then passes the band check. The band itself is not changed.',
+        fields: [
+          { name: 'employee_id', label: 'Employee' },
+          { name: 'grade', label: 'Grade (the band it exceeds)' },
+          { name: 'approved_monthly_gross', label: 'Monthly Gross Allowed Up To (BDT)' },
+          { name: 'reason', label: 'Why it is above the band' },
+          { name: 'contract_id', label: 'Contract (optional)' },
+          { name: 'proposal_id', label: 'Compensation Proposal (optional)' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'The Routed Decision (M63 inbox)',
+        note: 'The CFO tier approves from the approval inbox; the requester, the creator and the employee never decide. An approved exception covers the employee and grade up to its figure until it is withdrawn or the amount changes.',
+        fields: [
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By (CFO tier)' },
+          { name: 'approved_on', readonly: true, label: 'Approved On' },
+          { name: 'cancel_reason', readonly: true, label: 'Withdrawal Reason' }
+        ]
+      }
+    ]
+  },
+
   'M57-form-proposal': {
     kind: 'model_form',
     model: 'fix.compensation.proposal',
@@ -1078,6 +1126,7 @@ export const FORM_CHIPS = {
     'fix.incentive.dispute': 'M57-form-dispute',
     'fix.incentive.clawback': 'M57-form-clawback',
     'fix.compensation.proposal': 'M57-form-proposal',
+    'fix.band.exception': 'M57-form-band-exception',
     'fix.kpi.definition': 'M57-form-kpi',
     'fix.performance.review.cycle': 'M57-form-review-cycle',
     'fix.performance.feedback': 'M57-form-feedback',

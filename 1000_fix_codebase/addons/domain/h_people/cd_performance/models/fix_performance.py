@@ -1679,17 +1679,24 @@ class FixCompensationBand(models.Model):
         )
 
     @api.model
-    def _fix_check_amount(self, grade, amount, company=None, what="The salary"):
+    def _fix_check_amount(self, grade, amount, company=None, what="The salary", exception=None):
         """I7: refuse `amount` outside the grade's band. No configured band
-        (none, or its ranges empty) means no check: the band is the rule."""
+        (none, or its ranges empty) means no check: the band is the rule.
+
+        M57-F18 / D27: an approved fix.band.exception for this employee and
+        grade (and up to its figure) lets the amount through - the CFO tier
+        decision the owner asked for."""
         band = self._fix_band_for(grade, company)
         if not band:
             return True
         lo, hi = band.range_min, band.range_max
         if not (lo <= (amount or 0.0) <= hi):
+            if exception and exception._fix_covers(amount, grade):
+                return True
             raise ValidationError(
                 "%s of %.2f is outside the %s band for grade %s (%.2f to %.2f). "
-                "A salary outside the band needs the band changed by the "
-                "Compensation Manager first." % (what, amount or 0.0, band.name, grade, lo, hi)
+                "A salary outside the band needs an approved above-band exception "
+                "(CFO tier) or the band changed by the Compensation Manager."
+                % (what, amount or 0.0, band.name, grade, lo, hi)
             )
         return True

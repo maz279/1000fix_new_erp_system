@@ -8,6 +8,17 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_band_exception_company" model="ir.rule">
+        <field name="name">fix.band.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_band_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_band_exception_operating_unit" model="ir.rule">
+        <field name="name">fix.band.exception: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_band_exception"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_compensation_band_company" model="ir.rule">
         <field name="name">fix.compensation.band: allowed companies</field>
         <field name="model_id" ref="model_fix_compensation_band"/>

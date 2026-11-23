@@ -22,5 +22,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_band_exception" model="ir.sequence">
+            <field name="name">Above-Band Salary Exception</field>
+            <field name="code">fix.band.exception</field>
+            <field name="prefix">BEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

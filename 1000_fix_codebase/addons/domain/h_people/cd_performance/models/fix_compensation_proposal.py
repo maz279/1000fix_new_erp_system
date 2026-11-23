@@ -179,16 +179,26 @@ class FixCompensationProposal(models.Model):
 
     # ---- checks ----------------------------------------------------------------------
     @api.model
-    def _fix_band_check(self, contract, basic):
+    def _fix_band_check(self, contract, basic, proposal=None):
         """I7 on the proposed figure: the contract's gross with the new basic
-        must sit inside the grade's band."""
+        must sit inside the grade's band - or inside an approved above-band
+        exception for this employee and grade (M57-F18 / D27)."""
         contract = contract.sudo()
         gross = contract._fix_contract_gross() - (contract.basic_monthly or 0.0) + basic
+        grade = contract._fix_contract_grade()
+        exception = (
+            self.env["fix.band.exception"]
+            .sudo()
+            ._fix_covering(
+                contract.employee_id, grade, gross, contract=contract, proposal=proposal or None
+            )
+        )
         self.env["fix.compensation.band"]._fix_check_amount(
-            contract._fix_contract_grade(),
+            grade,
             gross,
             company=contract.company_id,
             what="The proposed monthly gross",
+            exception=exception,
         )
 
     @api.model
@@ -317,7 +327,7 @@ class FixCompensationProposal(models.Model):
             if amount is not None:
                 if amount <= (rec.sudo().current_basic or 0.0):
                     raise UserError("A calibrated figure still raises the basic.")
-                self._fix_band_check(rec.contract_id, amount)
+                self._fix_band_check(rec.contract_id, amount, proposal=rec)
                 vals["proposed_basic"] = amount
             rec._guarded().write(vals)
             rec.activity_unlink(["mail.mail_activity_data_todo"])
@@ -375,7 +385,7 @@ class FixCompensationProposal(models.Model):
                     "The contract's basic changed since the proposal (%.2f, proposed against "
                     "%.2f); propose again." % (contract.basic_monthly, pinned.current_basic)
                 )
-            self._fix_band_check(contract, pinned.proposed_basic)
+            self._fix_band_check(contract, pinned.proposed_basic, proposal=pinned)
             # The approver is not necessarily an HR Officer: the routed
             # decision is the authority, so the version is opened as superuser.
             out = contract.sudo().action_new_version(effective_date=pinned.effective_date)

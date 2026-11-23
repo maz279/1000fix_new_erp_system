@@ -10,5 +10,6 @@ from . import (
     fix_incentive_adjustments,
     fix_compensation_proposal,
     fix_contract_band,
+    fix_band_exception,
     fix_m57_capture,
 )

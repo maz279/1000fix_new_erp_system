@@ -47,6 +47,16 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.band.exception": frozenset(
+        {
+            "approved_monthly_gross",
+            "contract_id",
+            "employee_id",
+            "grade",
+            "proposal_id",
+            "reason",
+        }
+    ),
     "fix.beftn.batch": frozenset(
         {
             "bank_confirmation_file",

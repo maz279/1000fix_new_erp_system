@@ -86,6 +86,13 @@ SURFACES = {
         "actions": {"action_calibration_review", "action_calibration_return", "action_withdraw"},
     },
     "fix.compensation.band": {"order": "grade", "limit": 100, "actions": set()},
+    # M57-F18 / D27: the CFO tier approves an above-band gross from the M63
+    # inbox; the workspace only raises, recalls or withdraws it.
+    "fix.band.exception": {
+        "order": "create_date desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+    },
     "fix.succession.plan": {"order": "position_name", "limit": 100, "actions": set()},
     # Capture audit 2026-11-17: the records the sub-module pages lacked.
     # FR-PIC-006 / BRU-PIC-04: versioned KPI definitions, approved by an HR

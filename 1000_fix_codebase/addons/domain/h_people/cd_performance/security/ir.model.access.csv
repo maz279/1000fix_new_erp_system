@@ -61,3 +61,7 @@ access_fix_perf_goal_officer,fix.performance.goal.officer,model_fix_performance_
 access_fix_perf_review_officer,fix.performance.review.officer,model_fix_performance_review,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_perf_pip_officer,fix.performance.pip.officer,model_fix_performance_pip,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_perf_feedback_officer,fix.performance.feedback.officer,model_fix_performance_feedback,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_band_exception_comp,fix.band.exception.compensation,model_fix_band_exception,cd_performance.group_compensation,1,1,1,0
+access_fix_band_exception_officer,fix.band.exception.officer,model_fix_band_exception,cd_performance.group_performance_officer,1,1,1,0
+access_fix_band_exception_hro,fix.band.exception.hr.officer,model_fix_band_exception,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_band_exception_cfo,fix.band.exception.cfo,model_fix_band_exception,cd_entity_config.group_dofa_tier_4,1,1,0,0

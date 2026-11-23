@@ -48,9 +48,16 @@ class FixEmploymentContractBand(models.Model):
             grade = rec._fix_contract_grade()
             if not grade:
                 continue
+            gross = rec._fix_contract_gross()
+            exception = (
+                self.env["fix.band.exception"]
+                .sudo()
+                ._fix_covering(rec.employee_id, grade, gross, contract=rec)
+            )
             Band._fix_check_amount(
                 grade,
-                rec._fix_contract_gross(),
+                gross,
                 company=rec.company_id,
                 what="The contract's monthly gross",
+                exception=exception,
             )
