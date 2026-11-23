@@ -278,11 +278,28 @@ operating-unit rules, no drift. **M21 UI-F12** — the identity read log pack st
 says "first N of TOTAL" with the number left out (it used to title itself "2000 reads" as though
 that were the whole log).
 
+**The owner's four decisions, taken 2026-11-23 and built the same day** (`10561b43`, `9a2dccda`,
+`1eba329d`; register D27, D28, D29 and M58-F15):
+- **M58-F3 — candidate retention: 180 days, 365 with talent-pool consent.** The parameters are set
+  (`cd_talent.candidate_retention_days = 180`, `cd_talent.talent_pool_retention_days = 365`, new) and
+  `action_reject` reads them, so a candidate's talent-pool consent now has an effect (it had none).
+  The 19.0.0.7.0 migration moves a database still carrying the old 0; a value the business set
+  itself is never touched.
+- **M58-F15 — offer validity: 14 days.** `cd_talent.offer_validity_days = 14`: a new offer defaults to
+  a two-week acceptance window; an undated offer still cannot be issued.
+- **M57-F15 / D28 — payroll reads the incentive money, not the ratings.** The "reads all" helper no
+  longer includes the payroll groups for scorecards, goals, reviews, PIPs and feedback; payroll keeps
+  the money records (lines, adjustments, clawbacks, disputes, recognition awards).
+- **M57-F18 / D27 — the CFO-tier above-band exception.** A new `fix.band.exception` (employee, grade,
+  monthly gross allowed up to, reason, optional contract/proposal link) is approved by the CFO tier
+  from the M63 inbox; the band check then lets that contract or proposal inside the figure pass,
+  while the band itself is unchanged. Its list and two-tab form are in the workspace (the sweep
+  found the new screen clean).
+
 What is still open (the builders were interrupted mid-stream twice by a shared usage cap; the
-remaining items are listed in §5): the Talent retention figure and hire reversal, the Talent domain
-events, the payroll arrears for a raise activated after the month was paid, HSE inspection
-scheduling/CAPA link, the M55 cost/liability packs and Form 10 document, and the bilingual
-letterheaded PDF documents.
+remaining items are listed in §5): the Talent hire reversal and domain events, the payroll arrears
+for a raise activated after the month was paid, HSE inspection scheduling/CAPA link, the M55
+cost/liability packs and Form 10 document, and the bilingual letterheaded PDF documents.
 
 ## 4. Deployment state
 
@@ -332,6 +349,19 @@ only when you approve (one switch), and the enacted tax tables are proposed pack
   whole log (fix_dev reads "20 reads", under the cap).
 - Production data unchanged by the upgrade: 504 employees, **0 candidates, 0 offers, 0 payslips**.
 
+**The owner's four decisions — deployed 2026-11-23 19:41.** Backups
+`fix_dev_pre_a09_20261123_1941.dump` (71,542,271 B) and `fix_real_pre_a09_20261123_1941.dump`
+(74,870,107 B); cd_talent, cd_performance, cd_gl_ext and cd_p03_portal upgraded on each database
+(**exit 0, 0 errors**); both listeners restarted and back; the 2026-Act switch still absent.
+Verified by SQL on both: the three figures are set (180 / 365 / 14), the `fix_band_exception` table
+and its sequence exist. The sweep after it: **46 report packs, 170 list screens, 146 form schemas and
+7 module homes per server — 0 issues, 0 console errors** (the new Above-Band Exceptions list and
+its two-tab form serve clean). Tests: cd_performance 134 passed (after the copy that ran before a
+test-data fix was re-run clean: the band-exception and review-privacy tests 2 passed, and the
+Talent retention / offer-validity / KPI tests 3 passed); cd_talent **133 passed** with the one
+earlier failure traced to a missing table from a concurrent session's un-upgraded model (the dunning
+handoff), clear after that module's upgrade.
+
 **Test evidence for wave 2** (`fix_test_a09_int`, the integrated database): cd_talent **133 passed**;
 cd_hse **97 passed**; cd_payroll_bd **176 passed**; cd_competency **139 passed**; cd_hr_core **327
 passed, 1 skipped**; the closing run of the identity-residency suite, the performance suite (with the new officer test), the M21 control
@@ -347,7 +377,8 @@ none in an A09 file.
 ## 5. Open items and what happens next
 
 Built and verified in wave 2 (§3/§4): M58-F4, F12, F13, F15, F17, F18, F20; M59-F10 and F11;
-M56-F19; M57-F2 and F14; M21 UI-F12; the isolation regeneration.
+M56-F19; M57-F2 and F14; M21 UI-F12; the isolation regeneration. Built on the owner's four
+decisions (same day, §3): M58-F3, the offer-validity figure, M57-F15 and M57-F18 (D27).
 
 **Open — code we owe:**
 
@@ -358,12 +389,9 @@ M56-F19; M57-F2 and F14; M21 UI-F12; the isolation regeneration.
 | M58-F6 | P2 | 9 of the 10 spec domain events are unpublished (`requisition.approved/blocked`, `candidate.applied`, `assessment.completed`, `offer.issued/accepted/declined`, `onboarding.started`, `readiness.incomplete`, `candidate.erased`, `probation.plan_created`); only `employee.joined` flows. | Publish through `libs/py/fix_events.publish` at the existing transitions; regenerate `contracts/events`. |
 | M59-F9 | P2 | Inspections have no schedule, no overdue and no link to a CAPA/incident ("Follow-up Required" is reachable, and the checks can be corrected and re-completed). | Add `scheduled_for` + an overdue cron, and a guarded "raise incident from inspection" that opens the incident whose CAPAs the findings need. |
 | M59-F7 / F8 | P2 | No drill schedule/overdue logic (s.62(8)); PPE is a counter, not M15 stock (no replenishment demand, no replacement interval). | Drill cadence by workforce size; PPE as a stock item with a reorder rule. |
-| M57-F15 | P2 | Payroll and HR generalists read every rating, review, PIP and 360 feedback (who said what). | Split the "reads all" rule: payroll groups see runs/lines/adjustments/clawbacks/disputes; reviews/PIPs/feedback stay HR + manager chain (+ calibrator/approver for what they decide). |
-| M57-F18 | P2 | No above-band exception for a raise or promotion (an out-of-band M58 offer can be approved, and its contract then fails at activation). | Owner decision D27, then a CFO-tier band exception that stamps the proposal/contract. |
 | M55-F10 | P2 | Overtime analysis reports hours only (no cost, no budget); leave balances have no projection; no leave-liability pack. | Price the overtime pack through the payroll engine's own `overtime_amount` (never a parallel formula) and add unused-days × daily-rate. |
 | M55-F19 | P3 | Form 10 (BLR r.102) is rows from a workspace action, not a formatted statutory document. | Render it through the report-export standard (PDF, letterhead). |
 | M55-F22 | P3 | A leave spanning out of a locked month is refused outright instead of being split; the maternity "six months' service" test awaits labour counsel. | Allow the future part of the span; align the maternity test once counsel rules. |
-| M58-F3 | — | Candidate retention period is 0 (no automatic erasure) and there is no separate talent-pool period. Recommendation: 180 days (365 with talent-pool consent). | **Owner decision**; the setting `cd_talent.candidate_retention_days` enforces it once set. |
 
 **Owner decisions:** `audit_analysis/A09_ERP_AUDIT_DECISIONS_2026-11-23.md` (40 items, each with a
 recommendation), of which the five that block go-live are D1 (contracts and master data), D2
