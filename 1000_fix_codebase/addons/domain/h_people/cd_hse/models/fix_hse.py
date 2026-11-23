@@ -1705,6 +1705,31 @@ class FixStatutoryAccidentRegister(models.Model):
             )
         return True
 
+    def action_notify_dol(self, notice_ref=None):
+        """Record the written notice to the Department of Labour office (BLA
+        s.80(1) as replaced by the 2026 Act s.22: the DIFE Inspector AND the
+        regional/divisional DoL office), by the notification authority. The
+        incident close gate requires both recipients."""
+        if not (self.env.su or self.env.user.has_group("cd_hse.group_statutory_notifier")):
+            raise AccessError(
+                "Only the Statutory Notification Authority notifies the Department of Labour."
+            )
+        if not (notice_ref or "").strip():
+            raise UserError("Enter the Department of Labour dispatch / acknowledgement reference.")
+        for rec in self:
+            if rec.dol_notified:
+                raise UserError(
+                    "The Department of Labour notice for %s is already recorded." % rec.name
+                )
+            rec._guarded().write(
+                {
+                    "dol_notified": True,
+                    "dol_notification_date": fields.Date.context_today(rec),
+                    "dol_ack_ref": notice_ref.strip(),
+                }
+            )
+        return True
+
     @api.model
     def cron_escalate_dife_notices(self):
         """The statutory clock escalates (BRU-HSE-04, AC-08): at T-1 working

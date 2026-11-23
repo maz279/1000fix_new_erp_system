@@ -721,6 +721,8 @@ export const SCREENS = {
           { name: 'instant_notice_required', label: 'Instant Notice Required (fatal / serious)', readonly: true },
           { name: 'instant_notice_complete', label: 'All Six Authorities Recorded', readonly: true },
           { name: 'dife_notified', label: 'Notified to DIFE Inspector', readonly: true },
+          { name: 'dol_notified', label: 'Department of Labour Office Notified', readonly: true },
+          { name: 'dol_ack_ref', label: 'DoL Acknowledgement Reference', readonly: true },
           { name: 'dife_notification_date', label: 'DIFE Notification Date', readonly: true },
           { name: 'dife_ack_ref', label: 'DIFE Acknowledgement Receipt No', readonly: true },
           { name: 'notice_due', label: 'DIFE Notice Deadline', readonly: true },
