@@ -147,6 +147,20 @@ credit); P03 workspace surfaces for every new register (`f3bd13c3`).
 - Settlement GL seats (M53) are configuration — item D13.
 **Owner-gated:** D1, D2, D3, D4, D6, D7, D8, D9, D10, D13 (see the decisions document).
 
+## 5b. Found by verification, after the audit (fixed)
+- **A production regression the suites could not see** (`7ceef1cc`): the wave-4 point-in-time
+  ageing ran its supplementary reads (payment-run lines, LC remittances) as the CALLER, so a
+  caller without that sub-model's rights — the workspace administrator was one — made the whole
+  ageing raise; the M52 Payables tile fell back to "—" and the AP Ageing screen would fail. The
+  module suites run as superuser and could not catch it; a post-merge check as the real user did.
+  Now sudo-read (dates and amounts only, for bills the caller may read), with a regression test;
+  verified live as `amber.biswas` (su=False): ৳130,043,343.04.
+- **An audit overstatement corrected**: A4 called FR-TRE-017 field-cash reconciliation "entirely
+  missing"; M02 already owns `fix.field.cash.recon` (per technician per day, unique, second-person
+  confirm). The genuinely missing pieces (receipts tie-out, tolerance/escalation, prior-day block,
+  shortfall) are being added as an EXTENSION of that single register — a second parallel register
+  would itself have been an ERP defect (double entry, two conflicting blocks).
+
 ## 6. Evidence index
 - `1000_fix_codebase/scratch/a08_drive/REGISTER.md` — every defect, its status, the commit.
 - `C:\Users\DELL\AppData\Local\Temp\a08erp\A1..A6\FINDINGS.md` — full auditor tables + probe logs.
