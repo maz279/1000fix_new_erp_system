@@ -39,11 +39,11 @@ carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
 clearing (gross), prepared by an accountant and settled by a different
 Accounting Administrator.
 
-A08 B13 (M50-F5, FR-TRE-017): fix.field.cash.reconciliation — one row per
-field technician per business day: the cash declared against the M20 field
-receipts, the two configured variance tiers, the shortage receivable booked
-through the rider-COD ledger pattern, and the BRU-TRE-04 block on a new day
-while a prior variance is open.
+A08 B13 (M50-F5, FR-TRE-017): the treasury controls on M02's existing
+fix.field.cash.recon register — the day's confirmed cash M20 receipts and
+quoted refs, the receipts variance against the two configured thresholds,
+the shortage receivable booked through the rider-COD ledger pattern, and the
+BRU-TRE-04 block while a prior day's variance is open.
 """,
     "version": "19.0.1.6.0",
     "license": "LGPL-3",
@@ -56,6 +56,10 @@ while a prior variance is open.
         "cd_entity_config",
         "cd_event_outbox",
         "cd_front_desk",
+        # A08 B13 (M50-F5): fix.field.cash.recon (FR-FSM-056) is the one
+        # per-technician per-day register; cd_field_service does not depend on
+        # cd_cash_position, so extending it here adds no cycle.
+        "cd_field_service",
         "cd_gl_ext",
         # cd_storefront: the COD settlement model carries a One2many to
         # fix.storefront.order (a load-time field), and through it this
@@ -65,11 +69,7 @@ while a prior variance is open.
     ],
     "data": [
         "security/fix_isolation_rules.xml",
-        # A08 B13 (M50-F5 / FR-TRE-017): the technician group loads before
-        # the ACLs that use it; the own-record rules load after them.
-        "security/fix_field_cash_groups.xml",
         "security/ir.model.access.csv",
-        "security/fix_field_cash_rules.xml",
         "data/ir_sequence_data.xml",
         # A04 report C7: consumers of the storefront refund and bond
         # encashment hand-offs.

@@ -8,7 +8,7 @@ from . import (
     cod_settlement,
     courier_remittance,
     facility,
-    field_cash_reconciliation,
+    fix_field_cash_recon_treasury,
     fix_a04_bond_consumer,
     fix_a04_storefront_consumer,
     fix_a05_settlement_consumer,

@@ -1,23 +1,23 @@
-"""A08 B13 — M50-F5 / FR-TRE-017: field technician cash reconciliation.
+"""A08 B13 rework — M50-F5 / FR-TRE-017 on M02's existing field-cash register.
 
-The audit found no per-technician, per-day reconciliation of the cash a field
-technician declares against the M20 receipts issued for that technician's
-field collections, and no block on further collection (BRU-TRE-04 covered
-riders only). The cases below are the control's acceptance tests:
+M02's ``fix.field.cash.recon`` (FR-FSM-056 / BRU-FSM-07) is the one
+per-technician per-day register. This suite exercises the treasury controls
+added to it from cd_cash_position:
 
-  (a) declared above receipts beyond tolerance -> variance_open, reason
-      mandatory;
-  (b) within tolerance -> verified/closed automatically;
-  (c) above the escalation threshold -> the shortage is booked as a
-      receivable against the technician (rider-COD ledger pattern) and can be
-      recovered;
-  (d) a prior-day open variance blocks the next declaration, naming
-      FR-TRE-017 / BRU-TRE-04;
-  (e) the technician cannot verify their own day (SOD-12) and a declared day
-      is evidence that cannot be deleted.
+  (a) counted above receipts beyond tolerance -> submitting needs a reason;
+  (b) within tolerance -> submit / confirm proceed and the state is clear;
+  (c) above the escalation threshold -> Dr rider_shortage / Cr branch_cash,
+      then action_clear_variance recovers it;
+  (d) a prior-day open variance blocks the next submit (FR-TRE-017 /
+      BRU-TRE-04);
+  (e) self-confirm is refused (the M02 BRU-FSM-07 rule);
+  (f) receipts_amount ties out to a real fix.ar.receipt plus quoted refs.
 
-Uses the A08 M50 fixture (``c``) and its service-order factory (``so``).
-``odoo_env`` rolls back after every test.
+M02 computes its own job figures in ``_fix_measure``; the tests patch it to
+return the counted amount as the job figure so the M02 variance is zero and
+the FR-TRE-017 receipts variance is the only one exercised. The register is
+created and submitted through its normal flow (dispatcher / technician), and
+confirmed by a finance manager.
 """
 
 # ruff: noqa: F811  (the fixtures are imported and used as parameters)
@@ -31,15 +31,41 @@ from .test_a08_m50_controls import _user, bal, c  # noqa: F401 - fixture
 
 pytestmark = [pytest.mark.financial]
 
-RECON = "fix.field.cash.reconciliation"
+RECON = "fix.field.cash.recon"
 TOLERANCE = "cd_cash_position.field_cash_tolerance"
 ESCALATE = "cd_cash_position.field_cash_escalate_above"
+DISPATCHER = "cd_field_service.group_fix_field_service_manager"
+
+
+@pytest.fixture
+def zero_job_variance(c, monkeypatch):
+    """M02's job figures return the counted amount as still outstanding, so
+    the M02 variance is zero; the receipts variance is what the test drives."""
+    Model = type(c.env[RECON])
+
+    def _measure(self):
+        return {
+            "order_count": 0,
+            "cash_collected": 0.0,
+            "cash_handed_over": 0.0,
+            "cash_outstanding": self.counted_amount or 0.0,
+            "order_refs": False,
+        }
+
+    monkeypatch.setattr(Model, "_fix_measure", _measure)
+    return _measure
 
 
 def _params(c, tolerance=10.0, escalation=1000.0):
     params = c.env["ir.config_parameter"].sudo()
     params.set_param(TOLERANCE, str(tolerance))
     params.set_param(ESCALATE, str(escalation))
+
+
+def _dispatcher(c):
+    if not hasattr(c, "b13_dispatcher"):
+        c.b13_dispatcher = _user(c.env, "b13_disp%s" % c.n, [DISPATCHER])
+    return c.b13_dispatcher
 
 
 def _technician(c, user=None):
@@ -49,23 +75,28 @@ def _technician(c, user=None):
         "company_id": c.company.id,
         "work_contact_id": partner.id,
     }
+    if "operating_unit_id" in c.env["hr.employee"]._fields:
+        vals["operating_unit_id"] = c.ou.id
     if user:
         vals["user_id"] = user.id
     return c.env["hr.employee"].create(vals)
 
 
-def _receipt(c, tech, amount, day=None):
-    """A confirmed M20 receipt for a field collection by ``tech``.
-
-    The receipt has no technician field: the field link is its
-    source_order_id -> fix.service.order.technician_id with settlement_source
-    field_collection, which is what the reconciliation reads. The receipt is
-    created already confirmed (the reconciliation reads confirmed receipts;
-    its GL posting is M20's own concern)."""
-    order = c.order()
-    order.sudo()._guarded().write(
-        {"technician_id": tech.id, "settlement_source": "field_collection"}
-    )
+def _receipt(c, tech, amount, day=None, linked=True):
+    """A confirmed cash M20 receipt. Linked: the field-collection link
+    source_order_id -> fix.service.order.technician_id with
+    settlement_source field_collection. Unlinked: a receipt the technician
+    must quote (no source order)."""
+    if linked:
+        order = c.order()
+        order.sudo()._guarded().write(
+            {"technician_id": tech.id, "settlement_source": "field_collection"}
+        )
+        source_order_id = order.id
+        customer = order.customer_id
+    else:
+        source_order_id = False
+        customer = c.customer
     return (
         c.env["fix.ar.receipt"]
         .sudo()
@@ -74,90 +105,117 @@ def _receipt(c, tech, amount, day=None):
                 "company_id": c.company.id,
                 "operating_unit_id": c.ou.id,
                 "branch_id": c.branch.id,
-                "customer_id": order.customer_id.id,
+                "customer_id": customer.id,
                 "amount": amount,
                 "method": "cash",
                 "receipt_date": day or c.today,
-                "reference": "B13/%s/%s" % (c.n, amount),
-                "source_order_id": order.id,
+                "reference": "B13/%s/%s/%s" % (c.n, amount, linked),
+                "source_order_id": source_order_id,
                 "state": "confirmed",
             }
         )
     )
 
 
-def _recon(c, tech, declared, day=None, user=None):
-    return (
-        c.env[RECON]
-        .with_user(user or c.acct)
-        .create(
-            {
-                "company_id": c.company.id,
-                "operating_unit_id": c.ou.id,
-                "branch_id": c.branch.id,
-                "technician_id": tech.id,
-                "reconciliation_date": day or c.today,
-                "declared_amount": declared,
-            }
-        )
+def _recon(
+    c,
+    tech,
+    counted,
+    day=None,
+    user=None,
+    reason=None,
+    quoted=None,
+    quoted_amount=0.0,
+    quoted_refs=None,
+):
+    vals = {
+        "employee_id": tech.id,
+        "recon_date": day or c.today,
+        "counted_amount": counted,
+    }
+    if reason:
+        vals["variance_reason"] = reason
+    if quoted:
+        vals["quoted_receipt_ids"] = [(6, 0, [receipt.id for receipt in quoted])]
+    if quoted_amount:
+        vals["quoted_receipt_amount"] = quoted_amount
+    if quoted_refs:
+        vals["quoted_receipt_refs"] = quoted_refs
+    return c.env[RECON].with_user(user or _dispatcher(c)).create(vals)
+
+
+def _submit(c, rec, user=None, reason=None):
+    user = user or _dispatcher(c)
+    if reason and not rec.variance_reason:
+        rec.with_user(user).write({"variance_reason": reason})
+    rec.with_user(user).action_submit()
+
+
+def _confirm(c, rec, user=None):
+    rec.with_user(user or c.mgr).action_confirm()
+
+
+def _clear(c, rec, user=None, reference="B13/CLEAR", method="none", journal_id=None):
+    rec.with_user(user or c.mgr2).action_clear_variance(
+        reference=reference, method=method, journal_id=journal_id
     )
 
 
 # ---------------------------------------------------------------- (a) reason
-def test_a_declared_above_receipts_beyond_tolerance_needs_a_reason(so):
+def test_a_above_tolerance_needs_a_reason(so, zero_job_variance):
     c = so
     _params(c, tolerance=10.0, escalation=1000.0)
     tech = _technician(c)
     _receipt(c, tech, 1000.0)
     rec = _recon(c, tech, 1200.0)
-    assert rec.receipts_preview_amount == 1000.0
-    assert rec.variance_preview == 200.0
+    assert rec.receipts_amount == 1000.0
+    assert rec.receipts_variance == 200.0
 
     with pytest.raises(UserError, match="FR-TRE-017"):
-        rec.action_declare()
+        _submit(c, rec)
     assert rec.state == "draft"
 
-    rec.action_declare(reason="Customer paid BDT 200 for a part not on the receipt")
-    assert rec.state == "variance_open"
-    assert rec.receipts_amount == 1000.0
-    assert rec.variance == 200.0
-    assert rec.variance_tier == "open"
-    assert rec.tolerance_amount == 10.0 and rec.escalation_amount == 1000.0
-    assert not rec.shortfall_move_id
-    assert rec.recovery_state == "none"
+    _submit(c, rec, reason="Customer paid BDT 200 for a part not on the receipt")
+    assert rec.state == "submitted"
+    assert rec.receipts_variance == 200.0
+    assert rec.variance_state == "open"
 
 
 # ---------------------------------------------------------------- (b) tolerance
-def test_b_within_tolerance_closes_automatically(so):
+def test_b_within_tolerance_confirms(so, zero_job_variance):
     c = so
     _params(c, tolerance=10.0, escalation=1000.0)
     tech = _technician(c)
     _receipt(c, tech, 1000.0)
     rec = _recon(c, tech, 1005.0)
 
-    rec.action_declare()
-    assert rec.state == "verified"
-    assert rec.auto_verified
-    assert rec.variance == 5.0 and rec.variance_tier == "none"
-    assert rec.verified_at and not rec.verified_by_id
+    _submit(c, rec)
+    assert rec.state == "submitted"
+    assert rec.receipts_variance == 5.0
+    assert rec.variance_state == "clear"
+
+    _confirm(c, rec)
+    assert rec.state == "confirmed"
+    assert rec.variance_state == "clear"
 
 
 # ---------------------------------------------------------------- (c) escalation
-def test_c_above_escalation_books_the_shortfall_and_recovers_it(so):
+def test_c_above_escalation_books_the_shortfall_and_recovers_it(so, zero_job_variance):
     c = so
     _params(c, tolerance=10.0, escalation=100.0)
     tech = _technician(c)
     _receipt(c, tech, 1000.0)
-    rec = _recon(c, tech, 400.0)
+    rec = _recon(c, tech, 400.0, reason="Cash bag lost between customer and branch")
 
-    rec.action_declare(reason="Cash bag lost between the customer and the branch")
-    assert rec.state == "variance_open"
-    assert rec.variance == -600.0 and rec.variance_tier == "escalated"
-    assert rec.recovery_state == "open" and rec.shortfall_amount == 600.0
+    _submit(c, rec)
+    assert rec.state == "submitted"
+    assert rec.receipts_variance == -600.0 and rec.variance_state == "open"
+
+    _confirm(c, rec)
+    assert rec.state == "confirmed"
+    assert rec.shortfall_amount == 600.0
     assert rec.shortfall_move_id.state == "posted"
-
-    # the shortage is a receivable against the technician, and the drawer cash
-    # the field receipts debited is relieved
+    assert rec.shortage_booked and rec.variance_state == "open"
     assert bal(c, c.acc["rider_shortage"]) == 600.0
     assert bal(c, c.acc["branch_cash"]) == -600.0
     short_line = rec.shortfall_move_id.line_ids.filtered(
@@ -166,111 +224,75 @@ def test_c_above_escalation_books_the_shortfall_and_recovers_it(so):
     assert short_line.partner_id == tech.work_contact_id
     assert short_line.debit == 600.0
 
-    # finance verifies, then a different finance admin clears it by repayment
-    rec.with_user(c.mgr).action_verify()
-    assert rec.verified_by_id == c.mgr
-    rec.with_user(c.mgr2).action_clear_variance(
-        reference="B13/PAY/1", method="cash", journal_id=c.bank.id
-    )
-    assert rec.state == "recovered" and rec.recovery_state == "recovered"
+    _clear(c, rec, user=c.mgr2, reference="B13/PAY/1", method="cash", journal_id=c.bank.id)
+    assert rec.variance_state == "recovered"
     assert rec.recovery_move_id.state == "posted"
     assert bal(c, c.acc["rider_shortage"]) == 0.0
     assert bal(c, c.bank_acc) == 600.0
 
 
 # ---------------------------------------------------------------- (d) block
-def test_d_prior_open_variance_blocks_the_next_declaration(so):
+def test_d_prior_open_variance_blocks_the_next_submit(so, zero_job_variance):
     c = so
     _params(c, tolerance=10.0, escalation=10000.0)
     tech = _technician(c)
     yesterday = c.today - timedelta(days=1)
 
     _receipt(c, tech, 1000.0, day=yesterday)
-    prior = _recon(c, tech, 500.0, day=yesterday)
-    prior.action_declare(reason="Under investigation with the branch cashier")
-    assert prior.state == "variance_open"
+    prior = _recon(c, tech, 500.0, day=yesterday, reason="Under investigation")
+    _submit(c, prior)
+    assert prior.state == "submitted" and prior.variance_state == "open"
 
     _receipt(c, tech, 500.0, day=c.today)
     today = _recon(c, tech, 500.0)
     with pytest.raises(UserError, match="FR-TRE-017") as err:
-        today.action_declare()
+        _submit(c, today)
     message = str(err.value)
     assert "BRU-TRE-04" in message
     assert prior.name in message
     assert today.state == "draft"
 
-    # the public block M02 / M20 asks before accepting another collection
     Recon = c.env[RECON]
     assert Recon._fix_technician_has_open_variance(tech, before_day=c.today)
     assert not Recon._fix_technician_has_open_variance(tech, before_day=yesterday)
 
 
-# ---------------------------------------------------------------- (e) SoD / evidence
-def test_e_self_verification_is_refused_and_evidence_cannot_be_deleted(so):
-    c = so
-    _params(c, tolerance=10.0, escalation=10000.0)
-    tech_user = _user(
-        c.env,
-        "b13_techmgr%s" % c.n,
-        ["account.group_account_manager", "cd_cash_position.group_field_cash_technician"],
-    )
-    tech = _technician(c, user=tech_user)
-    _receipt(c, tech, 1000.0)
-    rec = _recon(c, tech, 500.0, user=tech_user)
-    line = (
-        c.env["fix.field.cash.reconciliation.line"]
-        .with_user(tech_user)
-        .create(
-            {
-                "reconciliation_id": rec.id,
-                "reference": "QUOTED/1",
-                "amount": 100.0,
-                "note": "Paper receipt quoted by the technician",
-            }
-        )
-    )
-
-    rec.with_user(tech_user).action_declare(reason="Paper receipt not in M20")
-    assert rec.state == "variance_open"
-    assert rec.receipts_amount == 1100.0
-
-    # the technician also holds a finance role, but still cannot verify their
-    # own day
-    with pytest.raises(UserError, match="Segregation"):
-        rec.with_user(tech_user).action_verify()
-    rec.with_user(c.mgr).action_verify()
-    assert rec.verified_by_id == c.mgr
-
-    with pytest.raises(UserError, match="evidence"):
-        rec.with_user(c.mgr).unlink()
-    with pytest.raises(UserError, match="evidence"):
-        line.with_user(c.mgr).unlink()
-
-
-# ---------------------------------------------------------------- ACL / own
-def test_f_a_technician_sees_and_creates_only_their_own_day(so):
+# ---------------------------------------------------------------- (e) self-confirm
+def test_e_self_confirm_is_refused(so, zero_job_variance):
     c = so
     _params(c, tolerance=10.0, escalation=1000.0)
-    tech_user = _user(
-        c.env,
-        "b13_tech%s" % c.n,
-        ["cd_cash_position.group_field_cash_technician"],
-    )
+    tech_user = _user(c.env, "b13_tech%s" % c.n, [DISPATCHER])
     tech = _technician(c, user=tech_user)
+    _receipt(c, tech, 1000.0)
+    rec = _recon(c, tech, 1000.0, user=tech_user)
+
+    _submit(c, rec, user=tech_user)
+    with pytest.raises(AccessError, match="BRU-FSM-07"):
+        _confirm(c, rec, user=tech_user)
+    assert rec.state == "submitted"
+
+    _confirm(c, rec, user=c.mgr)
+    assert rec.state == "confirmed" and rec.confirmed_by_id == c.mgr
+
+
+# ---------------------------------------------------------------- (f) tie-out
+def test_f_receipts_tie_out_from_real_receipts(so, zero_job_variance):
+    c = so
+    _params(c, tolerance=10.0, escalation=1000.0)
+    tech = _technician(c)
+    _receipt(c, tech, 1000.0)
+    quoted = _receipt(c, tech, 250.0, linked=False)
+    rec = _recon(
+        c,
+        tech,
+        500.0,
+        quoted=[quoted],
+        quoted_amount=100.0,
+        quoted_refs="PAPER/1",
+    )
+    assert rec.receipts_amount == 1350.0
+    assert rec.receipts_variance == -850.0
+
     other = _technician(c)
-
-    own = _recon(c, tech, 100.0, user=tech_user)
-    foreign = _recon(c, other, 200.0, user=c.acct)
-
-    visible = c.env[RECON].with_user(tech_user).search([])
-    assert own in visible and foreign not in visible
-    with pytest.raises((AccessError, UserError)):
-        c.env[RECON].with_user(tech_user).create(
-            {
-                "company_id": c.company.id,
-                "operating_unit_id": c.ou.id,
-                "technician_id": other.id,
-                "reconciliation_date": c.today,
-                "declared_amount": 50.0,
-            }
-        )
+    _receipt(c, other, 999.0)
+    assert rec._fix_receipts_total() == 1350.0
