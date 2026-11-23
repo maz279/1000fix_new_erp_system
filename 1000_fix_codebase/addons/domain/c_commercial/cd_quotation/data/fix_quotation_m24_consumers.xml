@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 deep audit (2026-11-23, D-A10-4): the M24 envelope's completion accepts
+  the quotation it was sent for. The relay-only consumer verifies the
+  envelope's own evidence (every signer signed over the sealed bytes) before
+  the acceptance is recorded.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_a10_quote_envelope_completed" model="fix.event.consumer">
+            <field name="name">M36/A10: a completed M24 envelope accepts its quotation</field>
+            <field name="event_type">envelope.completed</field>
+            <field name="model">fix.a10.quotation.consumers</field>
+            <field name="method">consume_envelope_completed</field>
+            <field name="module">cd_quotation</field>
+        </record>
+    </data>
+</odoo>
