@@ -550,7 +550,7 @@ def fairness_summary(env, date_from=None, date_to=None, **params):
     versions = env["fix.ml.model.version"].search([])
     bias_labels = _labels(env, "fix.ml.model.version", "bias_status")
     state_labels = _labels(env, "fix.ml.model.version", "state")
-    counts = {"untested": 0, "passed": 0, "failed": 0}
+    counts = {"untested": 0, "passed": 0, "failed": 0, "not_evaluable": 0}
     rows = []
     for v in versions:
         counts[v.bias_status] = counts.get(v.bias_status, 0) + 1
@@ -566,8 +566,15 @@ def fairness_summary(env, date_from=None, date_to=None, **params):
         )
     totals = {
         "model": "Total",
-        "bias": "%s passed / %s failed / %s untested"
-        % (counts["passed"], counts["failed"], counts["untested"]),
+        # A11 audit D10: a model whose bias test could not be measured is counted
+        # in its own bucket, never folded into "passed" or "untested".
+        "bias": "%s passed / %s failed / %s untested / %s not evaluable"
+        % (
+            counts["passed"],
+            counts["failed"],
+            counts["untested"],
+            counts["not_evaluable"],
+        ),
         "failed_gates": sum(r["failed_gates"] for r in rows),
     }
     return _pack(

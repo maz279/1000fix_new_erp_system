@@ -89,7 +89,15 @@ class FixMlModelVersion(models.Model):
     # bias test (fix.ml.bias.test) - it used to be typed on the version by the
     # person who registered it.
     bias_status = fields.Selection(
-        [("untested", "Untested"), ("passed", "Passed"), ("failed", "Failed")],
+        [
+            ("untested", "Untested"),
+            ("passed", "Passed"),
+            ("failed", "Failed"),
+            # A11 audit D10: mirrors fix.ml.bias.test.assessment, which the bias
+            # test writes here. Without it a test that could not be measured had
+            # no honest value to land on.
+            ("not_evaluable", "Not evaluable - no scored ground truth yet"),
+        ],
         required=True,
         default="untested",
     )

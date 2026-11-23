@@ -271,7 +271,16 @@ class FixMlBiasTest(models.Model):
         string="Largest Disparity", digits=(6, 4), help="The widest gap measured between segments."
     )
     assessment = fields.Selection(
-        [("passed", "Passed - no material disparity"), ("failed", "Failed - material disparity")],
+        [
+            ("passed", "Passed - no material disparity"),
+            ("failed", "Failed - material disparity"),
+            # A11 audit D10 (2026-11-23): a people-affecting model with NO scored
+            # production decisions cannot be measured for disparity. Offering only
+            # pass/fail forced the recorder to assert a result nobody measured (or
+            # to stay silent, which read as "untested" forever). This state is the
+            # truth: the test was attempted, the ground truth does not exist yet.
+            ("not_evaluable", "Not evaluable - no scored ground truth yet"),
+        ],
         required=True,
     )
     notes = fields.Text()

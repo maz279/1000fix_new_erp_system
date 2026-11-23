@@ -15,7 +15,7 @@ content set (master data, AF-09-gated — loader lands with the content).
 Suspense reconciliation (AR-006 §5.4) is enforced at close: the W2 inventory
 suspense balance must be zero before a period can close.
 """,
-    "version": "19.0.2.7.0",
+    "version": "19.0.2.6.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Accounting",
@@ -29,9 +29,6 @@ suspense balance must be zero before a period can close.
         # A08 S2/P1-1: manual journals, period reopens and control-flag changes
         # are routed approvals (M63 engine, DOFA tiers).
         "cd_workflow_engine",
-        # A10 deep audit (2026-11-23, D-A10-2): a posted invoice files its
-        # governed document through the M24 kernel.
-        "cd_document_core",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
@@ -41,7 +38,6 @@ suspense balance must be zero before a period can close.
         "views/fix_gl_ext_views.xml",
         "views/fix_gl_engine_views.xml",
         "data/fix_gl_cron.xml",
-        "data/fix_gl_autofile_cron.xml",
     ],
     "installable": True,
     "application": False,

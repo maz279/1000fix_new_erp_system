@@ -3,9 +3,9 @@
 
 Validates contracts/nav/registry.json — the production navigation universe:
 
-  1. headline counts      12 areas · 12 portals · 67 modules · 280 groups ·
-                          877 screens · 350 reports · 322 forms · 600 sub
-                          triples · 5,104 functions · 10 journeys · 4 personas
+  1. headline counts      12 areas · 12 portals · 67 modules · 278 groups ·
+                          823 screens · 346 reports · 266 forms · 600 sub
+                          triples · 5,100 functions · 10 journeys · 4 personas
   2. function ledger      freg.src == sum(sub counts) for EVERY module
   3. screen integrity     no duplicate screen ids
   4. area integrity       no orphan area->module references; no module
@@ -35,12 +35,12 @@ EXPECT = {
     "areas": 12,
     "portals": 12,
     "modules": 67,
-    "groups": 280,
+    "groups": 278,
     # 2026-11-09 partner-ledger rollout: +4 M19 screens, +2 reports, +1 form
     # (+4 function tokens); M19 freg 'Journals' row 11 -> 15.
-    "screens": 877,
-    "reports": 350,
-    "forms": 322,
+    "screens": 827,
+    "reports": 348,
+    "forms": 267,
     "sub_triples": 600,
     "functions": 5104,
     "journeys": 10,
