@@ -584,6 +584,32 @@ def test_f5_b_a_take_on_item_settled_after_the_as_of_ages_at_its_residual(c):
     assert (row["d1_30"], _sum(row)) == (10000.0, 10000.0)
 
 
+def test_f5_e_the_payables_kpi_reads_for_a_finance_reader(c):
+    """Regression (e, production 2026-11-23): the ageing's supplementary reads
+    (payment-run lines, LC remittances) ran as the caller, so any caller
+    without one of those sub-models made the whole ageing raise and the M52
+    payables tile read "—". A FINANCE reader must always get a number; a caller
+    with no finance role correctly gets "—" (the tile's honest default)."""
+    from odoo.addons.cd_p03_portal.controllers.a08 import m52 as surf
+
+    bill(c, 10000.0)
+    reader_group = c.env.ref("account.group_account_readonly")
+    reader = c.env["res.users"].create(
+        {
+            "name": "A08 finance reader",
+            "login": "a08.finance.reader@example.com",
+            "company_id": c.company.id,
+            "company_ids": [(6, 0, [c.company.id])],
+            "group_ids": [(6, 0, [c.env.ref("base.group_user").id, reader_group.id])],
+        }
+    )
+    out = surf.kpis(c.env(user=reader.id, su=False))
+    # The contract this guards is the ACL class of failure: a finance reader
+    # must get a FIGURE (0.0 included, per their own record rules), never the
+    # "—" the tile shows for a caller who cannot read the ledger at all.
+    assert out["payables_open"] is not None, "a finance reader must get the payables figure"
+
+
 def test_f5_d_the_ageing_ties_to_the_payable_controls_at_every_step(c):
     """Regression (d): open bills, a credit note, a run in flight, the payment
     and the legacy take-on. At each step the ageing as of today moves exactly
