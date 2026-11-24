@@ -47,7 +47,9 @@
 # chatter), so an old stamp can never be reused; a ruled ladder is never deleted
 # or re-pointed; an amended ruling is a new version.
 import logging
+from xml.sax.saxutils import escape as xml_escape
 
+from markupsafe import Markup
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -565,6 +567,96 @@ class FixDofaLadder(models.Model):
                 "memo or approval, for example 'Board minute 2026-11'." % text
             )
 
+    def _display_target(self):
+        """The human model label, not the technical name in the subject line."""
+        self.ensure_one()
+        model = self.env["ir.model"].sudo().search([("model", "=", self.target_model)], limit=1)
+        return model.name if model else (self.target_model or "DOFA")
+
+    def _ruling_bands_html(self):
+        """The bands the ruling actually sets, as an email-safe table."""
+        self.ensure_one()
+        if not self.threshold_ids:
+            return '<p style="margin:12px 0">No bands are defined on this ladder.</p>'
+        bounds = self.threshold_ids.mapped("upper_bound")
+        labels = dict(DOFA_TIERS)
+        rows = []
+        for band in self.threshold_ids.sorted(lambda b: b.upper_bound):
+            ceiling = len(bounds) > 1 and band.upper_bound >= max(bounds)
+            bound = (
+                "Above every bound"
+                if ceiling
+                else "Up to %s" % format(band.upper_bound or 0.0, ",.0f")
+            )
+            rows.append(
+                "<tr>"
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                "</tr>"
+                % (
+                    bound,
+                    xml_escape(labels.get(band.tier, band.tier or "—")),
+                    xml_escape(band.note or ""),
+                )
+            )
+        return (
+            '<table style="border-collapse:collapse;width:100%%;font-size:13px;margin:12px 0">'
+            '<thead><tr style="background:#f3f5f8">'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Amount (BDT)</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Authority</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Note</th>'
+            "</tr></thead><tbody>%s</tbody></table>" % "".join(rows)
+        )
+
+    def _post_ruling_email(self, subject, intro_html, partner_ids=None):
+        """Post a branded, actionable ruling notification.
+
+        The stock message_post body rendered as one sentence with the technical
+        model name in the subject, no bands and no call to action — the Mailpit
+        inbox showed 78 of those for one countersigner. This keeps the chatter
+        post (the record of the act) and gives the email the facts the
+        countersigner needs: what is ruled, on what authority, against which
+        bands, and where to act.
+        """
+        self.ensure_one()
+        base = (self.env["ir.config_parameter"].sudo().get_param("web.base.url") or "").rstrip("/")
+        link = "%s/mail/view?model=fix.dofa.ladder&res_id=%s" % (base, self.id)
+        body = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+            'color:#1f2933;line-height:1.5;max-width:720px">'
+            '<p style="margin:0 0 4px;font-size:12px;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#5b6776">1000 FiX · DOFA authority</p>'
+            '<h2 style="margin:0 0 12px;font-size:19px">%s</h2>'
+            "%s"
+            "%s"
+            '<p style="margin:16px 0"><a href="%s" '
+            'style="display:inline-block;padding:10px 18px;background:#1f4e79;'
+            'color:#ffffff;text-decoration:none;border-radius:4px;font-weight:600">'
+            "Open the ladder</a></p>"
+            '<p style="margin:16px 0 0;font-size:12px;color:#5b6776">'
+            "Automated internal notification from the 1000 FiX ERP. The ladder record "
+            "holds the full band table and the ruling trail.</p>"
+            "</div>"
+            % (
+                xml_escape(self.name or "DOFA ladder"),
+                intro_html,
+                self._ruling_bands_html(),
+                xml_escape(link),
+            )
+        )
+        company = self.env.company
+        sender = "%s <%s>" % (company.name, company.email) if company.email else None
+        self.message_post(
+            # Safe: this is a static HTML template; every interpolated value
+            # (name, authority, model label, link, band text) is xml_escape'd.
+            body=Markup(body),
+            subject=subject,
+            email_from=sender,
+            partner_ids=partner_ids or [],
+            subtype_xmlid="mail.mt_comment",
+        )
+
     def action_propose_ruling(self, reference="", countersigned_by=None):
         """Step 1 of a ruling: a Tier 4 holder proposes it and names the Tier 5
         holder who must countersign. Nothing changes until they do."""
@@ -623,9 +715,24 @@ class FixDofaLadder(models.Model):
                     "countersigned_at": False,
                 }
             )
-            rec.message_post(
-                body="Ruling proposed by %s on authority '%s'. It is NOT in force "
-                "until %s countersigns." % (acting.name, reference.strip(), counter.name),
+            rec._post_ruling_email(
+                subject="Countersign required — %s DOFA ruling" % rec._display_target(),
+                intro_html=(
+                    '<p style="margin:0 0 10px">%s proposed a ruling on the '
+                    "<strong>%s</strong> basis (version %s) for <strong>%s</strong>.</p>"
+                    '<p style="margin:0 0 10px">Authority cited: <strong>%s</strong></p>'
+                    '<p style="margin:0 0 10px;padding:10px 12px;background:#fff4e5;'
+                    'border-left:4px solid #b26a00"><strong>This is not in force until '
+                    "%s countersigns.</strong></p>"
+                    % (
+                        xml_escape(acting.name or "A Tier 4 holder"),
+                        xml_escape(dict(rec._fields["basis"].selection)[rec.basis]),
+                        rec.version,
+                        xml_escape(rec._display_target()),
+                        xml_escape(reference.strip()),
+                        xml_escape(counter.name or "the named countersigner"),
+                    )
+                ),
                 partner_ids=counter.partner_id.ids,
             )
         return True
@@ -776,17 +883,23 @@ class FixDofaLadder(models.Model):
                     "superseded_by_id": False,
                 }
             )
-            rec.message_post(
-                body="DOFA ladder for %s put in force on the %s basis: proposed by %s, "
-                "countersigned by %s. Authority: %s. Superseded: %s."
-                % (
-                    rec.target_model,
-                    dict(rec._fields["basis"].selection)[rec.basis],
-                    (proposer or self.env.user).name,
-                    counter.name or "—",
-                    rec.ruling_reference,
-                    ", ".join(siblings.mapped("name")) or "none",
-                )
+            rec._post_ruling_email(
+                subject="DOFA ruling in force — %s" % rec._display_target(),
+                intro_html=(
+                    '<p style="margin:0 0 10px">The ladder is <strong>in force</strong> on the '
+                    "%s basis for <strong>%s</strong>.</p>"
+                    '<p style="margin:0 0 10px">Proposed by %s · countersigned by %s · '
+                    "authority <strong>%s</strong>.</p>"
+                    '<p style="margin:0 0 10px">Superseded: %s.</p>'
+                    % (
+                        xml_escape(dict(rec._fields["basis"].selection)[rec.basis]),
+                        xml_escape(rec._display_target()),
+                        xml_escape((proposer or self.env.user).name or "—"),
+                        xml_escape(counter.name or "—"),
+                        xml_escape(rec.ruling_reference or "—"),
+                        xml_escape(", ".join(siblings.mapped("name")) or "none"),
+                    )
+                ),
             )
             rec._recompute_target_tiers()
         return True
