@@ -171,6 +171,11 @@ def test_profile_is_the_callers_own(world):
         # A04 ERP audit M40-F5/F11: no rate until approved; onboarded in set-up
         "commission_rate": 0.0,
         "state": "onboarded",
+        # P12 rebuild (2026-11-24): the partner's OWN KYC standing and contact
+        # channels are part of the profile (not the referred party's record).
+        "kyc_verified": False,
+        "email": "",
+        "phone": "",
     }
     assert explicit_own["partner"]["id"] == world.rafi_profile.id
     for res in (foreign, junk, nobody):

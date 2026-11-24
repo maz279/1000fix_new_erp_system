@@ -8,7 +8,7 @@
 # commissioning ride the model's action methods (AS-09).
 
 from odoo import http
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
 from ..models.fix_partner import CONSENT_METHODS, EARNING_STATES
@@ -222,14 +222,13 @@ class PartnerApiController(http.Controller):
         for r in rows:
             if not r.commission_amount:
                 continue
-            name = typed.get(r.id)
-            if not name:
-                # A referral the company created without a portal lead: the
-                # party name is only readable if the portal user may see it.
-                try:
-                    name = r.referred_partner_id.name or ""
-                except AccessError:
-                    name = ""
+            # M40-F8: the party master's name is NEVER echoed. The rebuild's
+            # ACL-guarded fallback could not protect it - base portal ACLs let
+            # a portal user read every partner, so the guard never fired (the
+            # A04 regression test caught the leak on the clean fix_test,
+            # 2026-11-24). A company-created referral without a portal lead
+            # shows its reference only, exactly like referrals() above.
+            name = typed.get(r.id) or ""
             lines.append(
                 {
                     "referral": r.name,
