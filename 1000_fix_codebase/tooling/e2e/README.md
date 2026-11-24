@@ -9,12 +9,17 @@ Two generations of journeys live here:
   3002 analytics, 3003 seller, 3004 brand, 3005 agent console,
   3006 partner, 3007 vendor, 8090 Odoo (fix_dev).
 
-- **`j01`–`j15` — pre-rebuild.** They were authored against the previous
-  portal routes (`/booking`, `/estimates`, old port migration numbers
-  3010–3017) and Odoo 8069. The 2026-11-24 rebuild replaced those routes
-  with landing/login/dashboard surfaces, so these journeys fail at their
-  first step and must be re-authored against the current UI before they
-  can be used as UAT sign-off evidence. Do not report them as green.
+- **`j01` — re-authored (2026-11-25), GREEN on the UAT stack.** The customer
+  booking end-to-end journey (OTP → booking form → catalogue → device →
+  booking write → P03 dispatch/QC workspace → technician API → estimates).
+  The rebuild moved the auth boundary: sign-in comes FIRST (every record
+  surface is gated), and the pages render into the shell `body`, not a
+  `<main>` element. Run it with `E2E_UAT=1` (the dev Odoo currently lacks
+  `FIX_ENV=local`, so the OTP echo only works on the UAT stack).
+
+- **`j02`–`j15` — still pre-rebuild.** Same fixes apply (auth-first ordering,
+  `body` locators, `E2E_UAT=1`); they are NOT yet green and must not be
+  reported as sign-off evidence until re-authored and verified.
 
 Run the current smoke gate with:
 
