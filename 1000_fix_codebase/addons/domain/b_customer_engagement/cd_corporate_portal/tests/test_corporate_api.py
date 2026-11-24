@@ -103,9 +103,14 @@ def test_estate_reports_warranty_status(world):
         "Corp Laptop 14",
         "SN-COR…",
     )
-    assert covered["warranty_status"] == "active"
+    # fix.device.warranty_status is the computed, Dhaka-date-aware label
+    # (in_warranty / extended / out_of_warranty / unknown - A07 audit M17-5/28),
+    # the same vocabulary the rebuilt corporate estate page filters on. The
+    # warranty record's own "active" status and a "pending" device label were
+    # the pre-rebuild vocabulary.
+    assert covered["warranty_status"] == "in_warranty"
     assert covered["warranty_end"] == str(date.today() + timedelta(days=335))
-    assert (uncovered["warranty_status"], uncovered["warranty_end"]) == ("pending", None)
+    assert (uncovered["warranty_status"], uncovered["warranty_end"]) == ("unknown", None)
 
 
 def test_consolidated_invoices_are_vat_inclusive_gross_and_payable_net(world):
@@ -120,6 +125,10 @@ def test_consolidated_invoices_are_vat_inclusive_gross_and_payable_net(world):
             "source_id": 1,
             "invoice_date": date.today(),
             "loyalty_discount_amount": 50.0,
+            # Only customer-facing documents (issued / paid / credited) leave
+            # the back office - a default draft is internal and the endpoint
+            # correctly omits it, so the regression must issue its invoice.
+            "state": "issued",
         }
     )
     env["fix.ar.invoice.line"].create(

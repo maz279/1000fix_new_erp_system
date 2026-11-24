@@ -463,9 +463,13 @@ def test_customer_approves_or_rejects_a_sent_estimate(world):
     order = _order(world)
     small = _estimate(world, order, 1000.0)
     other = _estimate(world, order, 1000.0)
+    # Approving a version retires every other live version on the order
+    # (_fix_supersede_other_versions, A02 audit M01-F3: one approved price per
+    # order), so the reject must happen while `other` is still sent - the old
+    # approve-then-reject order asked the API to decide a superseded estimate.
     with _as(world, world.alice) as ctrl:
-        approved = ctrl.estimates(estimate_id=small.id, action="approve", approval_ref="OTP-77")
         rejected = ctrl.estimates(estimate_id=other.id, action="reject")
+        approved = ctrl.estimates(estimate_id=small.id, action="approve", approval_ref="OTP-77")
         again = ctrl.estimates(estimate_id=other.id, action="approve", approval_ref="OTP-78")
     assert approved["estimate"] == {
         "id": small.id,
