@@ -1,5 +1,6 @@
 /**
- * Contact Centre Console portal sign-in & session (Odoo session via the Kong gateway).
+ * Contact Centre Console portal sign-in & session (Odoo session via the
+ * same-origin /api/odoo bridge — Kong is no longer a client dependency).
  *
  * Same contract as the customer/corporate portals (security fix 2026-10-23):
  * - The browser authenticates against Odoo's /web/session/authenticate on
@@ -37,7 +38,7 @@ export class AuthError extends Error {
 /** Fired on window when a data call reports an expired/missing Odoo session. */
 export const SESSION_EXPIRED_EVENT = "fix:session-expired";
 
-const API_BASE = (process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const API_BASE = "/api/odoo";
 
 /**
  * sessionStorage keys purged on sign-in/out. `fix_token` is the fake bearer
