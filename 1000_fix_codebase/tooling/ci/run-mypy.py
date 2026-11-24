@@ -7,6 +7,9 @@ name"): services/ live in hyphenated folders and several of them own a
 top-level `src` package, so they cannot share one mypy run. This runner
 checks libs/ + addons/ in one run (configuration: pyproject [tool.mypy],
 strict) and then every service in its own run, rooted at the service folder.
+Addons migration scripts (version-dotted, unimportable dirs) are excluded from
+the bulk addons run and checked one file per run, so the duplicate-module
+start-up failure cannot block the gate and no script escapes it.
 
 Usage: python tooling/ci/run-mypy.py [--only libs|addons|services|<service>]
        (run with the locked mypy: `uv run python tooling/ci/run-mypy.py`)
@@ -53,13 +56,28 @@ def run(args: list[str], cwd: Path, label: str) -> int:
     return proc.returncode
 
 
+def migration_scripts() -> list[Path]:
+    """Odoo migration scripts live in version-dotted dirs (19.0.1.1.0) that can
+    never be Python packages, so 27 post-migrate.py / 12 pre-migrate.py files
+    all map to the same module name and a single mypy run dies at start-up
+    ("Duplicate module named post-migrate"). They are checked one file per run
+    instead - same strict config, nothing escapes the gate."""
+    return sorted(p for p in (ROOT / "addons").rglob("*.py") if "migrations" in p.parts)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     only = args[args.index("--only") + 1] if "--only" in args[:-1] else None
     results: list[int] = []
     for tree in ("libs", "addons"):
         if only in (None, tree):
-            results.append(run([tree], ROOT, tree))
+            if tree == "addons":
+                results.append(run(["--exclude", "/migrations/", "addons"], ROOT, tree))
+                for mig in migration_scripts():
+                    rel = mig.relative_to(ROOT).as_posix()
+                    results.append(run([rel], ROOT, f"addons-migration:{rel}"))
+            else:
+                results.append(run([tree], ROOT, tree))
     for service in sorted(p for p in (ROOT / "services").iterdir() if p.is_dir()):
         if only not in (None, "services", service.name):
             continue
