@@ -46,17 +46,21 @@ spec:
               valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
             - name: FIX_API_BASE
               valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_API_BASE } }
+            # Rebuilt portals call Odoo only through their same-origin
+            # /api/odoo bridge; this is the in-cluster service, not the
+            # public API host.
+            - { name: ODOO_INTERNAL_URL, value: "http://odoo:8069" }
             - name: CSP_CONNECT_SRC
               valueFrom: { configMapKeyRef: { name: fix-platform, key: CSP_CONNECT_SRC } }
             - { name: FRAME_ANCESTORS, value: "'self'" }
           ports:
             - { name: http, containerPort: 3000 }
           readinessProbe:
-            httpGet: { path: /, port: http }
+            httpGet: { path: /api/health, port: http }
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
-            httpGet: { path: /, port: http }
+            httpGet: { path: /api/health, port: http }
             initialDelaySeconds: 15
             periodSeconds: 30
             timeoutSeconds: 5

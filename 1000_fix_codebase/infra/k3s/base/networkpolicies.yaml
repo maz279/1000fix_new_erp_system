@@ -236,8 +236,9 @@ spec:
             except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
       ports: [{ protocol: TCP, port: 443 }]
 ---
-# Portals call the PUBLIC API host server-side (FIX_API_BASE / the baked
-# NEXT_PUBLIC_FIX_API_BASE), i.e. back through the load balancer.
+# Portals reach Odoo through the in-cluster service (the same-origin
+# /api/odoo bridge reads ODOO_INTERNAL_URL), and external HTTPS for the
+# services that do not have an in-cluster path.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -247,6 +248,10 @@ spec:
     matchLabels: { app.kubernetes.io/component: portal }
   policyTypes: [Egress]
   egress:
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: odoo }
+      ports: [{ protocol: TCP, port: 8069 }]
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
