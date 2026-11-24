@@ -2,15 +2,15 @@
 import { Page, expect } from "@playwright/test";
 
 export const PORTALS = {
-  customer: "http://127.0.0.1:3010",
+  customer: "http://127.0.0.1:3000",
   corporate: "http://127.0.0.1:3001",
-  analytics: "http://127.0.0.1:3012",
-  seller: "http://127.0.0.1:3013",
-  brand: "http://127.0.0.1:3014",
-  agentConsole: "http://127.0.0.1:3015",
-  partner: "http://127.0.0.1:3016",
-  vendor: "http://127.0.0.1:3017",
-  odoo: "http://127.0.0.1:8069",
+  analytics: "http://127.0.0.1:3002",
+  seller: "http://127.0.0.1:3003",
+  brand: "http://127.0.0.1:3004",
+  agentConsole: "http://127.0.0.1:3005",
+  partner: "http://127.0.0.1:3006",
+  vendor: "http://127.0.0.1:3007",
+  odoo: "http://127.0.0.1:8090",
 };
 
 /** JSON-RPC call in the page's own origin (session cookies ride along). */
