@@ -77,14 +77,12 @@ class FixQuotationM24Esign(models.Model):
                 )
             if rec.esign_envelope_id:
                 raise UserError(
-                    "Quotation %s already has envelope %s."
-                    % (rec.name, rec.esign_envelope_id.name)
+                    "Quotation %s already has envelope %s." % (rec.name, rec.esign_envelope_id.name)
                 )
             partner = rec.customer_id
             if not partner or not (partner.email or partner.phone):
                 raise UserError(
-                    "The customer of %s has no email or phone for the signing request."
-                    % rec.name
+                    "The customer of %s has no email or phone for the signing request." % rec.name
                 )
             if not rec.operating_unit_id:
                 raise UserError("Set the operating unit on %s first." % rec.name)
@@ -114,9 +112,7 @@ class FixQuotationM24Esign(models.Model):
                 )
             )
             envelope.action_send()
-            rec._guarded().write(
-                {"esign_state": "sent", "esign_envelope_id": envelope.id}
-            )
+            rec._guarded().write({"esign_state": "sent", "esign_envelope_id": envelope.id})
             rec.message_post(
                 body="Signature requested through M24 envelope %s (document %s, evidence %s)."
                 % (envelope.name, document.name, envelope.evidence_hash[:12])
@@ -141,9 +137,7 @@ class FixA10QuotationConsumers(models.AbstractModel):
         envelope = self.env["fix.esignature.envelope"].browse(event.get("aggregate_id") or 0)
         if not envelope.exists():
             return envelope, self.env["fix.quotation"]
-        quote = self.env["fix.quotation"].search(
-            [("esign_envelope_id", "=", envelope.id)], limit=1
-        )
+        quote = self.env["fix.quotation"].search([("esign_envelope_id", "=", envelope.id)], limit=1)
         return envelope, quote
 
     def consume_envelope_completed(self, event: dict) -> dict:

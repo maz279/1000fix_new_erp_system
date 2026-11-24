@@ -63,9 +63,7 @@ class AccountMoveAutoFile(models.Model):
             return False
         payload, kind = self._fix_render_invoice_bytes()
         retention = (
-            self.env["fix.retention.class"]
-            .sudo()
-            .search([("code", "=", RETENTION_CODE)], limit=1)
+            self.env["fix.retention.class"].sudo().search([("code", "=", RETENTION_CODE)], limit=1)
         )
         partner = self.partner_id.display_name or ""
         name = "%s — %s.%s" % (self.name, partner, kind)

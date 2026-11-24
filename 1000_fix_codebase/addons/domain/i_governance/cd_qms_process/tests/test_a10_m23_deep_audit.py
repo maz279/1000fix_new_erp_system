@@ -161,9 +161,7 @@ def test_a_failed_completion_raises_its_major_ncr(odoo_env, so):
     # idempotence guard inside action_fail_with_ncr keeps the same NCR
     with pytest.raises(UserError, match="already failed"):
         checklist.action_complete()
-    assert env["fix.ncr"].search_count(
-        [("order_id", "=", so.id), ("source", "=", "qc")]
-    ) == 1
+    assert env["fix.ncr"].search_count([("order_id", "=", so.id), ("source", "=", "qc")]) == 1
 
 
 # --------------------------------------------- A1-F03: the certification clock
@@ -189,7 +187,9 @@ def test_the_certification_surveillance_clock_notifies_once_per_band(odoo_env):
     env["fix.qms.certification"].cron_certification_surveillance()
     cert.invalidate_recordset()
     assert cert.surveillance_band_notified == "30"
-    told_again = len(cert.message_ids.filtered(lambda m: "30-day surveillance window" in (m.body or "")))
+    told_again = len(
+        cert.message_ids.filtered(lambda m: "30-day surveillance window" in (m.body or ""))
+    )
     assert told_again == 1
     # a lapsed certificate graduates to the overdue band — told again
     cert._guarded().write({"valid_until": today - timedelta(days=1)})

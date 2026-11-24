@@ -19,7 +19,9 @@ def test_budget_no_m49_relation():
 
 
 def test_allocation_total_is_direct_plus_allocated(odoo_env):
-    rec = odoo_env["fix.cost.allocation"]._guarded().create(
-        {"name": "t", "direct_cost": 1000.0, "allocated_overhead": 250.0}
+    rec = (
+        odoo_env["fix.cost.allocation"]
+        ._guarded()
+        .create({"name": "t", "direct_cost": 1000.0, "allocated_overhead": 250.0})
     )
     assert rec.total_cost == 1250.0

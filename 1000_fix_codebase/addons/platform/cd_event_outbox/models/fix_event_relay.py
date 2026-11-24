@@ -341,9 +341,7 @@ class FixEventOutbox(models.Model):
         health = self.relay_health()
         lagging = health["oldest_unrelayed_minutes"] > limit
         bus_hours = float(
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("fix_event_outbox.bus_alert_hours", 24)
+            self.env["ir.config_parameter"].sudo().get_param("fix_event_outbox.bus_alert_hours", 24)
         )
         bus_stuck = health["oldest_bus_pending_hours"] > bus_hours
         if lagging or health["dead_letters"] or bus_stuck:

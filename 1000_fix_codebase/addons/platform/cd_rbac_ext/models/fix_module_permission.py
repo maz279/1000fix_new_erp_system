@@ -155,7 +155,7 @@ class FixJmlPermissionLine(models.Model):
                 cap = (allowed.get(self.module_code) or (None, None))[0]
                 if cap:
                     return cap
-            except Exception:  # derivation is display-grade; the column stands
+            except Exception:  # noqa: S110 - derivation is display-grade; the column stands
                 pass
         return self.allowed_level
 

@@ -78,7 +78,14 @@ class FixBoardPack(models.Model):
     @staticmethod
     def _fingerprint(lines) -> str:
         payload = [
-            [ln.sequence, ln.section, ln.metric, round(ln.amount or 0.0, 2), bool(ln.has_amount), ln.detail or ""]
+            [
+                ln.sequence,
+                ln.section,
+                ln.metric,
+                round(ln.amount or 0.0, 2),
+                bool(ln.has_amount),
+                ln.detail or "",
+            ]
             for ln in lines.sorted("sequence")
         ]
         return hashlib.sha256(json.dumps(payload).encode("utf-8")).hexdigest()
@@ -88,7 +95,9 @@ class FixBoardPack(models.Model):
             self.env.user.has_group("account.group_account_user")
             or self.env.user.has_group("account.group_account_manager")
         ):
-            raise AccessError("Assembling a board pack needs the Accountant or Finance Manager role")
+            raise AccessError(
+                "Assembling a board pack needs the Accountant or Finance Manager role"
+            )
         engine = self.env["fix.fpa.engine"]
         for pack in self:
             if pack.state == "issued":
@@ -188,7 +197,16 @@ class FixBoardPackLine(models.Model):
     has_amount = fields.Boolean()
     detail = fields.Char()
 
-    _FIGURE_FIELDS = {"pack_id", "sequence", "section", "metric", "amount", "has_amount", "detail", "currency_id"}
+    _FIGURE_FIELDS = {
+        "pack_id",
+        "sequence",
+        "section",
+        "metric",
+        "amount",
+        "has_amount",
+        "detail",
+        "currency_id",
+    }
 
     def _assembling(self) -> bool:
         return self.env.context.get(_LINE_KEY) is _LINE_TOKEN

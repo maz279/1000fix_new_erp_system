@@ -230,14 +230,18 @@ def apply_fragment_overlay(modules: list[dict]) -> list[dict]:
     (fragment newer than the export) fails the run rather than shipping a
     registry that hides shipped screens."""
     if not FRAGMENTS.exists():
-        print("generate-nav-registry: contracts/nav/fragments.json missing "
-              "(run tooling/generators/export-fragment-nav.mjs)")
+        print(
+            "generate-nav-registry: contracts/nav/fragments.json missing "
+            "(run tooling/generators/export-fragment-nav.mjs)"
+        )
         return modules
     exported_at = FRAGMENTS.stat().st_mtime
     for src in FRAGMENT_SOURCES:
         if src.exists() and src.stat().st_mtime > exported_at:
-            print(f"generate-nav-registry: {src.name} is newer than fragments.json "
-                  "(re-run export-fragment-nav.mjs)")
+            print(
+                f"generate-nav-registry: {src.name} is newer than fragments.json "
+                "(re-run export-fragment-nav.mjs)"
+            )
             raise SystemExit(1)
     sidecar = json.loads(FRAGMENTS.read_text(encoding="utf-8"))
     overlay = sidecar.get("modules", {})

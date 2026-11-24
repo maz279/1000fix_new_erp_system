@@ -27,13 +27,17 @@ class IrAttachmentExt(models.Model):
     )
 
     def _sealed_documents(self):
-        return self.env["fix.document"].sudo().search_count(
-            [
-                ("attachment_id", "in", self.ids),
-                "|",
-                ("legal_hold", "=", True),
-                ("signature_locked", "=", True),
-            ]
+        return (
+            self.env["fix.document"]
+            .sudo()
+            .search_count(
+                [
+                    ("attachment_id", "in", self.ids),
+                    "|",
+                    ("legal_hold", "=", True),
+                    ("signature_locked", "=", True),
+                ]
+            )
         )
 
     def write(self, vals):

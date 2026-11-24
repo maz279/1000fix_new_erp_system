@@ -56,9 +56,7 @@ def _ou(env, label):
             "name": "A10 P17 %s %d" % (label, n),
             "code": ("P17-%s-%d" % (label[:3].upper(), n))[:16],
             "company_id": env.company.id,
-            "partner_id": env["res.partner"]
-            .create({"name": "A10 P17 %s %d" % (label, n)})
-            .id,
+            "partner_id": env["res.partner"].create({"name": "A10 P17 %s %d" % (label, n)}).id,
         }
     )
 

@@ -7,7 +7,6 @@
 from unittest.mock import patch
 
 from odoo import api as odoo_api
-
 from odoo.addons.cd_knowledge.controllers import fix_knowledge_offline_api as kapi
 from odoo.addons.cd_knowledge.controllers.fix_knowledge_offline_api import (
     KnowledgeOfflineApi,
@@ -26,9 +25,7 @@ def _as(env, user):
 
 
 def _as_anonymous(env):
-    return patch.object(
-        kapi, "request", _Request(odoo_api.Environment(env.cr, None, env.context))
-    )
+    return patch.object(kapi, "request", _Request(odoo_api.Environment(env.cr, None, env.context)))
 
 
 def _call(env, user, method, **params):

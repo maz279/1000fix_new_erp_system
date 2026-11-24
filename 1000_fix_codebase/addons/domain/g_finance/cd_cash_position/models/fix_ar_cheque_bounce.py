@@ -61,16 +61,20 @@ class FixArReceiptChequeBounce(models.Model):
             ("method", "=", "cheque"),
             ("customer_id", "child_of", cheque.partner_id.commercial_partner_id.id),
         ]
-        keys = [k for k in {(cheque.cheque_no or "").strip(), (cheque.source_ref or "").strip()} if k]
+        keys = [
+            k for k in {(cheque.cheque_no or "").strip(), (cheque.source_ref or "").strip()} if k
+        ]
         found = Receipt.browse()
         if keys:
-            found = Receipt.search(
-                [*base, "|", ("name", "in", keys), ("reference", "in", keys)]
-            )
+            found = Receipt.search([*base, "|", ("name", "in", keys), ("reference", "in", keys)])
         if not found and cheque.source_ref:
             # the source reference names the invoice the cheque paid
-            invoices = self.env["fix.ar.invoice"].sudo().search(
-                [("company_id", "=", cheque.company_id.id), ("name", "=", cheque.source_ref)]
+            invoices = (
+                self.env["fix.ar.invoice"]
+                .sudo()
+                .search(
+                    [("company_id", "=", cheque.company_id.id), ("name", "=", cheque.source_ref)]
+                )
             )
             found = invoices.allocation_ids.receipt_id.filtered_domain(base)
         found = found.filtered(lambda r: abs(r.amount - cheque.amount) <= 0.005)
@@ -105,10 +109,14 @@ class FixArReceiptChequeBounce(models.Model):
             return {"model": existing._name, "id": existing.id, "created": False}
         if cheque.state != "bounced":
             raise UserError(
-                "%s refused: cheque %s is %s, not returned." % (label, cheque.cheque_no, cheque.state)
+                "%s refused: cheque %s is %s, not returned."
+                % (label, cheque.cheque_no, cheque.state)
             )
         payload = event.get("payload") or {}
-        if payload.get("amount") is not None and abs(float(payload["amount"]) - cheque.amount) > 0.005:
+        if (
+            payload.get("amount") is not None
+            and abs(float(payload["amount"]) - cheque.amount) > 0.005
+        ):
             raise UserError("%s refused: the event's amount is not the cheque's." % label)
         receipt = self._fix_cheque_receipt(cheque)
         company = receipt.company_id
@@ -142,20 +150,33 @@ class FixArReceiptChequeBounce(models.Model):
             # never cleared: the money never arrived and B1 posted nothing
             credit = receipt.account_id
             if not credit:
-                raise UserError("%s refused: receipt %s records no cleared-into account." % (
-                    label, receipt.name))
+                raise UserError(
+                    "%s refused: receipt %s records no cleared-into account."
+                    % (label, receipt.name)
+                )
         invoices = receipt.allocation_ids.mapped("invoice_id")
         dims = self.env["fix.ar.invoice"]._ar_posting_dims(receipt.branch_id.id)
         move, note = _post_ar_move(
             self.env,
             company,
             fields.Date.context_today(self),
-            "CHEQUE RETURNED %s — RCT %s (%s)" % (cheque.cheque_no, receipt.name, cheque.bounce_reason or ""),
+            "CHEQUE RETURNED %s — RCT %s (%s)"
+            % (cheque.cheque_no, receipt.name, cheque.bounce_reason or ""),
             [
-                (ar.id, "AR re-opened: cheque %s returned" % cheque.cheque_no, receipt.amount, 0.0,
-                 receipt.customer_id.id),
-                (credit.id, "Returned cheque %s" % cheque.cheque_no, 0.0, receipt.amount,
-                 receipt.customer_id.id),
+                (
+                    ar.id,
+                    "AR re-opened: cheque %s returned" % cheque.cheque_no,
+                    receipt.amount,
+                    0.0,
+                    receipt.customer_id.id,
+                ),
+                (
+                    credit.id,
+                    "Returned cheque %s" % cheque.cheque_no,
+                    0.0,
+                    receipt.amount,
+                    receipt.customer_id.id,
+                ),
             ],
             {0: dims, 1: dims},
             source="receipt",
@@ -170,7 +191,9 @@ class FixArReceiptChequeBounce(models.Model):
         receipt.sudo()._guarded().write(
             {
                 "state": "reversed",
-                "reversal_reason": ("Cheque %s returned: %s" % (cheque.cheque_no, cheque.bounce_reason or ""))[:500],
+                "reversal_reason": (
+                    "Cheque %s returned: %s" % (cheque.cheque_no, cheque.bounce_reason or "")
+                )[:500],
                 "bounced_cheque_id": cheque.id,
                 "bounce_move_id": move.id,
             }
@@ -178,7 +201,13 @@ class FixArReceiptChequeBounce(models.Model):
         for invoice in invoices:
             invoice.sudo().message_post(
                 body="Re-opened: cheque %s (receipt %s) was returned by the bank (%s); %.2f is "
-                "owed again." % (cheque.cheque_no, receipt.name, cheque.bounce_reason or "", receipt.amount)
+                "owed again."
+                % (cheque.cheque_no, receipt.name, cheque.bounce_reason or "", receipt.amount)
             )
-        return {"model": receipt._name, "id": receipt.id, "created": True, "move_id": move.id,
-                "invoices": invoices.ids}
+        return {
+            "model": receipt._name,
+            "id": receipt.id,
+            "created": True,
+            "move_id": move.id,
+            "invoices": invoices.ids,
+        }

@@ -302,9 +302,9 @@ class FixQmsCertification(models.Model):
         the Quality Managers ONCE per band."""
         today = fields.Date.context_today(self)
         group = self.env.ref(QM_GROUP, raise_if_not_found=False)
-        managers = (
-            group.sudo().user_ids if group else self.env["res.users"]
-        ).filtered(lambda u: u.active and not u.share)
+        managers = (group.sudo().user_ids if group else self.env["res.users"]).filtered(
+            lambda u: u.active and not u.share
+        )
         if not managers:
             return True
         for rec in self.sudo().search([("result", "=", "passed"), ("valid_until", "!=", False)]):
@@ -658,13 +658,14 @@ class FixQmsReview(models.Model):
             summary = (
                 "%d regulatory change(s) identified (%s); the review records the "
                 "changes in internal and external issues it decides to act on "
-                "(9.3.2 b)."
-                % (len(changes) if changes else 0, span)
+                "(9.3.2 b)." % (len(changes) if changes else 0, span)
             )
             return summary, "%d regulatory changes" % (len(changes) if changes else 0), 0
         if kind == "objectives_attainment":
-            objectives = env["fix.qms.objective"].sudo().search(
-                self._scoped([("period", "<=", date_to.strftime("%Y"))])
+            objectives = (
+                env["fix.qms.objective"]
+                .sudo()
+                .search(self._scoped([("period", "<=", date_to.strftime("%Y"))]))
             )
             measured = objectives.filtered(lambda o: o.actual or o.attainment)
             attained = objectives.filtered(
@@ -675,8 +676,10 @@ class FixQmsReview(models.Model):
                 "the extent to which the objectives are met (9.3.2 c.2)."
                 % (len(objectives), len(measured), len(attained))
             )
-            return summary, "%d of %d at target" % (len(attained), len(objectives)), max(
-                len(objectives) - len(attained), 0
+            return (
+                summary,
+                "%d of %d at target" % (len(attained), len(objectives)),
+                max(len(objectives) - len(attained), 0),
             )
         if kind == "monitoring_results":
             Checklist = env["fix.qc.checklist"]
@@ -686,7 +689,9 @@ class FixQmsReview(models.Model):
             failed = checks.filtered(lambda c: c.state == "failed")
             Test = env.get("fix.grc.control.test")
             tests = (
-                Test.sudo().search(self._scoped(self._window_domain("tested_on", window, date_field=True)))
+                Test.sudo().search(
+                    self._scoped(self._window_domain("tested_on", window, date_field=True))
+                )
                 if Test is not None
                 else Test
             )
@@ -707,23 +712,22 @@ class FixQmsReview(models.Model):
             )
             return summary, "%d inspections, %d failed" % (len(checks), len(failed)), len(failed)
         if kind == "resources_adequacy":
-            branches = env["fix.branch"].sudo().search_count([("active", "=", True)]) if "fix.branch" in env else 0
+            branches = (
+                env["fix.branch"].sudo().search_count([("active", "=", True)])
+                if "fix.branch" in env
+                else 0
+            )
             employees = env["hr.employee"].sudo().search_count([("active", "=", True)])
             summary = (
                 "On-roll: %d active employee(s) across %d active branch(es) (%s); "
                 "the review records its judgement on the adequacy of resources "
                 "(9.3.2 d) — people, infrastructure and environment for the "
-                "operation of processes."
-                % (employees, branches, span)
+                "operation of processes." % (employees, branches, span)
             )
             return summary, "%d on-roll, %d branches" % (employees, branches), 0
         if kind == "risk_effectiveness":
             Risk = env.get("fix.risk.register")
-            risks = (
-                Risk.sudo().search(self._scoped([]))
-                if Risk is not None
-                else Risk
-            )
+            risks = Risk.sudo().search(self._scoped([])) if Risk is not None else Risk
             assessed = (
                 risks.filtered(lambda r: r.residual_likelihood and r.residual_impact)
                 if risks is not None
@@ -739,13 +743,20 @@ class FixQmsReview(models.Model):
                     "" if risks is not None else " (no risk register installed)",
                 )
             )
-            return summary, "%d risks, %d assessed" % (
-                len(risks) if risks is not None else 0,
-                len(assessed) if assessed is not None else 0,
-            ), 0
+            return (
+                summary,
+                "%d risks, %d assessed"
+                % (
+                    len(risks) if risks is not None else 0,
+                    len(assessed) if assessed is not None else 0,
+                ),
+                0,
+            )
         if kind == "improvement_opportunities":
-            capas = env["fix.capa"].sudo().search(
-                self._scoped(self._window_domain("create_date", window))
+            capas = (
+                env["fix.capa"]
+                .sudo()
+                .search(self._scoped(self._window_domain("create_date", window)))
             )
             effective = capas.filtered(lambda c: c.effectiveness_result == "effective")
             # the knowledge library's own flag (AUT-KMS-17): articles the

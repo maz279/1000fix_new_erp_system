@@ -39,17 +39,29 @@ def test_licence_clock_computes_expiry(c):
     Licence = c.env["fix.grc.licence"]
     today = fields.Date.today()
     gone = Licence.create(
-        {"name": "Gone trade licence", "licence_type": "trade", "valid_to": today - datetime.timedelta(days=5)}
+        {
+            "name": "Gone trade licence",
+            "licence_type": "trade",
+            "valid_to": today - datetime.timedelta(days=5),
+        }
     )
     soon = Licence.create(
-        {"name": "Soon fire licence", "licence_type": "fire", "valid_to": today + datetime.timedelta(days=20)}
+        {
+            "name": "Soon fire licence",
+            "licence_type": "fire",
+            "valid_to": today + datetime.timedelta(days=20),
+        }
     )
     far = Licence.create(
         {"name": "Far BIN", "licence_type": "bin", "valid_to": today + datetime.timedelta(days=200)}
     )
     held = Licence.create(
-        {"name": "Suspended past validity", "licence_type": "trade",
-         "valid_to": today - datetime.timedelta(days=40), "state": "suspended"}
+        {
+            "name": "Suspended past validity",
+            "licence_type": "trade",
+            "valid_to": today - datetime.timedelta(days=40),
+            "state": "suspended",
+        }
     )
     assert Licence.cron_licence_expiry() == 2  # gone + soon moved
     assert gone.state == "expired"

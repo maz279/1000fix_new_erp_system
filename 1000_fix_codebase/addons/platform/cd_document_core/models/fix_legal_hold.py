@@ -18,9 +18,7 @@ class FixLegalHold(models.Model):
     _order = "id desc"
     _rec_name = "matter_ref"
 
-    document_id = fields.Many2one(
-        "fix.document", required=True, ondelete="restrict", index=True
-    )
+    document_id = fields.Many2one("fix.document", required=True, ondelete="restrict", index=True)
     matter_ref = fields.Char(
         required=True, tracking=True, help="The case, notice or inquiry this hold answers to"
     )
@@ -58,6 +56,8 @@ class FixLegalHold(models.Model):
             if rec.state != "held":
                 raise UserError("Hold %s was already released." % rec.matter_ref)
             if not reason or not reason.strip():
-                raise UserError("State why the hold is released — the release is part of the record.")
+                raise UserError(
+                    "State why the hold is released — the release is part of the record."
+                )
             rec.document_id.action_release_hold(reason)
         return True

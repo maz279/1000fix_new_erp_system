@@ -434,9 +434,7 @@ class FixWebhookDelivery(models.Model):
         # it (AD-03 posture: a human decides, with the reason on the row).
         grace_days = _param_int(self.env, NOT_SENT_GRACE_KEY, NOT_SENT_GRACE_DAYS)
         horizon = now - timedelta(days=grace_days)
-        stranded = self.sudo().search(
-            [("state", "=", "not_sent"), ("create_date", "<=", horizon)]
-        )
+        stranded = self.sudo().search([("state", "=", "not_sent"), ("create_date", "<=", horizon)])
         for row in stranded:
             outcome = "not sent for over %d days: %s" % (
                 grace_days,

@@ -473,9 +473,9 @@ class TestCallerScope:
         )
         run.with_user(caller).action_execute()
         assert run.state == "failed"
-        assert "may not read" in (run.error_note or ""), (
-            "the X01 sudo-browse leak: the caller used to read any company's lead"
-        )
+        assert "may not read" in (
+            run.error_note or ""
+        ), "the X01 sudo-browse leak: the caller used to read any company's lead"
 
     def test_a_caller_scores_their_own_company_lead(self, env, make_user):
         caller = make_user()

@@ -255,8 +255,12 @@ class FixFinanceDofaMixin(models.AbstractModel):
             if hasattr(rec, "message_post"):
                 rec.sudo().message_post(
                     body="%s %s approved by %s (%s)."
-                    % (rec._fin_what, rec._dofa_amount_label(), self.env.user.name,
-                       dict(DOFA_TIERS)[tier])
+                    % (
+                        rec._fin_what,
+                        rec._dofa_amount_label(),
+                        self.env.user.name,
+                        dict(DOFA_TIERS)[tier],
+                    )
                 )
         return True
 
@@ -304,5 +308,9 @@ class FixFinanceDofaMixin(models.AbstractModel):
                 rec._dofa_void_approval(reason)
             if rec.fin_approved_by_id:
                 rec.sudo()._guarded().write(
-                    {"fin_approved_by_id": False, "fin_approved_at": False, "fin_approved_amount": 0.0}
+                    {
+                        "fin_approved_by_id": False,
+                        "fin_approved_at": False,
+                        "fin_approved_amount": 0.0,
+                    }
                 )

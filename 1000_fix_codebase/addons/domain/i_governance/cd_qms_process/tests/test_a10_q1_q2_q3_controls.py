@@ -70,11 +70,20 @@ def w(odoo_env):
     # the private-company branch the audit programme needs
     company = env["res.company"].create({"name": "A10 M23 Audit Co %d" % next(_SEQ)})
     entity = env["fix.entity"].create(
-        {"code": "EN-A10M23-%d" % next(_SEQ), "legal_name": "A10 Test Entity", "company_id": company.id}
+        {
+            "code": "EN-A10M23-%d" % next(_SEQ),
+            "legal_name": "A10 Test Entity",
+            "company_id": company.id,
+        }
     )
     ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     x.branch = env["fix.branch"].create(
-        {"code": "A10M23-%d" % next(_SEQ), "name": "Uttara", "entity_id": entity.id, "operating_unit_id": ou.id}
+        {
+            "code": "A10M23-%d" % next(_SEQ),
+            "name": "Uttara",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
     )
     saved = getattr(g, "request", None)
     yield x
@@ -91,7 +100,12 @@ def _ncr(x, severity="minor", user=None, **vals):
         x.env["fix.ncr"]
         .with_user(user or x.clerk)
         .create(
-            {"source": "service_order", "severity": severity, "description": "Seal missing on enclosure", **vals}
+            {
+                "source": "service_order",
+                "severity": severity,
+                "description": "Seal missing on enclosure",
+                **vals,
+            }
         )
     )
 
@@ -160,9 +174,7 @@ def test_q1_verdict_is_stamped_and_evidenced(w):
     assert (capa.state, capa.effectiveness_result) == ("verified", "effective")
     assert capa.verified_by_id == w.qm_emp
     assert capa.verified_on == fields.Date.context_today(capa)
-    assert _events(w.env, "capa.verified", capa.id) == [
-        {"ncr": ncr.name, "effective": True}
-    ]
+    assert _events(w.env, "capa.verified", capa.id) == [{"ncr": ncr.name, "effective": True}]
     capa.with_user(w.qm).action_close()
     assert capa.state == "closed"
 
@@ -216,7 +228,11 @@ def test_q1_verdict_fields_are_guarded(w):
     capa.with_user(w.qm).action_verify(note="Done")
     capa.with_user(w.qm).action_close()
     out = p03(
-        w, _MW, user=w.qm, model="fix.capa", record_id=capa.id,
+        w,
+        _MW,
+        user=w.qm,
+        model="fix.capa",
+        record_id=capa.id,
         values={"corrective_action": "rewritten"},
     )
     assert "error" in out
@@ -226,12 +242,21 @@ def test_q1_p03_write_and_action(w):
     _ncr, capa = _capa_ready(w)
     capa.with_user(w.impl).action_implement()
     out = p03(
-        w, _MW, user=w.clerk, model="fix.capa", record_id=capa.id,
+        w,
+        _MW,
+        user=w.clerk,
+        model="fix.capa",
+        record_id=capa.id,
         values={"effectiveness_result": "effective"},
     )
     assert "error" in out and GUARD in out["error"]
     out = p03(
-        w, _MA, user=w.qm, model="fix.capa", ids=capa.ids, method="action_verify",
+        w,
+        _MA,
+        user=w.qm,
+        model="fix.capa",
+        ids=capa.ids,
+        method="action_verify",
         kwargs={"note": "P11 evidence reviewed", "effective": True},
     )
     assert out.get("success") is True
@@ -285,7 +310,11 @@ def test_q2_ncr_closes_with_its_full_record(w):
     # …and the closed record's analysis is frozen at the form endpoint
     # (append-only, BRU-QMS-11)
     out = p03(
-        w, _MW, user=w.qm, model="fix.ncr", record_id=ncr.id,
+        w,
+        _MW,
+        user=w.qm,
+        model="fix.ncr",
+        record_id=ncr.id,
         values={"root_cause": "rewritten"},
     )
     assert "error" in out
@@ -297,12 +326,21 @@ def test_q2_state_and_disposition_are_guarded(w):
         with pytest.raises(UserError, match=GUARD):
             ncr.with_user(w.clerk).write(vals)
     out = p03(
-        w, _MW, user=w.clerk, model="fix.ncr", record_id=ncr.id,
+        w,
+        _MW,
+        user=w.clerk,
+        model="fix.ncr",
+        record_id=ncr.id,
         values={"state": "closed"},
     )
     assert "error" in out and GUARD in out["error"]
     out = p03(
-        w, _MA, user=w.clerk, model="fix.ncr", ids=ncr.ids, method="action_dispose",
+        w,
+        _MA,
+        user=w.clerk,
+        model="fix.ncr",
+        ids=ncr.ids,
+        method="action_dispose",
         kwargs={"disposition": "scrap", "note": "scrapped"},
     )
     assert out.get("success") is True and ncr.disposition == "scrap"
@@ -432,5 +470,7 @@ def test_q3_certification_belongs_to_the_quality_manager(w):
                 "valid_until": rec.audit_date - timedelta(days=1),
             }
         )
-    out = p03(w, _MA, user=w.clerk, model="fix.qms.certification", ids=rec.ids, method="action_pass")
+    out = p03(
+        w, _MA, user=w.clerk, model="fix.qms.certification", ids=rec.ids, method="action_pass"
+    )
     assert out.get("success") is False

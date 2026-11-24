@@ -126,7 +126,8 @@ class FixA05SettlementConsumers(models.AbstractModel):
         )
         rec.message_post(
             body="Raised by the ewaste.settlement_approved hand-off: draft M20 invoice "
-            "%s for BDT %.2f on %s, for finance to issue." % (invoice.name, amount, rec.partner_id.name)
+            "%s for BDT %.2f on %s, for finance to issue."
+            % (invoice.name, amount, rec.partner_id.name)
         )
         return {"model": invoice._name, "id": invoice.id, "created": True}
 

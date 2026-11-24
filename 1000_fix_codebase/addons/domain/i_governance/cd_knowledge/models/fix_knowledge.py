@@ -222,9 +222,7 @@ class FixKnowledgeArticle(models.Model):
                         rec._fix_guard_differs(n, vals[n], rec[n]) for n in touched
                     ):
                         revising |= rec
-                if revising and not (
-                    self.env.su or self.env.user.has_group(PUBLISHER_GROUP)
-                ):
+                if revising and not (self.env.su or self.env.user.has_group(PUBLISHER_GROUP)):
                     for rec in revising:
                         owner = rec.owner_id or rec.create_uid
                         if owner != self.env.user:
@@ -264,7 +262,8 @@ class FixKnowledgeArticle(models.Model):
             rec.message_post(
                 body="Published content revised — version %d now syncing to the field "
                 "(hash %s). The prior review no longer covers this content: its "
-                "stamps were cleared and a fresh review is due." % (
+                "stamps were cleared and a fresh review is due."
+                % (
                     rec.version,
                     (rec.content_hash or "")[:12],
                 )

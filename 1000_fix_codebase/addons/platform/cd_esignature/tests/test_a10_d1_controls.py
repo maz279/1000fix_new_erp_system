@@ -69,12 +69,13 @@ def p03(x, endpoint, user=None, **kw):
 
 
 def _doc(x, raw=b"contract terms", **vals):
-    attachment = x.env["ir.attachment"].create(
-        {"name": "file", "datas": base64.b64encode(raw)}
-    )
+    attachment = x.env["ir.attachment"].create({"name": "file", "datas": base64.b64encode(raw)})
     return x.env["fix.document"].create(
-        {"name": vals.pop("name", "Contract %d" % next(_SEQ)),
-         "attachment_id": attachment.id, **vals}
+        {
+            "name": vals.pop("name", "Contract %d" % next(_SEQ)),
+            "attachment_id": attachment.id,
+            **vals,
+        }
     )
 
 
@@ -89,8 +90,7 @@ def _envelope(x, doc, signers, user=None, name="Signing"):
                 "document_id": doc.id,
                 "operating_unit_id": x.ou.id,
                 "signer_ids": [
-                    (0, 0, {"partner_id": (u.partner_id).id, "sequence": seq})
-                    for u, seq in signers
+                    (0, 0, {"partner_id": (u.partner_id).id, "sequence": seq}) for u, seq in signers
                 ],
             }
         )
@@ -127,8 +127,14 @@ def test_nobody_signs_for_somebody_else(w):
     ):
         with pytest.raises(UserError, match=GUARD):
             first.with_user(w.sig1).write(vals)
-    out = p03(w, _MW, user=w.sig1, model="fix.esignature.signer", record_id=first.id,
-              values={"signed_at": fields.Datetime.now().isoformat()})
+    out = p03(
+        w,
+        _MW,
+        user=w.sig1,
+        model="fix.esignature.signer",
+        record_id=first.id,
+        values={"signed_at": fields.Datetime.now().isoformat()},
+    )
     assert "error" in out and GUARD in out["error"]
 
 
@@ -215,16 +221,30 @@ def test_envelope_lifecycle_fields_are_never_typed(w):
             }
         )
     env = _envelope(w, doc, [(w.sig1, 10)])
-    out = p03(w, _MW, user=w.clerk, model="fix.esignature.envelope", record_id=env.id,
-              values={"state": "completed"})
+    out = p03(
+        w,
+        _MW,
+        user=w.clerk,
+        model="fix.esignature.envelope",
+        record_id=env.id,
+        values={"state": "completed"},
+    )
     assert "error" in out and GUARD in out["error"]
     # sending works through the endpoint, and seals the document
-    out = p03(w, _MA, user=w.clerk, model="fix.esignature.envelope", ids=env.ids,
-              method="action_send")
+    out = p03(
+        w, _MA, user=w.clerk, model="fix.esignature.envelope", ids=env.ids, method="action_send"
+    )
     assert out.get("success") is True and env.state == "sent"
     assert env.document_id.signature_locked
-    out = p03(w, _MA, user=w.sig1, model="fix.esignature.signer", ids=env.signer_ids.ids,
-              method="action_sign", kwargs={"provider": "p03-session"})
+    out = p03(
+        w,
+        _MA,
+        user=w.sig1,
+        model="fix.esignature.signer",
+        ids=env.signer_ids.ids,
+        method="action_sign",
+        kwargs={"provider": "p03-session"},
+    )
     assert out.get("success") is True
     env.invalidate_recordset()
     assert [s.signature_provider for s in env.signer_ids] == ["p03-session"]

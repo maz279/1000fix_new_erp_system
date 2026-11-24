@@ -365,11 +365,7 @@ class FixEsignatureSigner(models.Model):
         # signer is the forgery — that is guarded in write() below.
         # SIGNER_SEALED (A04): once the envelope has left draft, the signer's
         # identity and place in the sequence are evidence, not configuration.
-        guarded = (
-            super()._fix_guarded_fields()
-            | SIGNER_GUARDED
-            | {"auth_method"}
-        )
+        guarded = super()._fix_guarded_fields() | SIGNER_GUARDED | {"auth_method"}
         if any(s.envelope_id.state != "draft" for s in self):
             guarded |= SIGNER_SEALED
         return guarded

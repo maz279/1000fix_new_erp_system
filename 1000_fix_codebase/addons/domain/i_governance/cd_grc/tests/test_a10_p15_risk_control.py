@@ -46,9 +46,7 @@ def _user(env, name, groups=()):
 
 
 def _emp(env, user, name):
-    return env["hr.employee"].create(
-        {"name": "A10 P15 %s" % name, "user_id": user.id}
-    )
+    return env["hr.employee"].create({"name": "A10 P15 %s" % name, "user_id": user.id})
 
 
 @pytest.fixture
@@ -71,9 +69,7 @@ def m(odoo_env):
 def _risk(env, **kw):
     vals = {"name": kw.pop("name", "P15 risk"), "category": kw.pop("category", "operational")}
     if "control" in kw:
-        vals["control_ids"] = [
-            (0, 0, {"name": kw.pop("control"), "control_type": "preventive"})
-        ]
+        vals["control_ids"] = [(0, 0, {"name": kw.pop("control"), "control_type": "preventive"})]
     if "control_owner" in kw:
         vals["control_ids"] = [
             (
@@ -91,9 +87,7 @@ def _risk(env, **kw):
 
 
 def _appetite(env, category="operational", score=8):
-    return env["fix.risk.appetite"].create(
-        {"category": category, "max_residual_score": score}
-    )
+    return env["fix.risk.appetite"].create({"category": category, "max_residual_score": score})
 
 
 def _cfo_only(env, *keep):
@@ -115,9 +109,7 @@ def test_the_appetite_is_stated_per_category_and_drives_above_appetite(m):
     # writes it (the ACL layer the portal writer checks)
     with pytest.raises(AccessError):
         Appetite.with_user(m.clerk).check_access_rights("create")
-    row = Appetite.with_user(m.officer).create(
-        {"category": "operational", "max_residual_score": 8}
-    )
+    row = Appetite.with_user(m.officer).create({"category": "operational", "max_residual_score": 8})
     assert row.max_residual_score == 8
     # one statement per category and company (the Odoo 19 models.Constraint
     # surfaces as the raw SQL violation)
@@ -133,11 +125,13 @@ def test_the_appetite_is_stated_per_category_and_drives_above_appetite(m):
     # residual is never quietly 'within appetite'
     unassessed = _risk(env, likelihood="4", impact="4")  # inherent 16 > 8
     assert unassessed.above_appetite is True
-    assessed_within = _risk(env, likelihood="4", impact="4",
-                            residual_likelihood="2", residual_impact="3")  # 6
+    assessed_within = _risk(
+        env, likelihood="4", impact="4", residual_likelihood="2", residual_impact="3"
+    )  # 6
     assert assessed_within.above_appetite is False
-    assessed_above = _risk(env, likelihood="4", impact="4",
-                           residual_likelihood="3", residual_impact="4")  # 12
+    assessed_above = _risk(
+        env, likelihood="4", impact="4", residual_likelihood="3", residual_impact="4"
+    )  # 12
     assert assessed_above.above_appetite is True
     assert assessed_above.appetite_limit == 8 and assessed_above.appetite_stated
     # a category with no statement bounds nothing
@@ -162,21 +156,24 @@ def test_the_residual_is_bounded_and_grounded(m):
     # (2×2 inherent, 3×3 residual: a medium-band breach, so the HIGH-band
     # acceptance constraint keeps out of the way and this one is the blocker)
     with pytest.raises(ValidationError, match="may not exceed its inherent"), env.cr.savepoint():
-        _risk(env, likelihood="2", impact="2",
-              residual_likelihood="3", residual_impact="3")
+        _risk(env, likelihood="2", impact="2", residual_likelihood="3", residual_impact="3")
     # a reduction with nothing behind it is refused
-    naked = _risk(env, likelihood="3", impact="3",
-                  residual_likelihood="2", residual_impact="3")
+    naked = _risk(env, likelihood="3", impact="3", residual_likelihood="2", residual_impact="3")
     with pytest.raises(UserError, match="not grounded"):
         naked.with_user(m.owner).action_accept_residual()
     # a residual equal to the inherent score cites no control — honest
-    raw = _risk(env, likelihood="3", impact="3",
-                residual_likelihood="3", residual_impact="3")
+    raw = _risk(env, likelihood="3", impact="3", residual_likelihood="3", residual_impact="3")
     raw.with_user(m.owner).action_accept_residual()
     assert raw.state == "accepted"
     # an ineffective control grounds nothing
-    weak = _risk(env, likelihood="3", impact="3", control_owner=m.owner2_emp,
-                 residual_likelihood="2", residual_impact="3")
+    weak = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control_owner=m.owner2_emp,
+        residual_likelihood="2",
+        residual_impact="3",
+    )
     weak.owner_id = m.owner_emp
     env["fix.grc.control.test"].with_user(m.clerk).create(
         {
@@ -192,8 +189,14 @@ def test_the_residual_is_bounded_and_grounded(m):
     with pytest.raises(UserError, match="INEFFECTIVE"):
         weak.with_user(m.owner).action_accept_residual()
     # a tested-effective control grounds the reduction
-    ok = _risk(env, likelihood="3", impact="3", control_owner=m.owner2_emp,
-               residual_likelihood="2", residual_impact="3")
+    ok = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control_owner=m.owner2_emp,
+        residual_likelihood="2",
+        residual_impact="3",
+    )
     ok.owner_id = m.owner_emp
     env["fix.grc.control.test"].with_user(m.clerk).create(
         {
@@ -211,8 +214,14 @@ def test_the_residual_is_bounded_and_grounded(m):
 # ------------------------------------------------------------ the routed acceptance
 def test_within_appetite_acceptance_stays_the_owners_signature(m):
     _appetite(m.env, "operational", 20)
-    rec = _risk(m.env, likelihood="3", impact="3", control="Pre-auth gate",
-                residual_likelihood="2", residual_impact="3")
+    rec = _risk(
+        m.env,
+        likelihood="3",
+        impact="3",
+        control="Pre-auth gate",
+        residual_likelihood="2",
+        residual_impact="3",
+    )
     rec.with_user(m.owner).action_accept_residual(justification="Within appetite")
     assert rec.state == "accepted"
     assert rec.residual_accepted_by_id == m.owner_emp
@@ -224,8 +233,14 @@ def test_above_appetite_acceptance_is_routed_and_decided_by_someone_else(m):
     env = m.env
     _cfo_only(env, m.cfo)
     _appetite(env, "operational", 5)
-    rec = _risk(env, likelihood="3", impact="3", control="Pre-auth gate",
-                residual_likelihood="2", residual_impact="3")  # residual 6 > 5
+    rec = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control="Pre-auth gate",
+        residual_likelihood="2",
+        residual_impact="3",
+    )  # residual 6 > 5
     rec.owner_id = m.owner_emp
     # the owner's press does NOT accept — it asks
     rec.with_user(m.owner).action_accept_residual(justification="Cheap to bear")
@@ -236,13 +251,14 @@ def test_above_appetite_acceptance_is_routed_and_decided_by_someone_else(m):
     assert req.decision_domain == "risk_acceptance"
     # the deciding task is in the CFO's inbox, not the owner's
     Task = env["fix.workflow.task"].sudo()
-    task = Task.search(
-        [("res_model", "=", "fix.risk.register"), ("res_id", "=", rec.id)]
-    )
+    task = Task.search([("res_model", "=", "fix.risk.register"), ("res_id", "=", rec.id)])
     assert task.assigned_user_id == m.cfo and task.state == "pending"
     assert not Task.search(
-        [("res_model", "=", "fix.risk.register"), ("res_id", "=", rec.id),
-         ("assigned_user_id", "=", m.owner.id)]
+        [
+            ("res_model", "=", "fix.risk.register"),
+            ("res_id", "=", rec.id),
+            ("assigned_user_id", "=", m.owner.id),
+        ]
     )
     # the decision applies the acceptance and stamps the APPROVER
     task.with_user(m.cfo).action_approve(comment="Accepted for FY27")
@@ -261,24 +277,41 @@ def test_no_one_self_accepts_above_appetite(m):
     dual = _user(env, "dual", [RISK_OWNER, CFO])
     _cfo_only(env, dual)
     dual_emp = _emp(env, dual, "Dual Hat")
-    rec = _risk(env, likelihood="3", impact="3", control="Pre-auth gate",
-                residual_likelihood="2", residual_impact="3")
+    rec = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control="Pre-auth gate",
+        residual_likelihood="2",
+        residual_impact="3",
+    )
     rec.owner_id = dual_emp
     with pytest.raises(UserError, match="No one can approve"):
         rec.with_user(dual).action_accept_residual()
     assert rec.state != "accepted"
     # and the explicit segregation: a routed decision landing on the risk
     # owner (an approver who did not request) may not be the acceptor either
-    rec2 = _risk(env, likelihood="3", impact="3", control="Second gate",
-                 residual_likelihood="2", residual_impact="3")
-    rec2.owner_id = m.owner2_emp  # owner2 holds Risk Owner AND CFO groups
-    m.owner2.write(
-        {"group_ids": [(4, env.ref(CFO).id)]}
+    rec2 = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control="Second gate",
+        residual_likelihood="2",
+        residual_impact="3",
     )
+    rec2.owner_id = m.owner2_emp  # owner2 holds Risk Owner AND CFO groups
+    m.owner2.write({"group_ids": [(4, env.ref(CFO).id)]})
     rec2.with_user(m.owner).action_request_approval(justification="owner asks")
-    task = env["fix.workflow.task"].sudo().search(
-        [("res_model", "=", "fix.risk.register"), ("res_id", "=", rec2.id),
-         ("assigned_user_id", "=", m.owner2.id)]
+    task = (
+        env["fix.workflow.task"]
+        .sudo()
+        .search(
+            [
+                ("res_model", "=", "fix.risk.register"),
+                ("res_id", "=", rec2.id),
+                ("assigned_user_id", "=", m.owner2.id),
+            ]
+        )
     )
     assert task
     with pytest.raises(UserError, match="may not also be the acceptor"):
@@ -289,8 +322,14 @@ def test_no_one_self_accepts_above_appetite(m):
 def test_moving_the_assessment_voids_the_pending_acceptance(m):
     env = m.env
     _appetite(env, "operational", 5)
-    rec = _risk(env, likelihood="3", impact="3", control="Pre-auth gate",
-                residual_likelihood="2", residual_impact="3")
+    rec = _risk(
+        env,
+        likelihood="3",
+        impact="3",
+        control="Pre-auth gate",
+        residual_likelihood="2",
+        residual_impact="3",
+    )
     rec.with_user(m.owner).action_accept_residual()
     assert rec.approval_state == "pending"
     # the acceptance was decided ON this assessment: moving it voids the
@@ -392,6 +431,14 @@ def test_a_failed_test_on_an_unowned_control_names_its_owner_first(m):
             "result": "ineffective",
         }
     )
-    assert env["fix.ncr"].sudo().search_count(
-        [("source", "=", "control_test"), ("control_test_id.control_id", "=", rec.control_ids.id)]
-    ) == 1
+    assert (
+        env["fix.ncr"]
+        .sudo()
+        .search_count(
+            [
+                ("source", "=", "control_test"),
+                ("control_test_id.control_id", "=", rec.control_ids.id),
+            ]
+        )
+        == 1
+    )

@@ -66,14 +66,18 @@ def test_offline_manual_filters_and_fallbacks(odoo_env):
             }
         )
     )
-    published = odoo_env["fix.knowledge.article"].with_user(author).create(
-        {
-            "name": "Zeltrix Z14 no power",
-            "category": "troubleshooting",
-            "content": "<p>Check the 19V rail</p>",
-            "device_brand": BRAND,
-            "device_model": "Z14",
-        }
+    published = (
+        odoo_env["fix.knowledge.article"]
+        .with_user(author)
+        .create(
+            {
+                "name": "Zeltrix Z14 no power",
+                "category": "troubleshooting",
+                "content": "<p>Check the 19V rail</p>",
+                "device_brand": BRAND,
+                "device_model": "Z14",
+            }
+        )
     )
     published.sudo().action_publish()
     other_model = _article(odoo_env, name="Zeltrix Z15 hinge", device_model="Z15")

@@ -26,9 +26,7 @@ EVENT = "ewaste.settlement_approved"
 def w(odoo_env):
     env = odoo_env
     x = types.SimpleNamespace(env=env)
-    x.partner = env["res.partner"].create(
-        {"name": "A5C7 E-Waste Partner", "phone": "01711000505"}
-    )
+    x.partner = env["res.partner"].create({"name": "A5C7 E-Waste Partner", "phone": "01711000505"})
     x.payer = env["res.partner"].create({"name": "A5C7 Recovery Buyer"})
     x.ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     x.customer = env["res.partner"].create(
@@ -59,11 +57,15 @@ def _batch(w):
     the payee). It stays draft: the settlement's create-time basis check only
     needs the batch and the payee match — the batch-state gate runs in the
     real approve method, which the trusted staging of the decision replaces."""
-    recycler = w.env["fix.ewaste.partner"].sudo().create(
-        {"name": "A5C7 Licensed Recycler", "partner_id": w.partner.id}
+    recycler = (
+        w.env["fix.ewaste.partner"]
+        .sudo()
+        .create({"name": "A5C7 Licensed Recycler", "partner_id": w.partner.id})
     )
-    return w.env["fix.ewaste.batch"].sudo().create(
-        {"company_id": w.env.company.id, "partner_id": recycler.id}
+    return (
+        w.env["fix.ewaste.batch"]
+        .sudo()
+        .create({"company_id": w.env.company.id, "partner_id": recycler.id})
     )
 
 
@@ -96,9 +98,7 @@ def _approved(w, settlement):
             "event_type": EVENT,
             "aggregate": "fix.ewaste.settlement",
             "aggregate_id": settlement.id,
-            "payload": json.dumps(
-                {"kind": settlement.kind, "amount": settlement.amount}
-            ),
+            "payload": json.dumps({"kind": settlement.kind, "amount": settlement.amount}),
         }
     )
     return settlement
@@ -115,16 +115,24 @@ def _relay(w):
 
 
 def _payout(w, settlement):
-    return w.env["fix.payment.execution"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
-        limit=1,
+    return (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .search(
+            [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
+            limit=1,
+        )
     )
 
 
 def _invoice(w, settlement):
-    return w.env["fix.ar.invoice"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
-        limit=1,
+    return (
+        w.env["fix.ar.invoice"]
+        .sudo()
+        .search(
+            [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
+            limit=1,
+        )
     )
 
 
@@ -159,16 +167,20 @@ def test_relaying_twice_raises_one_document(w):
     s = _approved(w, _settlement(w, kind="incentive", amount=3000.0))
     _relay(w)
     _relay(w)
-    payouts = w.env["fix.payment.execution"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", s.id)]
+    payouts = (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .search([("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", s.id)])
     )
     assert len(payouts) == 1
 
 
 def test_a_forged_payload_amount_is_refused(w):
     s = _approved(w, _settlement(w, kind="incentive", amount=5000.0))
-    row = w.env["fix.event.outbox"].sudo().search(
-        [("event_type", "=", EVENT), ("aggregate_id", "=", s.id)], limit=1
+    row = (
+        w.env["fix.event.outbox"]
+        .sudo()
+        .search([("event_type", "=", EVENT), ("aggregate_id", "=", s.id)], limit=1)
     )
     payload = json.loads(row.payload)
     payload["amount"] = 999999.0

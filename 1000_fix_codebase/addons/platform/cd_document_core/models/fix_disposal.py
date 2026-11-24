@@ -18,9 +18,7 @@ class FixDisposalRecord(models.Model):
     _order = "id desc"
 
     name = fields.Char(required=True)
-    document_id = fields.Many2one(
-        "fix.document", required=True, ondelete="restrict", index=True
-    )
+    document_id = fields.Many2one("fix.document", required=True, ondelete="restrict", index=True)
     method = fields.Selection(
         [
             ("secure_wipe", "Secure Wipe"),

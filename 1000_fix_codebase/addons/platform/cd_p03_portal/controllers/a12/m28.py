@@ -634,9 +634,11 @@ def kpis(env):
     # M28: the bus backlog tiles. event_delivery is the SLO of DISPATCHED
     # deliveries; these two say whether anything is still WAITING — the pair
     # that was invisible while 19k events sat pending on the live estate.
-    health = env["fix.event.outbox"].relay_health() if hasattr(
-        env["fix.event.outbox"], "relay_health"
-    ) else {}
+    health = (
+        env["fix.event.outbox"].relay_health()
+        if hasattr(env["fix.event.outbox"], "relay_health")
+        else {}
+    )
     return {
         "api_p95": p95,
         "uptime": None,

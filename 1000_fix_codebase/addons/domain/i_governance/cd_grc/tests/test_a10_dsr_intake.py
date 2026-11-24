@@ -5,7 +5,6 @@
 from unittest.mock import patch
 
 from odoo import api as odoo_api
-
 from odoo.addons.cd_grc.controllers import fix_grc_dsr_api as dsr_api
 from odoo.addons.cd_grc.controllers.fix_grc_dsr_api import FixGrcDsrApi
 
@@ -54,7 +53,9 @@ def test_an_authenticated_staff_member_files_a_request(odoo_env):
 
 def test_the_anonymous_call_is_refused(odoo_env):
     env = odoo_env
-    with patch.object(dsr_api, "request", _Request(odoo_api.Environment(env.cr, None, env.context))):
+    with patch.object(
+        dsr_api, "request", _Request(odoo_api.Environment(env.cr, None, env.context))
+    ):
         out = FixGrcDsrApi().create_dsr(request_type="access", subject_name="X")
     assert out["error"] == "unauthenticated"
 

@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 from odoo import Command
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
 
@@ -104,7 +104,14 @@ def fpa(odoo_env):
         }
     )
     return SimpleNamespace(
-        env=env, company=company, ou=ou, dhk=dhk, ctg=ctg, journal=journal, acc=acc, tag=tag,
+        env=env,
+        company=company,
+        ou=ou,
+        dhk=dhk,
+        ctg=ctg,
+        journal=journal,
+        acc=acc,
+        tag=tag,
         cfo=cfo,
     )
 
@@ -166,9 +173,16 @@ def test_budget_needs_a_version_and_actual_is_never_typed(odoo_env):
             {"name": "FY2027 Dhaka workshop", "fiscal_year": "FY2027", "planned_amount": 500000.0}
         )
     version = odoo_env["fix.budget.version"].create(
-        {"name": "FY27", "fiscal_year": "FY2027-T", "date_from": date(2026, 7, 1), "date_to": date(2027, 6, 30)}
+        {
+            "name": "FY27",
+            "fiscal_year": "FY2027-T",
+            "date_from": date(2026, 7, 1),
+            "date_to": date(2027, 6, 30),
+        }
     )
-    budget = odoo_env["fix.budget"].create({"name": "FY2027 Dhaka workshop", "version_id": version.id})
+    budget = odoo_env["fix.budget"].create(
+        {"name": "FY2027 Dhaka workshop", "version_id": version.id}
+    )
     assert budget.currency_id == odoo_env.ref("base.BDT")
     assert budget.state == "draft" and budget.planned_amount == 0.0
     assert budget.actual_amount == 0.0 and budget.variance == 0.0
@@ -431,7 +445,9 @@ def test_version_workflow_enforces_segregation_of_duties(fpa):
     env = fpa.env
     accountant = _user(env, "account.group_account_user")
     manager = _user(
-        env, "account.group_account_manager", "account.group_account_user",
+        env,
+        "account.group_account_manager",
+        "account.group_account_user",
         "cd_entity_config.group_dofa_tier_4",
     )
     version = _version(fpa)
@@ -448,12 +464,23 @@ def test_version_workflow_enforces_segregation_of_duties(fpa):
     with pytest.raises(UserError), env.cr.savepoint():
         version.with_user(accountant).action_approve()
     Task = env["fix.workflow.task"]
-    assert not Task.search([("res_model", "=", version._name), ("res_id", "=", version.id),
-                            ("assigned_user_id", "=", manager.id)])
+    assert not Task.search(
+        [
+            ("res_model", "=", version._name),
+            ("res_id", "=", version.id),
+            ("assigned_user_id", "=", manager.id),
+        ]
+    )
 
     other_manager = fpa.cfo  # holds the tier when the request is routed
-    task = Task.search([("res_model", "=", version._name), ("res_id", "=", version.id),
-                        ("assigned_user_id", "=", other_manager.id), ("state", "=", "pending")])
+    task = Task.search(
+        [
+            ("res_model", "=", version._name),
+            ("res_id", "=", version.id),
+            ("assigned_user_id", "=", other_manager.id),
+            ("state", "=", "pending"),
+        ]
+    )
     assert task
     task.with_user(other_manager).action_approve()
     assert version.state == "approved" and version.approved_by == other_manager

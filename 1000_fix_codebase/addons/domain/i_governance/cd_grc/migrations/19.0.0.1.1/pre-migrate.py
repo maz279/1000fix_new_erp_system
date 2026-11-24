@@ -13,14 +13,17 @@
 import logging
 
 from odoo.tools.sql import column_exists
+from psycopg2 import sql
 
 _logger = logging.getLogger(__name__)
 
 
 def _migrate_text_role_column(cr, column):
-    cr.execute(
-        "SELECT id, %s FROM fix_grc_sod_rule WHERE %s IS NOT NULL" % (column, column)
-    )
+    # `column` is only ever the literal "role_a"/"role_b" (see migrate below);
+    # it is composed as a quoted identifier, never interpolated into the SQL
+    # text - the values stay parameterised (ruff S608 / pylint-odoo E8103).
+    col = sql.Identifier(column)
+    cr.execute(sql.SQL("SELECT id, {} FROM fix_grc_sod_rule WHERE {} IS NOT NULL").format(col, col))
     rows = cr.fetchall()
     if not rows:
         return
@@ -35,7 +38,7 @@ def _migrate_text_role_column(cr, column):
         hit = cr.fetchone()
         if hit:
             cr.execute(
-                "UPDATE fix_grc_sod_rule SET %s = %%s WHERE id = %%s" % column,
+                sql.SQL("UPDATE fix_grc_sod_rule SET {} = %s WHERE id = %s").format(col),
                 (hit[0], rec_id),
             )
             fixed += 1

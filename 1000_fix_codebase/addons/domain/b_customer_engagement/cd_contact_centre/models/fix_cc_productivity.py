@@ -350,9 +350,7 @@ class FixCcKnowledgeBinding(models.Model):
         resolves to a PUBLISHED article retire themselves, so an agent is
         never offered a dead link. Runs from the event relay only."""
         if not self.env.su:
-            raise AccessError(
-                "Knowledge binding consumers run only from the event relay (A10 S6)."
-            )
+            raise AccessError("Knowledge binding consumers run only from the event relay (A10 S6).")
         payload = event.get("payload") or {}
         refs = sorted(
             {
@@ -378,16 +376,13 @@ class FixCcKnowledgeBinding(models.Model):
         Article = self.env.get("fix.knowledge.article")
         if Article is not None:
             for binding in self.search([("active", "=", True)]):
-                article = Article.sudo().search(
-                    self._article_domain(binding.article_ref), limit=1
-                )
+                article = Article.sudo().search(self._article_domain(binding.article_ref), limit=1)
                 if not article or article.state != "published":
                     binding.write(
                         {
                             "active": False,
                             "note": "Retired (A10 S6): reference %r no longer "
-                            "resolves to a published knowledge article."
-                            % binding.article_ref,
+                            "resolves to a published knowledge article." % binding.article_ref,
                         }
                     )
                     retired |= binding

@@ -83,7 +83,9 @@ def w(odoo_env):
     x.inv2 = _user(env, "inv2", [INVESTIGATOR])
     x.legal = _user(env, "legal", [LEGAL])
     x.inv_emp = env["hr.employee"].create({"name": "A10 M60 Investigator", "user_id": x.inv.id})
-    x.inv2_emp = env["hr.employee"].create({"name": "A10 M60 Investigator Two", "user_id": x.inv2.id})
+    x.inv2_emp = env["hr.employee"].create(
+        {"name": "A10 M60 Investigator Two", "user_id": x.inv2.id}
+    )
     saved = getattr(g, "request", None)
     yield x
     g.request = saved
@@ -125,9 +127,7 @@ def test_w1_filing_gate_and_reporter_stamp(w):
     assert rec.sudo().reporter_user_id == w.intake1
     assert rec.state == "received"
     # the filing itself is an access-log entry
-    assert _access_log(w.env, rec.id, "summary").filtered(
-        lambda row: "filed" in (row.reason or "")
-    )
+    assert _access_log(w.env, rec.id, "summary").filtered(lambda row: "filed" in (row.reason or ""))
 
 
 def test_w1_reporter_field_is_system_only(w):
@@ -156,9 +156,7 @@ def test_w1_investigator_sees_only_assigned_reports(w):
 def test_w1_assignment_controls(w):
     rec = _file(w)
     # intake cannot investigate its own filing
-    self_emp = w.env["hr.employee"].create(
-        {"name": "A10 M60 self", "user_id": w.intake1.id}
-    )
+    self_emp = w.env["hr.employee"].create({"name": "A10 M60 self", "user_id": w.intake1.id})
     with pytest.raises(UserError, match="may not investigate"):
         rec.with_user(w.intake1).action_assign_investigator(self_emp.id)
     # an employee without a login cannot be assigned
@@ -218,7 +216,11 @@ def test_w1_close_journey_event_and_consumer(w):
     with pytest.raises(UserError, match="assigned"):
         rec.with_user(w.inv2).action_close(finding="substantiated")
     rec.with_user(w.inv).action_close(finding="substantiated", follow_up="Disciplinary process")
-    assert (rec.state, rec.finding, rec.follow_up) == ("closed", "substantiated", "Disciplinary process")
+    assert (rec.state, rec.finding, rec.follow_up) == (
+        "closed",
+        "substantiated",
+        "Disciplinary process",
+    )
     # the second reviewer is an intake member, never the investigator, and
     # is stamped by the system
     intake_members = w.env.ref(INTAKE).all_user_ids
@@ -269,18 +271,29 @@ def test_w1_p03_form_read_is_rule_checked(w):
 def test_w1_p03_write_and_action(w):
     rec = _journey(w, _file(w))
     # intake facts are refused on the write endpoint too
-    out = p03(w, _MW, user=w.inv, model="fix.grc.whistle", record_id=rec.id, values={"summary": "x"})
+    out = p03(
+        w, _MW, user=w.inv, model="fix.grc.whistle", record_id=rec.id, values={"summary": "x"}
+    )
     assert "error" in out and GUARD in out["error"]
     # the working notes stay editable until closure
     out = p03(
-        w, _MW, user=w.inv, model="fix.grc.whistle", record_id=rec.id,
+        w,
+        _MW,
+        user=w.inv,
+        model="fix.grc.whistle",
+        record_id=rec.id,
         values={"investigation_notes": "Interviewed two witnesses"},
     )
     assert "error" not in out
     assert rec.investigation_notes == "Interviewed two witnesses"
     # the close action runs through the endpoint with its prompt kwarg
     out = p03(
-        w, _MA, user=w.inv, model="fix.grc.whistle", ids=rec.ids, method="action_close",
+        w,
+        _MA,
+        user=w.inv,
+        model="fix.grc.whistle",
+        ids=rec.ids,
+        method="action_close",
         kwargs={"finding": "policy_gap"},
     )
     assert out.get("success") is True
@@ -310,7 +323,9 @@ def test_w2_legal_closure_needs_outcome_and_note(w):
     rec.with_user(w.legal).action_close(outcome="settled", close_note="Deed of release signed")
     assert rec.state == "closed"
     assert (rec.outcome, rec.close_note, rec.closed_on) == (
-        "settled", "Deed of release signed", fields.Date.context_today(rec)
+        "settled",
+        "Deed of release signed",
+        fields.Date.context_today(rec),
     )
     with pytest.raises(UserError, match="already closed"):
         rec.with_user(w.legal).action_close(outcome="won", close_note="again")
@@ -320,14 +335,23 @@ def test_w2_legal_closure_freezes_the_record(w):
     rec = w.env["fix.grc.legal"].with_user(w.legal).create({"matter_type": "contract"})
     rec.with_user(w.legal).action_close(outcome="dismissed", close_note="Court dismissed")
     out = p03(
-        w, _MW, user=w.legal, model="fix.grc.legal", record_id=rec.id,
+        w,
+        _MW,
+        user=w.legal,
+        model="fix.grc.legal",
+        record_id=rec.id,
         values={"close_note": "rewritten"},
     )
     assert "error" in out
     # and the P03 close action carries both prompts as kwargs
     rec2 = w.env["fix.grc.legal"].with_user(w.legal).create({"matter_type": "ip"})
     out = p03(
-        w, _MA, user=w.legal, model="fix.grc.legal", ids=rec2.ids, method="action_close",
+        w,
+        _MA,
+        user=w.legal,
+        model="fix.grc.legal",
+        ids=rec2.ids,
+        method="action_close",
         kwargs={"outcome": "won", "close_note": "Injunction granted"},
     )
     assert out.get("success") is True

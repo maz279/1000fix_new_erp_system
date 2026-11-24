@@ -76,13 +76,10 @@ def test_planted_line_on_a_guarded_model_is_not_an_offender(odoo_env):
     guard-policed model (fix.approval.substitution keeps base write by
     design, policed by fix.guarded.mixin) must NOT be named."""
     env = odoo_env
-    sub = env["ir.model"].sudo().search(
-        [("model", "=", "fix.approval.substitution")], limit=1
-    )
+    sub = env["ir.model"].sudo().search([("model", "=", "fix.approval.substitution")], limit=1)
     assert sub, "fix.approval.substitution is not registered"
     assert hasattr(env["fix.approval.substitution"], "_fix_guarded_fields"), (
-        "fix.approval.substitution lost its guard — the base-write ACL is now an "
-        "open door"
+        "fix.approval.substitution lost its guard — the base-write ACL is now an " "open door"
     )
 
     env["ir.model.access"].sudo().create(
@@ -100,6 +97,5 @@ def test_planted_line_on_a_guarded_model_is_not_an_offender(odoo_env):
     offenders = _scan_offenders(env)
     assert "fix.approval.substitution" not in offenders, (
         "the scan flags the deliberately self-service, guard-policed substitution "
-        "model as an offender — the guarded/unguarded discrimination is broken: %s"
-        % offenders
+        "model as an offender — the guarded/unguarded discrimination is broken: %s" % offenders
     )

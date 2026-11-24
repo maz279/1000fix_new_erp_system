@@ -502,9 +502,7 @@ class FixProjectBilling(models.Model):
         branch = (
             self.env["fix.branch"]
             .sudo()
-            .search(
-                [("operating_unit_id", "=", unit.id), ("company_id", "=", company.id)], limit=1
-            )
+            .search([("operating_unit_id", "=", unit.id), ("company_id", "=", company.id)], limit=1)
             if "fix.branch" in self.env
             else False
         )

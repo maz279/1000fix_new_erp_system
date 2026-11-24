@@ -92,7 +92,9 @@ def test_review_clock_announces_once_a_day_until_revised(c):
         {"name": "Never published", "category": "device_guide", "content": "draft"}
     )
     stale_draft._guarded().write({"review_due": fields.Date.today() - datetime.timedelta(days=30)})
-    assert Article.cron_article_review() == 1  # only the published one — drafts are not field content
+    assert (
+        Article.cron_article_review() == 1
+    )  # only the published one — drafts are not field content
     (payload,) = _events(c.env, "knowledge.review.due", art.id)
     assert payload == {
         "title": "Old schematic",

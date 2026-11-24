@@ -407,9 +407,7 @@ def kpis(env):
     # and a KeyError here would kill the whole M23 KPI panel on an estate
     # without M60.
     findings = env.get("fix.audit.finding")
-    findings = (
-        findings.search([("capa_status", "!=", "closed")]) if findings is not None else []
-    )
+    findings = findings.search([("capa_status", "!=", "closed")]) if findings is not None else []
     # M23 capture audit (2026-11-19): the process audit now records its own
     # findings (fix.qms.audit.finding) - an open one is any not yet closed
     process_findings = env["fix.qms.audit.finding"].search_count([("state", "!=", "closed")])

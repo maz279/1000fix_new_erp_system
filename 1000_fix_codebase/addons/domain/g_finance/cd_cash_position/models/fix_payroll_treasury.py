@@ -180,9 +180,7 @@ class FixPaymentExecutionPayroll(models.Model):
                     "%s: name the paying wallet and the net salary payable account first "
                     "(Confirm Bank completes a configured instruction)." % pay.name
                 )
-            pay._confirm_executed(
-                "payroll_return", reference=pay.bank_reference or pay.name
-            )
+            pay._confirm_executed("payroll_return", reference=pay.bank_reference or pay.name)
         return super(FixPaymentExecutionPayroll, self - payroll).action_confirm_bank()
 
     def _confirm_executed(self, source, statement_line=None, reference=None, entry_date=None):

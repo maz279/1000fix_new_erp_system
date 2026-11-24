@@ -84,7 +84,9 @@ def test_r1_residual_acceptance_is_a_risk_owners_act(r):
         {
             "name": "Parts markup arbitrage",
             "category": "financial",
-            "control_ids": [(0, 0, {"name": "Markup ceiling in price list", "control_type": "preventive"})],
+            "control_ids": [
+                (0, 0, {"name": "Markup ceiling in price list", "control_type": "preventive"})
+            ],
         }
     )
     # the wrong role cannot accept — the acceptance names a Risk Owner
@@ -105,7 +107,11 @@ def test_r1_residual_acceptance_is_a_risk_owners_act(r):
             rec.with_user(r.owner).write(vals)
     with pytest.raises(UserError, match=GUARD):
         Risk.with_user(r.owner).create(
-            {"name": "born accepted", "state": "accepted", "residual_accepted_by_id": r.other_emp.id}
+            {
+                "name": "born accepted",
+                "state": "accepted",
+                "residual_accepted_by_id": r.other_emp.id,
+            }
         )
     # the act stamps the owner's OWN employee record and today's date
     rec.with_user(r.owner).action_accept_residual()
@@ -123,32 +129,58 @@ def test_r1_risk_acceptance_through_the_portal(r):
         {
             "name": "Warranty leakage",
             "category": "compliance",
-            "control_ids": [(0, 0, {"name": "Warranty pre-authorisation gate", "control_type": "preventive"})],
+            "control_ids": [
+                (0, 0, {"name": "Warranty pre-authorisation gate", "control_type": "preventive"})
+            ],
         }
     )
     out = p03(
-        r, _MW, user=r.owner, model="fix.risk.register", record_id=rec.id,
-        values={"residual_likelihood": "2", "residual_impact": "3", "mitigation": "Pre-authorisation"},
+        r,
+        _MW,
+        user=r.owner,
+        model="fix.risk.register",
+        record_id=rec.id,
+        values={
+            "residual_likelihood": "2",
+            "residual_impact": "3",
+            "mitigation": "Pre-authorisation",
+        },
     )
     assert "error" not in out and rec.mitigation == "Pre-authorisation"
     out = p03(
-        r, _MW, user=r.owner, model="fix.risk.register", record_id=rec.id,
+        r,
+        _MW,
+        user=r.owner,
+        model="fix.risk.register",
+        record_id=rec.id,
         values={"state": "accepted"},
     )
     assert "error" in out and GUARD in out["error"]
     out = p03(
-        r, _MW, user=r.owner, model="fix.risk.register", record_id=rec.id,
+        r,
+        _MW,
+        user=r.owner,
+        model="fix.risk.register",
+        record_id=rec.id,
         values={"residual_accepted_by_id": r.other_emp.id},
     )
     assert "error" in out and GUARD in out["error"]
     # the action endpoint carries the role gate
     out = p03(
-        r, _MA, user=r.clerk, model="fix.risk.register", ids=rec.ids,
+        r,
+        _MA,
+        user=r.clerk,
+        model="fix.risk.register",
+        ids=rec.ids,
         method="action_accept_residual",
     )
     assert out.get("success") is False and "Risk Owner" in out.get("error", "")
     out = p03(
-        r, _MA, user=r.owner, model="fix.risk.register", ids=rec.ids,
+        r,
+        _MA,
+        user=r.owner,
+        model="fix.risk.register",
+        ids=rec.ids,
         method="action_accept_residual",
     )
     assert out.get("success") is True and rec.state == "accepted"
@@ -179,7 +211,9 @@ def test_r1_risk_owner_needs_an_employee_record(r):
             "name": "accepting without a profile",
             "residual_likelihood": "2",
             "residual_impact": "2",
-            "control_ids": [(0, 0, {"name": "Profile completion check", "control_type": "detective"})],
+            "control_ids": [
+                (0, 0, {"name": "Profile completion check", "control_type": "detective"})
+            ],
         }
     )
     with pytest.raises(UserError, match="no employee record"):
@@ -283,7 +317,12 @@ def test_r1_policy_approval_is_separated_and_never_typed(r):
 def test_r1_pdpa_outcomes_move_through_actions(r):
     Pdpa = r.env["fix.grc.pdpa"]
     dsr = Pdpa.create(
-        {"name": "DSR R1", "request_type": "access", "subject_name": "Subject", "company_id": r.env.company.id}
+        {
+            "name": "DSR R1",
+            "request_type": "access",
+            "subject_name": "Subject",
+            "company_id": r.env.company.id,
+        }
     )
     with pytest.raises(UserError, match="Only a Compliance Officer"):
         dsr.with_user(r.clerk).action_fulfil()
@@ -296,7 +335,12 @@ def test_r1_pdpa_outcomes_move_through_actions(r):
     with pytest.raises(UserError, match="already handled"):
         dsr.with_user(r.officer).action_fulfil()
     refusal = Pdpa.create(
-        {"name": "DSR R1b", "request_type": "erasure", "subject_name": "Subject Two", "company_id": r.env.company.id}
+        {
+            "name": "DSR R1b",
+            "request_type": "erasure",
+            "subject_name": "Subject Two",
+            "company_id": r.env.company.id,
+        }
     )
     refusal.with_user(r.officer).action_refuse("s.32 statutory retention obligation")
     assert refusal.outcome == "refused"
@@ -308,9 +352,9 @@ def test_r1_capa_closure_authority(r):
     finding = r.env["fix.audit.finding"].create(
         {
             "name": "Unlogged calibration",
-            "framework_id": r.env["fix.compliance.framework"].create(
-                {"name": "ISO 9001 (R1)", "code": "iso_9001"}
-            ).id,
+            "framework_id": r.env["fix.compliance.framework"]
+            .create({"name": "ISO 9001 (R1)", "code": "iso_9001"})
+            .id,
             "auditor_id": auditor_emp.id,
             "target_closure_date": fields.Date.today(),
             "description": "Three multimeters without records",

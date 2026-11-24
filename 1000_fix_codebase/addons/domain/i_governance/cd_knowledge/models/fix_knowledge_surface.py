@@ -42,9 +42,7 @@ class FixServiceOrderKnowledgeSurface(models.Model):
                     fault_code_id=fault.fault_code_id.id
                     if fault and "fault_code_id" in fault._fields
                     else None,
-                    device_model_id=order.device_id.device_model_id.id
-                    if order.device_id
-                    else None,
+                    device_model_id=order.device_id.device_model_id.id if order.device_id else None,
                     brand_id=order.device_id.device_model_id.brand_id.id
                     if order.device_id and order.device_id.device_model_id
                     else None,
@@ -59,7 +57,11 @@ class FixServiceOrderKnowledgeSurface(models.Model):
             "type": "ir.actions.act_window",
             "name": "Knowledge for %s" % self.name,
             "domain": [
-                ("id", "in", [r["id"] for r in (self.knowledge_surface_ids or []) if r["kind"] == "article"])
+                (
+                    "id",
+                    "in",
+                    [r["id"] for r in (self.knowledge_surface_ids or []) if r["kind"] == "article"],
+                )
             ],
             "res_model": "fix.knowledge.article",
             "view_mode": "list,form",

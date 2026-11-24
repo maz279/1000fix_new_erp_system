@@ -48,9 +48,7 @@ class FixQcItemM23(models.Model):
 
     _inherit = "fix.qc.item"
 
-    template_item_id = fields.Many2one(
-        "fix.qms.checklist.item", ondelete="set null", index=True
-    )
+    template_item_id = fields.Many2one("fix.qms.checklist.item", ondelete="set null", index=True)
     name_bn = fields.Char(string="Item (Bengali)")
     acceptance_criteria = fields.Char(
         help="The pass condition this item is judged against (from the template)."
@@ -91,9 +89,7 @@ class FixQcChecklistM23Chain(models.Model):
     # template resolution (A1-F02): the applicability rules finally route
     # ------------------------------------------------------------------
     def _m23_candidate_templates(self):
-        return self.env["fix.qms.checklist"].sudo().search(
-            [("state", "=", "published")]
-        )
+        return self.env["fix.qms.checklist"].sudo().search([("state", "=", "published")])
 
     def _m23_template_matches(self, template, order) -> bool:
         sudo_order = order.sudo()
@@ -129,10 +125,11 @@ class FixQcChecklistM23Chain(models.Model):
             if template.applies_delivery_mode != (mode or ""):
                 return False
         if template.applies_customer_type and template.applies_customer_type != "any":
-            is_corp = bool(
-                sudo_order.partner_id
-                and sudo_order.partner_id.is_company
-            ) if "partner_id" in sudo_order._fields else False
+            is_corp = (
+                bool(sudo_order.partner_id and sudo_order.partner_id.is_company)
+                if "partner_id" in sudo_order._fields
+                else False
+            )
             kind = "corporate" if is_corp else "retail"
             if template.applies_customer_type != kind:
                 return False
@@ -140,7 +137,11 @@ class FixQcChecklistM23Chain(models.Model):
             branch = (
                 sudo_order.branch_id
                 if "branch_id" in sudo_order._fields
-                else (sudo_order.operating_unit_id if "operating_unit_id" in sudo_order._fields else None)
+                else (
+                    sudo_order.operating_unit_id
+                    if "operating_unit_id" in sudo_order._fields
+                    else None
+                )
             )
             if branch and branch not in template.applies_branch_ids:
                 return False
@@ -164,27 +165,32 @@ class FixQcChecklistM23Chain(models.Model):
         for template in self._m23_candidate_templates():
             if not self._m23_template_matches(template, order):
                 continue
-            score = sum(
-                1
-                for f in (
-                    "applies_device_category",
-                    "applies_brand",
+            score = (
+                sum(
+                    1
+                    for f in (
+                        "applies_device_category",
+                        "applies_brand",
+                    )
+                    if template[f]
                 )
-                if template[f]
-            ) + (
-                1
-                if template.applies_repair_level and template.applies_repair_level != "any"
-                else 0
-            ) + (
-                1
-                if template.applies_delivery_mode and template.applies_delivery_mode != "any"
-                else 0
-            ) + (
-                1
-                if template.applies_customer_type and template.applies_customer_type != "any"
-                else 0
-            ) + (1 if template.applies_branch_ids else 0) + (
-                1 if (template.applies_value_min or template.applies_value_max) else 0
+                + (
+                    1
+                    if template.applies_repair_level and template.applies_repair_level != "any"
+                    else 0
+                )
+                + (
+                    1
+                    if template.applies_delivery_mode and template.applies_delivery_mode != "any"
+                    else 0
+                )
+                + (
+                    1
+                    if template.applies_customer_type and template.applies_customer_type != "any"
+                    else 0
+                )
+                + (1 if template.applies_branch_ids else 0)
+                + (1 if (template.applies_value_min or template.applies_value_max) else 0)
             )
             if score > best_score:
                 best, best_score = template, score
@@ -196,9 +202,7 @@ class FixQcChecklistM23Chain(models.Model):
             template = rec.template_id
             if not template or rec.item_ids:
                 continue
-            for pos, template_item in enumerate(
-                template.item_ids.sorted("sequence"), start=1
-            ):
+            for pos, template_item in enumerate(template.item_ids.sorted("sequence"), start=1):
                 Item.create(
                     {
                         "checklist_id": rec.id,
@@ -260,19 +264,25 @@ class FixServiceOrderQmsGates(models.Model):
         gates = (
             self.env["fix.qms.gate"]
             .sudo()
-            .search([("state", "=", "active"), ("checkpoint", "=", GATE_QC), ("blocking", "=", True)])
+            .search(
+                [("state", "=", "active"), ("checkpoint", "=", GATE_QC), ("blocking", "=", True)]
+            )
         )
         if not gates:
             return
         newest = self._fix_release_checklist()
         for gate in gates:
             if gate.mandatory_checklist_id:
-                passed = self.env["fix.qc.checklist"].sudo().search_count(
-                    [
-                        ("order_id", "=", self.id),
-                        ("template_id", "=", gate.mandatory_checklist_id.id),
-                        ("state", "=", "passed"),
-                    ]
+                passed = (
+                    self.env["fix.qc.checklist"]
+                    .sudo()
+                    .search_count(
+                        [
+                            ("order_id", "=", self.id),
+                            ("template_id", "=", gate.mandatory_checklist_id.id),
+                            ("state", "=", "passed"),
+                        ]
+                    )
                 )
                 if not passed:
                     raise UserError(

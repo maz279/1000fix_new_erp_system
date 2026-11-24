@@ -29,7 +29,10 @@ def _technician():
     """The authenticated user's employee record, or an error payload."""
     user = request.env.user
     if not user or user._is_public():
-        return None, {"error": "unauthenticated", "message": "Technician authentication is required"}
+        return None, {
+            "error": "unauthenticated",
+            "message": "Technician authentication is required",
+        }
     employee = request.env["hr.employee"].sudo().search([("user_id", "=", user.id)], limit=1)
     if not employee:
         return None, {
@@ -91,8 +94,10 @@ class KnowledgeOfflineApi(http.Controller):
         employee, err = _technician()
         if err:
             return err
-        sets = request.env["fix.knowledge.offline.set"].sudo().search(
-            [("user_id", "=", employee.user_id.id), ("active", "=", True)]
+        sets = (
+            request.env["fix.knowledge.offline.set"]
+            .sudo()
+            .search([("user_id", "=", employee.user_id.id), ("active", "=", True)])
         )
         if not sets:
             return {

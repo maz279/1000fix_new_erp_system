@@ -22,12 +22,16 @@ def _user(env, name, group=None):
     groups = [env.ref("base.group_user").id]
     if group:
         groups.append(env.ref(group).id)
-    return env["res.users"].with_context(no_reset_password=True).create(
-        {
-            "name": "A10 P14 %s %d" % (name, n),
-            "login": "a10p14.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
-            "group_ids": [(6, 0, groups)],
-        }
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "A10 P14 %s %d" % (name, n),
+                "login": "a10p14.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
+                "group_ids": [(6, 0, groups)],
+            }
+        )
     )
 
 
@@ -135,12 +139,18 @@ def test_a_ruling_resyncs_the_register(odoo_env):
     env = odoo_env
     Register = env["fix.grc.authority"]
     # two bases for one target: putting the second in force retires the first
-    first = _ladder(env, "P14 first", "fix.estimate", "req_text",
-                    [(100.0, "tier_0"), (1e9, "tier_3")])
+    first = _ladder(
+        env, "P14 first", "fix.estimate", "req_text", [(100.0, "tier_0"), (1e9, "tier_3")]
+    )
     first.action_put_in_force(reference="BM-A")
     assert Register.search([("source_ref", "=", "fix.dofa.ladder:%d" % first.id)])
-    second = _ladder(env, "P14 second", "fix.estimate", "ruling",
-                     [(100.0, "tier_0"), (9999.0, "tier_2"), (1e9, "tier_5")])
+    second = _ladder(
+        env,
+        "P14 second",
+        "fix.estimate",
+        "ruling",
+        [(100.0, "tier_0"), (9999.0, "tier_2"), (1e9, "tier_5")],
+    )
     second.action_put_in_force(reference="BM-B")
     # the view no longer describes the retired ladder's authority
     assert not Register.search([("source_ref", "=", "fix.dofa.ladder:%d" % first.id)])
