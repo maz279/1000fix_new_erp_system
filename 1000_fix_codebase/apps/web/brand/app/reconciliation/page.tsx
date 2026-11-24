@@ -1,136 +1,267 @@
 "use client";
 
-/* P08 reconciliation — the brand's remittance view (T08): approved and
- * remitted claims with FLAGGED mismatches (never auto-adjusted), plus
- * remittance recording against a claim. Money arrives as BN-007 strings. */
-import { useCallback, useEffect, useState } from "react";
-import { tokens, Pill, SectionHead, DataTable, Loading, LoadError, Stat } from "../../lib/imports";
-import type { Column } from "../../lib/imports";
+/**
+ * Brand remittance & reconciliation — approved vs advised vs money received,
+ * with mismatches FLAGGED (never auto-adjusted). A remittance advice is the
+ * brand's word; Odoo settles the claim only when an officer records the money
+ * received against a bank reference.
+ */
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Loading, LoadError, tokens } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
+import { useBrand } from "../../components/brand-context";
+import {
+  Badge,
+  PageHeader,
+  Panel,
+  StateBadge,
+  StatCard,
+  downloadCsv,
+  linkButtonStyle,
+  pageStyle,
+  primaryLinkStyle,
+  selectStyle,
+  tdStyle,
+  thStyle,
+} from "../../components/ui";
 
 interface ReconRow {
-  claim_no: string; state: string;
-  expected_bdt: string; received_bdt: string; mismatch: boolean;
-  variance_bdt?: string;
+  id: number;
+  claim_no: string;
+  state: string;
+  expected_bdt: string;
+  received_bdt: string;
+  advised_bdt: string;
+  mismatch: boolean;
+  variance_bdt: string;
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: 8,
-  background: tokens["color.surface.canvas"],
-  color: tokens["color.text.primary"],
-  border: `1px solid ${tokens["color.border.default"]}`,
-  borderRadius: tokens["dimension.border.radius-sm"],
-  fontSize: tokens["typography.size.200"],
-  width: 140,
-};
-const btn: React.CSSProperties = {
-  padding: "8px 16px",
-  border: "none",
-  borderRadius: tokens["dimension.border.radius-sm"],
-  cursor: "pointer",
-  fontSize: tokens["typography.size.200"],
-  fontWeight: Number(tokens["typography.weight.medium"]),
-  background: tokens["color.primary.base"],
-  color: tokens["color.text.inverse"],
-};
+interface Summary {
+  totals?: {
+    approved_bdt?: string;
+    remitted_bdt?: string;
+    advised_bdt?: string;
+    outstanding_bdt?: string;
+  };
+  reconciliation?: { mismatches?: number; variance_bdt?: string };
+}
 
 export default function ReconciliationPage() {
+  const { ready, error: scopeError, brandId, brand } = useBrand();
   const [rows, setRows] = useState<ReconRow[]>([]);
+  const [summary, setSummary] = useState<Summary>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [mismatchOnly, setMismatchOnly] = useState(false);
+  const [claimId, setClaimId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [bankRef, setBankRef] = useState("");
 
-  const brandId = (() => {
-    if (typeof window === "undefined") return null;
-    const saved = window.sessionStorage.getItem("fix_brand_id");
-    return saved ? Number(saved) : null;
-  })();
-
-  const reload = useCallback(async (bid: number) => {
-    const d = await callOdoo<{ reconciliation?: ReconRow[]; error?: { message: string } }>(
-      "/brand/reconciliation", { brand_id: bid });
-    if (d.error) setError(d.error.message);
-    else setRows(d.reconciliation || []);
-  }, []);
+  const load = useCallback(async () => {
+    if (brandId == null) return;
+    const [r, s] = await Promise.all([
+      callOdoo<{ reconciliation?: ReconRow[]; error?: { message: string } }>(
+        "/brand/portal/reconciliation",
+        { brand_id: brandId }
+      ),
+      callOdoo<Summary>("/brand/portal/summary", { brand_id: brandId }),
+    ]);
+    if (r.error) setError(r.error.message);
+    else {
+      setRows(r.reconciliation ?? []);
+      setSummary(s);
+      setError(null);
+    }
+  }, [brandId]);
 
   useEffect(() => {
-    if (brandId == null) { setLoading(false); setError("No brand selected — open Claims first"); return; }
-    reload(brandId).then(() => setLoading(false)).catch((e: Error) => setError(e.message));
-  }, [brandId, reload]);
+    if (!ready || brandId == null) return;
+    setLoading(true);
+    load()
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [ready, brandId, load]);
 
-  async function recordRemittance(e: React.FormEvent<HTMLFormElement>) {
+  const filtered = useMemo(
+    () => (mismatchOnly ? rows.filter((r) => r.mismatch) : rows),
+    [rows, mismatchOnly]
+  );
+
+  const submitAdvice = async (e: FormEvent) => {
     e.preventDefault();
-    if (brandId == null) return;
-    const form = new FormData(e.currentTarget);
-    const d = await callOdoo<{ remittance?: { claim_no: string; mismatch: boolean }; error?: { message: string } }>(
-      "/brand/reconciliation", {
+    if (brandId == null || !claimId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await callOdoo<{
+        remittance?: { claim_no: string; mismatch: boolean; status: string };
+        error?: { message: string };
+      }>("/brand/portal/reconciliation", {
         brand_id: brandId,
-        claim_id: Number(form.get("claim_id")),
-        amount: Number(form.get("amount")),
-        bank_ref: String(form.get("bank_ref")),
+        claim_id: Number(claimId),
+        amount: Number(amount),
+        bank_ref: bankRef,
       });
-    setNotice(d.error
-      ? d.error.message
-      : `${d.remittance?.claim_no} recorded${d.remittance?.mismatch ? " — MISMATCH FLAGGED (expected ≠ received)" : ""}`);
-    if (!d.error) reload(brandId);
-  }
+      if (d.error) throw new Error(d.error.message);
+      setNotice(
+        `${d.remittance?.claim_no} advice noted${d.remittance?.mismatch ? " — MISMATCH FLAGGED (advice ≠ approved)" : ""}`
+      );
+      setClaimId("");
+      setAmount("");
+      setBankRef("");
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  if (loading) return <Loading />;
-  if (error) return <LoadError what="reconciliation" message={error} />;
+  const exportCsv = () =>
+    downloadCsv(
+      `1000fix-brand-reconciliation-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Claim", "State", "Approved (BDT)", "Advised (BDT)", "Received (BDT)", "Variance (BDT)", "Mismatch"],
+      rows.map((r) => [
+        r.claim_no,
+        r.state,
+        r.expected_bdt,
+        r.advised_bdt,
+        r.received_bdt,
+        r.variance_bdt,
+        r.mismatch ? "FLAGGED" : "",
+      ])
+    );
 
-  const mismatches = rows.filter((r) => r.mismatch).length;
-  const columns: Column<ReconRow>[] = [
-    { header: "Claim", cell: (r) => r.claim_no },
-    { header: "State", cell: (r) => <Pill state={r.state} /> },
-    { header: "Expected (BDT)", cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.expected_bdt}</span> },
-    { header: "Received (BDT)", cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.received_bdt}</span> },
-    {
-      header: "Variance (BDT)",
-      cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums", color: r.mismatch ? tokens["color.chart.5"] : "inherit" }}>{r.variance_bdt || "0.00"}</span>,
-    },
-    {
-      header: "Match",
-      cell: (r) => r.mismatch
-        ? <Pill state="mismatch" label="flagged" />
-        : (r.state === "remitted" ? <Pill state="matched" label="ok" /> : "—"),
-    },
-  ];
+  if (!ready) return <Loading label="Resolving your brand access…" />;
+  if (scopeError) return <LoadError what="brand access" message={scopeError} />;
+  if (brandId == null) return <LoadError what="brand access" message="No brand is linked to this account." />;
+  if (loading) return <Loading label="Loading reconciliation…" />;
+  if (error && rows.length === 0) return <LoadError what="reconciliation" message={error} />;
+
+  const totals = summary.totals ?? {};
+  const mismatches = summary.reconciliation?.mismatches ?? 0;
 
   return (
-    <main style={{ padding: 32 }}>
-      <SectionHead
-        title="Remittance Reconciliation"
-        note="T08: a mismatch is FLAGGED, never auto-adjusted — the flag stands until a human clears it"
+    <main style={pageStyle}>
+      <PageHeader
+        title={`${brand?.name ?? "Brand"} — remittance reconciliation`}
+        subtitle="Approved vs advised vs money received. A mismatch is flagged and stands until a human clears it — never auto-adjusted."
+        actions={
+          <button type="button" onClick={exportCsv} style={{ ...linkButtonStyle, cursor: "pointer" }}>
+            ⬇ Export CSV
+          </button>
+        }
       />
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <Stat label="Approved / remitted" value={rows.length} />
-        <Stat label="Flagged mismatches" value={mismatches} tone="primary" />
-      </div>
-      {notice && (
-        <p role="status" style={{
-          padding: "10px 14px", marginBottom: 16,
-          borderRadius: tokens["dimension.border.radius-sm"],
-          background: tokens["color.status.info-bg"],
-          color: tokens["color.status.info"],
-          fontSize: tokens["typography.size.200"],
-        }}>{notice}</p>
-      )}
-      <DataTable rows={rows} columns={columns} keyOf={(r) => r.claim_no} />
 
-      <section style={{
-        marginTop: 24, padding: 20, maxWidth: 560,
-        border: `1px solid ${tokens["color.border.default"]}`,
-        borderRadius: tokens["dimension.border.radius-md"],
-        background: tokens["color.surface.primary"],
-      }}>
-        <strong>Record a remittance</strong>
-        <form onSubmit={recordRemittance} style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input name="claim_id" type="number" required placeholder="Claim ID" style={inputStyle} aria-label="Claim ID" />
-          <input name="amount" type="number" step="0.01" required placeholder="Amount ৳" style={inputStyle} aria-label="Remitted amount" />
-          <input name="bank_ref" required placeholder="Bank ref" style={{ ...inputStyle, width: 180 }} aria-label="Bank reference" />
-          <button type="submit" style={btn}>Record</button>
-        </form>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Approved" value={`৳ ${totals.approved_bdt ?? "0.00"}`} tone="success" />
+        <StatCard label="Advised" value={`৳ ${totals.advised_bdt ?? "0.00"}`} tone="warning" />
+        <StatCard label="Received" value={`৳ ${totals.remitted_bdt ?? "0.00"}`} tone="success" />
+        <StatCard label="Outstanding" value={`৳ ${totals.outstanding_bdt ?? "0.00"}`} tone="warning" />
+        <StatCard label="Mismatches" value={mismatches} note={`variance ৳ ${summary.reconciliation?.variance_bdt ?? "0.00"}`} tone={mismatches ? "error" : "success"} />
       </section>
+
+      {notice && (
+        <div role="status" style={{ marginBottom: 12, padding: "8px 12px", borderRadius: tokens["dimension.border.radius-sm"], background: tokens["color.status.success-bg"], color: tokens["color.status.success"], fontSize: 12.5 }}>
+          {notice}
+        </div>
+      )}
+      {error && (
+        <div role="alert" style={{ marginBottom: 12, padding: "8px 12px", borderRadius: tokens["dimension.border.radius-sm"], background: tokens["color.status.error-bg"], color: tokens["color.status.error"], fontSize: 12.5 }}>
+          {error}
+        </div>
+      )}
+
+      <Panel title="Remittance advice">
+        <form onSubmit={submitAdvice} style={{ padding: 16, display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div>
+            <label htmlFor="advice-claim" style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Claim</label>
+            <select id="advice-claim" required value={claimId} onChange={(e) => setClaimId(e.target.value)} style={{ ...selectStyle, minWidth: 220 }}>
+              <option value="">Select an approved claim…</option>
+              {rows.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.claim_no} — approved ৳{r.expected_bdt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="advice-amount" style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Advised amount</label>
+            <input id="advice-amount" type="number" min={0} step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="৳" style={{ ...selectStyle, width: 150 }} />
+          </div>
+          <div>
+            <label htmlFor="advice-ref" style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Bank / remittance ref</label>
+            <input id="advice-ref" required value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="Bank reference" style={{ ...selectStyle, width: 200 }} />
+          </div>
+          <button type="submit" disabled={busy} style={{ ...primaryLinkStyle, border: "none", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1 }}>
+            {busy ? "Recording…" : "Record advice"}
+          </button>
+        </form>
+        <p style={{ margin: 0, padding: "0 16px 14px", fontSize: 11.5, color: tokens["color.text.secondary"] }}>
+          An advice records what your brand says it will remit; the claim is settled only when 1000 FiX
+          records the money received against a bank reference.
+        </p>
+      </Panel>
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0 12px" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+          <input type="checkbox" checked={mismatchOnly} onChange={(e) => setMismatchOnly(e.target.checked)} />
+          Mismatches only
+        </label>
+        <span style={{ fontSize: 11.5, color: tokens["color.text.secondary"] }}>
+          {filtered.length} of {rows.length} approved/remitted claims
+        </span>
+      </div>
+
+      <Panel>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: tokens["color.surface.secondary"] }}>
+                <th style={thStyle}>Claim</th>
+                <th style={thStyle}>State</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Approved</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Advised</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Received</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Variance</th>
+                <th style={thStyle}>Match</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{r.claim_no}</td>
+                  <td style={tdStyle}><StateBadge state={r.state} /></td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>৳ {r.expected_bdt}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>৳ {r.advised_bdt}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>৳ {r.received_bdt}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums", color: r.mismatch ? tokens["color.status.error"] : tokens["color.text.primary"] }}>
+                    ৳ {r.variance_bdt}
+                  </td>
+                  <td style={tdStyle}>
+                    {r.mismatch ? (
+                      <Badge tone="error">flagged</Badge>
+                    ) : r.state === "remitted" ? (
+                      <Badge tone="success">matched</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: tokens["color.text.secondary"], padding: 26 }}>
+                    No approved / remitted claims in this view.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
     </main>
   );
 }

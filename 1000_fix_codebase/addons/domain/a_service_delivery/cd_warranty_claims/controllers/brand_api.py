@@ -25,7 +25,7 @@
 # - the superuser environment is only used for model access (brand partners are
 #   not internal users); every read and write is scoped to the resolved brand.
 
-from odoo import SUPERUSER_ID, http
+from odoo import SUPERUSER_ID, fields, http
 from odoo.addons.cd_service_order.controllers.technician_api import _error, _fmt_bdt, _to_int
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
@@ -260,6 +260,7 @@ class BrandApiController(http.Controller):
                 mismatch, variance = False, "0.00"
             result.append(
                 {
+                    "id": c.id,
                     "claim_no": c.claim_no,
                     "state": c.state,
                     "expected_bdt": _fmt_bdt(c.approved_amount),
@@ -297,4 +298,100 @@ class BrandApiController(http.Controller):
                 "variance_bdt": _fmt_bdt(advised_diff) if mismatch else "0.00",
                 "status": "advice_noted",
             }
+        }
+
+
+class BrandPortalApiController(BrandApiController):
+    """Session-authenticated P08 portal routes.
+
+    The partner API above is ``auth="bearer"`` (API key / partner webhook).
+    Interactive brand users sign in with an Odoo session, which that auth
+    class refuses (401). These aliases keep the same resolution + scoping
+    rules and add the portal session/summary reads; the bearer contract is
+    untouched for system integrations.
+    """
+
+    @http.route("/brand/portal/session", type="jsonrpc", auth="user", readonly=True)
+    def portal_session(self, **kwargs):
+        """The brands linked to the signed-in user (never a raw id input)."""
+        user = request.env.user
+        if not user or user._is_public():
+            return _error("unauthenticated", "Brand partner authentication is required")
+        brands = _su_env()["fix.brand"].search([("api_user_ids", "in", user.id)])
+        if not brands:
+            return _error("no_brand", "No brand is linked to the authenticated user")
+        return {
+            "brands": [{"id": b.id, "name": b.name, "code": b.code or ""} for b in brands],
+            "selected": brands[0].id,
+        }
+
+    @http.route("/brand/portal/claims", type="jsonrpc", auth="user", readonly=False)
+    def portal_claims(self, **kwargs):
+        """List or decide claims for the signed-in brand user."""
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
+        if kwargs.get("claim_id") and kwargs.get("decision"):
+            return self._decide_claim(brand, **kwargs)
+        return self._list_claims(brand, **kwargs)
+
+    @http.route("/brand/portal/reconciliation", type="jsonrpc", auth="user", readonly=False)
+    def portal_reconciliation(self, **kwargs):
+        """Reconciliation view or a remittance advice for the signed-in brand."""
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
+        if kwargs.get("bank_ref") and kwargs.get("claim_id"):
+            return self._record_remittance(brand, **kwargs)
+        return self.reconciliation(**kwargs)
+
+    @http.route("/brand/portal/summary", type="jsonrpc", auth="user", readonly=True)
+    def portal_summary(self, **kwargs):
+        """Brand claim posture: state mix, claimed/approved/remitted/outstanding
+        totals and reconciliation mismatch flags — all backend-computed."""
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
+        claims = _su_env()["fix.warranty.claim"].search([("brand_id", "=", brand.id)])
+        by_state = {}
+        claimed = 0.0
+        approved = 0.0
+        remitted = 0.0
+        advised = 0.0
+        outstanding = 0.0
+        mismatches = 0
+        mismatch_value = 0.0
+        awaiting = 0
+        for c in claims:
+            by_state[c.state] = by_state.get(c.state, 0) + 1
+            claimed += c.claim_amount or 0.0
+            advised += c.remittance_advice_amount or 0.0
+            if c.state in ("submitted", "in_review"):
+                awaiting += 1
+            if c.state in ("approved", "partially_approved", "remitted", "closed"):
+                approved += c.approved_amount or 0.0
+                outstanding += max(0.0, (c.approved_amount or 0.0) - (c.remittance_amount or 0.0))
+            if c.state in ("remitted", "closed"):
+                remitted += c.remittance_amount or 0.0
+            compare = c.remittance_amount if c.remittance_amount else c.remittance_advice_amount
+            if compare and abs(compare - (c.approved_amount or 0.0)) > 0.01:
+                mismatches += 1
+                mismatch_value += compare - (c.approved_amount or 0.0)
+        return {
+            "brand": {"id": brand.id, "name": brand.name, "code": brand.code or ""},
+            "claims_by_state": by_state,
+            "total_claims": len(claims),
+            "awaiting_decision": awaiting,
+            "totals": {
+                "claimed_bdt": _fmt_bdt(claimed),
+                "approved_bdt": _fmt_bdt(approved),
+                "remitted_bdt": _fmt_bdt(remitted),
+                "advised_bdt": _fmt_bdt(advised),
+                "outstanding_bdt": _fmt_bdt(outstanding),
+            },
+            "reconciliation": {
+                "mismatches": mismatches,
+                "variance_bdt": _fmt_bdt(mismatch_value),
+            },
+            "generated_at": fields.Datetime.to_string(fields.Datetime.now()),
         }

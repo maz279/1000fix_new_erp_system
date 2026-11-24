@@ -4,7 +4,7 @@
  * adds the shared UI atoms from libs/ts/ui).
  */
 export { tokens } from "../../../../libs/ts/ui/src/tokens/tokens.generated";
-export { uiCopy } from "../../../../libs/ts/api-client/src/ui-copy";
+// uiCopy (platform copy incl. ERP module labels) is not shipped by this portal.
 export { ApiClient, ApiError } from "../../../../libs/ts/api-client/src/index";
 export {
   Pill, Stat, SectionHead, DataTable, Loading, LoadError,
