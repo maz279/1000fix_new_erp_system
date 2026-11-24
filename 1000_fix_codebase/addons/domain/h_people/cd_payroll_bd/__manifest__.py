@@ -35,10 +35,13 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        # The groups must exist before the payslip scope rule references them
+        # (a clean install failed with "External ID not found:
+        # cd_payroll_bd.group_payroll_officer" when this was loaded first).
+        "security/fix_payroll_security.xml",
         # M56-F19: the payslip's real scope (company-wide for payroll, the cost
         # unit for anyone else) - replaces the generated no-op unit rule.
         "security/fix_payslip_scope_rules.xml",
-        "security/fix_payroll_security.xml",
         "security/ir.model.access.csv",
         "data/payroll_ops_sequences.xml",
         "data/fix_payroll_a09_data.xml",
