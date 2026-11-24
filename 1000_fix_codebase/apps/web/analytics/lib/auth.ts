@@ -37,7 +37,9 @@ export class AuthError extends Error {
 /** Fired on window when a data call reports an expired/missing Odoo session. */
 export const SESSION_EXPIRED_EVENT = "fix:session-expired";
 
-const API_BASE = (process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
+// Same-origin only. Auth calls go through the allow-listed /api/odoo bridge,
+// which pins the Odoo origin server-side and enforces the staff-only rule.
+const API_BASE = "/api/odoo";
 
 /**
  * sessionStorage keys purged on sign-in/out. `fix_token` is the fake bearer
@@ -101,7 +103,14 @@ async function rpc<T>(path: string, params: Record<string, unknown>): Promise<Rp
     throw new AuthError("rate_limited", "Too many sign-in attempts. Wait a minute, then try again.");
   }
   if (!res.ok) {
-    throw new AuthError("server", `The sign-in server answered HTTP ${res.status}.`);
+    let message = `The sign-in server answered HTTP ${res.status}.`;
+    try {
+      const body = (await res.json()) as { error?: { message?: string } };
+      if (body?.error?.message) message = body.error.message;
+    } catch {
+      /* non-JSON body: keep the status message */
+    }
+    throw new AuthError(res.status === 403 ? "credentials" : "server", message);
   }
   try {
     return (await res.json()) as RpcEnvelope<T>;
@@ -160,6 +169,15 @@ export async function login(loginName: string, password: string): Promise<UserSe
   }
   const session = toSession(data.result);
   if (!session) throw new AuthError("credentials", "Wrong username/email or password.");
+  // Staff-only defence in depth: the bridge already refuses non-internal
+  // accounts, but no alternate path may turn this portal into a customer view.
+  if (!session.isInternal) {
+    await logout();
+    throw new AuthError(
+      "credentials",
+      "The analytics portal is for 1000FiX staff accounts. Sign in with an internal staff account."
+    );
+  }
   purgeStaleKeys();
   return session;
 }

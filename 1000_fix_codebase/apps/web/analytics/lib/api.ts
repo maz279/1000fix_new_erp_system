@@ -16,7 +16,9 @@ let _client: ApiClient | null = null;
 function getClient(): ApiClient {
   if (!_client) {
     _client = new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000",
+      // Same-origin allow-listed bridge; the browser never learns the Odoo
+      // origin and holds no bearer token (the session cookie is the credential).
+      baseUrl: "/api/odoo",
     });
   }
   return _client;

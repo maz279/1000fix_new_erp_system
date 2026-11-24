@@ -1,476 +1,206 @@
 "use client";
 
-/* P06 dashboards — the registry with the embedded-BI seam (R05-M04-T01).
- * The portal layer holds NO data: the dashboard registry comes from
- * /analytics/dashboards and every number comes from /analytics/kpis
- * (backend read_group over service orders / warranty claims / HR).
- * Nothing is substituted when a call fails — the error is shown.
- * A Superset embed renders only when the backend returns an embed URL AND
- * the deployment allows that origin via NEXT_PUBLIC_SUPERSET_URL (which
- * proxy.ts also adds to the CSP frame-src).
+/**
+ * P06 public landing page — the analytics estate's front door.
+ *
+ * Staff-only: the page explains the decision surface (executive dashboards,
+ * the 95-KPI register, data governance and model monitoring) and hands the
+ * visitor to the dedicated staff sign-in. No metrics are shown before a
+ * session is verified.
  */
-import { useCallback, useEffect, useState } from "react";
-import { tokens, Pill, SectionHead, Loading, Stat } from "../lib/imports";
-import { callOdoo } from "../lib/api";
-import { describeError, type DescribedError } from "../lib/errors";
+import Link from "next/link";
+import { tokens } from "../lib/imports";
+import { useAuth } from "../components/auth-gate";
+import { linkButtonStyle, pageStyle, primaryLinkStyle } from "../components/ui";
 
-interface Dashboard {
-  id: string;
-  area: string;
-  title_en: string;
-  title_bn: string;
-  audience: string;
-  embed_available: boolean;
-  embed_url: string | null;
-}
+const FEATURES = [
+  {
+    href: "/dashboards",
+    icon: "📊",
+    en: "Executive & operational dashboards",
+    bn: "এক্সিকিউটিভ ও অপারেশনাল ড্যাশবোর্ড",
+    descEn: "Six curated views — executive, branch, technician, finance, warranty and people — with period comparison and CSV export.",
+    descBn: "ছয়টি কিউরেটেড ভিউ — এক্সিকিউটিভ, ব্রাঞ্চ, টেকনিশিয়ান, ফাইন্যান্স, ওয়ারেন্টি ও কর্মী — পিরিয়ড তুলনা ও সিএসভি এক্সপোর্টসহ।",
+  },
+  {
+    href: "/kpi-register",
+    icon: "🎯",
+    en: "The 95-KPI register",
+    bn: "৯৫-কেপিআই রেজিস্টার",
+    descEn: "Every KPI's family, owner, baseline, W4/W8 targets, source dataset and calculation formula — the single definitions source.",
+    descBn: "প্রতিটি কেপিআই-এর পরিবার, মালিক, বেসলাইন, W4/W8 লক্ষ্য, সোর্স ডেটাসেট ও গণনার সূত্র — একক সংজ্ঞা উৎস।",
+  },
+  {
+    href: "/governance",
+    icon: "🛡️",
+    en: "Data governance",
+    bn: "ডেটা গভর্নেন্স",
+    descEn: "Catalogue completeness, source-to-target lineage, data-quality rules and residency compliance — with frozen-artifact labels.",
+    descBn: "ক্যাটালগ সম্পূর্ণতা, সোর্স-টু-টার্গেট লিনিয়েজ, ডেটা-কোয়ালিটি রুল ও রেসিডেন্সি কমপ্লায়েন্স — ফ্রোজেন আর্টিফ্যাক্ট লেবেলসহ।",
+  },
+  {
+    href: "/models",
+    icon: "🤖",
+    en: "Model monitoring",
+    bn: "মডেল মনিটরিং",
+    descEn: "Bengali speech-to-text model version, evaluation WER, drift status and PDPA checks — with the evaluation scope stated.",
+    descBn: "বাংলা স্পিচ-টু-টেক্সট মডেল সংস্করণ, WER, ড্রিফট স্ট্যাটাস ও PDPA চেক — মূল্যায়নের পরিধি স্পষ্ট করে।",
+  },
+];
 
-interface Kpis {
-  dashboard: string;
-  orders_by_state: Record<string, number>;
-  orders_total: number;
-  breakdown?: { name: string; open: number }[];
-  claims_by_state?: Record<string, number>;
-  people_metrics?: Record<string, string | number>;
-}
-
-/** The Superset origin this deployment allows in frame-src, or null. */
-function allowedEmbedOrigin(): string | null {
-  const raw = process.env.NEXT_PUBLIC_SUPERSET_URL?.trim();
-  if (!raw) return null;
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return null;
-  }
-}
-
-/** The embed URL when it may be framed under the CSP, else null. */
-function frameableEmbed(d: Dashboard): string | null {
-  if (!d.embed_available || !d.embed_url) return null;
-  const origin = allowedEmbedOrigin();
-  if (!origin) return null;
-  try {
-    return new URL(d.embed_url).origin === origin ? d.embed_url : null;
-  } catch {
-    return null;
-  }
-}
-
-const card: React.CSSProperties = {
-  border: `1px solid ${tokens["color.border.default"]}`,
-  borderRadius: tokens["dimension.border.radius-md"],
-  background: tokens["color.surface.primary"],
-  padding: 24,
-  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-};
-
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  minHeight: 48,
-  padding: "10px 20px",
-  cursor: "pointer",
-  border: active ? `2px solid ${tokens["color.primary.base"]}` : `1px solid ${tokens["color.border.default"]}`,
-  borderRadius: tokens["dimension.border.radius-sm"],
-  fontSize: tokens["typography.size.200"],
-  fontWeight: Number(tokens["typography.weight.medium"]),
-  background: active ? tokens["color.primary.base"] : tokens["color.surface.primary"],
-  color: active ? tokens["color.text.inverse"] : tokens["color.text.primary"],
-  transition: "all 0.15s ease-in-out",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-});
-
-const subHead: React.CSSProperties = {
-  fontSize: tokens["typography.size.200"],
-  color: tokens["color.text.secondary"],
-  marginBottom: 12,
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const countTile: React.CSSProperties = {
-  padding: "12px 18px",
-  borderRadius: tokens["dimension.border.radius-sm"],
-  background: tokens["color.surface.secondary"],
-  border: `1px solid ${tokens["color.border.default"]}`,
-  minWidth: 140,
-};
-
-function ErrorPanel({ err, what }: { err: DescribedError; what: string }) {
-  if (err.sessionExpired) {
-    return (
-      <div role="alert" style={{ ...card, color: tokens["color.status.warning"] }}>
-        <strong>Your session has expired or you are not signed in.</strong>{" "}
-        Returning you to the sign-in screen — sign in again to view {what}.
-      </div>
-    );
-  }
-  return (
-    <div role="alert" style={{ ...card, color: tokens["color.status.error"] }}>
-      Failed to load {what}: {err.message}
-    </div>
-  );
-}
-
-function CountTiles({ counts, prefix }: { counts: Record<string, number>; prefix?: string }) {
-  return (
-    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-      {Object.entries(counts).map(([state, count]) => (
-        <div key={state} style={countTile}>
-          <div
-            style={{
-              fontSize: tokens["typography.size.100"],
-              color: tokens["color.text.secondary"],
-              textTransform: "capitalize",
-            }}
-          >
-            {prefix}
-            {state.replace(/_/g, " ")}
-          </div>
-          <div
-            style={{
-              fontSize: tokens["typography.size.400"],
-              fontWeight: Number(tokens["typography.weight.bold"]),
-              color: tokens["color.text.primary"],
-              marginTop: 4,
-            }}
-          >
-            {count.toLocaleString()}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function DashboardsPage() {
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [registryLoading, setRegistryLoading] = useState(true);
-  const [registryError, setRegistryError] = useState<DescribedError | null>(null);
-  const [active, setActive] = useState<string | null>(null);
-  const [kpis, setKpis] = useState<Kpis | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<DescribedError | null>(null);
-
-  useEffect(() => {
-    callOdoo<{ dashboards?: Dashboard[] } | undefined>("/analytics/dashboards")
-      .then((d) => {
-        const list = d?.dashboards ?? [];
-        setDashboards(list);
-        setActive(list[0]?.id ?? null);
-      })
-      .catch((e: unknown) => setRegistryError(describeError(e)))
-      .finally(() => setRegistryLoading(false));
-  }, []);
-
-  const loadKpis = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
-    setKpis(null);
-    try {
-      const d = await callOdoo<{ kpis?: Kpis; error?: { message: string } } | undefined>(
-        "/analytics/kpis",
-        { dashboard: id }
-      );
-      if (d?.error) {
-        setError({ sessionExpired: false, message: d.error.message });
-      } else if (d?.kpis) {
-        setKpis(d.kpis);
-      } else {
-        setError({ sessionExpired: false, message: "The server returned no KPI data." });
-      }
-    } catch (e: unknown) {
-      setError(describeError(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (active) loadKpis(active);
-  }, [active, loadKpis]);
-
-  const header = (
-    <header style={{ marginBottom: 24 }}>
-      <SectionHead
-        title="Executive BI & Analytics Portal (P06 / M25)"
-        note="Backend-computed KPIs from the analytics API; embedded Superset dashboards where the deployment configures them"
-      />
-    </header>
-  );
-
-  if (registryLoading) {
-    return (
-      <main style={{ padding: "32px 40px", maxWidth: 1400, margin: "0 auto" }}>
-        {header}
-        <Loading label="Loading dashboard registry…" />
-      </main>
-    );
-  }
-
-  if (registryError) {
-    return (
-      <main style={{ padding: "32px 40px", maxWidth: 1400, margin: "0 auto" }}>
-        {header}
-        <ErrorPanel err={registryError} what="the dashboard registry" />
-      </main>
-    );
-  }
-
-  const current = dashboards.find((d) => d.id === active) ?? null;
-  const embedUrl = current ? frameableEmbed(current) : null;
-  const embedBlocked = Boolean(current?.embed_available && current.embed_url && !embedUrl);
+export default function AnalyticsLandingPage() {
+  const { status, user } = useAuth();
+  const signedIn = status === "signed-in" && Boolean(user?.isInternal);
 
   return (
-    <main style={{ padding: "32px 40px", maxWidth: 1400, margin: "0 auto" }}>
-      {header}
-
-      {dashboards.length === 0 && (
-        <div style={{ ...card, color: tokens["color.text.secondary"] }}>
-          No dashboards are registered for this deployment.
-        </div>
-      )}
-
-      {/* Tab Navigation conforming to WCAG 2.2 AA */}
-      {dashboards.length > 0 && (
-        <nav aria-label="Analytics Dashboard Views" style={{ marginBottom: 24 }}>
-          <div
-            role="tablist"
-            aria-label="Dashboard Categories"
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              padding: 4,
-              background: tokens["color.surface.secondary"],
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
+    <main style={pageStyle}>
+      <section
+        aria-labelledby="an-hero-title"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.55fr) minmax(240px, 0.75fr)",
+          gap: 26,
+          alignItems: "center",
+          padding: "32px 28px",
+          borderRadius: tokens["dimension.border.radius-lg"],
+          background: `linear-gradient(150deg, ${tokens["color.primary.hover"]}, ${tokens["color.primary.base"]})`,
+          color: tokens["color.text.inverse"],
+        }}
+      >
+        <div>
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.8 }}>
+            1000 FiX · ANALYTICS &amp; EXECUTIVE (P06)
+          </p>
+          <h1
+            id="an-hero-title"
+            style={{ margin: "8px 0 10px", fontSize: tokens["typography.size.600"], lineHeight: 1.18, color: "#fff" }}
           >
-            {dashboards.map((d) => {
-              const isSelected = active === d.id;
-              return (
-                <button
-                  key={d.id}
-                  id={`tab-${d.id}`}
-                  role="tab"
-                  aria-selected={isSelected}
-                  aria-controls={`tabpanel-${d.id}`}
-                  tabIndex={isSelected ? 0 : -1}
-                  style={tabBtn(isSelected)}
-                  onClick={() => setActive(d.id)}
-                >
-                  <span>{d.title_en}</span>
-                  <span
-                    style={{
-                      fontSize: tokens["typography.size.100"],
-                      opacity: 0.85,
-                      marginLeft: 6,
-                    }}
-                  >
-                    ({d.title_bn})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
-
-      {/* Dashboard Viewport */}
-      {current && (
-        <section
-          id={`tabpanel-${current.id}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${current.id}`}
-        >
-          {embedUrl ? (
-            <div
+            Decisions from one<br />trusted number.
+          </h1>
+          <p style={{ margin: 0, maxWidth: "74ch", fontSize: 14, lineHeight: 1.65, opacity: 0.9 }}>
+            Executive and operational KPIs computed in the backend, a governed 95-KPI register,
+            lineage and data-quality evidence, and model monitoring — for 1000 FiX staff only.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+            <Link
+              href={signedIn ? "/dashboards" : "/login"}
               style={{
-                ...card,
-                height: 640,
-                display: "flex",
-                flexDirection: "column",
+                ...primaryLinkStyle,
+                background: "#fff",
+                color: tokens["color.primary.base"],
+                padding: "10px 18px",
+                fontSize: 14,
               }}
             >
-              <h2 style={{ fontSize: tokens["typography.size.400"], margin: "0 0 12px" }}>
-                {current.title_en} — Apache Superset Embed
-              </h2>
-              <iframe
-                src={embedUrl}
-                title={`${current.title_en} Superset Dashboard`}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                }}
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
+              {signedIn ? "Open dashboards" : "Staff sign in"}
+            </Link>
+            <Link
+              href="/kpi-register"
+              style={{
+                ...linkButtonStyle,
+                background: "transparent",
+                color: "#fff",
+                borderColor: "rgba(255,255,255,0.45)",
+                padding: "10px 18px",
+                fontSize: 14,
+              }}
+            >
+              Browse the KPI register →
+            </Link>
+          </div>
+          <p style={{ margin: "14px 0 0", fontSize: 11.5, opacity: 0.8, lineHeight: 1.55 }}>
+            Sign in with your 1000 FiX staff (internal) account. Customer and partner portal
+            accounts are refused; no demo or shared credential exists.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} aria-label="Portal facts">
+          {[
+            { value: "95", en: "Registered KPIs", bn: "নিবন্ধিত কেপিআই" },
+            { value: "6", en: "Dashboards", bn: "ড্যাশবোর্ড" },
+            { value: "ISO 9001", en: "Certified", bn: "সার্টিফায়েড" },
+            { value: "P06", en: "Staff-only", bn: "শুধু কর্মীদের জন্য" },
+          ].map((f) => (
+            <div
+              key={f.value}
+              style={{
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: tokens["dimension.border.radius-md"],
+                padding: "13px 14px",
+              }}
+            >
+              <b style={{ display: "block", fontSize: 17, color: "#fff", whiteSpace: "nowrap" }}>{f.value}</b>
+              <span style={{ fontSize: 10.5, opacity: 0.8 }}>{f.en}</span>
             </div>
-          ) : (
-            <div style={card}>
-              {embedBlocked && (
-                <p
-                  role="note"
-                  style={{
-                    margin: "0 0 16px",
-                    padding: "10px 14px",
-                    borderRadius: tokens["dimension.border.radius-sm"],
-                    background: tokens["color.status.warning-bg"],
-                    color: tokens["color.status.warning"],
-                    fontSize: tokens["typography.size.200"],
-                  }}
-                >
-                  A BI embed is configured for this dashboard, but its origin is not allowed by this
-                  portal (NEXT_PUBLIC_SUPERSET_URL is unset or points elsewhere). Showing the native
-                  KPI view instead.
-                </p>
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 16,
-                  borderBottom: `1px solid ${tokens["color.border.default"]}`,
-                  paddingBottom: 12,
-                  gap: 16,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <h2 style={{ fontSize: tokens["typography.size.300"], margin: 0 }}>
-                    {current.title_en} — Backend Aggregations
-                  </h2>
-                  <p
-                    style={{
-                      fontSize: tokens["typography.size.200"],
-                      color: tokens["color.text.secondary"],
-                      margin: "4px 0 0",
-                    }}
-                  >
-                    Source: /analytics/kpis (server-side read_group; nothing is computed in the portal)
-                  </p>
-                </div>
-                {kpis && <Stat label="Total Service Orders" value={kpis.orders_total.toLocaleString()} tone="primary" />}
-              </div>
+          ))}
+        </div>
+      </section>
 
-              {loading ? (
-                <Loading label="Loading KPIs…" />
-              ) : error ? (
-                <ErrorPanel err={error} what="KPIs" />
-              ) : kpis ? (
-                <>
-                  <h3 style={subHead}>Service Orders by State</h3>
-                  {Object.keys(kpis.orders_by_state).length === 0 ? (
-                    <p style={{ color: tokens["color.text.secondary"], marginBottom: 20 }}>
-                      No service orders recorded yet.
-                    </p>
-                  ) : (
-                    <CountTiles counts={kpis.orders_by_state} />
-                  )}
+      <section style={{ marginTop: 28 }} aria-labelledby="an-features-title">
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <h2 id="an-features-title" style={{ margin: 0, fontSize: tokens["typography.size.400"], color: tokens["color.text.primary"] }}>
+            What the estate provides
+          </h2>
+          <p style={{ margin: 0, fontSize: 12, color: tokens["color.text.secondary"] }}>
+            Every number is backend-computed; the portal holds no data copy and does no arithmetic.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
+          {FEATURES.map((f) => (
+            <Link
+              key={f.href}
+              href={f.href}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                padding: 16,
+                background: tokens["color.surface.primary"],
+                border: `1px solid ${tokens["color.border.default"]}`,
+                borderRadius: tokens["dimension.border.radius-md"],
+                color: tokens["color.text.primary"],
+                textDecoration: "none",
+              }}
+            >
+              <span style={{ fontSize: 20 }} aria-hidden>{f.icon}</span>
+              <strong style={{ fontSize: 13.5 }}>{f.en}</strong>
+              <span lang="bn" style={{ fontSize: 11, color: tokens["color.text.secondary"] }}>{f.bn}</span>
+              <span style={{ fontSize: 12, lineHeight: 1.55, color: tokens["color.text.secondary"] }}>{f.descEn}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-                  {kpis.claims_by_state && (
-                    <div style={{ marginTop: 20 }}>
-                      <h3 style={subHead}>Warranty Claims by State</h3>
-                      {Object.keys(kpis.claims_by_state).length === 0 ? (
-                        <p style={{ color: tokens["color.text.secondary"] }}>No warranty claims recorded yet.</p>
-                      ) : (
-                        <CountTiles counts={kpis.claims_by_state} prefix="Claim: " />
-                      )}
-                    </div>
-                  )}
+      <section
+        style={{
+          marginTop: 28,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 18,
+          flexWrap: "wrap",
+          padding: "18px 20px",
+          background: tokens["color.surface.primary"],
+          border: `1px solid ${tokens["color.border.default"]}`,
+          borderRadius: tokens["dimension.border.radius-lg"],
+        }}
+      >
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: tokens["typography.size.400"], color: tokens["color.text.primary"] }}>
+            Need access?
+          </h2>
+          <p style={{ margin: 0, maxWidth: "75ch", fontSize: 12.5, lineHeight: 1.55, color: tokens["color.text.secondary"] }}>
+            Analytics access is provisioned per role. Ask your department head or the BI team;
+            the enterprise desk is on 16743.
+          </p>
+        </div>
+        <a href="tel:16743" style={{ ...primaryLinkStyle, textDecoration: "none" }}>☎ 16743</a>
+      </section>
 
-                  {kpis.people_metrics && (
-                    <div style={{ marginTop: 20 }}>
-                      <h3 style={subHead}>People &amp; HR Governance</h3>
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                        {Object.entries(kpis.people_metrics).map(([k, v]) => (
-                          <Stat key={k} label={k.replace(/_/g, " ")} value={String(v)} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {kpis.breakdown && (
-                    <div style={{ marginTop: 24 }}>
-                      <h3
-                        style={{
-                          fontSize: tokens["typography.size.300"],
-                          marginBottom: 12,
-                          color: tokens["color.text.primary"],
-                        }}
-                      >
-                        Service Orders by {current.id === "branch" ? "Branch" : "Technician"}
-                      </h3>
-                      {kpis.breakdown.length === 0 ? (
-                        <p style={{ color: tokens["color.text.secondary"] }}>No service orders recorded yet.</p>
-                      ) : (
-                        <div
-                          style={{
-                            overflowX: "auto",
-                            borderRadius: tokens["dimension.border.radius-sm"],
-                            border: `1px solid ${tokens["color.border.default"]}`,
-                          }}
-                        >
-                          <table
-                            style={{
-                              width: "100%",
-                              borderCollapse: "collapse",
-                              fontSize: tokens["typography.size.200"],
-                              textAlign: "left",
-                            }}
-                          >
-                            <thead>
-                              <tr
-                                style={{
-                                  background: tokens["color.surface.secondary"],
-                                  borderBottom: `1px solid ${tokens["color.border.default"]}`,
-                                }}
-                              >
-                                <th scope="col" style={{ padding: "12px 16px" }}>
-                                  {current.id === "branch" ? "Branch" : "Technician"}
-                                </th>
-                                <th scope="col" style={{ padding: "12px 16px" }}>Service Orders</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {kpis.breakdown.map((b, i) => (
-                                <tr
-                                  key={`${b.name}-${i}`}
-                                  style={{
-                                    borderBottom: `1px solid ${tokens["color.border.default"]}`,
-                                    background:
-                                      i % 2 === 0
-                                        ? tokens["color.surface.primary"]
-                                        : tokens["color.surface.secondary"],
-                                  }}
-                                >
-                                  <td style={{ padding: "12px 16px", fontWeight: 500 }}>{b.name}</td>
-                                  <td style={{ padding: "12px 16px" }}>
-                                    <Pill state="open" label={`${b.open.toLocaleString()} orders`} />
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {current.id === "finance" && (
-                    <p style={{ marginTop: 20, color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"] }}>
-                      Ledger, VAT and receivables figures are not served by the native KPI API; they are
-                      available only through the Superset finance embed when one is configured.
-                    </p>
-                  )}
-                </>
-              ) : null}
-            </div>
-          )}
-        </section>
-      )}
+      <p style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${tokens["color.border.default"]}`, fontSize: 10.5, color: tokens["color.text.secondary"], textAlign: "center" }}>
+        1000 FiX Services Ltd. · ISO 9001:2015 · P06 Analytics &amp; Executive · staff-only · financial values are
+        backend aggregates, never portal calculations
+      </p>
     </main>
   );
 }

@@ -9,8 +9,9 @@
 #     models (service orders, warranty claims). The portal layer holds
 #     NO data and computes NOTHING (AS-09); it renders backend numbers.
 import json
+from datetime import datetime, time, timedelta
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 # The dashboard registry (R5): which dashboards exist, for whom, in
@@ -71,12 +72,77 @@ DASHBOARDS = [
 class AnalyticsApiController(http.Controller):
     """The P06 analytics portal API (W4 contract)."""
 
+    @staticmethod
+    def _staff_only():
+        """The analytics estate is staff-only (P06/P10). Portal users get a
+        structured refusal instead of company-wide KPIs — the same rule the
+        portal bridge enforces, restated at the data layer.
+
+        Unbound request contexts (direct controller unit calls, scripts) have
+        no user to check and no external caller to protect; the HTTP route
+        already requires auth="user"."""
+        try:
+            user = request.env.user
+        except (RuntimeError, AttributeError):
+            return None
+        if user and user._is_internal():
+            return None
+        return {
+            "error": {
+                "code": "staff_only",
+                "message": "The analytics portal is for 1000FiX staff accounts.",
+            }
+        }
+
+    @staticmethod
+    def _period(kwargs):
+        """Optional date range (YYYY-MM-DD) and the previous comparison window."""
+        raw_from = kwargs.get("date_from")
+        raw_to = kwargs.get("date_to")
+        if not raw_from and not raw_to:
+            return None
+        try:
+            date_from = fields.Date.to_date(raw_from) if raw_from else None
+            date_to = fields.Date.to_date(raw_to) if raw_to else None
+        except (TypeError, ValueError):
+            return None
+        if date_from and date_to and date_from > date_to:
+            date_from, date_to = date_to, date_from
+        start = datetime.combine(date_from, time.min) if date_from else None
+        end = datetime.combine(date_to, time.max) if date_to else None
+        domain = []
+        if start:
+            domain.append(("create_date", ">=", start))
+        if end:
+            domain.append(("create_date", "<=", end))
+        days = (date_to - date_from).days + 1 if date_from and date_to else None
+        previous = None
+        if days and start:
+            previous = {
+                "date_from": str(date_from - timedelta(days=days)),
+                "date_to": str(date_from - timedelta(days=1)),
+                "_domain": [
+                    ("create_date", ">=", start - timedelta(days=days)),
+                    ("create_date", "<", start),
+                ],
+            }
+        return {
+            "date_from": str(date_from) if date_from else None,
+            "date_to": str(date_to) if date_to else None,
+            "days": days,
+            "domain": domain,
+            "previous": previous,
+        }
+
     @http.route("/analytics/dashboards", type="jsonrpc", auth="user", readonly=True)
     def dashboards(self, **kwargs):
         """The dashboard registry with the embedded-BI seam. An embed URL
         appears only when the deployment configured one (ir.config_parameter
         per dashboard); without it the KPI surface below serves the same
         area. The portal NEVER invents an embed host."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         params = request.env["ir.config_parameter"].sudo()
         result = []
         for d in DASHBOARDS:
@@ -105,7 +171,14 @@ class AnalyticsApiController(http.Controller):
         warranty: claim-state aggregations (M09).
         finance: the AR/AP posture rides the BI embed (Superset owns the
           ledger joins); the native view serves order-linked signals only.
+
+        Optional ``date_from``/``date_to`` (YYYY-MM-DD) scope the read; with
+        ``include_meta=1`` the answer also carries the comparison window, the
+        previous-period total/delta and the server generation timestamp.
         """
+        denied = self._staff_only()
+        if denied:
+            return denied
         dashboard = kwargs.get("dashboard", "executive")
         valid = {d["id"] for d in DASHBOARDS}
         if dashboard not in valid:
@@ -115,9 +188,13 @@ class AnalyticsApiController(http.Controller):
                     "message": "dashboard must be one of %s" % ", ".join(sorted(valid)),
                 }
             }
+        period = self._period(kwargs)
+        order_domain = period["domain"] if period else []
         # Odoo 19: _read_group returns one tuple per group — the group values
         # in groupby order, then one value per aggregate (__count last here).
-        order_groups = request.env["fix.service.order"]._read_group([], ["state"], ["__count"])
+        order_groups = request.env["fix.service.order"]._read_group(
+            order_domain, ["state"], ["__count"]
+        )
         by_state = {group[0]: group[-1] for group in order_groups}
         result = {
             "dashboard": dashboard,
@@ -126,13 +203,17 @@ class AnalyticsApiController(http.Controller):
         }
         if dashboard in ("branch", "technician"):
             field = "branch_id" if dashboard == "branch" else "technician_id"
-            groups = request.env["fix.service.order"]._read_group([], [field], ["__count"])
+            groups = request.env["fix.service.order"]._read_group(
+                order_domain, [field], ["__count"]
+            )
             result["breakdown"] = [
                 {"name": group[0].display_name if group[0] else "(unassigned)", "open": group[-1]}
                 for group in groups
             ]
         if dashboard == "warranty":
-            claim_groups = request.env["fix.warranty.claim"]._read_group([], ["state"], ["__count"])
+            claim_groups = request.env["fix.warranty.claim"]._read_group(
+                period["domain"] if period else [], ["state"], ["__count"]
+            )
             result["claims_by_state"] = {group[0]: group[-1] for group in claim_groups}
         if dashboard == "people":
             emp_model = request.env["hr.employee"].sudo()
@@ -159,12 +240,35 @@ class AnalyticsApiController(http.Controller):
                 "kpi_090_status": "COMPLIANT" if orphaned == 0 else "BREACH",
                 "leaver_deprovision_sla_hours": 1.0,
             }
+        if kwargs.get("include_meta"):
+            previous_total = None
+            delta_pct = None
+            if period and period.get("previous"):
+                previous_total = request.env["fix.service.order"].search_count(
+                    period["previous"]["_domain"]
+                )
+                if previous_total:
+                    delta_pct = round(
+                        (result["orders_total"] - previous_total) / previous_total * 100, 1
+                    )
+            result["period"] = {
+                "date_from": period["date_from"] if period else None,
+                "date_to": period["date_to"] if period else None,
+                "days": period["days"] if period else None,
+            }
+            result["orders_previous"] = previous_total
+            result["orders_delta_pct"] = delta_pct
+            result["generated_at"] = fields.Datetime.to_string(fields.Datetime.now())
+            result["source"] = "live ORM read_group"
         return {"kpis": result}
 
     @http.route("/analytics/kpis/register", type="jsonrpc", auth="user", readonly=True)
     def kpi_register(self, **kwargs):
         """M25: Surface the authoritative 95-KPI register from 06-02 section 2 (R05-M04-T03).
         Provides complete metadata, calculation formulas, targets and BM-002 reconciliation."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -209,6 +313,9 @@ class AnalyticsApiController(http.Controller):
         """M02-T01: Estate-wide data catalogue (1,335 owned entities, 12 domains, DA-002/DA-003).
 
         E5: frozen artefact — the payload is labelled as such."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -233,6 +340,9 @@ class AnalyticsApiController(http.Controller):
         """M02-T02: Source-to-target lineage across all warehouse feeds (DA-003 §6 / DA-007).
 
         E5: frozen artefact — the payload is labelled as such."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -269,6 +379,9 @@ class AnalyticsApiController(http.Controller):
         """M02-T03: Data quality monitoring with thresholds and alerting wire verification (DA-008).
 
         E5: frozen artefact — the payload is labelled as such."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -291,6 +404,9 @@ class AnalyticsApiController(http.Controller):
         """M02-T04: NFR-086c residency classification compliance scan across warehouse.
 
         E5: frozen artefact — the payload is labelled as such."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -313,6 +429,9 @@ class AnalyticsApiController(http.Controller):
     @http.route("/analytics/stt/dashboard", type="jsonrpc", auth="user", readonly=True)
     def stt_dashboard(self, **kwargs):
         """M03-T04: Speech-to-Text productionisation, WER tracking and model-monitoring drift loop."""
+        denied = self._staff_only()
+        if denied:
+            return denied
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
