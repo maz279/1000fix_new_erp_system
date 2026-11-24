@@ -333,13 +333,16 @@ def test_a_failed_portal_provisioning_is_a_generic_sign_in_failure(world, caplog
 
 
 def test_no_customer_route_declares_cors():
-    """CORS terminates at the Kong gateway's explicit origin allow-list (P-11)."""
+    """No customer route declares CORS: the portal reaches Odoo through the
+    same-origin /api/odoo bridge (the rebuild replaced the Kong edge, P-11)."""
     routes = [
         member.original_routing
         for member in vars(CustomerApiController).values()
         if hasattr(member, "original_routing")
     ]
-    assert len(routes) == 10
+    # 11 since the ownership-transfer route joined the customer surface
+    # (a03 merge); the inventory count is a tripwire for new routes.
+    assert len(routes) == 11
     assert all(r.get("cors") is None for r in routes), [
         r["routes"] for r in routes if r.get("cors")
     ]

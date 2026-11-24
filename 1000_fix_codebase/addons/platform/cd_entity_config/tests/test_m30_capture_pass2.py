@@ -66,7 +66,25 @@ def c(odoo_env):
     x.pa2 = _user(env, "m30cap2_pa2", [PA])
     assert not x.pa1.has_group(SYSTEM)
     x.branch = env["fix.branch"].search([("active", "=", True)], limit=1)
-    assert x.branch, "the test database has no branch"
+    if not x.branch:
+        # The clean fix_test carries no demo branch (the old assertion assumed
+        # a seeded database); the fixture builds its own spine. fix.entity is
+        # UNIQUE per company, so reuse the company's entity when present.
+        company = env.company
+        entity = env["fix.entity"].search([("company_id", "=", company.id)], limit=1)
+        if not entity:
+            entity = env["fix.entity"].create(
+                {"code": "M30C2", "legal_name": "M30 Capture Entity", "company_id": company.id}
+            )
+        ou = env["operating.unit"].search([], limit=1)
+        x.branch = env["fix.branch"].create(
+            {
+                "name": "M30 Capture Branch",
+                "code": "M30C2",
+                "entity_id": entity.id,
+                "operating_unit_id": ou.id,
+            }
+        )
     # A Platform Admin administers the branches of every unit they are given;
     # without the branch's unit the OU record rule hides it (as it should).
     for user in (x.pa1, x.pa2):
