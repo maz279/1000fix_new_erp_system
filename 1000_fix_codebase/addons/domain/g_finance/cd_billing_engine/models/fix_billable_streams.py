@@ -346,10 +346,18 @@ class FixBillableEventStreams(models.Model):
                 "source_type": candidate["source_type"],
                 "source_model": candidate["source_model"],
                 "source_id": candidate["source_id"],
-                "company_id": candidate["company"].id or self.env.company.id,
-                "operating_unit_id": candidate["operating_unit"].id or False,
-                "customer_id": candidate["customer"].id or False,
-                "currency_id": candidate["currency"].id or False,
+                "company_id": candidate["company"].id
+                if candidate["company"]
+                else self.env.company.id,
+                "operating_unit_id": candidate["operating_unit"].id
+                if candidate["operating_unit"]
+                else False,
+                # A claim whose brand has no OEM billing partner is still
+                # queued (with the "link the brand's legal entity" note) so
+                # finance sees it; it has no customer yet. This used to crash
+                # the hourly intake on customer=False.
+                "customer_id": candidate["customer"].id if candidate["customer"] else False,
+                "currency_id": candidate["currency"].id if candidate["currency"] else False,
                 "amount": candidate["amount"],
                 "description": "Warranty claim %s reimbursement (%s)"
                 % (claim.claim_no, claim.brand_id.name if claim.brand_id else "-"),

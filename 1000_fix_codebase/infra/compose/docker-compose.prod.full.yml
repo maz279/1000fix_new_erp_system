@@ -68,6 +68,10 @@ x-portal-env: &portal-env
   CSP_CONNECT_SRC: "https://${API_HOST:?API_HOST (public API host name) is required} https://${AUTH_HOST:?AUTH_HOST (public Keycloak host name) is required}"
   FRAME_ANCESTORS: "'self'"
   FIX_API_BASE: "https://${API_HOST:?API_HOST is required}"
+  # The rebuilt portals reach Odoo only through their same-origin /api/odoo
+  # bridge. Without this the bridge defaults to 127.0.0.1 inside the
+  # container and no portal can reach the odoo service.
+  ODOO_INTERNAL_URL: "http://odoo:8069"
 
 services:
   # ------------------------------------------------------------------ data

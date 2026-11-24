@@ -176,6 +176,29 @@ def test_a_recoverable_claim_queues_to_the_brand_partner(w):
     assert len(env["fix.a04.claim.consumers"]._claim_invoices(claim)) == 1
 
 
+def test_a_claim_without_an_oem_billing_partner_is_queued_not_crashing(w):
+    """A brand with no legal entity is a finance follow-up, not a cron crash.
+
+    The hourly intake used to raise AttributeError on customer=False
+    (``'bool' object has no attribute 'id'``), so one unlinked brand stopped
+    every subscription, contract and claim intake in the same run.
+    """
+    env = w.env
+    claim = w.full_pack(w.claim(brand_rec=w.other_brand, amount=5000.0))
+    claim.with_user(w.clerk).action_submit()
+    claim.action_decide(approved=True)
+    claim.invalidate_recordset()
+    assert claim.state == "approved"
+    assert not w.other_brand.billing_partner()
+
+    Queue = env["fix.billable.event"].sudo()
+    Queue._cron_intake_streams()
+    row = Queue.search([("source_type", "=", "brand_claim"), ("source_id", "=", claim.id)])
+    assert len(row) == 1
+    assert not row.customer_id
+    assert "link the brand's legal entity" in (row.amount_note or "")
+
+
 def test_a_claim_the_side_consumer_already_invoiced_is_registered(w):
     """The finding's other half: an invoice the A04 C7 consumer raised is
     registered on a queue row with state=invoiced - visible to the stream's
