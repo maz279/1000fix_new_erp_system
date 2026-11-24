@@ -27,7 +27,9 @@ export interface UserSession {
   isPortal: boolean;
 }
 
-const API_BASE = (process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
+// Same-origin only. Auth calls below use the literal /api/odoo bridge path:
+// the browser never learns or supplies the backend origin, and the bridge
+// (app/api/odoo) pins it server-side with a path allow-list.
 
 // Public OIDC metadata (used only for the SSO logout redirect) — from env at build time
 const OIDC_ISSUER = process.env.NEXT_PUBLIC_OIDC_ISSUER || "http://127.0.0.1:8080/realms/1000fix-dev";
@@ -64,7 +66,7 @@ export async function loginWithOdoo(
   password: string,
   db: string = odooDatabase()
 ): Promise<UserSession> {
-  const res = await fetch(`${API_BASE}/web/session/authenticate`, {
+  const res = await fetch("/api/odoo/web/session/authenticate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -76,19 +78,41 @@ export async function loginWithOdoo(
     }),
   });
 
-  if (!res.ok) {
-    throw new Error(`Authentication server error: ${res.status}`);
+  let data: {
+    error?: { message?: string; data?: { message?: string } };
+    result?: {
+      uid?: number;
+      name?: string;
+      username?: string;
+      partner_id?: number;
+      is_internal_user?: boolean;
+      is_portal?: boolean;
+    };
+  } = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON body handled below */
   }
-
-  const data = await res.json();
   if (data.error) {
     const msg = data.error.data?.message || data.error.message || "Invalid corporate credentials";
     throw new Error(msg);
+  }
+  if (!res.ok) {
+    throw new Error(`Authentication server error: ${res.status}`);
   }
 
   const result = data.result;
   if (!result || !result.uid) {
     throw new Error("Invalid username or password");
+  }
+  // The bridge refuses internal logins; this is defence in depth so no
+  // alternate path can turn the corporate portal into a back-office session.
+  if (result.is_internal_user === true || result.is_portal === false) {
+    await logoutOdoo();
+    throw new Error(
+      "This portal is for corporate clients. Staff and administrator accounts use the operations portal."
+    );
   }
 
   const session: UserSession = {
@@ -96,7 +120,7 @@ export async function loginWithOdoo(
     name: result.name || loginName,
     username: result.username || loginName,
     partnerId: result.partner_id || result.uid,
-    isPortal: Boolean(result.is_portal),
+    isPortal: true,
   };
 
   if (typeof window !== "undefined") {
@@ -110,10 +134,57 @@ export async function loginWithOdoo(
   return session;
 }
 
-/** Direct session logout against Odoo via Kong gateway */
+/**
+ * Session truth from Odoo (not the sessionStorage cache). Internal sessions
+ * are reported as signed out — this portal is corporate-client only.
+ */
+export async function getSessionInfo(): Promise<{
+  user: UserSession | null;
+  backendReachable: boolean;
+}> {
+  try {
+    const res = await fetch("/api/odoo/web/session/get_session_info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
+      body: JSON.stringify({ jsonrpc: "2.0", method: "call", id: Date.now(), params: {} }),
+    });
+    const data = (await res.json()) as {
+      result?: {
+        uid?: number;
+        username?: string;
+        name?: string;
+        partner_id?: number;
+        is_internal_user?: boolean;
+      };
+      error?: unknown;
+    };
+    if (data.error || !data.result?.uid) return { user: null, backendReachable: true };
+    const r = data.result;
+    const uid = r.uid;
+    if (!uid) return { user: null, backendReachable: true };
+    const identified = r.username || r.name;
+    if (!identified || r.is_internal_user === true) return { user: null, backendReachable: true };
+    return {
+      user: {
+        uid,
+        name: identified,
+        username: r.username || "",
+        partnerId: r.partner_id || uid,
+        isPortal: true,
+      },
+      backendReachable: true,
+    };
+  } catch {
+    return { user: null, backendReachable: false };
+  }
+}
+
+/** Direct session logout against Odoo through the same-origin bridge */
 export async function logoutOdoo(): Promise<void> {
   try {
-    await fetch(`${API_BASE}/web/session/destroy`, {
+    await fetch("/api/odoo/web/session/destroy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

@@ -45,7 +45,7 @@
     },
     "/corporate/service-requests": {
       "post": {
-        "summary": "P04: service requests at scale",
+        "summary": "P04: service requests at scale (one device or a bulk device_ids batch)",
         "requestBody": {
           "required": true,
           "content": {
@@ -65,6 +65,50 @@
           }
         },
         "operationId": "createCorporateServiceRequest"
+      }
+    },
+    "/corporate/contracts": {
+      "post": {
+        "summary": "P04: contracts and attached SLA policies for the signed-in commercial partner (M08)",
+        "responses": {
+          "200": {
+            "description": "Contract list with coverage, renewal horizon and SLA targets"
+          }
+        },
+        "operationId": "listCorporateContracts"
+      }
+    },
+    "/corporate/tenders": {
+      "post": {
+        "summary": "P04: tenders where the account is the procuring client + issued quotations (M36)",
+        "responses": {
+          "200": {
+            "description": "Tender and quotation lists (internal bid preparation excluded)"
+          }
+        },
+        "operationId": "listCorporateTenders"
+      }
+    },
+    "/corporate/profile": {
+      "post": {
+        "summary": "P04: the corporate account master data, contacts and account manager",
+        "responses": {
+          "200": {
+            "description": "Company profile scoped to the session's commercial partner"
+          }
+        },
+        "operationId": "getCorporateProfile"
+      }
+    },
+    "/corporate/reports/summary": {
+      "post": {
+        "summary": "P04: six-month spend, request volume, estate distribution and AR aging",
+        "responses": {
+          "200": {
+            "description": "Backend-aggregated report (BN-007 formatted amounts)"
+          }
+        },
+        "operationId": "getCorporateReportSummary"
       }
     },
     "/brand/claims": {

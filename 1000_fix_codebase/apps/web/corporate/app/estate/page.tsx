@@ -1,331 +1,337 @@
 "use client";
 
 /**
- * Corporate Estate Screen (PP3-M01-T02) — Enterprise Asset Registry.
- * Renders fleet assets from /corporate/estate via Kong gateway.
- * Zero local/mock data (FF-39). Tokens only (CFM-01).
- * Features:
- * - Live search filter (brand, model, serial/IMEI)
- * - Warranty coverage filter pills
- * - Bilingual support (English / বাংলা)
- * - Accessible table markup with proper scope and ARIA attributes
+ * Fleet estate — the corporate client's registered devices by site.
+ *
+ * Live, partner-fenced data from /corporate/estate. Adds site and asset-tag
+ * visibility, warranty filtering, CSV export and a bulk path into the service
+ * request flow. Money is never computed here; the backend sends every value.
  */
-import { useEffect, useState, useId } from "react";
-import { tokens } from "../../lib/imports";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Loading, LoadError, tokens } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
-import { useAuth } from "../../components/auth-modal";
+import { RequireAuth } from "../../components/require-auth";
+import {
+  PageHeader,
+  Panel,
+  StatePill,
+  StatCard,
+  downloadCsv,
+  linkButtonStyle,
+  pageStyle,
+  tdStyle,
+  thStyle,
+} from "../../components/ui";
 
 interface Device {
   id: number;
   brand: string;
   model: string;
   identifier: string;
+  serial_number: string;
+  imei: string;
+  asset_tag: string;
+  site: string;
+  state: string;
+  custody_state: string;
   warranty_status: string;
   warranty_end: string | null;
 }
 
-const pillColors: Record<string, { bg: string; fg: string }> = {
-  active: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  expired: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  pending: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  voided: { bg: tokens["color.status.neutral-bg"], fg: tokens["color.status.neutral"] },
-};
+interface SiteRow {
+  site: string;
+  count: number;
+}
 
-export default function EstatePage() {
+function EstateContent() {
+  const { locale } = useLanguage();
   const { t } = useLanguage();
-  const { user, openLoginModal } = useAuth();
-  const searchInputId = useId();
-
+  const bn = locale === "bn";
+  const router = useRouter();
   const [devices, setDevices] = useState<Device[]>([]);
+  const [sites, setSites] = useState<SiteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [warranty, setWarranty] = useState("all");
+  const [siteFilter, setSiteFilter] = useState("all");
+  const [selected, setSelected] = useState<number[]>([]);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [warrantyFilter, setWarrantyFilter] = useState<string>("all");
-
-  const loadEstate = () => {
-    setLoading(true);
-    setAuthError(false);
-    setError(null);
-
-    callOdoo<{ devices: Device[]; total: number }>("/corporate/estate")
-      .then((data) => {
-        setDevices(data.devices || []);
+  useEffect(() => {
+    let active = true;
+    callOdoo<{ devices: Device[]; sites: SiteRow[] }>("/corporate/estate")
+      .then((d) => {
+        if (!active) return;
+        setDevices(d.devices || []);
+        setSites(d.sites || []);
         setLoading(false);
       })
       .catch((e: Error) => {
-        const msg = e.message || "";
-        if (
-          msg.includes("Session expired") ||
-          msg.includes("Odoo Session Expired") ||
-          msg.includes("network") ||
-          msg.includes("Unexpected token") ||
-          msg.includes("is not valid JSON") ||
-          msg.includes("<!DOCTYPE") ||
-          !user
-        ) {
-          setAuthError(true);
-        } else {
-          setError(msg);
-        }
+        if (!active) return;
+        setError(e.message);
         setLoading(false);
       });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filtered = useMemo(
+    () =>
+      devices.filter((d) => {
+        const q = query.trim().toLowerCase();
+        const matchesQuery =
+          !q ||
+          d.brand.toLowerCase().includes(q) ||
+          d.model.toLowerCase().includes(q) ||
+          d.serial_number.toLowerCase().includes(q) ||
+          d.asset_tag.toLowerCase().includes(q) ||
+          d.imei.toLowerCase().includes(q);
+        const matchesWarranty = warranty === "all" || d.warranty_status === warranty;
+        const matchesSite = siteFilter === "all" || d.site === siteFilter;
+        return matchesQuery && matchesWarranty && matchesSite;
+      }),
+    [devices, query, warranty, siteFilter]
+  );
+
+  const toggle = (id: number) => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  useEffect(() => {
-    loadEstate();
-  }, [user]);
+  const exportCsv = () => {
+    downloadCsv(
+      `1000fix-fleet-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Brand", "Model", "Serial", "IMEI", "Asset tag", "Site", "Warranty status", "Warranty end", "State"],
+      devices.map((d) => [
+        d.brand,
+        d.model,
+        d.serial_number,
+        d.imei,
+        d.asset_tag,
+        d.site,
+        d.warranty_status,
+        d.warranty_end || "",
+        d.state,
+      ])
+    );
+  };
 
-  // Filtered devices
-  const filteredDevices = devices.filter((d) => {
-    const matchesSearch =
-      d.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.identifier.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesWarranty =
-      warrantyFilter === "all" || d.warranty_status.toLowerCase() === warrantyFilter.toLowerCase();
-    return matchesSearch && matchesWarranty;
-  });
+  if (loading) return <Loading label={bn ? "ডিভাইস বহর লোড হচ্ছে…" : "Loading the fleet estate…"} />;
+  if (error) return <LoadError what={bn ? "ডিভাইস বহর" : "Fleet estate"} message={error} />;
+
+  const inWarranty = devices.filter((d) => ["in_warranty", "extended"].includes(d.warranty_status)).length;
+  const unassigned = devices.filter((d) => !d.site).length;
+  const outWarranty = devices.filter((d) => d.warranty_status === "out_of_warranty").length;
 
   return (
-    <main style={{ padding: "32px 24px", maxWidth: 1280, margin: "0 auto" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1
+    <main style={pageStyle}>
+      <PageHeader
+        title={bn ? "ডিভাইস বহর" : "Fleet estate"}
+        subtitle={
+          bn
+            ? `${devices.length}টি নিবন্ধিত ডিভাইস — সাইট, সিরিয়াল, অ্যাসেট ট্যাগ ও ওয়ারেন্টি অবস্থা।`
+            : `${devices.length} registered devices — site, serial, asset tag and warranty state.`
+        }
+        actions={
+          <>
+            <button type="button" onClick={exportCsv} style={{ ...linkButtonStyle, cursor: "pointer" }}>
+              ⬇ {bn ? "CSV এক্সপোর্ট" : "Export CSV"}
+            </button>
+            <Link
+              href={
+                selected.length
+                  ? `/service-requests?devices=${selected.join(",")}`
+                  : "/service-requests"
+              }
+              style={{ ...linkButtonStyle, textDecoration: "none" }}
+            >
+              {bn
+                ? selected.length
+                  ? `${selected.length} ডিভাইসের জন্য অনুরোধ`
+                  : "সার্ভিস অনুরোধ"
+                : selected.length
+                  ? `Request service for ${selected.length}`
+                  : "Raise a service request"}
+            </Link>
+          </>
+        }
+      />
+
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label={bn ? "মোট ডিভাইস" : "Total assets"} value={devices.length} tone="primary" />
+        <StatCard label={bn ? "ওয়ারেন্টিতে" : "In warranty"} value={inWarranty} tone="success" />
+        <StatCard label={bn ? "ওয়ারেন্টির বাইরে" : "Out of warranty"} value={outWarranty} tone={outWarranty ? "warning" : "neutral"} />
+        <StatCard label={bn ? "সাইট ছাড়া" : "Unassigned site"} value={unassigned} tone={unassigned ? "error" : "neutral"} />
+      </section>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={bn ? "ব্র্যান্ড, মডেল, সিরিয়াল বা অ্যাসেট ট্যাগ…" : "Brand, model, serial or asset tag…"}
           style={{
-            margin: "0 0 6px",
-            fontSize: tokens["typography.size.500"],
+            flex: "1 1 260px",
+            maxWidth: 420,
+            padding: "8px 12px",
+            border: `1px solid ${tokens["color.border.default"]}`,
+            borderRadius: tokens["dimension.border.radius-sm"],
+            background: tokens["color.surface.primary"],
             color: tokens["color.text.primary"],
+            fontSize: tokens["typography.size.200"],
           }}
-        >
-          {t.estateTitle}
-        </h1>
-        <p
+        />
+        <select
+          value={siteFilter}
+          onChange={(e) => setSiteFilter(e.target.value)}
+          aria-label={bn ? "সাইট" : "Site"}
           style={{
-            margin: 0,
-            color: tokens["color.text.secondary"],
+            padding: "8px 10px",
+            border: `1px solid ${tokens["color.border.default"]}`,
+            borderRadius: tokens["dimension.border.radius-sm"],
+            background: tokens["color.surface.primary"],
+            color: tokens["color.text.primary"],
             fontSize: tokens["typography.size.200"],
           }}
         >
-          {t.estateSubtitle(devices.length)}
-        </p>
-      </div>
-
-      {/* Unauthenticated Banner */}
-      {authError && (
-        <div
-          role="alert"
-          style={{
-            padding: 20,
-            marginBottom: 24,
-            background: tokens["color.surface.primary"],
-            border: `1px solid ${tokens["color.primary.base"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <strong style={{ color: tokens["color.text.primary"], fontSize: tokens["typography.size.300"] }}>
-              🔐 {t.unauthenticatedNotice}
-            </strong>
-          </div>
+          <option value="all">{bn ? `সব সাইট (${sites.length})` : `All sites (${sites.length})`}</option>
+          {sites.map((s) => (
+            <option key={s.site} value={s.site}>{s.site} ({s.count})</option>
+          ))}
+        </select>
+        {[
+          { key: "all", en: "All", bn: "সব" },
+          { key: "in_warranty", en: "In warranty", bn: "ওয়ারেন্টিতে" },
+          { key: "extended", en: "Extended", bn: "এক্সটেন্ডেড" },
+          { key: "out_of_warranty", en: "Out", bn: "বাইরে" },
+        ].map((f) => (
           <button
-            onClick={openLoginModal}
+            key={f.key}
+            type="button"
+            aria-pressed={warranty === f.key}
+            onClick={() => setWarranty(f.key)}
             style={{
-              padding: "8px 16px",
-              background: tokens["color.primary.base"],
-              color: tokens["color.text.inverse"],
-              border: "none",
-              borderRadius: tokens["dimension.border.radius-sm"],
+              padding: "6px 12px",
               fontSize: tokens["typography.size.200"],
+              borderRadius: tokens["dimension.border.radius-sm"],
+              border: `1px solid ${warranty === f.key ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
+              background: warranty === f.key ? tokens["color.primary.base"] : tokens["color.surface.primary"],
+              color: warranty === f.key ? tokens["color.text.inverse"] : tokens["color.text.secondary"],
               cursor: "pointer",
             }}
           >
-            {t.unauthenticatedSignInBtn}
+            {bn ? f.bn : f.en}
           </button>
-        </div>
-      )}
-
-      {error && (
-        <div
-          role="alert"
-          style={{
-            padding: 12,
-            marginBottom: 20,
-            background: tokens["color.status.error-bg"],
-            color: tokens["color.status.error"],
-            border: `1px solid ${tokens["color.status.error"]}`,
-            borderRadius: tokens["dimension.border.radius-sm"],
-            fontSize: tokens["typography.size.200"],
-          }}
-        >
-          ⚠️ {t.errorPrefix} {error}
-        </div>
-      )}
-
-      {/* Search & Filter Controls */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        {/* Search Input */}
-        <div style={{ flex: "1 1 320px", maxWidth: 440 }}>
-          <label htmlFor={searchInputId} style={{ display: "none" }}>
-            {t.estateSearchPlaceholder}
-          </label>
-          <input
-            id={searchInputId}
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t.estateSearchPlaceholder}
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-              background: tokens["color.surface.canvas"],
-              color: tokens["color.text.primary"],
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        {/* Warranty Filter Tabs */}
-        <div
-          role="radiogroup"
-          aria-label="Filter by warranty coverage"
-          style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
-        >
-          {[
-            { key: "all", label: t.estateFilterAll },
-            { key: "active", label: t.estateFilterActive },
-            { key: "expired", label: t.estateFilterExpired },
-            { key: "pending", label: t.estateFilterPending },
-          ].map((f) => {
-            const isSelected = warrantyFilter === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => setWarrantyFilter(f.key)}
-                style={{
-                  padding: "6px 14px",
-                  fontSize: tokens["typography.size.200"],
-                  fontWeight: isSelected
-                    ? Number(tokens["typography.weight.semibold"])
-                    : Number(tokens["typography.weight.medium"]),
-                  color: isSelected ? tokens["color.text.inverse"] : tokens["color.text.secondary"],
-                  background: isSelected ? tokens["color.primary.base"] : tokens["color.surface.primary"],
-                  border: `1px solid ${isSelected ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  cursor: "pointer",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
+        ))}
       </div>
 
-      {/* Estate Devices Table */}
-      <div
-        style={{
-          border: `1px solid ${tokens["color.border.default"]}`,
-          borderRadius: tokens["dimension.border.radius-md"],
-          overflow: "hidden",
-          background: tokens["color.surface.primary"],
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <caption style={{ display: "none" }}>{t.estateTitle}</caption>
-          <thead>
-            <tr style={{ background: tokens["color.surface.secondary"] }}>
-              <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                {t.colBrand}
-              </th>
-              <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                {t.colModel}
-              </th>
-              <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                {t.colIdentifier}
-              </th>
-              <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                {t.colWarranty}
-              </th>
-              <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                {t.colEndDate}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDevices.map((d) => {
-              const pill = pillColors[d.warranty_status] || pillColors.voided;
-              return (
-                <tr key={d.id} style={{ borderBottom: `1px solid ${tokens["color.border.default"]}` }}>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"], fontWeight: 600 }}>
-                    {d.brand}
+      <Panel>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: tokens["color.surface.secondary"] }}>
+                <th style={{ ...thStyle, width: 34 }} aria-label={t.estateTitle}> </th>
+                <th style={thStyle}>{bn ? "ডিভাইস" : "Device"}</th>
+                <th style={thStyle}>{bn ? "সিরিয়াল" : "Serial"}</th>
+                <th style={thStyle}>{bn ? "অ্যাসেট ট্যাগ" : "Asset tag"}</th>
+                <th style={thStyle}>{bn ? "সাইট" : "Site"}</th>
+                <th style={thStyle}>{bn ? "ওয়ারেন্টি" : "Warranty"}</th>
+                <th style={thStyle}>{bn ? "অবস্থা" : "State"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((d) => (
+                <tr key={d.id}>
+                  <td style={tdStyle}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(d.id)}
+                      onChange={() => toggle(d.id)}
+                      aria-label={`${bn ? "নির্বাচন" : "Select"} ${d.brand} ${d.model}`}
+                    />
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                    {d.model}
+                  <td style={tdStyle}>
+                    <div style={{ fontWeight: 600 }}>{d.brand} {d.model}</div>
+                    <div style={{ fontSize: 11, color: tokens["color.text.secondary"] }}>{d.identifier || "—"}</div>
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"], fontFamily: "monospace" }}>
-                    {d.identifier}
+                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11.5 }}>{d.serial_number || d.imei || "—"}</td>
+                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11.5 }}>{d.asset_tag || "—"}</td>
+                  <td style={tdStyle}>{d.site || <span style={{ color: tokens["color.status.warning"] }}>{bn ? "নির্ধারিত নয়" : "Unassigned"}</span>}</td>
+                  <td style={tdStyle}>
+                    <StatePill state={d.warranty_status} />
+                    {d.warranty_end && (
+                      <div style={{ fontSize: 10.5, color: tokens["color.text.secondary"], marginTop: 2 }}>→ {d.warranty_end}</div>
+                    )}
                   </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "3px 10px",
-                        borderRadius: tokens["dimension.border.radius-pill"],
-                        fontSize: tokens["typography.size.100"],
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        background: pill.bg,
-                        color: pill.fg,
-                      }}
-                    >
-                      {d.warranty_status}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {d.warranty_end || "—"}
+                  <td style={tdStyle}>{d.state}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: tokens["color.text.secondary"], padding: 28 }}>
+                    {bn ? "এই ফিল্টারে কোনো ডিভাইস নেই।" : "No devices in this filter."}
                   </td>
                 </tr>
-              );
-            })}
-            {filteredDevices.length === 0 && !loading && (
-              <tr>
-                <td colSpan={5} style={{ padding: 32, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                  {authError ? t.unauthenticatedNotice : t.estateEmpty}
-                </td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={5} style={{ padding: 32, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                  {t.loading}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      {selected.length > 0 && (
+        <div
+          role="status"
+          style={{
+            marginTop: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            padding: "10px 14px",
+            background: tokens["color.surface.primary"],
+            border: `1px solid ${tokens["color.primary.base"]}`,
+            borderRadius: tokens["dimension.border.radius-md"],
+            fontSize: 12.5,
+          }}
+        >
+          <span>
+            {bn
+              ? `${selected.length}টি ডিভাইস নির্বাচিত — এক অনুরোধে সার্ভিস তৈরি করুন।`
+              : `${selected.length} device${selected.length === 1 ? "" : "s"} selected — raise one bulk request.`}
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => setSelected([])} style={{ ...linkButtonStyle, cursor: "pointer" }}>
+              {bn ? "নির্বাচন বাতিল" : "Clear"}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/service-requests?devices=${selected.join(",")}`)}
+              style={{
+                ...linkButtonStyle,
+                background: tokens["color.primary.base"],
+                color: tokens["color.text.inverse"],
+                border: "none",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {bn ? "বাল্ক অনুরোধ" : "Continue to request"}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
+  );
+}
+
+export default function EstatePage() {
+  return (
+    <RequireAuth>
+      <EstateContent />
+    </RequireAuth>
   );
 }
