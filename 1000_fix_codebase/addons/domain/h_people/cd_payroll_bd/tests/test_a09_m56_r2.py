@@ -469,6 +469,16 @@ def test_the_seeded_pack_is_the_code_as_it_stood_and_every_slip_pins_it(w):
         "engine_fy2026_27",
         "engine_2026_amendment",
     )
+    # Odoo 19's fields.Json keeps a string as a string (it no longer parses
+    # JSON text), so the seed must pass these fields as `eval` literals: as
+    # text nodes the clean install died in _check_rule_figures with
+    # "'str' object has no attribute 'values'" (2026-11-24).
+    assert isinstance(base.tax_free_thresholds, dict)
+    assert base.tax_free_thresholds["general"] == 375000.0
+    assert isinstance(base.tax_slabs, list) and base.tax_slabs[-1][0] is None
+    assert isinstance(base.resignation_bands, list) and base.resignation_bands[0] == [0, 7]
+    assert isinstance(base.gratuity_bands, dict) and base.gratuity_bands["min_years"] == 5
+    assert isinstance(base.ot_base_components, list) and base.ot_base_components[0] == "basic"
     p = calculated(w)
     slip = slip_of(p, w.karim)
     assert slip.statutory_pack_id == base and slip.statutory_pack_version == 1
