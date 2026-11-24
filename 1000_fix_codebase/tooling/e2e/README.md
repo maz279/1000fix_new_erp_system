@@ -20,5 +20,10 @@ Run the current smoke gate with:
 
 ```bash
 cd tooling/e2e
-npx playwright test journeys/j16-portal-surfaces.spec.ts
+npx playwright test journeys/j16-portal-surfaces.spec.ts        # developer stack
+E2E_UAT=1 npx playwright test journeys/j16-portal-surfaces.spec.ts   # UAT stack (3400-3407)
 ```
+
+`E2E_UAT=1` points the same contract at the single-host synthetic UAT stack
+(`infra/compose/docker-compose.uat.full.yml`, Odoo 8073). Both modes passed
+8/8 on 2026-11-24.

@@ -1,16 +1,22 @@
 // PP7-M01 shared journey helpers — live stack only, no mocks.
 import { Page, expect } from "@playwright/test";
 
+// E2E_UAT=1 targets the single-host synthetic UAT stack
+// (infra/compose/docker-compose.uat.full.yml, ports 3400-3407 / Odoo 8073);
+// the default is the developer stack (3000-3007 / Odoo 8090).
+const UAT = process.env.E2E_UAT === "1";
+const base = (dev: number, uat: number) => `http://127.0.0.1:${UAT ? uat : dev}`;
+
 export const PORTALS = {
-  customer: "http://127.0.0.1:3000",
-  corporate: "http://127.0.0.1:3001",
-  analytics: "http://127.0.0.1:3002",
-  seller: "http://127.0.0.1:3003",
-  brand: "http://127.0.0.1:3004",
-  agentConsole: "http://127.0.0.1:3005",
-  partner: "http://127.0.0.1:3006",
-  vendor: "http://127.0.0.1:3007",
-  odoo: "http://127.0.0.1:8090",
+  customer: base(3000, 3400),
+  corporate: base(3001, 3401),
+  analytics: base(3002, 3402),
+  seller: base(3003, 3403),
+  brand: base(3004, 3404),
+  agentConsole: base(3005, 3405),
+  partner: base(3006, 3406),
+  vendor: base(3007, 3407),
+  odoo: base(8090, 8073),
 };
 
 /** JSON-RPC call in the page's own origin (session cookies ride along). */

@@ -94,7 +94,10 @@ if not laptop_model:
     )
 
 # --- 1. customer (phone OTP) -------------------------------------------------
-cust_partner = env["res.partner"].search([("phone", "=", "01711000001")], limit=1)
+# Guard on the seed's own marker, not the phone: the party master normalizes
+# phone on create, and a prior OTP may already have provisioned a bare partner
+# with the raw number - the login binding below re-points that account here.
+cust_partner = env["res.partner"].search([("name", "=", "Demo Customer")], limit=1)
 if cust_partner:
     print("ALREADY_SEEDED customer", cust_partner.id)
 else:
@@ -122,6 +125,32 @@ else:
     )
     estimate.state = "sent"
     print("CUSTOMER", cust_partner.id, "ORDER", order.id, "ESTIMATE", estimate.id)
+
+# The OTP identity is keyed by login = phone (_portal_user_for_phone): bind
+# that account to the seeded estate, or a first OTP would provision a fresh
+# empty partner instead of showing the demo device/order/estimate.
+cust_user = (
+    env["res.users"]
+    .with_context(active_test=False)
+    .search([("login", "=", "01711000001")], limit=1)
+)
+if not cust_user:
+    cust_user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Demo Customer",
+                "login": "01711000001",
+                "phone": "01711000001",
+                "partner_id": cust_partner.id,
+                "group_ids": [(6, 0, [portal_group.id])],
+            }
+        )
+    )
+elif cust_user.partner_id.id != cust_partner.id:
+    cust_user.partner_id = cust_partner.id
+print("CUSTOMER_LOGIN", cust_user.id, "PARTNER", cust_user.partner_id.id)
 
 # --- 2. corporate (commercial-partner fence) ---------------------------------
 corp_company = env["res.partner"].search([("name", "=", "Demo Corporate Ltd")], limit=1)
