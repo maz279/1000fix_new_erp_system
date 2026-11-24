@@ -44,6 +44,7 @@ import {
   type GpsFix,
 } from "../../lib/clock-in";
 import { useLanguage } from "../../components/language";
+import { StaffOnly } from "../../components/staff-only";
 
 // R01 re-audit 2026-10-22: every /technician/* call goes through
 // callOdooAsTechnician (same-origin relay + server-side bearer key, gated on
@@ -165,7 +166,7 @@ interface OfflineCommand {
   summary: string;
 }
 
-export default function TechnicianPortalPage() {
+function TechnicianPortalContent() {
   const { locale } = useLanguage();
   const isBn = locale === "bn";
 
@@ -2007,5 +2008,13 @@ export default function TechnicianPortalPage() {
         </section>
       )}
     </main>
+  );
+}
+
+export default function TechnicianPortalPage() {
+  return (
+    <StaffOnly>
+      <TechnicianPortalContent />
+    </StaffOnly>
   );
 }

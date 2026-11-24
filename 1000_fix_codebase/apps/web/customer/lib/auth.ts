@@ -220,6 +220,28 @@ export async function getSessionInfo(): Promise<{ user: UserSession | null; back
   }
 }
 
+/**
+ * Staff-session probe for the P02 technician workbench. Unlike
+ * `getSessionInfo` (which deliberately hides internal sessions from the
+ * customer portal), this reports whether the current cookie is an internal
+ * user — the technician page is staff-only and must never render for a
+ * customer. Odoo remains the authority; the relay still refuses a portal
+ * session on every API call.
+ */
+export async function getStaffSession(): Promise<{ authenticated: boolean; internal: boolean }> {
+  try {
+    const data = await jsonRpc("/web/session/get_session_info", {});
+    if (data?.error) return { authenticated: false, internal: false };
+    const result = data?.result as { uid?: number; username?: string; is_internal_user?: boolean } | undefined;
+    return {
+      authenticated: Boolean(result?.uid && (result.username || result.is_internal_user)),
+      internal: result?.is_internal_user === true,
+    };
+  } catch {
+    return { authenticated: false, internal: false };
+  }
+}
+
 export async function logout(): Promise<void> {
   await destroySession();
 

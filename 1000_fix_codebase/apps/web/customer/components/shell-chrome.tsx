@@ -223,6 +223,11 @@ export function Shell({
   // tab bookkeeping on navigation
   useEffect(() => {
     if (!pathname || bareRoutes.includes(pathname)) return;
+    // Only customer-portal destinations become tabs. A staff/retired route
+    // (e.g. /technician or a legacy /workspace link) must not leave a tab
+    // behind while it redirects the visitor.
+    const allowed = pathname === "/" || sections.some((s) => s.href === pathname);
+    if (!allowed) return;
     setTabs((prev) => {
       const exists = prev.some((t) => t.href === pathname);
       const next = exists
@@ -231,7 +236,7 @@ export function Shell({
       localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
     });
-  }, [pathname, labelFor, storageKey, bareRoutes]);
+  }, [pathname, labelFor, storageKey, bareRoutes, sections]);
 
   // backend reachability (server-side probe; the browser cannot call Odoo)
   useEffect(() => {
