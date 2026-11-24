@@ -44,7 +44,12 @@ permissions:
 
 env:
   # Same pin as infra/compose (verify-compose-digests.py checks it resolves).
-  PGIMAGE: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+  # GitHub does NOT expose the `env` context to
+  # jobs.<id>.services.<svc>.image, so the two service blocks take this scalar
+  # through a YAML anchor. `${{ env.PGIMAGE }}` there made the WHOLE workflow
+  # invalid: every run died at parse time with "Unrecognized named-value:
+  # 'env'" (found 2026-11-24 - 260 runs had never actually started).
+  PGIMAGE: &pgimage postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
   CODE: 1000_fix_codebase
 
 defaults:
@@ -103,7 +108,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: ${{ env.PGIMAGE }}
+        image: *pgimage
         env: { POSTGRES_USER: fix, POSTGRES_PASSWORD: ci, POSTGRES_DB: fix_ci }
         options: >-
           --health-cmd "pg_isready -U fix" --health-interval 5s
@@ -130,7 +135,7 @@ jobs:
     # first-party addon installs from scratch (FF-46 is its static half).
     services:
       postgres:
-        image: ${{ env.PGIMAGE }}
+        image: *pgimage
         env: { POSTGRES_USER: fix, POSTGRES_PASSWORD: ci, POSTGRES_DB: postgres }
         ports: ["5432:5432"]
         options: >-

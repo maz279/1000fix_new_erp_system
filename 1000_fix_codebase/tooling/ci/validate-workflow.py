@@ -20,6 +20,9 @@ Checks:
       overrides (tooling/ci/odoo-security-overrides.txt, which must exist), and
       every job running pip-audit installs that Odoo runtime set first - an
       audit of the uv lock alone never sees Odoo's pins (R01 re-audit)
+  W10 no `${{ env.* }}` inside jobs.<id>.services.<svc> - GitHub does not
+      expose the env context there, and one bad expression invalidates the
+      whole workflow file (2026-11-24: every run had died at parse time)
 Exit 0 all pass - 1 any failure. Usage: python tooling/ci/validate-workflow.py
 """
 
@@ -127,6 +130,18 @@ def main() -> int:
                     f"W9 job '{jid}' runs pip-audit before/without installing {ODOO_REQS}",
                 )
     ok((CODE / ODOO_OVERRIDES).is_file(), f"W9 {ODOO_OVERRIDES} missing")
+
+    # W10 - GitHub's expression-context table excludes `env` from a job's
+    # service definition, and a single unrecognised named-value rejects the
+    # whole workflow FILE (no job ever starts; the run list shows failures).
+    for jid, job in jobs.items():
+        for sid, svc in (job.get("services") or {}).items():
+            for field, value in (svc or {}).items():
+                ok(
+                    not (isinstance(value, str) and "${{ env." in value),
+                    f"W10 job '{jid}' service '{sid}.{field}' uses the env context "
+                    "- GitHub exposes only github/needs/strategy/matrix/vars/inputs there",
+                )
 
     settings = root / ".github" / "settings.yml"
     if settings.is_file():
