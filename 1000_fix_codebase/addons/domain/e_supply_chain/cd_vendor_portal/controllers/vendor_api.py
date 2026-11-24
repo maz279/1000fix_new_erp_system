@@ -137,6 +137,10 @@ class VendorApiController(http.Controller):
                 "state": o.state,
                 "date_order": str(o.date_order or ""),
                 "acknowledged_at": str(o.acknowledged_at or "") or None,
+                "vendor_confirmed_date": str(o.vendor_confirmed_date or ""),
+                "promised_date": str(o.promised_date or ""),
+                "received_on": str(o.received_on or ""),
+                "sent_at": str(o.sent_at or ""),
                 "lines": [
                     {
                         "id": line.id,
@@ -208,7 +212,10 @@ class VendorApiController(http.Controller):
                 "subtotal_bdt": _fmt_bdt(i.subtotal),
                 "tds_bdt": _fmt_bdt(i.tds_amount),
                 "payable_bdt": _fmt_bdt(i.total_payable),
+                "due_date": str(i.due_date or ""),
                 "match_state": i.match_state,
+                "approval_state": i.approval_state,
+                "payment_state": i.payment_state,
                 # G3-06: the block reason ships WITH the blocked state —
                 # visible, never warned about in the portal
                 "match_detail": i.match_detail or "",

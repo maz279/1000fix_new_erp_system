@@ -33,18 +33,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               borderBottom: `1px solid ${tokens["color.border.default"]}`,
               background: tokens["color.surface.primary"],
             }}>
-              <span style={{
+              <a href="/" style={{
                 fontSize: tokens["typography.size.300"],
                 fontWeight: Number(tokens["typography.weight.semibold"]),
                 color: tokens["color.primary.base"],
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 flex: 1,
+                textDecoration: "none",
               }}>
                 {uiCopy("nav.portal.p05", "en")}
-              </span>
+              </a>
               {[
-                ["/", "Purchase Orders"], ["/invoices", "Invoices"],
+                ["/dashboard", "Dashboard"],
+                ["/purchase-orders", "Purchase orders"],
+                ["/invoices", "Invoices"],
+                ["/profile", "Profile & compliance"],
               ].map(([href, label]) => (
                 <a key={href} href={href} style={{
                   fontSize: tokens["typography.size.200"],
