@@ -164,6 +164,21 @@ def _commissioned_order(w):
     # commission carries M51 VAT (b4_marketplace_fixtures)
     marketplace_ready(env)
     quote.with_user(w.operator).action_select()
+    # A04 ERP round 2 (M12-F15): the awarded seller accepts the job from the
+    # seller portal before it starts
+    seller_user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "A4 C7 Seller User",
+                "login": "a4c7.seller.%s@test" % order.id,
+                "partner_id": partner.id,
+                "group_ids": [(6, 0, [env.ref("cd_marketplace.group_fix_marketplace_seller").id])],
+            }
+        )
+    )
+    assert order.with_user(seller_user).action_accept_award()
     as_op = order.with_user(w.operator)
     as_op.action_start_job()
     _job_evidence(order)

@@ -2172,3 +2172,19 @@ class FixPaymentExecutionPayout(models.Model):
 
 
 __all__ = ["GROUP_ADMINISTRATOR"]
+
+
+class FixMarketplaceOrderLedgerStates(models.Model):
+    """The M53 answer to M12's _fix_m53_ledger_states: the states of the
+    order's commission rows (M12 never reads the settlement ledger itself)."""
+
+    _inherit = "fix.marketplace.order"
+
+    def _fix_m53_ledger_states(self):
+        self.ensure_one()
+        return (
+            self.env["fix.commission.ledger"]
+            .sudo()
+            .search([("marketplace_order_id", "=", self.id)])
+            .mapped("state")
+        )

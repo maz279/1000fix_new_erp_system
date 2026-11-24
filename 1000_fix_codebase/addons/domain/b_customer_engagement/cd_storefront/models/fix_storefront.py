@@ -153,6 +153,8 @@ class FixStorefrontCart(models.Model):
         shipping_method="standard_delivery",
         payment_rail="bkash",
         slot_id=None,
+        voucher_code=None,
+        idempotency_key=None,
     ):
         """Checkout ONE cart and generate its customer storefront order.
 
@@ -160,10 +162,21 @@ class FixStorefrontCart(models.Model):
         the prices the server sets, after these checks, so placing an order
         needs no order-write right and cannot set a price, a total or a state.
 
+        A04 ERP round 2 (M38-F14/F20): the delivery fee (M11-priced fee
+        product of the shipping method) and a checkout voucher (an M11
+        promotion) are priced here, at placement, never from the caller; an
+        `idempotency_key` makes a replay return the order the first call
+        placed (fix_storefront_checkout.py).
+
         (The former loop returned inside its first iteration: on a multi-cart
         recordset every cart after the first was silently left unordered.)"""
         self.ensure_one()
         rec = self
+        # M38-F20: one placement per cart at a time; a replay of the same
+        # idempotency key returns the order the first call placed
+        replay = rec._sf_replayed_order(idempotency_key)
+        if replay:
+            return replay
         if rec.state == "ordered":
             raise UserError("Cart %s has already been ordered" % rec.name)
         if not rec.line_ids:
@@ -251,13 +264,23 @@ class FixStorefrontCart(models.Model):
         if slot is not None:
             slot._sf_assert_bookable()
 
+        # M38-F14: the delivery fee and the voucher, priced now by M11
+        quote = rec._sf_checkout_quote(shipping_method, voucher_code)
+        shares = quote["discount"]["shares"] if quote["discount"] else {}
+
         order_vals = {
             "cart_id": rec.id,
             "customer_id": rec.customer_id.id,
             "company_id": rec.company_id.id,
             "operating_unit_id": rec.operating_unit_id.id if rec.operating_unit_id else False,
             "currency_id": rec.currency_id.id,
-            "total_amount": rec.total,
+            "total_amount": quote["total"],
+            "goods_amount": quote["goods"],
+            "delivery_fee": quote["fee"]["incl"] if quote["fee"] else 0.0,
+            "discount_amount": quote["discount"]["incl"] if quote["discount"] else 0.0,
+            "voucher_code": quote["discount"]["code"] if quote["discount"] else False,
+            "promotion_id": quote["discount"]["promotion"].id if quote["discount"] else False,
+            "idempotency_key": rec._sf_clean_key(idempotency_key) or False,
             "shipping_address": address,
             "shipping_method": shipping_method,
             "payment_rail": payment_rail,
@@ -287,15 +310,20 @@ class FixStorefrontCart(models.Model):
                         "unit_price_excl": line.unit_price_excl,
                         "price_card_id": line.price_card_id.id or False,
                         "price_source": line.price_source or False,
+                        "line_type": "product",
+                        # M38-F14: this line's share of the voucher (VAT incl.)
+                        "discount_amount": shares.get(line.id, 0.0),
                     },
                 )
                 for line in rec.line_ids
-            ],
+            ]
+            + rec._sf_extra_order_lines(quote),
         }
         order = self.env["fix.storefront.order"].sudo().create(order_vals)
         for item in stock:
             item.action_reserve()
         rec._guarded().write({"order_id": order.id, "state": "ordered"})
+        rec._sf_spend_voucher(quote)
         order = order.with_env(self.env)
 
         publish(
@@ -1167,7 +1195,36 @@ class FixStorefrontOrderLine(models.Model):
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
     order_id = fields.Many2one("fix.storefront.order", required=True, ondelete="cascade")
-    product_id = fields.Many2one("product.template", string="Product Item", required=True)
+    # A04 ERP round 2 (M38-F14): an order carries its goods, the delivery fee
+    # and the voucher discount as lines, so the total is still the sum of its
+    # lines. A goods or fee line names its product; a discount line names
+    # the M11 promotion instead (_check_line_kind).
+    line_type = fields.Selection(
+        [("product", "Goods"), ("delivery", "Delivery Fee"), ("discount", "Voucher Discount")],
+        string="Line Type",
+        default="product",
+        required=True,
+        readonly=True,
+    )
+    product_id = fields.Many2one("product.template", string="Product Item")
+    promotion_id = fields.Many2one(
+        "fix.promotion", string="M11 Promotion (voucher)", readonly=True, ondelete="restrict"
+    )
+    discount_amount = fields.Monetary(
+        string="Voucher Share (incl. VAT)",
+        currency_field="currency_id",
+        readonly=True,
+        help="The part of the order's voucher discount taken off this goods line: the "
+        "customer paid the subtotal less this.",
+    )
+    net_subtotal = fields.Monetary(
+        string="Paid for the Line",
+        currency_field="currency_id",
+        compute="_compute_net_subtotal",
+        store=True,
+        help="What the customer paid for the line: the subtotal less its voucher share "
+        "(a discount line carries none: its amount is spread over the goods).",
+    )
     graded_stock_id = fields.Many2one(
         "fix.graded.stock", string="Refurbished Item", readonly=True, index=True
     )
@@ -1188,11 +1245,40 @@ class FixStorefrontOrderLine(models.Model):
     )
     price_source = fields.Char(string="Price Source", readonly=True)
 
+    @api.depends("line_type", "subtotal", "discount_amount")
+    def _compute_net_subtotal(self):
+        for rec in self:
+            if rec.line_type == "discount":
+                rec.net_subtotal = 0.0
+            else:
+                rec.net_subtotal = (rec.subtotal or 0.0) - (rec.discount_amount or 0.0)
+
+    @api.constrains("line_type", "product_id", "promotion_id", "discount_amount", "subtotal")
+    def _check_line_kind(self):
+        for rec in self:
+            if rec.line_type == "discount":
+                if not rec.promotion_id or (rec.subtotal or 0.0) >= 0.0:
+                    raise ValidationError(
+                        "A voucher discount line names its M11 promotion and takes money off."
+                    )
+                continue
+            if not rec.product_id:
+                raise ValidationError("A goods or delivery line names its product.")
+            if (rec.discount_amount or 0.0) < 0.0 or (rec.discount_amount or 0.0) > (
+                rec.subtotal or 0.0
+            ) - 0.005:
+                raise ValidationError(
+                    "The voucher share of %s must stay below what the line costs."
+                    % rec.product_id.display_name
+                )
+
     @api.constrains("quantity", "unit_price")
     def _check_whole_priced(self):
         """M38-F1/F4: a placed line is a whole number of units at a positive
-        price."""
+        price (a voucher discount line is the one negative line)."""
         for rec in self:
+            if rec.line_type == "discount":
+                continue
             if not _whole_units(rec.quantity):
                 raise ValidationError(
                     "The storefront sells whole units: %s is not a whole quantity." % rec.quantity

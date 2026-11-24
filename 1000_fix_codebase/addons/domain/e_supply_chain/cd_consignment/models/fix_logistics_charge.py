@@ -145,23 +145,47 @@ class FixConsignmentCharge(models.Model):
         )
 
     def action_confirm(self):
-        result = super().action_confirm()
-        for rec in self:
+        # priced BEFORE the confirm derives a delivery leg's cash on delivery,
+        # so the COD the rider collects includes this leg's own charge (it was
+        # priced after, and the leg then never matched the amount due)
+        for rec in self.filtered(lambda c: c.state == "draft"):
             rec._m03_price_leg()
-        return result
+        return super().action_confirm()
 
 
 class FixServiceOrderLogisticsCharge(models.Model):
     _inherit = "fix.service.order"
 
-    def _fix_logistics_charges(self) -> float:
-        """The pick & drop charges (excl. VAT) of this order's legs that were
-        not returned or lost (M03-05, D22)."""
+    def _fix_charged_legs(self):
+        """The legs whose pick & drop charge the customer pays: priced, and
+        not returned or lost (a draft leg is priced only while it confirms)."""
         self.ensure_one()
-        legs = self.sudo().consignment_ids.filtered(
-            lambda c: c.state not in ("draft", "returned", "lost")
+        return self.sudo().consignment_ids.filtered(
+            lambda c: c.state not in ("returned", "lost") and c.logistics_charge_bdt > 0.005
         )
-        return round(sum(legs.mapped("logistics_charge_bdt")), 2)
+
+    def _fix_logistics_charges(self) -> float:
+        """The pick & drop charges (excl. VAT) of this order (M03-05, D22)."""
+        return round(sum(self._fix_charged_legs().mapped("logistics_charge_bdt")), 2)
+
+    def _fix_extra_charges(self) -> list:
+        """D22: each charged leg is billed with the repair (CHG-TRANSPORT)."""
+        charges = super()._fix_extra_charges()
+        for leg in self._fix_charged_legs().sorted("id"):
+            charges.append(
+                {
+                    "code": "CHG-TRANSPORT",
+                    "line_type": "transport",
+                    "description": "%s charge %s (%s)"
+                    % (
+                        "Pick-up" if leg.consignment_type == "pickup" else "Delivery",
+                        leg.name,
+                        leg.logistics_charge_note or "tariff",
+                    ),
+                    "net": round(leg.logistics_charge_bdt, 2),
+                }
+            )
+        return charges
 
     def action_create_consignment(self):
         legs = super().action_create_consignment()

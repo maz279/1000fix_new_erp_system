@@ -1130,6 +1130,16 @@ class FixServiceOrder(models.Model):
                 return ests.sorted(lambda e: (e.version, e.id))[-1]
         return self.env["fix.estimate"]
 
+    def _fix_extra_charges(self) -> list:
+        """Customer charges of this order outside its estimate, each a dict
+        {code, line_type, description, net}: ``code`` the catalogue charge
+        code, ``net`` the price before VAT. M02 adds unwaived wasted-visit
+        fees (D21), M03 the pick-and-drop tariff charges (D22). The billing
+        engine adds their VAT to the amount due and bills them on the
+        repair's tax invoice."""
+        self.ensure_one()
+        return []
+
     def _fix_amount_due(self) -> float:
         self.ensure_one()
         est = self._fix_governing_estimate()
@@ -3081,15 +3091,21 @@ class FixServiceOrder(models.Model):
         """Issue the repair warranty from the handover day (Dhaka)."""
         for order in self:
             days = order.service_warranty_days or 30
+            # A04 ERP round 2 M37-F5 (FR-CAT-018): the catalogue service's own
+            # repair warranty, where it is longer than the company policy
+            item = order.sudo().catalog_item_id
+            if item and hasattr(item, "_fix_repair_warranty_days"):
+                days = item._fix_repair_warranty_days(days)
             # the warranty runs from the handover; the resolution (Ready) day
             # is only the fallback of a legacy order with no delivery stamp
             base = _dhaka_date(order.delivered_at or order.sla_resolution_at)
-            order._guarded().write(
-                {
-                    "service_warranty_until": base + timedelta(days=days),
-                    "service_warranty_issued_by": order.env.user.id,
-                }
-            )
+            vals = {
+                "service_warranty_until": base + timedelta(days=days),
+                "service_warranty_issued_by": order.env.user.id,
+            }
+            if days != order.service_warranty_days:
+                vals["service_warranty_days"] = days
+            order._guarded().write(vals)
             order.device_id.add_history(
                 "warranty",
                 "Repair warranty issued with order %s: %d days" % (order.name, days),

@@ -120,6 +120,7 @@ def _acct(mk, login="b4_mkt_acct"):
 def test_f1_no_commission_on_money_never_received(mk):
     o, _q = mk.awarded(price=4000.0)
     as_op = o.with_user(mk.operator)
+    as_op.action_accept_award()  # A04 ERP round 2 (M12-F15)
     as_op.action_start_job()
     _job_evidence(o)
     as_op.action_complete()

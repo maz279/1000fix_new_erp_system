@@ -481,22 +481,50 @@ def _scheme(w, partner, **kw):
     return w.env["fix.alliance.scheme"].with_user(w.officer).create(vals)
 
 
+def _benefit(w, code):
+    """A04 ERP audit M40-F28: the benefit is a released M11 promotion
+    (released by pricing - set up as the system here)."""
+    promo = (
+        w.env["fix.promotion"]
+        .sudo()
+        .create(
+            {
+                "name": "Alliance %s" % code,
+                "code": "%s-%d" % (code, w.env["fix.promotion"].sudo().search_count([]) + 1),
+                "discount_type": "percent",
+                "value": 10.0,
+                "valid_from": w.today - timedelta(days=1),
+                "valid_until": w.today + timedelta(days=30),
+            }
+        )
+    )
+    promo.sudo()._guarded().write({"state": "active"})
+    return promo
+
+
 def test_scheme_needs_an_m11_rule_and_an_onboarded_alliance(w):
     sch = _scheme(w, _partner(w, "alliance"))
     with pytest.raises(ValidationError, match="BRU-PCM-19"), w.env.cr.savepoint():
         sch.with_user(w.manager).action_activate()
-    sch.with_user(w.officer).write({"benefit_ref": "M11-ALLIANCE-INS"})
-    raw = _scheme(w, _partner(w, "alliance", onboard=False), benefit_ref="X")
+    sch.with_user(w.officer).write({"benefit_promotion_id": _benefit(w, "M11-ALLIANCE-INS").id})
+    raw = _scheme(
+        w, _partner(w, "alliance", onboard=False), benefit_promotion_id=_benefit(w, "X").id
+    )
     with pytest.raises(ValidationError, match="onboarded alliance"), w.env.cr.savepoint():
         raw.with_user(w.manager).action_activate()
     sch.with_user(w.manager).action_activate()
     assert sch.state == "active"
     with pytest.raises(UserError), w.env.cr.savepoint():
-        sch.with_user(w.officer).write({"benefit_ref": "ad-hoc 50%"})
+        sch.with_user(w.officer).write({"benefit_promotion_id": _benefit(w, "ADHOC").id})
 
 
 def test_eligibility_is_checked_only_under_a_live_scheme_and_is_a_log(w):
-    sch = _scheme(w, _partner(w, "alliance"), benefit_ref="M11-R", volume_commitment=4)
+    sch = _scheme(
+        w,
+        _partner(w, "alliance"),
+        benefit_promotion_id=_benefit(w, "M11-R").id,
+        volume_commitment=4,
+    )
     checks = w.env["fix.alliance.eligibility.check"].with_user(w.officer)
     vals = {
         "scheme_id": sch.id,

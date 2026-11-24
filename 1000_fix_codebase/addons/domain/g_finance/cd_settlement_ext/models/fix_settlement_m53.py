@@ -25,25 +25,29 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
     GROUP_ACCOUNTANT,
-    float_param,
     require_role,
 )
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.addons.cd_partner.models.fix_partner import EARNING_STATES
 from odoo.addons.cd_partner.models.fix_partner_capture import attribution_days
 from odoo.addons.cd_partner.models.fix_partner_ops import payout_account
+from odoo.addons.cd_tax_engine_bd.models.fix_tax_master import tax_account
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
 from .fix_settlement_ext import (
-    DEFAULT_NON_FILER_UPLIFT,
-    PARAM_NON_FILER_UPLIFT,
     _configured_account,
     _configured_journal,
 )
 
 PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+# A04 ERP audit M40-F25: the M51 Tax Rate Master row (fix.tax.rate code, tax
+# kind tds) a partner rebate / MDF payout is withheld under. OWNER confirms:
+# 'commission' is ITA 2023 s.94 "Commission, discount and fees" (10%), the
+# row the partner scheme on fix_real matches.
+PARAM_PARTNER_TDS_CODE = "cd_settlement_ext.partner_tds_rate_code"
+DEFAULT_PARTNER_TDS_CODE = "commission"
 OPEN_DISPUTE_STATES = ("raised", "investigating", "arbitration", "escalated")
 
 PARTNER_TYPES = [
@@ -454,12 +458,20 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
     _inherit = "fix.a04.finance.consumers"
 
     def _partner_tds(self, partner, company, amount):
-        """The partner scheme's TDS on the payout, uplifted for a non-filer."""
+        """The statutory TDS on a partner payout, as M51 measures it.
+
+        A04 ERP audit M40-F25: the payout withheld the scheme's rate (with a
+        non-filer uplift) and posted it to the TDS payable with no M51
+        deduction behind it, so the TDS return never saw it. The withholding
+        is now M51's: the Tax Rate Master row for partner payouts
+        (PARAM_PARTNER_TDS_CODE, default 'commission' - ITA 2023 s.94,
+        OWNER confirms), times 1.5 for each statutory default (no PSR on
+        file, no TIN; M50 pays by bank, so never the cash default). The
+        scheme in force must state the same rate: two rates are refused, not
+        reconciled. Returns (tds, deduction values for the M51 register)."""
+        today = fields.Date.context_today(self)
         scheme = self.env["fix.commission.scheme"]._find(
-            "partner",
-            fields.Date.context_today(self),
-            company,
-            partner_type=partner.partner_type,
+            "partner", today, company, partner_type=partner.partner_type
         )
         if not scheme:
             raise UserError(
@@ -467,15 +479,44 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
                 "decides the withholding - configure M53 Commission Schemes first."
                 % (partner.partner_type, company.name)
             )
-        tds = scheme.tds_on(amount, amount)
+        code = (
+            self.env["ir.config_parameter"].sudo().get_param(PARAM_PARTNER_TDS_CODE)
+            or DEFAULT_PARTNER_TDS_CODE
+        ).strip()
+        row = self.env["fix.tax.rate"].sudo().find_rate("tds", code, today, company)
+        if abs(scheme.tds_rate * 100.0 - row.rate) > 0.0005:
+            raise UserError(
+                "Partner payout refused: commission scheme %s withholds %.2f%% but the M51 Tax "
+                "Rate Master row %s says %.2f%%. One statutory rate decides the TDS - align "
+                "them (or point %s at the right row)."
+                % (scheme.name, scheme.tds_rate * 100.0, row.display_name, row.rate, code)
+            )
+        party = partner.partner_id
+        tin = (partner.tin_number or "").strip()
         filer = False
         if "fix.vendor.tax.profile" in self.env:
-            profile = self.env["fix.vendor.tax.profile"].for_partner(partner.partner_id, company)
-            filer = bool(profile and profile.is_filer_on(fields.Date.context_today(self)))
-        if tds and not filer:
-            uplift = float_param(self.env, PARAM_NON_FILER_UPLIFT, DEFAULT_NON_FILER_UPLIFT)
-            tds = round(tds * (1.0 + uplift), 2)
-        return round(tds, 2), scheme
+            profile = self.env["fix.vendor.tax.profile"].for_partner(party, company)
+            if profile:
+                filer = bool(profile.is_filer_on(today))
+                tin = tin or (profile.tin or "").strip()
+        defaults = (0 if filer else 1) + (0 if tin else 1) if row.non_filer_applies else 0
+        multiplier = round(1.5**defaults, 3)
+        tds = round(amount * row.rate * multiplier / 100.0, 2)
+        deduction = {
+            "company_id": company.id,
+            "tax_kind": "tds",
+            "partner_id": party.id,
+            "partner_tin": tin or False,
+            "rate_id": row.id,
+            "document_date": today,
+            "base_amount": round(amount, 2),
+            "rate": row.rate,
+            "multiplier": multiplier,
+            "amount": tds,
+            "psr_received": filer,
+            "paid_by_bank": True,  # M50 pays partners by bank / MFS, never cash
+        }
+        return tds, deduction
 
     def _partner_payout(self, source, partner, amount, expense_role, label):
         Execution = self.env["fix.payment.execution"].sudo()
@@ -489,7 +530,17 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
         expense = payout_account(self.env, company, expense_role)
         payable = payout_account(self.env, company, "partner_payable")
         tds_account = payout_account(self.env, company, "tds_payable")
-        tds, scheme = self._partner_tds(partner, company, amount)
+        # A04 ERP audit M40-F25: the withholding posts to the TDS payable M51
+        # reconciles its register and challans against - one account.
+        m51_tds = tax_account(self.env, company, "tds_payable")
+        if m51_tds != tds_account:
+            raise UserError(
+                "%s refused: the settlement TDS payable (%s, cd_settlement_ext.account_code."
+                "tds_payable) is not M51's (%s, cd_tax_engine_bd.account_code.tds_payable). "
+                "The TDS withheld must reach the account the TDS return is reconciled to."
+                % (label, tds_account.code, m51_tds.code)
+            )
+        tds, deduction = self._partner_tds(partner, company, amount)
         net = round(amount - tds, 2)
         if net <= 0.005:
             raise UserError("%s refused: nothing is left to pay after TDS." % label)
@@ -519,16 +570,18 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
             ),
         ]
         if tds > 0.005:
+            rate_row = self.env["fix.tax.rate"].sudo().browse(deduction["rate_id"])
             lines.append(
                 (
                     0,
                     0,
                     {
                         "account_id": tds_account.id,
-                        "name": "TDS withheld (%s, %.2f%%): %s"
+                        "name": "TDS withheld (%s, %.2f%% x %.3f): %s"
                         % (
-                            scheme.tds_reference or scheme.name,
-                            scheme.tds_rate * 100,
+                            rate_row.section or rate_row.code,
+                            deduction["rate"],
+                            deduction["multiplier"],
                             source.display_name,
                         ),
                         "partner_id": party.id,
@@ -549,6 +602,22 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
             dict.fromkeys(range(len(lines)), dims),
             source="settlement",
         )
+        # A04 ERP audit M40-F25: the deduction in the M51 register, against
+        # the posted entry that credits its liability, so the TDS return,
+        # the challan and the deductee certificate see it.
+        withholding = self.env["fix.withholding.line"]
+        if tds > 0.005:
+            withholding = withholding.sudo()._fix_record_deductions(
+                [
+                    dict(
+                        deduction,
+                        operating_unit_id=ou.id,
+                        source_ref="%s %s" % (label, source.display_name),
+                        source_model=source._name,
+                    )
+                ],
+                move,
+            )
         pay = Execution.create(
             {
                 "company_id": company.id,
@@ -573,7 +642,13 @@ class FixPartnerPayoutConsumers(models.AbstractModel):
             "accrued in %s (BDT %.2f, TDS %.2f); pending treasury payout %s of BDT %.2f."
             % (move.name, amount, tds, pay.name, net),
         )
-        return {"model": pay._name, "id": pay.id, "created": True, "move_id": move.id}
+        return {
+            "model": pay._name,
+            "id": pay.id,
+            "created": True,
+            "move_id": move.id,
+            "withholding_id": withholding.id or False,
+        }
 
     @api.model
     def consume_partner_rebate_approved(self, event: dict) -> dict:

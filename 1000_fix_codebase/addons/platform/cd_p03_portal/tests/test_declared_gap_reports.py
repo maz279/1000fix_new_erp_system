@@ -555,26 +555,31 @@ def comarketing(odoo_env):
     x.c1.write({"partner_ids": [Command.set((x.p1 | x.p2).ids)]})
     x.c2.write({"partner_ids": [Command.set(x.p1.ids)]})
 
-    def mdf(p, campaign, basis, state):
-        rec = env["fix.partner.rebate"].create(
+    def mdf(p, campaign, amount, state):
+        fund = env["fix.mdf.fund"].create(
             {
-                "name": "Gap MDF %s" % TAG,
+                "name": "Gap MDF fund %s" % TAG,
                 "partner_id": p.id,
                 "period": "2026-Q4",
-                "basis": basis,
-                "rate": 0.1,
-                "kind": "mdf",
-                "campaign_id": campaign.id,
+                "allocated": 100000.0,
             }
         )
-        rec.write({"state": state})  # seed-style (superuser)
-        return rec
+        claim = env["fix.mdf.claim"].create(
+            {
+                "fund_id": fund.id,
+                "campaign_id": campaign.id,
+                "amount": amount,
+                "description": "Gap MDF %s" % TAG,
+            }
+        )
+        claim.write({"state": state})  # seed-style (superuser)
+        return claim
 
-    mdf(x.p1, x.c1, 50000.0, "accrued")  # 5,000 accrued
-    mdf(x.p1, x.c2, 20000.0, "draft")  # 2,000 planned
-    mdf(x.p1, x.c2, 10000.0, "cancelled")  # never counted
-    mdf(x.p2, x.c1, 30000.0, "approved")  # 3,000 approved for payout
-    mdf(x.p2, x.c1, 10000.0, "paid")  # 1,000 paid
+    mdf(x.p1, x.c1, 5000.0, "submitted")  # 5,000 accrued (under evidence review)
+    mdf(x.p1, x.c2, 2000.0, "draft")  # 2,000 planned
+    mdf(x.p1, x.c2, 1000.0, "refused")  # never counted
+    mdf(x.p2, x.c1, 3000.0, "approved")  # 3,000 approved for payout
+    mdf(x.p2, x.c1, 1000.0, "paid")  # 1,000 paid
 
     # Attribution (M35 touch ledger): one customer touched only by C1 converts
     # for a known 12,000; another touched only by C2 converts with no value.

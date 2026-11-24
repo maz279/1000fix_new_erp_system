@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP round 2 (21 Nov 2026): company isolation of the FR-CAT-007
+     numbering rule (hand-written beside the generated isolation file). -->
+<odoo>
+    <record id="rule_fix_catalogue_numbering_company" model="ir.rule">
+        <field name="name">fix.catalogue.numbering: allowed companies</field>
+        <field name="model_id" ref="model_fix_catalogue_numbering"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

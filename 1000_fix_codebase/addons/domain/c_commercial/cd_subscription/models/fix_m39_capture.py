@@ -1994,10 +1994,19 @@ class FixSubscriptionLifecycle(models.Model):
                 sub.write({"contract_end_date": rec.renewal_end_date})
                 if rec.escalation_pct:
                     new = round((sub.recurring_amount or 0.0) * (1 + rec.escalation_pct / 100.0), 2)
+                    # A04 ERP round 2 M39-F16: the escalation carries the notice
+                    # this request evidenced (notice_ok), so it is not held again
                     proration = (
                         self.env["fix.subscription.proration"]
                         .sudo()
-                        .create_for_plan_change(sub, new, effective_date=rec.effective_date)
+                        .create_for_plan_change(
+                            sub,
+                            new,
+                            effective_date=rec.effective_date,
+                            notice_sent_on=rec.notice_sent_on,
+                            notice_ref="%s (%s: %s)"
+                            % (rec.name, rec.notice_channel or "-", rec.notice_evidence or "-"),
+                        )
                     )
                     proration.with_user(rec.create_uid).action_request_approval(
                         justification="Renewal escalation %.2f%% (%s)"
@@ -2046,6 +2055,14 @@ class FixSubscriptionLifecycle(models.Model):
                 if sub.next_invoice_date and sub.next_invoice_date < rec.pause_until:
                     sub.write({"next_invoice_date": rec.pause_until})
                 sub.message_post(body="Pause %s ended: resumed." % rec.name)
+                # A04 ERP round 2 M39-F17: the service gate reopens on it
+                publish(
+                    self.env,
+                    "subscription.resumed",
+                    "fix.subscription",
+                    sub.id,
+                    {"customer_id": sub.customer_id.id, "request_id": rec.id},
+                )
         return len(due)
 
 

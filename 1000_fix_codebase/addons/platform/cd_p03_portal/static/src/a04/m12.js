@@ -110,16 +110,19 @@ export const MODULE = {
 
 export const SCREENS = {
   'M12-sellers': { kind: 'model_list', model: 'fix.marketplace.seller', stateField: 'kyc_status',
-    cols: ['name', 'partner_id', 'tier', 'kyc_status', 'cfo_approved', 'approval_state', 'rating', 'total_jobs', 'payout_hold'],
+    cols: ['name', 'partner_id', 'tier', 'standing', 'open_job_count', 'kyc_status', 'cfo_approved', 'approval_state', 'rating', 'total_jobs', 'payout_hold'],
     // A04 audit M12-1: KYC is a compliance decision; CFO approval is
     // requested here and granted by a DOFA Tier 4 holder from the M63 inbox
-    // (never the KYC reviewer).
+    // (never the KYC reviewer). A04 ERP round 2 (M12-F15): a new seller is
+    // Provisional (capped open jobs) until compliance confirms them.
     actions: [
       { m: 'action_submit_kyc', l: 'Submit KYC for Review' },
       { m: 'action_verify_kyc', l: 'Verify KYC' },
       { m: 'action_reject_kyc', l: 'Reject KYC', ask: 'Why the KYC is rejected', kwarg: 'reason' },
       { m: 'action_request_approval', l: 'Request CFO Approval', ask: 'Business case for the seller', kwarg: 'justification' },
-      { m: 'action_recall_approval', l: 'Recall CFO Request' }
+      { m: 'action_recall_approval', l: 'Recall CFO Request' },
+      { m: 'action_confirm_standing', l: 'End Probation (Full Seller)', ask: 'Basis for ending the probation', kwarg: 'reason' },
+      { m: 'action_place_on_probation', l: 'Place on Probation', ask: 'Why the seller is placed on probation', kwarg: 'reason' }
     ] },
   'M12-kyc': { kind: 'table_report', module: 'M12', report: 'kyc_queue', title: 'KYC & Approval', period: false },
   'M12-agreements': { kind: 'table_report', module: 'M12', report: 'agreements', title: 'Agreements & Tiers', period: false },
@@ -296,6 +299,9 @@ export const SCREENS = {
       { tab: 'commercial', title: 'Platform Commission & Settlement Terms',
         fields: [
           { name: 'tier', readonly: true, label: 'Seller Rating Tier (measured)' },
+          { name: 'standing', readonly: true, label: 'Standing (probation caps open jobs)' },
+          { name: 'open_job_count', readonly: true, label: 'Open Jobs' },
+          { name: 'standing_reason', readonly: true, label: 'Standing Reason' },
           { name: 'category_ids', label: 'Service Categories Applied For (FR-MKP-007)' }
           ] },
       { tab: 'kyc', title: 'Bangladesh Statutory Compliance & Tax Registrations',
@@ -895,11 +901,14 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M12-marketplace-order': { kind: 'model_list', model: 'fix.marketplace.order', stateField: 'state',
-    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'order_type', 'customer_id', 'awarded_price', 'payout_available_date'],
+    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'order_type', 'customer_id', 'awarded_price', 'award_expires_at', 'award_accepted_at', 'payout_available_date'],
     // A04 audit M12-5/-6: the order moves only through these actions; the
     // payout waits for the 7-day escrow from the customer's sign-off, no
-    // open dispute and no seller payout hold.
+    // open dispute and no seller payout hold. A04 ERP round 2 (M12-F15): the
+    // awarded seller accepts within the window (else the award lapses back
+    // to bidding); the job starts only once accepted.
     actions: [
+      { m: 'action_accept_award', l: 'Record Seller Acceptance', states: ['selected'] },
       { m: 'action_start_job', l: 'Start Job', states: ['selected'] },
       { m: 'action_complete', l: 'Job Completed', states: ['in_progress'] },
       { m: 'action_review', l: 'Customer Sign-off', ask: 'Customer rating 1-5 (blank for none)', kwarg: 'rating', states: ['completed'] },

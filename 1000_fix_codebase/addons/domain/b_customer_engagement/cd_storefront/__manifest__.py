@@ -5,7 +5,7 @@
     "description": """
 CD-M38-02 (P10) — E-Commerce & Digital Storefront.
 """,
-    "version": "19.0.0.2.2",
+    "version": "19.0.0.2.3",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "E-Commerce & Digital Storefront",

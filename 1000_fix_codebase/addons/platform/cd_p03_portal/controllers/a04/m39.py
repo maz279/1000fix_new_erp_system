@@ -34,7 +34,14 @@ SURFACES = {
     "fix.subscription.proration": {
         "order": "effective_date desc, id desc",
         "limit": 200,
-        "actions": {"action_request_approval", "action_recall_approval", "action_void"},
+        # A04 ERP round 2 M39-F16: a price increase is told to the customer
+        # before it applies (BRU-SUB-07)
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_void",
+            "action_send_price_notice",
+        },
     },
     "fix.subscription.autopay": {
         "order": "id desc",

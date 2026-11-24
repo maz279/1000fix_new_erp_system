@@ -36,9 +36,14 @@ sys.path.insert(0, str(REPO_ROOT / "vendor" / "odoo"))
 import odoo
 import odoo.addons
 
-circular_path = str(REPO_ROOT / "addons" / "domain" / "d_circular")
-if circular_path not in odoo.addons.__path__:
-    odoo.addons.__path__.append(circular_path)
+# every addons root (the marketplace now imports the M20 finance approval
+# helpers from cd_billing_engine, A04 ERP M12)
+for _root in [
+    REPO_ROOT / "addons" / "platform",
+    *sorted((REPO_ROOT / "addons" / "domain").iterdir()),
+]:
+    if _root.is_dir() and str(_root) not in odoo.addons.__path__:
+        odoo.addons.__path__.append(str(_root))
 
 from odoo.addons.cd_marketplace.models.fix_marketplace import (
     FixMarketplaceDispute,
@@ -46,6 +51,7 @@ from odoo.addons.cd_marketplace.models.fix_marketplace import (
     FixMarketplaceSeller,
     FixSellerQuote,
     FixSellerScore,
+    tier_for_score,
 )
 
 
@@ -173,12 +179,15 @@ class TestJourney07MarketplaceLifecycle(unittest.TestCase):
 
     def test_step_14_seller_scoring_and_tier_ranking(self):
         """Step 14: Seller composite scoring and Platinum/Gold/Silver/At-Risk ranking."""
+        # A04 ERP audit M12-F14: the bands moved to tier_for_score (scores run
+        # 0-1); the ranking reads them and publishes the tier change.
         tier_src = inspect.getsource(FixSellerScore.compute_ranking_tier)
-        self.assertIn("platinum", tier_src)
-        self.assertIn("gold", tier_src)
-        self.assertIn("silver", tier_src)
-        self.assertIn("at_risk", tier_src)
+        self.assertIn("tier_for_score", tier_src)
         self.assertIn("seller.tier_updated", tier_src)
+        self.assertEqual(tier_for_score(0.90), "platinum")
+        self.assertEqual(tier_for_score(0.75), "gold")
+        self.assertEqual(tier_for_score(0.55), "silver")
+        self.assertEqual(tier_for_score(0.20), "at_risk")
 
 
 if __name__ == "__main__":

@@ -230,6 +230,9 @@ class FixRateCard(models.Model):
             ("product_code", "=", product_code),
             ("state", "=", "released"),
             ("company_id", "=", company.id),
+            # A04 ERP round 2 FR-PRC-012: a labour rate per hour prices by the
+            # standard repair time (price_for), never as an item's unit price
+            ("rate_kind", "!=", "labour_hour"),
             "|",
             ("valid_from", "=", False),
             ("valid_from", "<=", day),

@@ -569,6 +569,17 @@ class FixWarrantyClaim(models.Model):
             for key, _label in EVIDENCE_REQUIREMENTS:
                 if key in existing_keys:
                     continue
+                if key == "parts_issued":
+                    # A04 ERP M09-F13: the parts evidence is the M15 issue record
+                    # of a part issued to THIS job, never a file whose name
+                    # happens to contain "parts_issued".
+                    doc = claim._fix_parts_issue_document(exclude=used)
+                    if doc:
+                        used.add(doc.id)
+                        Evidence.create(
+                            {"claim_id": claim.id, "requirement_key": key, "document_id": doc.id}
+                        )
+                    continue
                 # In production, resolves from order.document_ids or workshop inspection;
                 # a document already used for another item is never reused (M09-6).
                 doc = (
@@ -593,6 +604,11 @@ class FixWarrantyClaim(models.Model):
             if claim.evidence_complete and claim.state == "draft":
                 claim._guarded().write({"state": "ready"})
         return True
+
+    def _fix_parts_issue_document(self, exclude=()):
+        """Hook (A04 ERP M09-F13, fix_a04_r2_claims): the M15 parts-issue
+        document of this claim's job; empty when nothing was issued."""
+        return self.env["fix.document"]
 
     def action_refresh_amount(self):
         """Re-read the job's approved estimate while the claim is a draft."""

@@ -136,6 +136,24 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_submit", "action_recall_approval"},
     },
+    # A04 ERP round 2 (21 Nov 2026), M11-F19.
+    # FR-PRC-017: the volume breaks of a draft rate card.
+    "fix.price.break": {"order": "card_id, threshold", "limit": 300, "actions": set()},
+    # FR-PRC-020 / BRU-PRC-14: released by a Price-Book Releaser inside the
+    # governed maximum spread.
+    "fix.channel.differential": {
+        "order": "product_code, channel",
+        "limit": 300,
+        "actions": {"action_release", "action_retire"},
+    },
+    # FR-PRC-032: permanent; nothing is done to it.
+    "fix.price.override.log": {"order": "id desc", "limit": 300, "actions": set()},
+    # AUT-PRC-08..12: the pricing tasks the events and scans raise.
+    "fix.price.review": {
+        "order": "state, deadline, id desc",
+        "limit": 300,
+        "actions": {"action_dispose", "action_accept", "action_reject"},
+    },
 }
 
 
@@ -703,7 +721,136 @@ def floors_vs_rate(env, date_from=None, date_to=None, **params):
     )
 
 
+def price_exceptions(env, date_from=None, date_to=None, **params):
+    """FR-PRC-036: the standing exception report - manual overrides,
+    below-floor approvals and discounts beyond the agent band, in the period."""
+    rows = []
+    for log in scoped(env, "fix.price.override.log", None, "at", date_from, date_to):
+        rows.append(
+            {
+                "kind": "Manual override",
+                "document": log.document,
+                "item": log.product_id.display_name or "",
+                "original": round(log.original_price, 2),
+                "price": round(log.override_price, 2),
+                "by": log.actor_id.name or "",
+                "reason": log.reason or "",
+                "approval": log.approval_ref or "",
+            }
+        )
+    for ovr in scoped(
+        env,
+        "fix.price.override",
+        [("state", "in", ("approved", "consumed"))],
+        "create_date",
+        date_from,
+        date_to,
+    ):
+        rows.append(
+            {
+                "kind": "Below-floor approval",
+                "document": "%s #%s" % (ovr.res_model or "", ovr.res_id or ""),
+                "item": ovr.product_id.display_name or "",
+                "original": round(ovr.floor_price, 2),
+                "price": round(ovr.requested_price, 2),
+                "by": ovr.create_uid.name or "",
+                "reason": ovr.dofa_justification or ""
+                if "dofa_justification" in ovr._fields
+                else "",
+                "approval": ovr.name,
+            }
+        )
+    band = 10.0
+    for appr in scoped(
+        env,
+        "fix.discount.approval",
+        [("discount_pct", ">", band)],
+        "create_date",
+        date_from,
+        date_to,
+    ):
+        rows.append(
+            {
+                "kind": "Discount beyond the agent band",
+                "document": appr.quotation_id.display_name
+                if "quotation_id" in appr._fields
+                else "",
+                "item": "",
+                "original": 0.0,
+                "price": round(appr.discount_pct, 2),
+                "by": appr.create_uid.name or "",
+                "reason": appr.justification or "" if "justification" in appr._fields else "",
+                "approval": appr.state,
+            }
+        )
+    return _pack(
+        "Price Exceptions (overrides, below-floor approvals, out-of-band discounts)",
+        ["kind", "document", "item", "original", "price", "by", "reason", "approval"],
+        {
+            "kind": "Exception",
+            "document": "Document",
+            "item": "Item",
+            "original": "Released / Floor",
+            "price": "Price Used / Discount %",
+            "by": "By",
+            "reason": "Reason",
+            "approval": "Approval",
+        },
+        rows,
+        [
+            "For the quarterly review (FR-PRC-036). Discounts are listed above the 10% agent "
+            "band of BRU-PRC-06."
+        ],
+        empty="No price exception in this period.",
+    )
+
+
+def price_consistency(env, date_from=None, date_to=None, **params):
+    """FR-PRC-045: the open spread and leakage findings of the nightly and
+    weekly scans (AUT-PRC-11/12)."""
+    reviews = scoped(
+        env,
+        "fix.price.review",
+        [("kind", "in", ("spread", "leakage"))],
+        "create_date",
+        date_from,
+        date_to,
+    )
+    rows = [
+        {
+            "review": r.name,
+            "kind": dict(r._fields["kind"].selection).get(r.kind, r.kind),
+            "item": r.product_code or "",
+            "branch": r.operating_unit_id.name or "",
+            "detail": r.detail,
+            "state": dict(r._fields["state"].selection).get(r.state, r.state),
+        }
+        for r in reviews
+    ]
+    limit = env["ir.config_parameter"].sudo().get_param("cd_rate_card.max_channel_spread_pct")
+    return _pack(
+        "Price Consistency Monitor",
+        ["review", "kind", "item", "branch", "detail", "state"],
+        {
+            "review": "Review",
+            "kind": "Finding",
+            "item": "Item",
+            "branch": "Branch",
+            "detail": "Detail",
+            "state": "State",
+        },
+        rows,
+        [
+            "Permitted spread between channels / branches: %s (cd_rate_card.max_channel_spread_pct)."
+            % ("%s%%" % limit if limit else "NOT SET - the nightly scan reports nothing")
+        ],
+        empty="No spread or leakage finding in this period.",
+    )
+
+
 REPORTS = {
+    "price_exceptions": price_exceptions,
+    "price_consistency": price_consistency,
     "realised_vs_card": realised_vs_card,
     "discount_register": discount_register,
     "rate_card_utilisation": rate_card_utilisation,

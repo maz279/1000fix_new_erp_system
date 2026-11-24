@@ -1105,7 +1105,22 @@ def test_a04_m39_price_is_guarded_and_changed_by_a_second_person(c):
         proration.with_user(officer).action_dofa_approve()
     assert s.recurring_amount == 1000.0
     inbox_approve(c, proration, c.acct2)
-    assert proration.state == "approved" and s.recurring_amount == 1200.0
+    # A04 ERP round 2 M39-F16 (BRU-SUB-07): an approved increase still waits
+    # for the customer's notice period before the new price applies
+    assert proration.state == "approved" and s.recurring_amount == 1000.0
+    proration.with_user(officer).action_send_price_notice("email")
+    Proration = c.env["fix.subscription.proration"]
+    Proration.cron_apply_due_prorations()
+    assert s.recurring_amount == 1000.0, "applied inside the notice period"
+    # the notice period has run
+    proration.sudo()._guarded().write(
+        {
+            "notice_sent_at": fields.Datetime.now() - timedelta(days=31),
+            "effective_date": fields.Date.context_today(proration),
+        }
+    )
+    Proration.cron_apply_due_prorations()
+    assert proration.applied_to_subscription and s.recurring_amount == 1200.0
 
 
 def test_a04_m39_reinstate_only_from_suspended(c):

@@ -39,3 +39,6 @@ access_fix_storefront_service_booking_user,fix.storefront.service.booking user,m
 access_fix_storefront_service_booking_operator,fix.storefront.service.booking operator,model_fix_storefront_service_booking,group_fix_storefront_operator,1,1,1,0
 access_fix_storefront_cart_assisted,fix.storefront.cart assisted,model_fix_storefront_cart,group_fix_storefront_assisted_sales,1,1,1,0
 access_fix_storefront_cart_line_assisted,fix.storefront.cart.line assisted,model_fix_storefront_cart_line,group_fix_storefront_assisted_sales,1,1,1,1
+access_fix_storefront_return_line,fix.storefront.return.line,model_fix_storefront_return_line,base.group_user,1,0,0,0
+access_fix_storefront_return_line_portal,fix.storefront.return.line portal,model_fix_storefront_return_line,base.group_portal,1,0,0,0
+access_fix_storefront_return_line_operator,fix.storefront.return.line operator,model_fix_storefront_return_line,group_fix_storefront_operator,1,1,1,1

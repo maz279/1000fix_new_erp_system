@@ -54,6 +54,9 @@ PARAM_ATTRIBUTION_DAYS = "cd_partner.lead_attribution_days"
 # no royalty or franchise-fee income account; 400109 "Other Income" is the
 # recommended code until one is opened.
 PARAM_ACCOUNT = "cd_partner.account_code.%s"
+# A04 ERP audit M40-F28: the price_for context key that names the alliance
+# eligibility check granting a member-only M11 promotion.
+ALLIANCE_CHECK_CTX = "fix_alliance_check_id"
 PARTNER_ACCOUNT_ROLES = {
     "royalty_income": "franchise royalty and marketing levy income",
     "franchise_fee_income": "franchise initial fee income",
@@ -953,8 +956,21 @@ class FixAllianceScheme(models.Model):
         required=True,
     )
     benefit_description = fields.Text(required=True)
+    # A04 ERP audit M40-F28: the benefit was a typed reference nobody read.
+    # It is now the M11 promotion that applies it. A promotion an alliance
+    # scheme names is member-only: price_for grants it only under an eligible
+    # check of the scheme (fix.alliance.eligibility.check.price_for).
+    benefit_promotion_id = fields.Many2one(
+        "fix.promotion",
+        string="M11 Benefit Promotion",
+        ondelete="restrict",
+        index=True,
+        domain="[('company_id', '=', company_id)]",
+        help="The M11 promotion that applies the benefit (BRU-PCM-19): released by pricing, "
+        "granted only to members validated by an eligibility check.",
+    )
     benefit_ref = fields.Char(
-        string="M11 Benefit Rule", help="The M11 price rule that applies the benefit (BRU-PCM-19)."
+        string="M11 Benefit Rule", related="benefit_promotion_id.code", readonly=True
     )
     volume_commitment = fields.Integer(string="Committed Volume (jobs)")
     valid_from = fields.Date(required=True, default=fields.Date.context_today)
@@ -978,12 +994,33 @@ class FixAllianceScheme(models.Model):
             "member_definition",
             "eligibility_method",
             "benefit_description",
-            "benefit_ref",
+            "benefit_promotion_id",
             "volume_commitment",
             "valid_from",
         }
     )
     _code_unique = models.Constraint("UNIQUE (code)", "An alliance scheme code is unique.")
+
+    @api.constrains("benefit_promotion_id", "company_id")
+    def _check_benefit_promotion(self):
+        """A promotion becomes member-only once a scheme names it, so a scheme
+        may not take over one the public already used (that would withdraw a
+        released public discount through the back door), nor one of another
+        company."""
+        for rec in self.filtered("benefit_promotion_id"):
+            promo = rec.benefit_promotion_id.sudo()
+            if promo.company_id != rec.company_id:
+                raise ValidationError(
+                    "Promotion %s belongs to %s, not to %s."
+                    % (promo.code, promo.company_id.name, rec.company_id.name)
+                )
+            shared = promo.with_context(active_test=False).alliance_scheme_ids - rec
+            if promo.use_count and not shared:
+                raise ValidationError(
+                    "Promotion %s has already been used %d time(s) as a public discount: an "
+                    "alliance benefit is its own member-only M11 promotion (BRU-PCM-19)."
+                    % (promo.code, promo.use_count)
+                )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state", "activated_by_id"}
@@ -1015,10 +1052,16 @@ class FixAllianceScheme(models.Model):
                 raise ValidationError(
                     "%s must be an onboarded alliance partner (BRU-PCM-01)." % rec.partner_id.name
                 )
-            if not (rec.benefit_ref or "").strip():
+            promo = rec.benefit_promotion_id.sudo()
+            if not promo:
                 raise ValidationError(
-                    "Name the M11 rule that applies the benefit: alliance benefits are never "
+                    "Name the M11 promotion that applies the benefit: alliance benefits are never "
                     "ad-hoc discounts (BRU-PCM-19)."
+                )
+            if promo.state not in ("approved", "active"):
+                raise ValidationError(
+                    "Promotion %s is %s: pricing releases it (M11, M63) before the scheme that "
+                    "grants it is activated." % (promo.code, promo.state)
                 )
             rec._guarded().write({"state": "active", "activated_by_id": self.env.uid})
         return True
@@ -1101,6 +1144,49 @@ class FixAllianceEligibilityCheck(models.Model):
             for rec in self:
                 _refuse_changes(rec, vals, self._LOCKED, "an eligibility check is a log entry")
         return super().write(vals)
+
+    # ---- A04 ERP audit M40-F28: the check grants the M11 benefit -----------
+    def _fix_grants_benefit(self, partner=None, on_date=None):
+        """'' when this check grants its scheme's M11 promotion to `partner`
+        on `on_date`, else why not. A check grants only when it found the
+        member eligible, names the customer it validated (the benefit is that
+        customer's), and its scheme is active and in force that day."""
+        self.ensure_one()
+        check = self.sudo()
+        scheme = check.scheme_id
+        day = on_date or fields.Date.context_today(self)
+        if check.result != "eligible":
+            return "check %s found the member not eligible" % check.member_ref
+        if not check.customer_id:
+            return "check %s names no customer, so its benefit is nobody's" % check.member_ref
+        if partner is not None and (
+            not partner or partner.commercial_partner_id != check.customer_id.commercial_partner_id
+        ):
+            return "check %s validated %s, not this customer" % (
+                check.member_ref,
+                check.customer_id.display_name,
+            )
+        if scheme.state != "active" or not scheme.benefit_promotion_id:
+            return "scheme %s is %s" % (scheme.name, scheme.state)
+        if scheme.valid_from > day or (scheme.valid_to and scheme.valid_to < day):
+            return "scheme %s is not in force on %s" % (scheme.name, day)
+        return ""
+
+    def price_for(self, product, partner=None, channel="service", **kwargs):
+        """The M11 price of `product` for the validated member, with the
+        scheme's benefit promotion granted (fix.rate.card.price_for under this
+        check). Refused when the check grants nothing."""
+        self.ensure_one()
+        partner = partner or self.sudo().customer_id
+        day = fields.Date.to_date(kwargs["date"]) if kwargs.get("date") else None
+        why = self._fix_grants_benefit(partner, day)
+        if why:
+            raise UserError("No alliance benefit: %s (BRU-PCM-19)." % why)
+        return (
+            self.env["fix.rate.card"]
+            .with_context(**{ALLIANCE_CHECK_CTX: self.id})
+            .price_for(product, partner=partner, channel=channel, **kwargs)
+        )
 
 
 # =============================================================== p5 referrals
@@ -1267,6 +1353,11 @@ class FixPartnerLead(models.Model):
     attribution_lapsed = fields.Boolean(readonly=True, copy=False)
     referral_id = fields.Many2one("fix.referral", readonly=True, copy=False)
     loss_reason = fields.Char(readonly=True, copy=False)
+    # A04 ERP audit M40-F23: the M07 lead / opportunity the qualified lead is
+    # handed to 1000FiX sales as, carrying the partner attribution.
+    opportunity_id = fields.Many2one(
+        "crm.lead", string="M07 Lead / Opportunity (hand-off)", readonly=True, copy=False
+    )
 
     _ATTRIBUTION = frozenset(
         {
@@ -1290,6 +1381,7 @@ class FixPartnerLead(models.Model):
             "attribution_lapsed",
             "referral_id",
             "loss_reason",
+            "opportunity_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -1362,7 +1454,40 @@ class FixPartnerLead(models.Model):
             if rec.state != "submitted":
                 raise UserError("Only a submitted lead is qualified.")
             rec._guarded().write({"state": "qualified"})
+            rec._fix_handoff_opportunity()
         return True
+
+    def _fix_handoff_opportunity(self):
+        """A04 ERP audit M40-F23 (FR-PCM-023, M07 hand-off): a qualified
+        partner lead becomes an M07 record for 1000FiX sales - an opportunity
+        on the customer's party when the lead names one, else a lead carrying
+        the contact the partner gave (M07 matches it to a party before it
+        converts, BRU-CRM-02). The partner attribution is written on it and
+        guarded. Idempotent."""
+        self.ensure_one()
+        if self.opportunity_id or "crm.lead" not in self.env:
+            return self.opportunity_id
+        Opp = self.env["crm.lead"].sudo().with_company(self.company_id)
+        opp = Opp.search([("fix_partner_lead_id", "=", self.id)], limit=1)
+        if not opp:
+            vals = {
+                "name": "%s - %s" % (self.name, self.customer_name),
+                "type": "opportunity" if self.customer_id else "lead",
+                "contact_name": self.customer_name,
+                "phone": self.customer_phone,
+                "email_from": self.customer_email or False,
+                "company_id": self.company_id.id,
+                "lead_source": "referral",
+                "fix_partner_id": self.partner_id.id,
+                "fix_partner_lead_id": self.id,
+                "description": self.service_interest or False,
+            }
+            if self.customer_id:
+                vals["partner_id"] = self.customer_id.id
+            opp = Opp.create(vals)
+        self._guarded().write({"opportunity_id": opp.id})
+        self.message_post(body="Handed to M07 sales as %s %s." % (opp.type, opp.name))
+        return opp
 
     def action_convert(self):
         """The customer bought. Inside the window the referring partner is

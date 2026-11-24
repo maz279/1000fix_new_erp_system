@@ -42,15 +42,21 @@ export const MODULE = {
       { id: 'M11-policies', en: 'Discount Ladder', bn: 'ডিসকাউন্ট ধাপ', t: 'g' },
       { id: 'M11-reasons', en: 'Discount Reason Codes', bn: 'ডিসকাউন্ট কারণ কোড', t: 'g' },
       { id: 'M11-mass', en: 'Mass Price Changes', bn: 'একযোগে মূল্য পরিবর্তন', t: 'g' },
-      { id: 'M11-mass-lines', en: 'Mass Change Preview', bn: 'একযোগে পরিবর্তনের পূর্বরূপ', t: 'g' }
+      { id: 'M11-mass-lines', en: 'Mass Change Preview', bn: 'একযোগে পরিবর্তনের পূর্বরূপ', t: 'g' },
+      { id: 'M11-differentials', en: 'Channel Differentials', bn: 'চ্যানেল মূল্য পার্থক্য', t: 'g' },
+      { id: 'M11-breaks', en: 'Volume Breaks', bn: 'পরিমাণভিত্তিক মূল্য', t: 'g' },
+      { id: 'M11-reviews', en: 'Pricing Reviews', bn: 'মূল্য পর্যালোচনা', t: 'g' },
+      { id: 'M11-override-log', en: 'Price Override Record', bn: 'মূল্য পরিবর্তনের রেকর্ড', t: 'g' },
+      { id: 'M11-rpt-exceptions', en: 'Price Exceptions', bn: 'মূল্য ব্যতিক্রম', t: 'r' },
+      { id: 'M11-rpt-consistency', en: 'Price Consistency Monitor', bn: 'মূল্য সামঞ্জস্য', t: 'r' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M11-simulate', en: 'Price Simulation', bn: 'মূল্য সিমুলেশন', t: 'g' },
       { id: 'M11-realised', en: 'Realised-Price Analytics', bn: 'বাস্তব মূল্য বিশ্লেষণ', t: 'r' }
     ]}
   ],
-  reports: ['Realised Price vs Card', 'Discount Register by Approver', 'Rate-Card Utilisation', 'Margin by Service Line', 'Promotion Effectiveness', 'Brand Reimbursement Recovery', 'Floor vs Realised Rate'],
-  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate', 'Parts Pricing Scheme', 'Price Premium', 'Mass Price Change', 'Discount Reason Code', 'Below-Floor Override'],
+  reports: ['Price Exceptions', 'Price Consistency Monitor', 'Realised Price vs Card', 'Discount Register by Approver', 'Rate-Card Utilisation', 'Margin by Service Line', 'Promotion Effectiveness', 'Brand Reimbursement Recovery', 'Floor vs Realised Rate'],
+  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate', 'Parts Pricing Scheme', 'Price Premium', 'Mass Price Change', 'Discount Reason Code', 'Below-Floor Override', 'Channel Differential', 'Volume Break'],
   cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR', 'M09 Warranty Claims'],
   /* M11 capture audit (2026-11-13): pages 1 and 6 offered no button, 9 and 11
    * no form chip, and three pages captured the wrong record:
@@ -91,7 +97,7 @@ export const MODULE = {
     ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'], reports: ['Promotion Effectiveness'], forms: ['Promotion'] }],
     ['9', 'Adjustment Rules', 8, { model: 'fix.price.adjustment', cols: ['code', 'name', 'adjustment_type', 'basis', 'value', 'applies_to', 'valid_from', 'state'], screens: ['M11-premiums', 'M11-adjust'], reports: [], forms: ['Price Premium', 'Dynamic Price Rule'] }],
     ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'], reports: [], forms: ['Price Simulation Request'] }],
-    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions', 'M11-changes', 'M11-mass', 'M11-mass-lines'], reports: [], forms: ['Price Book Version', 'Price Change Request', 'Mass Price Change'] }]
+    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions', 'M11-changes', 'M11-mass', 'M11-mass-lines', 'M11-differentials', 'M11-breaks', 'M11-reviews', 'M11-override-log', 'M11-rpt-exceptions', 'M11-rpt-consistency'], reports: ['Price Exceptions', 'Price Consistency Monitor'], forms: ['Price Book Version', 'Price Change Request', 'Mass Price Change', 'Channel Differential', 'Volume Break'] }]
   ] }
 };
 
@@ -233,6 +239,75 @@ export const SCREENS = {
       { m: 'action_retire', l: 'Retire Premium (Releaser)', ask: 'Why is the premium retired?', kwarg: 'reason', states: ['active'] }
     ] },
   /* BRU-PRC-13: the governed list a discount request picks its reason from. */
+  /* A04 ERP round 2 (21 Nov 2026), M11-F19. FR-PRC-020 / BRU-PRC-14: a
+   * declared channel differential, released inside the governed spread. */
+  'M11-differentials': { kind: 'model_list', model: 'fix.channel.differential', stateField: 'state',
+    cols: ['name', 'channel', 'product_code', 'category_id', 'adjustment_pct', 'valid_from', 'valid_to', 'state', 'released_by'],
+    actions: [
+      { m: 'action_release', l: 'Release (Price-Book Releaser, within the max spread)', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire Differential', states: ['released'] }
+    ] },
+  /* FR-PRC-017: the breaks of a draft rate card. */
+  'M11-breaks': { kind: 'model_list', model: 'fix.price.break', cols: ['card_id', 'threshold', 'unit_price'] },
+  /* AUT-PRC-08..12: the pricing tasks events and scans raise. */
+  'M11-reviews': { kind: 'model_list', model: 'fix.price.review', stateField: 'state', create: false,
+    cols: ['name', 'kind', 'product_code', 'rate_card_id', 'catalogue_item_id', 'successor_item_id', 'current_price', 'proposed_price', 'deadline', 'card_retired', 'state'],
+    actions: [
+      { m: 'action_dispose', l: 'Dispose', ask: 'What was done about it?', kwarg: 'note', states: ['open'] },
+      { m: 'action_accept', l: 'Accept New Labour Price (SRT)', states: ['open'] },
+      { m: 'action_reject', l: 'Reject New Labour Price (SRT)', ask: 'Why is the new labour price not taken?', kwarg: 'note', states: ['open'] }
+    ] },
+  /* FR-PRC-032: permanent. */
+  'M11-override-log': { kind: 'model_list', model: 'fix.price.override.log', create: false,
+    cols: ['at', 'document', 'product_id', 'original_price', 'override_price', 'actor_id', 'reason', 'approval_ref'] },
+  'M11-rpt-exceptions': { kind: 'table_report', module: 'M11', report: 'price_exceptions', title: 'Price Exceptions', period: true },
+  'M11-rpt-consistency': { kind: 'table_report', module: 'M11', report: 'price_consistency', title: 'Price Consistency Monitor', period: true },
+  'M11-form-differential': {
+    kind: 'model_form',
+    model: 'fix.channel.differential',
+    title: 'Channel Differential',
+    back: 'M11-differentials',
+    status: { field: 'state', labels: { draft: 'Draft', released: 'Released', retired: 'Retired' } },
+    tabs: [
+      { id: 'scope', label: '1. Channel & Scope', bn: '১. চ্যানেল ও পরিসর', icon: '🛒', badge: '5' },
+      { id: 'decision', label: '2. Release', bn: '২. অনুমোদন', icon: '🏛️', badge: '3' },
+      { id: 'docs', label: '3. Documents', bn: '৩. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'What Differs on Which Channel',
+        note: 'A percentage above (+) or below (-) the released card on one channel, for one item code, a category, or every item. The channels may differ by no more than the governed maximum spread (BRU-PRC-14); a contract rate is never moved (BRU-PRC-11).',
+        fields: [
+          { name: 'channel', label: 'Channel', required: true },
+          { name: 'product_code', label: 'Item Code (empty: category / all)' },
+          { name: 'category_id', label: 'Category' },
+          { name: 'adjustment_pct', label: 'Differential (%)', required: true },
+          { name: 'reason', label: 'Why This Channel Differs', type: 'text', required: true }
+        ] },
+      { tab: 'decision', title: 'Validity and Release',
+        fields: [
+          { name: 'valid_from', label: 'Valid From', required: true },
+          { name: 'valid_to', label: 'Valid To' },
+          { name: 'released_by', label: 'Released By', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The channel cost study and the release approval evidence attach here (fix.document, M24).', fields: [] }
+    ]
+  },
+  'M11-form-break': {
+    kind: 'model_form',
+    model: 'fix.price.break',
+    title: 'Volume Break',
+    back: 'M11-breaks',
+    tabs: [{ id: 'break', label: '1. Break', bn: '১. ধাপ', icon: '📶', badge: '3' }],
+    sections: [
+      { tab: 'break', title: 'From This Quantity / Value, This Price',
+        note: 'A break belongs to a Draft rate card (its basis and treatment are on the card). It never raises the price, never goes under the floor, and a higher break never has a higher price.',
+        fields: [
+          { name: 'card_id', label: 'Rate Card (Draft)', required: true },
+          { name: 'threshold', label: 'From (quantity / value / committed volume)', required: true },
+          { name: 'unit_price', label: 'Unit Price From Here (VAT-exclusive BDT)', required: true }
+        ] }
+    ]
+  },
   'M11-reasons': { kind: 'model_list', model: 'fix.discount.reason',
     cols: ['code', 'name', 'description', 'use_count', 'active'] },
   /* FR-PRC-024 / BRU-PRC-16: preview, approval, scheduled date, rollback. */
@@ -309,6 +384,17 @@ export const SCREENS = {
       { id: 'validity', label: '3. Validity Window', bn: '৩. মেয়াদ', icon: '📅', badge: '2' },
       { id: 'governance', label: '4. Release & Changes', bn: '৪. অনুমোদন ও পরিবর্তন', icon: '🏛️', badge: '4' }
     ],
+    /* A04 ERP round 2 FR-PRC-017: the breaks of the card, edited while Draft. */
+    grids: [
+      { field: 'price_break_ids', tab: 'pricing', title: 'Volume Breaks',
+        addLabel: '+ Add break',
+        empty: 'No break: every quantity sells at the rate.',
+        note: 'From each threshold (quantity, value or committed volume, per the card basis) the unit price below applies. Never above the rate, never under the floor; locked once released.',
+        fields: [
+          { name: 'threshold', label: 'From', required: true },
+          { name: 'unit_price', label: 'Unit Price From Here (VAT-exclusive BDT)', required: true }
+        ] }
+    ],
     sections: [
       { tab: 'identity', title: 'Rate Scope & Catalogue Association',
         note: 'One rate per product code, customer tier and contract. Labour is charged against the catalogue standard repair time; parts, consumables and transport at the rate per unit.',
@@ -316,6 +402,7 @@ export const SCREENS = {
           { name: 'product_code', required: true, label: 'Product SKU / Service Code' },
           { name: 'line_type', required: true, label: 'Service Line Classification' },
           { name: 'catalogue_item_id', label: 'Associated Catalogue Item (M37)' },
+          { name: 'rate_kind', label: 'Rate Kind (per unit / labour rate per hour x SRT)' },
           { name: 'state', label: 'Release State', readonly: true },
           { name: 'active', label: 'Active Rate Status', readonly: true }
         ] },
@@ -328,6 +415,21 @@ export const SCREENS = {
           { name: 'contract_no', label: 'Contract No.', readonly: true },
           { name: 'partner_id', label: 'Customer (customer-specific rate)' },
           { name: 'version_id', label: 'Price-Book Version' }
+        ] },
+      { tab: 'pricing', title: 'Labour Rate Scope (labour rate per hour only)',
+        note: 'FR-PRC-012: a labour rate per hour prices every operation of its repair level at rate x the M37 standard repair time. The most specific matching rate wins; empty = any.',
+        fields: [
+          { name: 'repair_level', label: 'Repair Level' },
+          { name: 'skill_band', label: 'Skill Band' },
+          { name: 'brand_id', label: 'Brand' },
+          { name: 'delivery_mode', label: 'Delivery Mode' },
+          { name: 'operating_unit_id', label: 'Branch' }
+        ] },
+      { tab: 'pricing', title: 'Volume Breaks (FR-PRC-017)',
+        note: 'Bracket: every unit at the break reached. Cumulative: each unit at the price of its band. The breaks themselves are recorded under Volume Breaks while the card is Draft.',
+        fields: [
+          { name: 'break_basis', label: 'Break Basis' },
+          { name: 'break_treatment', label: 'Break Treatment' }
         ] },
       { tab: 'validity', title: 'Effective Window',
         fields: [
@@ -476,6 +578,16 @@ export const SCREENS = {
       { id: 'schedule', label: '3. Validity Window', bn: '৩. সময়সূচি', icon: '📅', badge: '2' },
       { id: 'audit', label: '4. System Audit', bn: '৪. সিস্টেম অডিট', icon: '⏱️', badge: '3' }
     ],
+    /* M40 alliance schemes that make this promotion member-only (read-only). */
+    grids: [
+      { field: 'alliance_scheme_ids', tab: 'commercial', title: 'Alliance Schemes (member-only)', readonlyGrid: true,
+        empty: 'No alliance scheme names this promotion: it is open to every eligible customer.',
+        fields: [
+          { name: 'code', label: 'Scheme Code', readonly: true },
+          { name: 'name', label: 'Scheme', readonly: true },
+          { name: 'partner_id', label: 'Alliance Partner', readonly: true }
+        ] }
+    ],
     sections: [
       { tab: 'general', title: 'Promotion Identity',
         fields: [
@@ -488,6 +600,7 @@ export const SCREENS = {
         fields: [
           { name: 'discount_type', label: "Discount Type" },
           { name: 'value', label: "Discount Value" },
+          { name: 'storefront_voucher', label: "Storefront Checkout Voucher (applied only when the customer enters the code; fixed once out of draft)" },
           { name: 'stackable', label: "Stackable with Other Promotions" },
           { name: 'priority', label: "Priority" },
           { name: 'budget_amount', label: "Budget (BDT)" },
@@ -973,6 +1086,8 @@ export const SCREENS = {
  * sit inside SCREENS (so the merge never saw them and every M11 report chip
  * answered "arrives with the workspace phase"). */
 export const REPORT_ROUTES = {
+  'M11:Price Exceptions': 'M11-rpt-exceptions',
+  'M11:Price Consistency Monitor': 'M11-rpt-consistency',
   'M11:Floor vs Realised Rate': 'M11-rpt-floors',
   'M11:Realised Price vs Card': 'M11-rpt-realised',
   'M11:Discount Register by Approver': 'M11-rpt-discount',
@@ -998,7 +1113,9 @@ export const FORM_MODELS = {
   'M11:Price Premium': 'fix.price.adjustment',
   'M11:Mass Price Change': 'fix.price.mass.change',
   'M11:Discount Reason Code': 'fix.discount.reason',
-  'M11:Below-Floor Override': 'fix.price.override'
+  'M11:Below-Floor Override': 'fix.price.override',
+  'M11:Channel Differential': 'fix.channel.differential',
+  'M11:Volume Break': 'fix.price.break'
 };
 
 export const FORM_CHIPS = {
@@ -1018,6 +1135,8 @@ export const FORM_CHIPS = {
   'M11:Mass Price Change': 'M11-form-mass',
   'M11:Discount Reason Code': 'M11-form-reason',
   'M11:Below-Floor Override': 'M11-form-override',
+  'M11:Channel Differential': 'M11-form-differential',
+  'M11:Volume Break': 'M11-form-break',
   'M11:__by_model__': {
     'fix.parts.price.scheme': 'M11-form-parts-scheme',
     'fix.price.adjustment': 'M11-form-premium',
@@ -1035,7 +1154,9 @@ export const FORM_CHIPS = {
     'fix.price.version': 'M11-form-version',
     'fix.price.floor': 'M11-form-floor',
     'fix.price.change': 'M11-form-change',
-    'fix.price.override': 'M11-form-override'
+    'fix.price.override': 'M11-form-override',
+    'fix.channel.differential': 'M11-form-differential',
+    'fix.price.break': 'M11-form-break'
   },
   'M11:__by_screen__': {
     'M11-price-explanation': 'M11-form-price-explanation',
@@ -1056,7 +1177,9 @@ export const FORM_CHIPS = {
     'M11-premiums': 'M11-form-premium',
     'M11-mass': 'M11-form-mass',
     'M11-reasons': 'M11-form-reason',
-    'M11-overrides': 'M11-form-override'
+    'M11-overrides': 'M11-form-override',
+    'M11-differentials': 'M11-form-differential',
+    'M11-breaks': 'M11-form-break'
   }
 };
 

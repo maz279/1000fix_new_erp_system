@@ -1,0 +1,16 @@
+8069 fix_real screens 136 ok 136 errors 0 dropped 0
+  bundle has p03_print_document         True
+  bundle has action_accept_field_cash   True
+  bundle has action_bill_refused_repair True
+  bundle has action_invoice_diagnostic_fee True
+  bundle has action_withdraw_handoff    True
+  bundle has action_waive_fee           True
+  bundle has M04-books                  True
+8090 fix_dev screens 136 ok 136 errors 0 dropped 0
+  bundle has p03_print_document         True
+  bundle has action_accept_field_cash   True
+  bundle has action_bill_refused_repair True
+  bundle has action_invoice_diagnostic_fee True
+  bundle has action_withdraw_handoff    True
+  bundle has action_waive_fee           True
+  bundle has M04-books                  True

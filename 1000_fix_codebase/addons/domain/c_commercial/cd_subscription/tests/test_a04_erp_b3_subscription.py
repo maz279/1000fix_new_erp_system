@@ -331,8 +331,13 @@ def test_f7_a_change_dated_ahead_applies_on_its_date(c):
     assert pr.state == "approved" and not pr.applied_to_subscription
     assert sub.recurring_amount == 3000.0  # nothing applied before its date
     assert P.cron_apply_due_prorations() == 0
-    # the date comes: bill the cycle covering it, then the daily job applies it
-    pr.sudo()._guarded().write({"effective_date": c.today})
+    # A04 ERP round 2 M39-F16: an increase is told to the customer first
+    pr.with_user(c.officer).action_send_price_notice("email")
+    assert pr.effective_date == ahead  # already beyond the 30 days' notice
+    # the date comes (the notice has run): the daily job applies it
+    pr.sudo()._guarded().write(
+        {"effective_date": c.today, "notice_sent_at": fields.Datetime.now() - timedelta(days=31)}
+    )
     assert P.cron_apply_due_prorations() == 1
     pr.invalidate_recordset()
     assert pr.applied_to_subscription and sub.recurring_amount == 4500.0

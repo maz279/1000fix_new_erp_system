@@ -7,8 +7,9 @@
 from __future__ import annotations
 
 import itertools
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 import pytest
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
@@ -172,7 +173,8 @@ def test_grni_from_po_receipts_less_invoiced_quantity(ap, call):
         3.0,
         9000.0,
     )
-    assert row["received_on"] == str(date.today())
+    # the receipt is dated on its Dhaka business day (UTC+6), not the UTC date
+    assert row["received_on"] == str(datetime.now(ZoneInfo("Asia/Dhaka")).date())
 
 
 def test_expense_by_category_and_duplicate_log(ap, call):
