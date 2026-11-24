@@ -34,21 +34,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               background: tokens["color.surface.primary"],
               flexWrap: "wrap",
             }}>
-              <span style={{
+              <a href="/" style={{
                 fontSize: tokens["typography.size.300"],
                 fontWeight: Number(tokens["typography.weight.semibold"]),
                 color: tokens["color.primary.base"],
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 marginRight: 16,
+                textDecoration: "none",
               }}>
                 {uiCopy("nav.portal.p12", "en")}
-              </span>
+              </a>
               {[
-                ["/", "Profile"],
-                ["/attribution", "Attribution & Funnel"],
-                ["/leads", "Corporate Leads"],
+                ["/dashboard", "Dashboard"],
                 ["/referrals", "Referrals"],
+                ["/leads", "Leads"],
+                ["/attribution", "Funnel"],
                 ["/commissions", "Commissions"],
               ].map(([href, label]) => (
                 <a key={href} href={href} style={{

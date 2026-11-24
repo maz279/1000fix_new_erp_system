@@ -4,17 +4,20 @@
  * Partner portal auth gate — Odoo session sign-in (see lib/auth.ts).
  *
  * - AuthProvider asks /web/session/get_session_info on load; with no uid the
- *   gate renders the sign-in screen INSTEAD of the page (no data call runs).
+ *   gate sends the user to /login (the proxy already redirects when the
+ *   session cookie is absent).
  * - A data call that fails with Odoo SessionExpired (lib/api.ts fires
  *   SESSION_EXPIRED_EVENT) returns the user to the sign-in screen.
- * - External portal for Odoo portal users. Staff accounts are not refused
- *   here; record scoping is enforced by the Odoo controllers.
+ * - External portal for Odoo portal users with a partner profile. Staff
+ *   support accounts are not refused here; the Odoo controller scopes a
+ *   partner user to its own profile and lets staff name one explicitly.
  * - English UI with Bengali subtitles (this app has no language dictionary);
  *   portal names and the session-expired notice come from the generated
  *   copy registry (uiCopy). Labelled inputs, managed focus, role="alert"
  *   errors. Tokens only (CFM-01). No prefilled or demo credentials.
  */
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { tokens, uiCopy } from "../lib/imports";
 import {
   AuthError,
@@ -29,6 +32,16 @@ import {
 /** P06/P10 are staff consoles; P05/P07/P08/P12 serve external portal users. */
 const STAFF_ONLY = false as boolean;
 const PORTAL_KEY = "nav.portal.p12";
+/** Public before sign-in: the partner landing page and the login page. */
+const PUBLIC_ROUTES = new Set(["/", "/login"]);
+
+/** Return path supplied by the proxy / login link. Same-site only. */
+export function nextPath(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next") || "/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//") || PUBLIC_ROUTES.has(raw)) return "/dashboard";
+  return raw;
+}
 
 type Status = "checking" | "signed-out" | "signed-in" | "check-failed";
 
@@ -234,11 +247,21 @@ export function AuthStatus() {
 /** Renders the page only for a signed-in (and, on staff consoles, internal) user. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { status, user, checkError, justSignedIn, recheck } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
+  const isPublic = PUBLIC_ROUTES.has(pathname || "/");
 
   useEffect(() => {
     if (status === "signed-in" && justSignedIn) contentRef.current?.focus();
   }, [status, justSignedIn]);
+
+  useEffect(() => {
+    if (isPublic || status !== "signed-out") return;
+    router.replace(`/login?next=${encodeURIComponent(pathname || "/dashboard")}`);
+  }, [isPublic, status, pathname, router]);
+
+  if (isPublic) return <>{children}</>;
 
   if (status === "checking") {
     return (
@@ -266,7 +289,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (status === "signed-out" || !user) return <SignInScreen />;
+  if (status === "signed-out" || !user) {
+    return (
+      <main style={panel}>
+        <p role="status" style={{ margin: 0, color: tokens["color.text.secondary"] }}>
+          Redirecting to sign in…
+          <span lang="bn" style={bnLine}>সাইন ইন পাতায় নিয়ে যাচ্ছে…</span>
+        </p>
+      </main>
+    );
+  }
 
   if (STAFF_ONLY && !user.isInternal) return <StaffOnly user={user} />;
 
@@ -303,8 +335,9 @@ function StaffOnly({ user }: { user: UserSession }) {
   );
 }
 
-function SignInScreen() {
-  const { signIn, notice } = useAuth();
+export function SignInScreen() {
+  const { signIn, notice, status, user } = useAuth();
+  const router = useRouter();
   const usernameId = useId();
   const passwordId = useId();
   const errorId = useId();
@@ -321,6 +354,10 @@ function SignInScreen() {
   useEffect(() => {
     usernameRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (status === "signed-in" && user) router.replace(nextPath());
+  }, [status, user, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,8 +393,8 @@ function SignInScreen() {
         </span>
       </h1>
       <p style={{ margin: "8px 0 20px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-        Sign in with the portal account 1000FiX issued to you.
-        <span lang="bn" style={bnLine}>১০০০FiX আপনাকে যে পোর্টাল অ্যাকাউন্ট দিয়েছে তা দিয়ে সাইন ইন করুন।</span>
+        For 1000FiX referral partners. Sign in with the partner account issued to you.
+        <span lang="bn" style={bnLine}>১০০০FiX রেফারেল পার্টনারদের জন্য। আপনার দেওয়া পার্টনার অ্যাকাউন্ট দিয়ে সাইন ইন করুন।</span>
       </p>
 
       {notice && (

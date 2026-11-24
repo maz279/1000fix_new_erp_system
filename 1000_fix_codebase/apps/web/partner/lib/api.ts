@@ -7,6 +7,10 @@
  * sessionStorage "fix_token" bearer was never issued by anything. A call
  * that fails with Odoo SessionExpired notifies the auth gate, which returns
  * the user to the sign-in screen; every other error is rethrown unchanged.
+ *
+ * 2026-11-24: the client talks to the same-origin /api/odoo bridge, not Kong.
+ * The bridge allow-list is the partner surface (session + partner/profile,
+ * partner/referrals, partner/commissions); nothing else in Odoo is reachable.
  */
 import { ApiClient } from "./imports";
 import { isSessionExpiredError, notifySessionExpired } from "./auth";
@@ -15,9 +19,7 @@ let _client: ApiClient | null = null;
 
 function getClient(): ApiClient {
   if (!_client) {
-    _client = new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000",
-    });
+    _client = new ApiClient({ baseUrl: "/api/odoo" });
   }
   return _client;
 }

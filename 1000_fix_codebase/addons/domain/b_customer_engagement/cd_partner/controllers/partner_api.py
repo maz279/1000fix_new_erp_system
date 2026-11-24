@@ -8,7 +8,7 @@
 # commissioning ride the model's action methods (AS-09).
 
 from odoo import http
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
 from ..models.fix_partner import CONSENT_METHODS, EARNING_STATES
@@ -90,6 +90,9 @@ class PartnerApiController(http.Controller):
                 "territory": profile.territory or "",
                 "commission_rate": profile.commission_rate,
                 "state": profile.state,
+                "kyc_verified": bool(profile.kyc_verified),
+                "email": profile.partner_id.email or "",
+                "phone": profile.partner_id.phone or "",
             }
         }
 
@@ -113,11 +116,15 @@ class PartnerApiController(http.Controller):
             [("partner_id", "=", profile.id)], limit=100, order="id desc"
         )
         typed = {lead.referral_id.id: lead.customer_name for lead in leads if lead.referral_id}
+        service = {
+            lead.referral_id.id: (lead.service_interest or "") for lead in leads if lead.referral_id
+        }
         result = [
             {
                 "id": r.id,
                 "name": r.name,
                 "referred": typed.get(r.id, ""),
+                "service_interest": service.get(r.id, ""),
                 "state": r.state,
                 "commission_bdt": _fmt_bdt(r.commission_amount),
             }
@@ -129,6 +136,14 @@ class PartnerApiController(http.Controller):
                 "referred": lead.customer_name,
                 "state": lead.state,
                 "loss_reason": lead.loss_reason or "",
+                "service_interest": lead.service_interest or "",
+                "attributed_at": str(lead.attributed_at or ""),
+                "attribution_expires_on": str(lead.attribution_expires_on or ""),
+                "converted_at": str(lead.converted_at or ""),
+                "referral": lead.referral_id.name or "",
+                "commission_bdt": _fmt_bdt(lead.referral_id.commission_amount)
+                if lead.referral_id
+                else "0.00",
             }
             for lead in leads
         ]
@@ -195,16 +210,38 @@ class PartnerApiController(http.Controller):
         rows = request.env["fix.referral"].search(
             [("partner_id", "=", profile.id)], limit=200, order="id desc"
         )
-        lines = [
-            {
-                "referral": r.name,
-                "referred": r.name,
-                "state": r.state,
-                "commission_bdt": _fmt_bdt(r.commission_amount),
-            }
-            for r in rows
-            if r.commission_amount
-        ]
+        # The referral row is the commission record; the customer name the
+        # partner typed lives on the lead that fed it (M40-F8), so the
+        # statement shows that name, not the internal party master.
+        leads = request.env["fix.partner.lead"].sudo().search([("partner_id", "=", profile.id)])
+        typed = {lead.referral_id.id: lead.customer_name for lead in leads if lead.referral_id}
+        service = {
+            lead.referral_id.id: (lead.service_interest or "") for lead in leads if lead.referral_id
+        }
+        lines = []
+        for r in rows:
+            if not r.commission_amount:
+                continue
+            name = typed.get(r.id)
+            if not name:
+                # A referral the company created without a portal lead: the
+                # party name is only readable if the portal user may see it.
+                try:
+                    name = r.referred_partner_id.name or ""
+                except AccessError:
+                    name = ""
+            lines.append(
+                {
+                    "referral": r.name,
+                    "referred": name,
+                    "service_interest": service.get(r.id, ""),
+                    "state": r.state,
+                    "referred_on": str(r.referred_on or ""),
+                    "base_amount_bdt": _fmt_bdt(r.base_amount),
+                    "commission_rate": r.commission_rate,
+                    "commission_bdt": _fmt_bdt(r.commission_amount),
+                }
+            )
         total = sum(r.commission_amount for r in rows)
         return {
             "commissions": {
