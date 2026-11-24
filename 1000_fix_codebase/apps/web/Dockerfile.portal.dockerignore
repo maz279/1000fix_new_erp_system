@@ -1,0 +1,14 @@
+# Build context filter for apps/web/Dockerfile.portal ONLY (BuildKit reads
+# <Dockerfile>.dockerignore next to the Dockerfile; other builds are
+# unaffected). ALLOWLIST: the portal sources and the shared libs are the only
+# image inputs - the workstation's node_modules / .next / .venv / vendor /
+# .git never leave the machine, and NO .env* file is ever sent (the
+# NEXT_PUBLIC_* values come from build args, never from a workstation env).
+*
+!apps/web
+!libs
+apps/web/*/node_modules
+apps/web/*/.next
+apps/web/*/.env
+apps/web/*/.env.*
+libs/**/node_modules
