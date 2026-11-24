@@ -16,5 +16,17 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A bulk DOFA proposal of 78 ladders sent 78 emails to one
+             countersigner. Proposals now post a chatter note immediately and
+             this digest sends ONE email per countersigner per window. -->
+        <record id="ir_cron_dofa_ruling_digest" model="ir.cron">
+            <field name="name">A12: send DOFA countersignature digests</field>
+            <field name="model_id" ref="model_fix_dofa_ladder"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_send_dofa_digest()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

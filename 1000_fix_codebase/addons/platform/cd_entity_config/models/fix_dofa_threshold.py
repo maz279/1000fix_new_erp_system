@@ -49,9 +49,9 @@
 import logging
 from xml.sax.saxutils import escape as xml_escape
 
-from markupsafe import Markup
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools.mail import html_sanitize
 
 from .fix_dofa import DOFA_TIERS, TIER_GROUP
 
@@ -271,6 +271,21 @@ class FixDofaLadder(models.Model):
         "'Countersigned At' is stamped only when they countersign themselves.",
     )
     countersigned_at = fields.Datetime(string="Countersigned At", readonly=True, copy=False)
+    notice_queued_at = fields.Datetime(
+        string="Digest Queued At",
+        readonly=True,
+        copy=False,
+        help="When this proposal entered the countersigner's digest queue. The "
+        "chatter post is immediate; the email is batched so a bulk proposal "
+        "of many ladders is one digest, not one email per ladder.",
+    )
+    notice_sent_at = fields.Datetime(
+        string="Digest Sent At",
+        readonly=True,
+        copy=False,
+        help="When the countersigner's digest was sent. A proposed ladder with "
+        "this empty is still waiting in the queue.",
+    )
     countersigner_choice = fields.Selection(
         selection="_countersigner_selection",
         string="Countersigning Authority",
@@ -609,16 +624,8 @@ class FixDofaLadder(models.Model):
             "</tr></thead><tbody>%s</tbody></table>" % "".join(rows)
         )
 
-    def _post_ruling_email(self, subject, intro_html, partner_ids=None):
-        """Post a branded, actionable ruling notification.
-
-        The stock message_post body rendered as one sentence with the technical
-        model name in the subject, no bands and no call to action — the Mailpit
-        inbox showed 78 of those for one countersigner. This keeps the chatter
-        post (the record of the act) and gives the email the facts the
-        countersigner needs: what is ruled, on what authority, against which
-        bands, and where to act.
-        """
+    def _ruling_body_html(self, intro_html):
+        """The single-record email body: heading, intro, bands, CTA."""
         self.ensure_one()
         base = (self.env["ir.config_parameter"].sudo().get_param("web.base.url") or "").rstrip("/")
         link = "%s/mail/view?model=fix.dofa.ladder&res_id=%s" % (base, self.id)
@@ -645,17 +652,193 @@ class FixDofaLadder(models.Model):
                 xml_escape(link),
             )
         )
+        return html_sanitize(body)  # returns Markup; every interpolated value is escaped
+
+    def _post_ruling_email(self, subject, intro_html, partner_ids=None):
+        """Post a branded, actionable ruling notification for one ladder.
+
+        Used for the IN-FORCE notice, which is a single event worth an
+        immediate email. Proposals go through ``_post_ruling_note`` + the
+        digest cron instead: a bulk ruling of 78 ladders produced 78 emails.
+        """
+        self.ensure_one()
         company = self.env.company
         sender = "%s <%s>" % (company.name, company.email) if company.email else None
         self.message_post(
-            # Safe: this is a static HTML template; every interpolated value
-            # (name, authority, model label, link, band text) is xml_escape'd.
-            body=Markup(body),
+            body=self._ruling_body_html(intro_html),
             subject=subject,
             email_from=sender,
             partner_ids=partner_ids or [],
             subtype_xmlid="mail.mt_comment",
         )
+
+    def _post_ruling_note(self, subject, intro_html):
+        """Record the proposal in the chatter WITHOUT sending an email.
+
+        The countersigner gets one digest (cron_send_dofa_digest) listing
+        every ruling queued for them. mt_note is the internal-note subtype:
+        the record keeps the full story, the inbox does not get one mail per
+        ladder.
+        """
+        self.ensure_one()
+        self.message_post(
+            body=self._ruling_body_html(intro_html),
+            subject=subject,
+            subtype_xmlid="mail.mt_note",
+        )
+
+    def _digest_body_html(self, ladders, counter):
+        """One email listing every ruling queued for this countersigner."""
+        base = (self.env["ir.config_parameter"].sudo().get_param("web.base.url") or "").rstrip("/")
+        labels = dict(self._fields["basis"].selection)
+        rows = []
+        for ladder in ladders.sorted(lambda item: (item._display_target(), item.name or "")):
+            link = "%s/mail/view?model=fix.dofa.ladder&res_id=%s" % (base, ladder.id)
+            rows.append(
+                "<tr>"
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">'
+                '<a href="%s" style="color:#1f4e79;font-weight:600">%s</a></td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                '<td style="padding:6px 10px;border:1px solid #d8dde6">%s</td>'
+                "</tr>"
+                % (
+                    xml_escape(link),
+                    xml_escape(ladder.name or "DOFA ladder"),
+                    xml_escape(ladder._display_target()),
+                    xml_escape(labels.get(ladder.basis, ladder.basis or "—")),
+                    xml_escape(ladder.proposed_reference or "—"),
+                    xml_escape(ladder.proposed_by.name or "—"),
+                )
+            )
+        count = len(ladders)
+        body = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+            'color:#1f2933;line-height:1.5;max-width:820px">'
+            '<p style="margin:0 0 4px;font-size:12px;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#5b6776">1000 FiX · DOFA authority</p>'
+            '<h2 style="margin:0 0 12px;font-size:19px">%d ruling%s await your '
+            "countersignature</h2>"
+            '<p style="margin:0 0 10px">%s, you are the named Tier 5 countersigner. '
+            "<strong>None of these is in force until you countersign it.</strong></p>"
+            '<table style="border-collapse:collapse;width:100%%;font-size:13px;margin:12px 0">'
+            '<thead><tr style="background:#f3f5f8">'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Ladder</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Model</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Basis</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Authority</th>'
+            '<th style="padding:6px 10px;border:1px solid #d8dde6;text-align:left">Proposed by</th>'
+            "</tr></thead><tbody>%s</tbody></table>"
+            '<p style="margin:16px 0 0;font-size:12px;color:#5b6776">'
+            "One digest is sent per countersigner as the queue is processed; each "
+            "ladder record holds its full band table and ruling trail.</p>"
+            "</div>"
+            % (
+                count,
+                "" if count == 1 else "s",
+                xml_escape(counter.name or "Countersigner"),
+                "".join(rows),
+            )
+        )
+        return html_sanitize(body)  # returns Markup; every interpolated value is escaped
+
+    def _send_single(self, counter, ladder):
+        """A lone queued ruling: the detailed email, not a one-row digest."""
+        intro = (
+            '<p style="margin:0 0 10px">%s proposed a ruling on the '
+            "<strong>%s</strong> basis (version %s) for <strong>%s</strong>.</p>"
+            '<p style="margin:0 0 10px">Authority cited: <strong>%s</strong></p>'
+            '<p style="margin:0 0 10px;padding:10px 12px;background:#fff4e5;'
+            'border-left:4px solid #b26a00"><strong>This is not in force until '
+            "%s countersigns.</strong></p>"
+            % (
+                xml_escape(ladder.proposed_by.name or "A Tier 4 holder"),
+                xml_escape(dict(ladder._fields["basis"].selection)[ladder.basis]),
+                ladder.version,
+                xml_escape(ladder._display_target()),
+                xml_escape(ladder.proposed_reference or "—"),
+                xml_escape(counter.name or "the named countersigner"),
+            )
+        )
+        company = self.env.company
+        sender = "%s <%s>" % (company.name, company.email) if company.email else None
+        mail = (
+            self.env["mail.mail"]
+            .sudo()
+            .create(
+                {
+                    "subject": "Countersign required — %s DOFA ruling" % ladder._display_target(),
+                    "body_html": ladder._ruling_body_html(intro),
+                    "email_from": sender,
+                    "email_to": counter.partner_id.email,
+                    "auto_delete": True,
+                }
+            )
+        )
+        mail.send()
+
+    def _send_digest(self, counter, ladders):
+        count = len(ladders)
+        company = self.env.company
+        sender = "%s <%s>" % (company.name, company.email) if company.email else None
+        mail = (
+            self.env["mail.mail"]
+            .sudo()
+            .create(
+                {
+                    "subject": "%d DOFA ruling%s await your countersignature"
+                    % (count, "" if count == 1 else "s"),
+                    "body_html": self._digest_body_html(ladders, counter),
+                    "email_from": sender,
+                    "email_to": counter.partner_id.email,
+                    "auto_delete": True,
+                }
+            )
+        )
+        mail.send()
+
+    @api.model
+    def cron_send_dofa_digest(self):
+        """One email per countersigner for every proposed ladder still queued.
+
+        A bulk proposal used to send one email per ladder (78 to one person).
+        The chatter note is immediate; this digest is the email. Nothing is
+        marked sent until the send returns, so a failure stays queued for the
+        next run.
+        """
+        pending = self.sudo().search(
+            [("ruling_state", "=", "proposed"), ("notice_sent_at", "=", False)],
+            order="countersigned_by, id",
+        )
+        if not pending:
+            return True
+        now = fields.Datetime.now()
+        for counter, ladders in pending.grouped(lambda item: item.countersigned_by).items():
+            if not counter or not counter.partner_id.email:
+                _logger.warning(
+                    "DOFA digest skipped: %s proposal(s) name a countersigner with no "
+                    "email address.",
+                    len(ladders),
+                )
+                continue
+            try:
+                if len(ladders) == 1:
+                    # A single ruling keeps the detailed email; only volume
+                    # becomes a digest (the 78-ladder case).
+                    self._send_single(counter, ladders)
+                else:
+                    self._send_digest(counter, ladders)
+            except Exception:
+                # a failed send must stay queued for the next run
+                _logger.exception(
+                    "DOFA digest for %s failed; %s proposal(s) stay queued.",
+                    counter.name,
+                    len(ladders),
+                )
+                continue
+            ladders.sudo().write({"notice_sent_at": now})
+        return True
 
     def action_propose_ruling(self, reference="", countersigned_by=None):
         """Step 1 of a ruling: a Tier 4 holder proposes it and names the Tier 5
@@ -715,7 +898,7 @@ class FixDofaLadder(models.Model):
                     "countersigned_at": False,
                 }
             )
-            rec._post_ruling_email(
+            rec._post_ruling_note(
                 subject="Countersign required — %s DOFA ruling" % rec._display_target(),
                 intro_html=(
                     '<p style="margin:0 0 10px">%s proposed a ruling on the '
@@ -723,7 +906,8 @@ class FixDofaLadder(models.Model):
                     '<p style="margin:0 0 10px">Authority cited: <strong>%s</strong></p>'
                     '<p style="margin:0 0 10px;padding:10px 12px;background:#fff4e5;'
                     'border-left:4px solid #b26a00"><strong>This is not in force until '
-                    "%s countersigns.</strong></p>"
+                    "%s countersigns.</strong> The countersigner receives one digest "
+                    "listing every ruling queued for them.</p>"
                     % (
                         xml_escape(acting.name or "A Tier 4 holder"),
                         xml_escape(dict(rec._fields["basis"].selection)[rec.basis]),
@@ -733,7 +917,12 @@ class FixDofaLadder(models.Model):
                         xml_escape(counter.name or "the named countersigner"),
                     )
                 ),
-                partner_ids=counter.partner_id.ids,
+            )
+            rec.write(
+                {
+                    "notice_queued_at": fields.Datetime.now(),
+                    "notice_sent_at": False,
+                }
             )
         return True
 

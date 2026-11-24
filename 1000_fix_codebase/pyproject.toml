@@ -96,9 +96,6 @@ ignore = [
 # Odoo idioms: class-level _inherit/_sql lists (RUF012) and %-formatting on
 # translated strings - _("...") % x keeps the msgid translatable (UP031).
 "addons/**" = ["RUF012", "UP031"]
-# A static HTML email template with every interpolated value xml_escape'd:
-# Markup is the documented Odoo way to stop message_post escaping the body.
-"addons/platform/cd_entity_config/models/fix_dofa_threshold.py" = ["S704"]
 "tooling/**" = ["S101", "S603", "S607", "S108", "S310", "S110", "S608", "C414", "UP031", "E501", "E402", "S311"]
 "tests/**" = ["S101", "S105", "S106", "S311", "S603", "S607", "B018", "E402"]
 "**/tests/**" = ["S101", "S105", "S106", "S311", "S608", "B018", "E402"]
