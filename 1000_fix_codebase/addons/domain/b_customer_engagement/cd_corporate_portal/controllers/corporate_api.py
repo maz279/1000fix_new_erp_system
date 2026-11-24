@@ -168,7 +168,12 @@ class CorporateApiController(http.Controller):
             result.append(
                 {
                     "id": inv.id,
-                    "invoice_no": inv.name or "AR-%05d" % inv.id,
+                    # "New" is the internal unnumbered placeholder (the gapless
+                    # number is drawn at issue, FR-ARB-005); the AR engine's own
+                    # reads treat it as unset - never show it to a customer.
+                    "invoice_no": inv.name
+                    if inv.name and inv.name != "New"
+                    else "AR-%05d" % inv.id,
                     "customer": inv.customer_id.name or "",
                     "invoice_date": str(inv.invoice_date or ""),
                     "date_due": str(due or ""),
