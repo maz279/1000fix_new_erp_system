@@ -92,6 +92,10 @@ class SellerApiController(http.Controller):
                 "name": seller.name,
                 "kyc_status": seller.kyc_status,
                 "kyc_ref": seller.kyc_doc_z4_ref or "",
+                "tier": seller.tier,
+                "seller_type": seller.seller_type,
+                "kyc_submitted": str(seller.kyc_submission_date or ""),
+                "kyc_verified": str(seller.kyc_verified_date or ""),
                 "rating": seller.rating,
                 "total_jobs": seller.total_jobs,
             }
@@ -148,7 +152,9 @@ class SellerApiController(http.Controller):
         result = [
             {
                 "id": q.id,
-                "order_name": q.marketplace_order_id.name,
+                # the seller owns the quote; the order name is read under sudo
+                # so a quoted order the portal role cannot open still labels it
+                "order_name": q.sudo().marketplace_order_id.name,
                 "price_bdt": _fmt_bdt(q.quoted_price),
                 "eta_days": q.eta_days,
                 "state": q.state,
@@ -230,6 +236,7 @@ class SellerApiController(http.Controller):
                 "disputed_amount_bdt": _fmt_bdt(d.disputed_amount),
                 "state": d.state,
                 "sla_breached": d.sla_breached,
+                "sla_deadline": str(d.sla_deadline or ""),
                 "description": d.description,
             }
             for d in disputes
@@ -266,6 +273,7 @@ class SellerApiController(http.Controller):
         result = [
             {
                 "id": p.id,
+                "listing_id": p.listing_id.id,
                 "listing": p.listing_id.sudo().name,
                 "sku": p.sku,
                 "qty_on_hand": p.qty_on_hand,

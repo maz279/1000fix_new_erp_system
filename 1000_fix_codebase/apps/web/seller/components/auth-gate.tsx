@@ -15,7 +15,8 @@
  *   errors. Tokens only (CFM-01). No prefilled or demo credentials.
  */
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import { tokens, uiCopy } from "../lib/imports";
+import { usePathname, useRouter } from "next/navigation";
+import { tokens } from "../lib/imports";
 import {
   AuthError,
   SESSION_EXPIRED_EVENT,
@@ -26,9 +27,20 @@ import {
   type UserSession,
 } from "../lib/auth";
 
-/** P06/P10 are staff consoles; P05/P07/P08/P12 serve external portal users. */
-const STAFF_ONLY = false as boolean;
-const PORTAL_KEY = "nav.portal.p07";
+const PORTAL_EN = "Marketplace Seller Portal";
+const PORTAL_BN = "মার্কেটপ্লেস সেলার পোর্টাল";
+const SIGN_OUT_EN = "Sign out";
+const SIGN_OUT_BN = "সাইন আউট";
+/** Public before sign-in: the landing page and the dedicated login page. */
+const PUBLIC_ROUTES = new Set(["/", "/login"]);
+
+/** Return path supplied by the proxy / login link. Same-site only. */
+export function nextPath(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next") || "/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//") || PUBLIC_ROUTES.has(raw)) return "/dashboard";
+  return raw;
+}
 
 type Status = "checking" | "signed-out" | "signed-in" | "check-failed";
 
@@ -82,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const onExpired = () => {
       setUser(null);
       setJustSignedIn(false);
-      setNotice(`${uiCopy("common.session.expired", "en")} / ${uiCopy("common.session.expired", "bn")}`);
+      setNotice("Your session has expired / আপনার সেশন মেয়াদোত্তীর্ণ হয়েছে");
       setStatus("signed-out");
     };
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
@@ -224,21 +236,32 @@ export function AuthStatus() {
         }}
         style={secondaryBtn}
       >
-        {uiCopy("common.nav.chrome.signout", "en")}{" "}
-        <span lang="bn">({uiCopy("common.nav.chrome.signout", "bn")})</span>
+        {SIGN_OUT_EN}{" "}
+        <span lang="bn">({SIGN_OUT_BN})</span>
       </button>
     </div>
   );
 }
 
-/** Renders the page only for a signed-in (and, on staff consoles, internal) user. */
+/** Renders protected pages only for a signed-in seller; public routes
+ * (landing and /login) pass straight through. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { status, user, checkError, justSignedIn, recheck } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
+  const isPublic = PUBLIC_ROUTES.has(pathname || "/");
 
   useEffect(() => {
     if (status === "signed-in" && justSignedIn) contentRef.current?.focus();
   }, [status, justSignedIn]);
+
+  useEffect(() => {
+    if (isPublic || status !== "signed-out") return;
+    router.replace(`/login?next=${encodeURIComponent(pathname || "/dashboard")}`);
+  }, [isPublic, status, pathname, router]);
+
+  if (isPublic) return <>{children}</>;
 
   if (status === "checking") {
     return (
@@ -266,9 +289,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (status === "signed-out" || !user) return <SignInScreen />;
-
-  if (STAFF_ONLY && !user.isInternal) return <StaffOnly user={user} />;
+  if (status === "signed-out" || !user) {
+    return (
+      <main style={panel}>
+        <p role="status" style={{ margin: 0, color: tokens["color.text.secondary"] }}>
+          Redirecting to sign in…
+          <span lang="bn" style={bnLine}>সাইন ইন পাতায় নিয়ে যাচ্ছে…</span>
+        </p>
+      </main>
+    );
+  }
 
   return (
     <div ref={contentRef} tabIndex={-1} style={{ outline: "none" }}>
@@ -277,34 +307,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StaffOnly({ user }: { user: UserSession }) {
-  const { signOut } = useAuth();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => headingRef.current?.focus(), []);
-  return (
-    <main style={panel}>
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        style={{ margin: "0 0 8px", fontSize: tokens["typography.size.400"], color: tokens["color.text.primary"], outline: "none" }}
-      >
-        This portal is for 1000FiX staff
-        <span lang="bn" style={bnLine}>এই পোর্টালটি ১০০০FiX কর্মীদের জন্য</span>
-      </h1>
-      <p role="alert" style={{ margin: "0 0 16px", color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"] }}>
-        You are signed in as {user.name}, which is not a staff account. Sign out and sign in with your 1000FiX staff
-        account.
-        <span lang="bn" style={bnLine}>আপনার অ্যাকাউন্টটি কর্মী অ্যাকাউন্ট নয়। সাইন আউট করে কর্মী অ্যাকাউন্ট দিয়ে সাইন ইন করুন।</span>
-      </p>
-      <button type="button" onClick={() => void signOut()} style={primaryBtn}>
-        {uiCopy("common.nav.chrome.signout", "en")} <span lang="bn">({uiCopy("common.nav.chrome.signout", "bn")})</span>
-      </button>
-    </main>
-  );
-}
-
-function SignInScreen() {
-  const { signIn, notice } = useAuth();
+export function SignInScreen() {
+  const { signIn, notice, status, user } = useAuth();
+  const router = useRouter();
   const usernameId = useId();
   const passwordId = useId();
   const errorId = useId();
@@ -321,6 +326,10 @@ function SignInScreen() {
   useEffect(() => {
     usernameRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (status === "signed-in" && user) router.replace(nextPath());
+  }, [status, user, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,9 +359,9 @@ function SignInScreen() {
           color: tokens["color.text.primary"],
         }}
       >
-        Sign in — {uiCopy(PORTAL_KEY, "en")}
+        Sign in — {PORTAL_EN}
         <span lang="bn" style={bnLine}>
-          সাইন ইন — {uiCopy(PORTAL_KEY, "bn")}
+          সাইন ইন — {PORTAL_BN}
         </span>
       </h1>
       <p style={{ margin: "8px 0 20px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>

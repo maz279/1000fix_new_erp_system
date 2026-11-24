@@ -64,7 +64,8 @@ class SettlementApiController(http.Controller):
         lines = [
             {
                 "ref": r.name,
-                "source_ref": r.source_ref or "",
+                "source_ref": r.source_ref or (r.marketplace_order_id.sudo().name or ""),
+                "date": str(r.create_date or ""),
                 "gross_bdt": _fmt_bdt(r.gross_amount),
                 "commission_bdt": _fmt_bdt(r.commission_amount),
                 "tds_bdt": _fmt_bdt(r.tds_amount),
@@ -73,10 +74,44 @@ class SettlementApiController(http.Controller):
             }
             for r in rows
         ]
-        net_total = sum((Decimal(str(r.net_payable)) for r in rows), Decimal("0"))
-        return {
-            "settlements": {
-                "lines": lines,
-                "net_total_bdt": _fmt_bdt(net_total),
-            }
+        totals = {
+            "gross": Decimal("0"),
+            "commission": Decimal("0"),
+            "tds": Decimal("0"),
+            "net": Decimal("0"),
+            "paid": Decimal("0"),
+            "pending": Decimal("0"),
         }
+        state_counts = {}
+        for r in rows:
+            gross = Decimal(str(r.gross_amount or 0))
+            commission = Decimal(str(r.commission_amount or 0))
+            tds = Decimal(str(r.tds_amount or 0))
+            net = Decimal(str(r.net_payable or 0))
+            totals["gross"] += gross
+            totals["commission"] += commission
+            totals["tds"] += tds
+            totals["net"] += net
+            if r.state == "paid":
+                totals["paid"] += net
+            elif r.state in ("earned", "accrued"):
+                totals["pending"] += net
+            state_counts[r.state] = state_counts.get(r.state, 0) + 1
+        payload = {
+            "lines": lines,
+            "net_total_bdt": _fmt_bdt(totals["net"]),
+        }
+        # Totals are an additive, opt-in view for the portal dashboard and
+        # statement; the original contract (lines + net total) is unchanged.
+        if kwargs.get("include_totals"):
+            payload["totals"] = {
+                "gross_bdt": _fmt_bdt(totals["gross"]),
+                "commission_bdt": _fmt_bdt(totals["commission"]),
+                "tds_bdt": _fmt_bdt(totals["tds"]),
+                "net_bdt": _fmt_bdt(totals["net"]),
+                "paid_bdt": _fmt_bdt(totals["paid"]),
+                "pending_bdt": _fmt_bdt(totals["pending"]),
+                "lines": len(rows),
+                "state_counts": state_counts,
+            }
+        return {"settlements": payload}

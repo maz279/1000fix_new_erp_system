@@ -1,257 +1,143 @@
 "use client";
 
-/* P07 Seller Onboarding — L6 KYC & INT-035 Trade Licence Verification.
- * KYC status is read from /seller/dashboard. There is NO backend KYC
- * submission/verification route, so the form is disabled with an honest
- * notice — nothing is "verified" client-side.
- * WCAG 2.2 AA compliant with full keyboard navigation and high-contrast tokens. */
+/**
+ * Seller onboarding & KYC — the compliance state of the seller account.
+ *
+ * There is no online KYC submission/verification service in this deployment,
+ * so the page shows the live status, the document checklist and how to reach
+ * compliance; it does not pretend to accept documents it cannot store.
+ */
 import { useEffect, useState } from "react";
-import { tokens, Pill, SectionHead, Stat } from "../../lib/imports";
+import { Loading, LoadError, tokens } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
-
-const cardStyle: React.CSSProperties = {
-  border: `1px solid ${tokens["color.border.default"]}`,
-  borderRadius: tokens["dimension.border.radius-md"],
-  background: tokens["color.surface.primary"],
-  padding: 24,
-  marginBottom: 20,
-};
-
-const inputGroupStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  marginBottom: 16,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: tokens["typography.size.200"],
-  fontWeight: Number(tokens["typography.weight.medium"]),
-  color: tokens["color.text.secondary"],
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  background: tokens["color.surface.canvas"],
-  color: tokens["color.text.primary"],
-  border: `1px solid ${tokens["color.border.default"]}`,
-  borderRadius: tokens["dimension.border.radius-sm"],
-  fontSize: tokens["typography.size.200"],
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: "10px 20px",
-  border: "none",
-  borderRadius: tokens["dimension.border.radius-sm"],
-  cursor: "pointer",
-  fontSize: tokens["typography.size.200"],
-  fontWeight: Number(tokens["typography.weight.medium"]),
-  background: tokens["color.primary.base"],
-  color: tokens["color.text.inverse"],
-  alignSelf: "flex-start",
-};
+import {
+  Badge,
+  PageHeader,
+  Panel,
+  StateBadge,
+  StatCard,
+  linkButtonStyle,
+  pageStyle,
+} from "../../components/ui";
 
 interface SellerKyc {
+  name?: string;
   kyc_status: string;
   kyc_ref: string;
+  tier?: string;
+  seller_type?: string;
+  kyc_submitted?: string;
+  kyc_verified?: string;
+  rating?: number;
+  total_jobs?: number;
 }
 
+const DOCS = [
+  ["Trade licence", "Current trade licence from the city corporation / RJSC (INT-035)."],
+  ["BIN-13", "Business Identification Number (VAT registration)."],
+  ["e-TIN", "12-digit e-TIN certificate from NBR."],
+  ["NID", "National ID of the owner / authorised representative."],
+  ["Bank statement", "Recent statement showing the business name and account."],
+];
+
 export default function SellerOnboardingPage() {
-  const [tradeLicense, setTradeLicense] = useState("");
-  const [authority, setAuthority] = useState("");
-  const [binNumber, setBinNumber] = useState("");
-  const [etinNumber, setEtinNumber] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  // KYC standing comes from the backend (/seller/dashboard) — never assumed.
-  const [kyc, setKyc] = useState<SellerKyc | null>(null);
-  const [kycLoading, setKycLoading] = useState(true);
-  const [kycError, setKycError] = useState<string | null>(null);
+  const [seller, setSeller] = useState<SellerKyc | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    callOdoo<{ seller?: SellerKyc; error?: { code?: string; message: string } } | undefined>("/seller/dashboard")
+    callOdoo<{ seller?: SellerKyc; error?: { message: string } }>("/seller/dashboard")
       .then((d) => {
-        if (!d) setKycError("The server returned an empty response.");
-        else if (d.error) setKycError(d.error.message);
-        else setKyc(d.seller ?? null);
+        if (d.error) setError(d.error.message);
+        else setSeller(d.seller ?? null);
+        setLoading(false);
       })
-      .catch((e: Error) => setKycError(e.message))
-      .finally(() => setKycLoading(false));
+      .catch((e: Error) => {
+        setError(e.message);
+        setLoading(false);
+      });
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
-    // No backend KYC submission service exists; the form is disabled and
-    // this guard keeps an Enter keypress from implying anything was sent.
-    e.preventDefault();
-  }
+  if (loading) return <Loading label="Loading your KYC status…" />;
+  if (error) return <LoadError what="KYC status" message={error} />;
 
-  const status = kyc?.kyc_status ?? "unverified";
+  const status = seller?.kyc_status ?? "unverified";
+  const verified = status === "verified";
+  const steps = [
+    { en: "Seller account created", done: Boolean(seller) },
+    { en: "KYC documents submitted", done: Boolean(seller?.kyc_submitted) || verified },
+    { en: "Compliance review", done: status === "in_review" || verified },
+    { en: "KYC verified — quoting enabled", done: verified },
+  ];
 
   return (
-    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
-      <SectionHead
-        title="Seller Onboarding & KYC"
-        note="L6 Merchant KYC — Trade Licence, BIN-13 and e-TIN registration (M12)"
+    <main style={pageStyle}>
+      <PageHeader
+        title="Onboarding & KYC"
+        subtitle="L6 merchant KYC — trade licence, BIN-13, e-TIN and NID verification. Quoting is gated on a verified, CFO-approved seller record."
+        actions={<a href="tel:16743" style={{ ...linkButtonStyle, textDecoration: "none" }}>☎ Seller desk 16743</a>}
       />
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <Stat label="KYC Status" value={kycLoading ? "Loading…" : <Pill state={status} />} tone="primary" />
-        <Stat label="KYC Reference" value={kyc?.kyc_ref || "—"} />
-      </div>
-
-      {kycError && (
-        <div
-          role="alert"
-          style={{
-            padding: "12px 16px",
-            marginBottom: 20,
-            borderRadius: tokens["dimension.border.radius-sm"],
-            background: tokens["color.status.error-bg"],
-            color: tokens["color.status.error"],
-            fontSize: tokens["typography.size.200"],
-            border: `1px solid ${tokens["color.status.error"]}`,
-          }}
-        >
-          Could not load your KYC status: {kycError}
-        </div>
-      )}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="KYC status" value={status} tone={verified ? "success" : "warning"} />
+        <StatCard label="Reference" value={seller?.kyc_ref || "pending"} />
+        <StatCard label="Tier" value={seller?.tier || "unrated"} tone="primary" />
+        <StatCard label="Rating" value={seller?.rating != null ? `${seller.rating.toFixed(1)} / 5` : "—"} />
+        <StatCard label="Total jobs" value={seller?.total_jobs ?? 0} />
+      </section>
 
       <div
         role="note"
         style={{
-          padding: "12px 16px",
-          marginBottom: 20,
+          marginBottom: 16,
+          padding: "10px 14px",
           borderRadius: tokens["dimension.border.radius-sm"],
-          background: tokens["color.status.warning-bg"],
-          color: tokens["color.status.warning"],
-          fontSize: tokens["typography.size.200"],
-          border: `1px solid ${tokens["color.status.warning"]}`,
+          background: verified ? tokens["color.status.success-bg"] : tokens["color.status.warning-bg"],
+          color: verified ? tokens["color.status.success"] : tokens["color.status.warning"],
+          border: `1px solid ${verified ? tokens["color.status.success"] : tokens["color.status.warning"]}`,
+          fontSize: 12.5,
+          lineHeight: 1.55,
         }}
       >
-        Online KYC submission is not yet available — there is no backend service to receive or verify
-        these documents, so this form cannot be submitted. KYC is completed by 1000FiX compliance;
-        contact seller support (hotline 16743) to start or update your verification.
+        {verified
+          ? "Your KYC is verified. Quoting is enabled subject to the open-job and CFO-approval gates."
+          : `Your KYC is ${status}. Online document submission is not available in this deployment — compliance completes verification with you directly. Contact the seller desk on 16743.`}
       </div>
 
-      <form onSubmit={handleSubmit} style={cardStyle} aria-label="Seller Onboarding Form (submission unavailable)">
-        <fieldset disabled style={{ border: "none", margin: 0, padding: 0 }}>
-        <h2
-          style={{
-            fontSize: tokens["typography.size.300"],
-            fontWeight: Number(tokens["typography.weight.semibold"]),
-            marginTop: 0,
-            marginBottom: 16,
-          }}
-        >
-          Enterprise Statutory Registration
-        </h2>
-
-        <div style={inputGroupStyle}>
-          <label htmlFor="businessName" style={labelStyle}>
-            Business Legal Entity Name (ব্যবসায়িক প্রতিষ্ঠানের নাম)
-          </label>
-          <input
-            id="businessName"
-            type="text"
-            required
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
-            style={inputStyle}
-          />
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-          <div style={inputGroupStyle}>
-            <label htmlFor="tradeLicense" style={labelStyle}>
-              Trade Licence Number (ট্রেড লাইসেন্স নম্বর — INT-035)
-            </label>
-            <input
-              id="tradeLicense"
-              type="text"
-              required
-              value={tradeLicense}
-              onChange={(e) => setTradeLicense(e.target.value)}
-              placeholder="Trade licence number"
-              style={inputStyle}
-            />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
+        <Panel title="Onboarding progress">
+          <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            {steps.map((s) => (
+              <div key={s.en} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+                <Badge tone={s.done ? "success" : "neutral"}>{s.done ? "✓" : "·"}</Badge>
+                <span>{s.en}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 6, fontSize: 11.5, color: tokens["color.text.secondary"] }}>
+              {seller?.kyc_submitted ? `Submitted ${seller.kyc_submitted}. ` : ""}
+              {seller?.kyc_verified ? `Verified ${seller.kyc_verified}. ` : ""}
+            </div>
           </div>
+        </Panel>
 
-          <div style={inputGroupStyle}>
-            <label htmlFor="authority" style={labelStyle}>
-              Issuing Authority (সিটি কর্পোরেশন / আরজেএসসি)
-            </label>
-            <select
-              id="authority"
-              value={authority}
-              onChange={(e) => setAuthority(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">Select authority</option>
-              <option value="DSCC">Dhaka South City Corp (DSCC)</option>
-              <option value="DNCC">Dhaka North City Corp (DNCC)</option>
-              <option value="CCC">Chittagong City Corp (CCC)</option>
-              <option value="RJSC">RJSC Bangladesh</option>
-            </select>
+        <Panel title="Documents compliance collects">
+          <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            {DOCS.map(([name, desc]) => (
+              <div key={name} style={{ display: "flex", gap: 10, fontSize: 12.5 }}>
+                <StateBadge state={verified ? "verified" : "pending"} label={verified ? "On file" : "Required"} />
+                <div>
+                  <b>{name}</b>
+                  <div style={{ fontSize: 11.5, color: tokens["color.text.secondary"] }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, color: tokens["color.text.secondary"] }}>
+              Documents are handled by 1000 FiX compliance under PDPA residency controls. Do not send
+              documents by email; the seller desk will provide a secure channel.
+            </p>
           </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={inputGroupStyle}>
-            <label htmlFor="binNumber" style={labelStyle}>
-              Business Identification Number (BIN-13 / ভ্যাট নিবন্ধন)
-            </label>
-            <input
-              id="binNumber"
-              type="text"
-              maxLength={13}
-              required
-              value={binNumber}
-              onChange={(e) => setBinNumber(e.target.value)}
-              placeholder="13-digit BIN"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={inputGroupStyle}>
-            <label htmlFor="etinNumber" style={labelStyle}>
-              e-TIN Number (১২ ডিজিট ই-টিআইএন)
-            </label>
-            <input
-              id="etinNumber"
-              type="text"
-              maxLength={12}
-              required
-              value={etinNumber}
-              onChange={(e) => setEtinNumber(e.target.value)}
-              placeholder="12-digit e-TIN"
-              style={inputStyle}
-            />
-          </div>
-        </div>
-
-        <div style={inputGroupStyle}>
-          <label htmlFor="docUpload" style={labelStyle}>
-            Supporting Documents (ট্রেড লাইসেন্স ও এনআইডি কপি আপলোড)
-          </label>
-          <input
-            id="docUpload"
-            type="file"
-            accept=".pdf,.png,.jpg"
-            style={{ ...inputStyle, padding: 8 }}
-            aria-describedby="docHelp"
-          />
-          <span id="docHelp" style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-            PDF, PNG or JPG up to 10MB (Stored under PDPA residency controls)
-          </span>
-        </div>
-
-        <button type="submit" style={{ ...btnPrimary, cursor: "not-allowed", opacity: 0.6 }} aria-disabled="true">
-          Submission unavailable (জমা দেওয়া যাচ্ছে না)
-        </button>
-        </fieldset>
-      </form>
+        </Panel>
+      </div>
     </main>
   );
 }
