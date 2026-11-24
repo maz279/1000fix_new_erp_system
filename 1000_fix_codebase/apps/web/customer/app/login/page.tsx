@@ -1,12 +1,15 @@
 "use client";
 
 /**
- * Dedicated sign-in page — ported from the frozen prototype login.html
- * (Front_end/css/landing.css § login): split-screen brand panel (deep-teal
- * gradient + sunset glow, Sora display type, 823/346/12 facts) with the
- * form card on the right; OTP presented as the prototype's 6-box TOTP row;
- * demo persona one-click; SSO row (federation is P04-side, shown disabled).
- * Auth is same-origin through /api/odoo (lib/auth.ts).
+ * Customer sign-in — the only way into the P01 portal.
+ *
+ * Two customer-friendly paths, both Odoo-backed:
+ * - Mobile OTP: verifies the phone and signs into the customer's OWN portal
+ *   account (created on first use by the backend).
+ * - Password: for customers who already have portal credentials.
+ *
+ * Staff/administrator accounts are refused here (lib/auth.ts) — the customer
+ * portal is not the operations portal. There is no demo/shared login.
  */
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -14,6 +17,15 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "../../components/language";
 import { useAuth } from "../../components/auth-modal";
 import { login, sendOtp, loginWithOtp } from "../../lib/auth";
+
+/** Return path supplied by the route guard / proxy (/login?next=/invoices). */
+function nextPath(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next") || "/dashboard";
+  // Only same-site paths — never an absolute URL from the query string.
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
 
 export default function LoginPage() {
   const { t, locale } = useLanguage();
@@ -26,20 +38,20 @@ export default function LoginPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   // OTP state
-  const [phone, setPhone] = useState("01711223344");
+  const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [devCode, setDevCode] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Password state
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const bn = locale === "bn";
 
   useEffect(() => {
-    if (user) router.replace("/");
+    if (user) router.replace(nextPath());
   }, [user, router]);
 
   const setDigit = (i: number, v: string) => {
@@ -89,7 +101,7 @@ export default function LoginPage() {
     try {
       await loginWithOtp(phone, code);
       await refreshUser();
-      router.replace("/");
+      router.replace(nextPath());
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -97,13 +109,13 @@ export default function LoginPage() {
     }
   };
 
-  const handlePassword = async (u = username, p = password) => {
+  const handlePassword = async () => {
     setBusy(true);
     setError(null);
     try {
-      await login(u, p);
+      await login(username, password);
       await refreshUser();
-      router.replace("/");
+      router.replace(nextPath());
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -117,25 +129,25 @@ export default function LoginPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="tb-logo" style={{ width: 40, height: 40, fontSize: 20, borderRadius: 10 }} aria-hidden>F</span>
           <div>
-            <strong style={{ fontSize: 15 }}>1000 FiX ERP</strong>
-            <div style={{ fontSize: 10, opacity: 0.7, letterSpacing: "0.08em" }}>SERVICE OPERATIONS PLATFORM</div>
+            <strong style={{ fontSize: 15 }}>1000 FiX</strong>
+            <div style={{ fontSize: 10, opacity: 0.7, letterSpacing: "0.08em" }}>CUSTOMER PORTAL</div>
           </div>
         </div>
         <h1>
-          {bn ? <>এক প্ল্যাটফর্ম, <br />প্রতিটি সার্ভিস মুহূর্ত।</> : <>One platform, <br />every service moment.</>}
+          {bn ? <>আপনার সার্ভিস, <br />আপনার হাতে।</> : <>Your service, <br />in your hands.</>}
         </h1>
         <p className="lb-sub">
           {bn
-            ? "হটলাইন ১৬৭৪৩ থেকে ওয়ার্কশপ বেঞ্চ পর্যন্ত — ৬৭ মডিউল, ১২ পোর্টাল, প্রতিটি গ্রাহক ও ডিভাইসের একটি গোল্ডেন রেকর্ড।"
-            : "Hotline 16743 to workshop bench — 67 modules, 12 portals, one golden record per customer and device."}
+            ? "আপনার মেরামত, অনুমান, ইনভয়েস, ডিভাইস ওয়ারেন্টি ও গোপনীয়তা পছন্দ — সব এক অ্যাকাউন্টে। শুধুমাত্র আপনার নিজের রেকর্ড।"
+            : "Your repairs, estimates, invoices, device warranties and privacy choices — all in one account. Only your own records."}
         </p>
         <div className="lb-facts">
-          <div><b>823</b><span>{bn ? "স্ক্রিন" : "screens"}</span></div>
-          <div><b>346</b><span>{bn ? "রিপোর্ট" : "reports"}</span></div>
-          <div><b>12</b><span>{bn ? "পোর্টাল" : "portals"}</span></div>
+          <div><b>16743</b><span>{bn ? "হটলাইন" : "Hotline"}</span></div>
+          <div><b>ISO 9001</b><span>{bn ? "সার্টিফায়েড" : "Certified"}</span></div>
+          <div><b>51+</b><span>{bn ? "সেন্টার" : "Centres"}</span></div>
         </div>
         <div className="lb-foot">
-          ISO 9001:2015 · 51+ {bn ? "সেন্টার" : "centres"} · 8 {bn ? "বিভাগ" : "divisions"} · © 2026
+          {bn ? "৫১+ সেন্টার · ৮ বিভাগ · © ২০২৬" : "51+ centres · 8 divisions · © 2026"}
         </div>
       </aside>
 
@@ -144,24 +156,13 @@ export default function LoginPage() {
           <h2>{bn ? "সাইন ইন" : "Sign in"}</h2>
           <p className="login-sub">
             {bn
-              ? "আপনার ১০০০ FiX ক্রেডেনশিয়াল ব্যবহার করুন — OTP বা পাসওয়ার্ড।"
-              : "Use your 1000 FiX credentials — OTP or password."}
+              ? "আপনার মোবাইল নম্বর দিয়ে OTP নিন — অথবা পোর্টাল পাসওয়ার্ড ব্যবহার করুন।"
+              : "Use a one-time code sent to your mobile, or your existing portal password."}
           </p>
-
-          <div className="demo-box">
-            <span aria-hidden>👤</span>
-            <span className="persona">
-              <b>{bn ? "ডেমো অ্যাডমিন" : "Demo admin"}</b>
-              {bn ? "এক ক্লিকে প্রবেশ (admin/admin)" : "One-click sign in (admin/admin)"}
-            </span>
-            <button className="btn btn-hero" disabled={busy} onClick={() => handlePassword("admin", "admin")}>
-              {bn ? "ডেমো হিসেবে সাইন ইন ▸" : "Sign in as demo ▸"}
-            </button>
-          </div>
 
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === "otp"} className={`tab-btn${tab === "otp" ? " active" : ""}`} onClick={() => { setTab("otp"); setError(null); }}>
-              📱 {bn ? "মোবাইল ওটিপি" : "Mobile OTP"}
+              📱 {bn ? "মোবাইল OTP" : "Mobile OTP"}
             </button>
             <button role="tab" aria-selected={tab === "password"} className={`tab-btn${tab === "password" ? " active" : ""}`} onClick={() => { setTab("password"); setError(null); }}>
               🔑 {bn ? "পাসওয়ার্ড" : "Password"}
@@ -183,13 +184,14 @@ export default function LoginPage() {
                     id="login-phone"
                     type="tel"
                     required
+                    autoComplete="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder={t.authPhonePlaceholder}
                     style={{ marginBottom: 10 }}
                   />
                   <small className="muted" style={{ marginBottom: 12 }}>
-                    {bn ? "বাংলাদেশের ১১-সংখ্যার যেকোনো সক্রিয় মোবাইল নম্বর।" : "Any active 11-digit Bangladesh mobile number."}
+                    {bn ? "বাংলাদেশের ১১-সংখ্যার সক্রিয় মোবাইল নম্বর (01XXXXXXXXX)।" : "Any active 11-digit Bangladesh mobile number (01XXXXXXXXX)."}
                   </small>
                   <button className="btn btn-primary" type="submit" disabled={busy}>
                     {busy ? (bn ? "পাঠানো হচ্ছে…" : "Sending…") : t.authSendOtpBtn}
@@ -243,11 +245,11 @@ export default function LoginPage() {
             >
               <div className="field">
                 <label htmlFor="login-user">{bn ? "ব্যবহারকারী নাম / ইমেইল" : "Username / Email"}</label>
-                <input id="login-user" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} />
+                <input id="login-user" type="text" required autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
               </div>
               <div className="field">
                 <label htmlFor="login-pass">{bn ? "পাসওয়ার্ড" : "Password"}</label>
-                <input id="login-pass" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                <input id="login-pass" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
               <button className="btn btn-primary" type="submit" disabled={busy} style={{ justifyContent: "center" }}>
                 {busy ? (bn ? "যাচাই হচ্ছে…" : "Signing in…") : bn ? "সাইন ইন ✓" : "Sign in ✓"}
@@ -261,19 +263,15 @@ export default function LoginPage() {
             </p>
           )}
 
-          <div className="sso-row">
-            <button className="btn" disabled title={bn ? "করপোরেট ফেডারেশন (P04/M29)" : "Corporate federation (P04/M29)"}>
-              Microsoft SSO
-            </button>
-            <button className="btn" disabled title={bn ? "করপোরেট ফেডারেশন (P04/M29)" : "Corporate federation (P04/M29)"}>
-              Google SSO
-            </button>
-          </div>
-
           <p className="login-foot">
-            <Link href="/">{bn ? "← পোর্টালে ফিরুন" : "← Back to portal"}</Link>
+            <Link href="/">{bn ? "← পোর্টালে ফিরুন" : "← Back to the portal"}</Link>
             {" · "}
-            {bn ? "শর্তাবলি · PDPA ২০২৬ গোপনীয়তা নীতি" : "Terms · PDPA 2026 privacy notice"}
+            <Link href="/support">{bn ? "সহায়তা" : "Help"}</Link>
+          </p>
+          <p className="login-foot" style={{ marginTop: 8 }}>
+            {bn
+              ? "এই পোর্টালটি গ্রাহকদের জন্য। কর্মী/অ্যাডমিন অ্যাকাউন্ট অপারেশনস পোর্টাল (P03) দিয়ে সাইন ইন করুন।"
+              : "This portal is for customers. Staff and administrator accounts sign in through the operations portal (P03)."}
           </p>
         </div>
       </section>

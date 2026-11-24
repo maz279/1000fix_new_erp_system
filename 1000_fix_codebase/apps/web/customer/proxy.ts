@@ -6,6 +6,16 @@
 // (b) the CSP on the *response*. `strict-dynamic` lets the nonce-bearing
 // bootstrap load the rest of the chunk graph without listing every file.
 //
+// Customer-portal access boundary (2026-11-24):
+// - This portal is the CUSTOMER's self-service surface. The ERP backend is
+//   not embedded and not framed: frame-src is 'none' and the only call
+//   surface is the same-origin /api/odoo allowlist (app/api/odoo).
+// - Customer-account routes require a signed-in Odoo session. Authentication
+//   is still authoritative in Odoo (every customer API route is auth="user"
+//   and partner-scoped); this gate is the first hop so an unauthenticated
+//   visitor lands on the public landing/sign-in page instead of a dashboard
+//   shell.
+//
 // Policy notes:
 // - style-src keeps 'unsafe-inline' (framework-injected styles; no nonce
 //   plumbing exists for styles in Next 16 — documented, not silent).
@@ -14,8 +24,6 @@
 //   origin on dev ports; customer alone uses its same-origin /api/odoo
 //   rewrite). Production sets CSP_CONNECT_SRC="" when everything flows
 //   same-origin behind the gateway.
-// - frame-ancestors: overridable per portal via FRAME_ANCESTORS env —
-//   P06 (analytics) sets its Superset/Grafana embed origins there.
 // - upgrade-insecure-requests is deliberately NOT set on these http dev
 //   serves; it is enabled at the TLS-terminating edge (Kong) in deployment.
 import { NextRequest, NextResponse } from "next/server";
@@ -26,7 +34,45 @@ const CONNECT_SRC = [
   process.env.CSP_CONNECT_SRC?.trim() ?? "http://127.0.0.1:8000 http://localhost:8000",
 ].filter(Boolean).join(" ");
 
+/** Odoo's session cookie (odoo/http.py). Presence is the first-hop gate;
+ * Odoo still validates the session on every customer API call. */
+const ODOO_SESSION_COOKIE = "session_id";
+
+/**
+ * Routes that require a signed-in customer. The public surface is the
+ * landing page (/), sign-in (/login), live tracking token links (/tracking)
+ * and help (/support).
+ */
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/booking",
+  "/devices",
+  "/estimates",
+  "/invoices",
+  "/consent",
+  "/account",
+  "/technician", // P02 staff surface — never customer-visible
+  "/workspace", // legacy ERP pane; redirects to the dashboard
+];
+
+function isProtected(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
+
 export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  // Customer-account pages need a session cookie before they render. A
+  // missing cookie is a signed-out visitor: send them to sign-in and bring
+  // them back to the page they asked for after authentication.
+  if (isProtected(pathname) && !request.cookies.get(ODOO_SESSION_COOKIE)?.value) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(login);
+  }
+
   const nonce = crypto.randomUUID().replace(/-/g, "");
 
   // Dev-only: React's development bundle requires eval() for its debug
@@ -35,18 +81,6 @@ export function proxy(request: NextRequest) {
   // `next build && next start` sets NODE_ENV=production and stays hardened.
   const devEval = process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
 
-  // frame-src: the ERP workspace pane (/workspace/*) embeds the Odoo web
-  // client on the SAME hostname the user browses (session cookie jar is
-  // host-only), so derive the origin from the request host and also allow
-  // both loopback names. Production overrides via CSP_FRAME_SRC.
-  const reqHost = (request.headers.get("host") || "localhost:3000").split(":")[0];
-  const frameSrc = [
-    process.env.CSP_FRAME_SRC?.trim(),
-    `http://${reqHost}:8069`,
-    "http://127.0.0.1:8069",
-    "http://localhost:8069",
-  ].filter(Boolean).join(" ");
-
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval}`,
@@ -54,7 +88,8 @@ export function proxy(request: NextRequest) {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src ${CONNECT_SRC}`,
-    `frame-src 'self' ${frameSrc}`,
+    // The ERP is never framed by the customer portal.
+    "frame-src 'none'",
     `frame-ancestors ${FRAME_ANCESTORS}`,
     "base-uri 'self'",
     "form-action 'self'",
@@ -73,6 +108,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals and the API rewrite (proxied responses pass through).
-  matcher: ["/((?!_next/static|_next/image|api/odoo|favicon.ico).*)"],
+  // Skip Next internals and the same-origin Odoo bridge (the bridge route
+  // performs its own path allowlist and forwards the session cookie).
+  matcher: ["/((?!_next/static|_next/image|api/|favicon.ico).*)"],
 };

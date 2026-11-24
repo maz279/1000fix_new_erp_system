@@ -2,10 +2,15 @@
  * Customer Authentication & Session Management (W4 / P-11 contract).
  *
  * BROWSER CALLS ARE SAME-ORIGIN: every auth endpoint goes through the
- * Next rewrite /api/odoo/* → Odoo, so the Odoo session cookie is
- * first-party (localhost:3000), no Kong dependency in dev, and no
- * cross-origin cookie loss. NEXT_PUBLIC_FIX_API_BASE still overrides the
- * base for production deployments behind the Kong gateway.
+ * Next bridge /api/odoo/* → Odoo (allow-listed in app/api/odoo), so the
+ * Odoo session cookie is first-party (localhost:3000), no Kong dependency
+ * in dev, and no cross-origin cookie loss.
+ *
+ * CUSTOMERS ONLY (2026-11-24): this is the customer portal. A staff/admin
+ * Odoo login is refused here — staff use the operations portal (P03) — so a
+ * portal session can never carry ERP back-office authority into this app.
+ * The rule is enforced right after Odoo answers, where `is_internal_user`
+ * is authoritative; the session is destroyed before the error is raised.
  *
  * The Odoo session cookie is the ONLY credential: this module mints no
  * bearer/"session" token of its own (security fix 2026-10-23). sessionStorage
@@ -43,26 +48,42 @@ export function odooDatabase(): string {
   throw new Error("Sign-in is not configured on this server (NEXT_PUBLIC_ODOO_DB is not set)");
 }
 
-async function jsonRpc(
-  path: string,
-  params: Record<string, unknown>
-): Promise<{ result?: Record<string, unknown>; error?: { message?: string; data?: { message?: string } } } | null> {
+type JsonRpcAnswer = {
+  result?: Record<string, unknown>;
+  error?: { message?: string; data?: { message?: string } };
+};
+
+async function jsonRpc(path: string, params: Record<string, unknown>): Promise<JsonRpcAnswer | null> {
   const res = await fetch(`${base()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({ jsonrpc: "2.0", method: "call", id: Date.now(), params }),
   });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      detail = (await res.text()).slice(0, 120);
-    } catch {
-      /* no body */
-    }
-    throw new Error(`${path} → HTTP ${res.status}${detail ? ` (${detail})` : ""}`);
+  const text = await res.text();
+  // Odoo answers most business errors with HTTP 200 + {error}. The customer
+  // bridge answers its own refusals (staff login, disallowed path) with a
+  // non-2xx + the same JSON-RPC error shape — surface that message too.
+  let parsed: JsonRpcAnswer | null = null;
+  try {
+    parsed = JSON.parse(text) as JsonRpcAnswer;
+  } catch {
+    parsed = null;
   }
-  return res.json();
+  if (parsed?.error) return parsed;
+  if (!res.ok) {
+    throw new Error(`${path} → HTTP ${res.status}${text ? ` (${text.slice(0, 120)})` : ""}`);
+  }
+  return parsed;
+}
+
+/** Drops the server-side Odoo session. Swallows network failures on purpose. */
+async function destroySession(): Promise<void> {
+  try {
+    await jsonRpc("/web/session/destroy", {});
+  } catch {
+    /* a refused login must not fail on cleanup */
+  }
 }
 
 export async function login(
@@ -74,16 +95,33 @@ export async function login(
   if (data?.error) {
     throw new Error(data.error.data?.message || data.error.message || "Invalid login credentials");
   }
-  const result = data?.result as { uid?: number; name?: string; username?: string; partner_id?: number; is_portal?: boolean } | undefined;
+  const result = data?.result as {
+    uid?: number;
+    name?: string;
+    username?: string;
+    partner_id?: number;
+    is_portal?: boolean;
+    is_internal_user?: boolean;
+  } | undefined;
   if (!result?.uid) {
     throw new Error("Invalid username or password");
+  }
+  // Customer portal boundary: an internal (staff/back-office) account is not
+  // a customer account. Destroy the just-created session before refusing so
+  // nothing staff-authorised lingers behind the sign-in screen.
+  const internal = result.is_internal_user === true;
+  if (internal || result.is_portal === false) {
+    await destroySession();
+    throw new Error(
+      "This is the customer portal. Staff and administrator accounts must sign in through the operations portal."
+    );
   }
   const session: UserSession = {
     uid: result.uid,
     name: result.name || loginName,
     username: result.username || loginName,
     partnerId: result.partner_id || result.uid,
-    isPortal: Boolean(result.is_portal),
+    isPortal: true,
   };
 
   if (typeof window !== "undefined") {
@@ -131,7 +169,7 @@ export async function loginWithOtp(phone: string, otp: string): Promise<UserSess
     name: user.name || `Customer (${phone.slice(-4)})`,
     username: user.phone || phone,
     partnerId: user.partner_id || user.uid,
-    isPortal: Boolean(user.is_portal),
+    isPortal: true,
   };
 
   if (typeof window !== "undefined") {
@@ -152,18 +190,28 @@ export async function getSessionInfo(): Promise<{ user: UserSession | null; back
   try {
     const data = await jsonRpc("/web/session/get_session_info", {});
     if (data?.error) return { user: null, backendReachable: true };
-    const result = data?.result as { uid?: number; username?: string; name?: string; partner_id?: number; is_portal?: boolean } | undefined;
+    const result = data?.result as {
+      uid?: number;
+      username?: string;
+      name?: string;
+      partner_id?: number;
+      is_portal?: boolean;
+      is_internal_user?: boolean;
+    } | undefined;
     if (!result?.uid) return { user: null, backendReachable: true };
     // A public/anonymous session carries a false-y username — signed out.
     const identified = result.username || result.name;
     if (!identified) return { user: null, backendReachable: true };
+    // Internal staff sessions are not customer sessions; the customer portal
+    // treats them as signed out (defence in depth after the login guard).
+    if (result.is_internal_user === true) return { user: null, backendReachable: true };
     return {
       user: {
         uid: result.uid,
         name: identified,
         username: result.username || "",
         partnerId: result.partner_id || result.uid,
-        isPortal: Boolean(result.is_portal),
+        isPortal: true,
       },
       backendReachable: true,
     };
@@ -173,11 +221,7 @@ export async function getSessionInfo(): Promise<{ user: UserSession | null; back
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await jsonRpc("/web/session/destroy", {});
-  } catch {
-    /* ignore network failure on logout */
-  }
+  await destroySession();
 
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem("fix_user");

@@ -24,14 +24,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/odoo/:path*",
-        destination: "http://127.0.0.1:8069/:path*",
-      },
-    ];
-  },
+  // The Odoo bridge is app/api/odoo/[...path]/route.ts (allow-listed,
+  // POST-only, server-configured origin). The former catch-all rewrite to
+  // :8069 is removed: it forwarded every Odoo path and exposed the ERP.
+  // The upstream origin is ODOO_INTERNAL_URL (default http://127.0.0.1:8069).
 };
 
 export default nextConfig;

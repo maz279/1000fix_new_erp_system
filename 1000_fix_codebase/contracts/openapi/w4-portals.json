@@ -336,6 +336,17 @@
         "operationId": "customerEstimates"
       }
     },
+    "/customer/invoices": {
+      "post": {
+        "summary": "P01: the customer's issued invoices — total, paid and balance per invoice (partner-scoped, EA-05)",
+        "responses": {
+          "200": {
+            "description": "Invoice list with backend-formatted BDT strings"
+          }
+        },
+        "operationId": "customerInvoices"
+      }
+    },
     "/customer/consent": {
       "post": {
         "summary": "P01: the PDPA consent dashboard — grant/withdraw per channel, status visible (PP0 audit gap closed)",

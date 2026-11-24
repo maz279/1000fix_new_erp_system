@@ -10,6 +10,7 @@ import { tokens, SectionHead, DataTable, Loading, LoadError, Pill } from "../../
 import type { Column } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
+import { RequireAuth } from "../../components/require-auth";
 import { useAuth } from "../../components/auth-modal";
 
 interface Estimate {
@@ -48,7 +49,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function EstimatesPage() {
+function EstimatesPageContent() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const [rows, setRows] = useState<Estimate[]>([]);
@@ -340,5 +341,13 @@ export default function EstimatesPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function EstimatesPage() {
+  return (
+    <RequireAuth>
+      <EstimatesPageContent />
+    </RequireAuth>
   );
 }

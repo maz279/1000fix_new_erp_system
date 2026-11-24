@@ -779,6 +779,41 @@ class CustomerApiController(http.Controller):
             }
         }
 
+    # --- Invoices & payments -------------------------------------------------
+
+    @http.route("/customer/invoices", type="jsonrpc", auth="user", readonly=True)
+    def invoices(self, **kwargs):
+        """The customer's issued invoices with what is paid and what is due.
+
+        Customer-account scope only: the domain is fenced to the session's
+        partner (EA-05). Internal drafts, cancelled and written-off documents
+        are not customer-facing and never leave the back office. Money arrives
+        as BN-007-formatted strings (AS-09/AS-10)."""
+        partner = _scoped_partner(kwargs)
+        invoices = _su_env()["fix.ar.invoice"].search(
+            [
+                ("customer_id", "=", partner),
+                ("state", "in", ("issued", "paid", "credited")),
+            ],
+            limit=50,
+            order="invoice_date desc, id desc",
+        )
+        result = []
+        for inv in invoices:
+            due = (inv.total_payable or 0.0) - (inv.amount_paid or 0.0)
+            result.append(
+                {
+                    "id": inv.id,
+                    "invoice_no": inv.name or "AR-%05d" % inv.id,
+                    "invoice_date": str(inv.invoice_date or ""),
+                    "state": inv.state,
+                    "total_bdt": _fmt_bdt(inv.total_payable),
+                    "paid_bdt": _fmt_bdt(inv.amount_paid),
+                    "balance_bdt": _fmt_bdt(due),
+                }
+            )
+        return {"invoices": result, "total": len(result)}
+
     # --- PDPA consent dashboard ----------------------------------------------
 
     @http.route("/customer/consent", type="jsonrpc", auth="user", readonly=False)

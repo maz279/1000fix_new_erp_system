@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState, useId } from "react";
 import { tokens, Pill, SectionHead, Loading, LoadError } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
+import { RequireAuth } from "../../components/require-auth";
 import { useAuth } from "../../components/auth-modal";
 
 interface ConsentRow {
@@ -51,7 +52,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function ConsentPage() {
+function ConsentPageContent() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const [rows, setRows] = useState<ConsentRow[]>([]);
@@ -319,5 +320,13 @@ export default function ConsentPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ConsentPage() {
+  return (
+    <RequireAuth>
+      <ConsentPageContent />
+    </RequireAuth>
   );
 }

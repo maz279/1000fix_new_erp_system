@@ -26,6 +26,8 @@ interface AuthContextValue {
   user: UserSession | null;
   /** null = unknown (checking), true/false = backend reachable or not */
   backendReachable: boolean | null;
+  /** false until the first session check against Odoo has completed. */
+  authReady: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   logoutUser: () => Promise<void>;
@@ -37,6 +39,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   backendReachable: null,
+  authReady: false,
   openLoginModal: () => {},
   closeLoginModal: () => {},
   logoutUser: async () => {},
@@ -52,6 +55,7 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
 
   const refreshUser = useCallback(async () => {
@@ -66,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.sessionStorage.removeItem("fix_user");
       window.sessionStorage.removeItem("fix_token");
     }
+    setAuthReady(true);
     return live;
   }, []);
 
@@ -92,13 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logoutUser = useCallback(async () => {
     await logout();
     setUser(null);
-  }, []);
+    router.push("/");
+  }, [router]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         backendReachable,
+        authReady,
         openLoginModal,
         closeLoginModal,
         logoutUser,
@@ -116,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function AuthControls() {
   const { user, openLoginModal, logoutUser } = useAuth();
   const { t } = useLanguage();
+  const router = useRouter();
 
   if (!user) {
     return (
@@ -127,9 +135,15 @@ export function AuthControls() {
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span className="tb-avatar" title={user.name}>
+      <button
+        className="tb-avatar"
+        title={user.name}
+        aria-label={user.name}
+        style={{ border: 0, cursor: "pointer" }}
+        onClick={() => router.push("/dashboard")}
+      >
         {user.name.slice(0, 1).toUpperCase()}
-      </span>
+      </button>
       <span
         className="nav-label"
         style={{ fontSize: 12, color: "var(--fix-ink-2)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}

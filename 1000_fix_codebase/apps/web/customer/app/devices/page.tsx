@@ -7,6 +7,7 @@ import { useEffect, useState, useId } from "react";
 import { tokens, Pill, SectionHead, Loading, LoadError } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
+import { RequireAuth } from "../../components/require-auth";
 import { useAuth } from "../../components/auth-modal";
 
 interface HistoryEntry { event: string; description: string; date: string }
@@ -57,7 +58,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function DevicesPage() {
+function DevicesPageContent() {
   const { t, locale } = useLanguage();
   const { user, openLoginModal } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
@@ -483,5 +484,13 @@ export default function DevicesPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function DevicesPage() {
+  return (
+    <RequireAuth>
+      <DevicesPageContent />
+    </RequireAuth>
   );
 }
