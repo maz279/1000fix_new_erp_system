@@ -990,13 +990,17 @@ def test_m63_37_business_rule_register_forgeable(c):
 
 
 def test_m63_38_automation_register_forgeable(c):
+    # 19.0.1.2.0 (A11 fix B1): the engine values are the honest taxonomy, and
+    # the reference must resolve for an active row — this test is about the
+    # ACL, so the row is made with a real verified binding.
     admin_aut = c.env["fix.automation"].create(
         {
             "code": "AUT-901",
             "trigger": "x",
             "action": "y",
-            "engine": "airflow",
-            "engine_ref": "dag: fix_aut_901",
+            "engine": "odoo_method",
+            "engine_ref": "method:fix.service.order._flag_rework",
+            "implementation": "full",
         }
     )
     done = []
@@ -1007,8 +1011,9 @@ def test_m63_38_automation_register_forgeable(c):
                     "code": "AUT-999",
                     "trigger": "record.write",
                     "action": "run",
-                    "engine": "odoo_automated_action",
-                    "engine_ref": "base.action_server_x",
+                    "engine": "odoo_method",
+                    "engine_ref": "method:fix.service.order._flag_rework",
+                    "implementation": "full",
                 }
             )
         done.append("create")
@@ -1016,7 +1021,9 @@ def test_m63_38_automation_register_forgeable(c):
         pass
     try:
         with c.env.cr.savepoint():
-            admin_aut.with_user(c.p).write({"active": False, "engine_ref": "dag: none"})
+            admin_aut.with_user(c.p).write(
+                {"active": False, "engine_ref": "method:fix.service.order._flag_rework"}
+            )
         done.append("deactivate/re-point admin automation")
     except REFUSED:
         pass

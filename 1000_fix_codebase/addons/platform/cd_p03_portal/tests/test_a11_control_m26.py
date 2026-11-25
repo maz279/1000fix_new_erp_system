@@ -247,7 +247,14 @@ def test_m26_v04_ref_promotion_requires_passed_gates(c):
 def test_m26_v05_ref_four_eyes_on_promotion(c):
     """REFERENCE (G7): promotion is four-eyed end to end — the registrant cannot
     sign their own gates, state is not typeable, and the deploy lands only from
-    the M63 inbox of a Model Owner who is not the registrant."""
+    the M63 inbox of a Model Owner who is not the registrant.
+
+    A2-F10 (BRU-AIM-11): a NEW promotion also needs the model's named consumer,
+    accuracy target and fallback. The seeded LEAD_SCORE_V1 declares consumer
+    and fallback but no target (the spec has none for it), so the probe's
+    owner declares one here — the refusal without it is proven in
+    test_ml_a11_fixes.py."""
+    c.lead_model.write({"accuracy_target": "Dispatcher agreement >= 90% (probe owner declaration)"})
     sci = _ml_user(c, "a11m26_sci", "cd_ml_services.group_ml_data_scientist")
     rev = _ml_user(c, "a11m26_rev", "cd_ml_services.group_ml_reviewer")
     own = _ml_user(c, "a11m26_own", "cd_ml_services.group_ml_model_owner")
@@ -797,6 +804,145 @@ def test_m26_b02_ref_english_classifier_baseline(c):
     assert out and out[0]["fault_code"].startswith("BAT"), "baseline failed: %s" % out[:2]
 
 
+# ====================================================================== A11 B4: packs
+def test_m26_override_denominator_is_the_human_decision(c):
+    """A2-F07: a suggestion nobody acted on is not a decision. With no
+    final_value the ratio is None ('—'), never 0.0%; two recorded decisions of
+    which one overrides read 50.0%."""
+    mod = m26()
+    pack = mod.override_analysis(c.env)
+    assert pack["rows"] == [] and pack["totals"] is None, (
+        "GAP: %s decisions reported with no final_value ever recorded" % pack["totals"]
+    )
+    assert mod._ml_kpis(c.env)["override_rate"] is None, "no decision is not a 0% override rate"
+    # two human decisions on the lead model: one agrees, one overrides
+    lead = c.env["crm.lead"].create(
+        {"name": "B4 override lead", "type": "opportunity", "expected_revenue": 600000}
+    )
+    agreed = run(c, c.clerk, c.lead_model, input_text=json.dumps({"lead_id": lead.id}))
+    agreed.sudo().write({"state": "computed", "suggested_value": "50"})
+    agreed.with_user(c.clerk).write({"final_value": "50"})
+    overridden = run(c, c.clerk, c.lead_model, input_text=json.dumps({"lead_id": lead.id}))
+    overridden.sudo().write({"state": "computed", "suggested_value": "50"})
+    overridden.with_user(c.clerk).write(
+        {"final_value": "40", "override_reason": "customer budget cut"}
+    )
+    pack = mod.override_analysis(c.env)
+    assert pack["totals"]["decisions"] == 2 and pack["totals"]["overrides"] == 1
+    assert pack["totals"]["override_pct"] == 50.0, pack["totals"]
+    assert mod._ml_kpis(c.env(user=c.clerk.id))["override_rate"] == 50.0
+
+
+def test_m26_performance_totals_are_none_without_a_denominator(c):
+    """A2-F14(a): success_pct 0 with runs 0 read as 'every run failed'."""
+    totals = m26().model_performance_pack(c.env)["totals"]
+    assert totals["runs"] == 0
+    assert totals["success_pct"] is None, totals
+    # one computed run makes it a real 100%, not a permanent 0
+    r = run(c, c.clerk, c.fault, input_text="screen cracked")
+    r.with_user(c.clerk).action_execute()
+    totals = m26().model_performance_pack(c.env)["totals"]
+    assert totals["runs"] == 1 and totals["success_pct"] == 100.0, totals
+
+
+def test_m26_packs_print_selection_labels_not_raw_keys(c):
+    """D-L06: the grids print labels; the packs printed the enum keys."""
+    mod = m26()
+    model_labels = {
+        field: dict(c.env["fix.ml.model"]._fields[field]._description_selection(c.env))
+        for field in ("implementation", "status")
+    }
+    for row in mod.model_performance_pack(c.env)["rows"]:
+        assert row["implementation"] in model_labels["implementation"].values(), row
+        assert row["status"] in model_labels["status"].values(), row
+        assert row["implementation"] not in ("rule_based", "live_engine", "planned")
+    version_labels = {
+        field: dict(c.env["fix.ml.model.version"]._fields[field]._description_selection(c.env))
+        for field in ("bias_status", "state")
+    }
+    fair = mod.fairness_summary(c.env)
+    assert fair["rows"], "the seeded estate has versions"
+    for row in fair["rows"]:
+        assert row["bias"] in version_labels["bias_status"].values(), row
+        assert row["state"] in version_labels["state"].values(), row
+        assert row["bias"] not in ("untested", "passed", "failed")
+        assert row["state"] not in ("deployed", "draft", "retired")
+    for row in mod.fallback_status(c.env)["rows"]:
+        assert row["status"] in model_labels["status"].values(), row
+        assert row["status"] not in ("production", "planned")
+    for row in mod.model_accuracy_retraining(c.env)["rows"]:
+        assert row["implementation"] in model_labels["implementation"].values(), row
+        assert row["status"] in model_labels["status"].values(), row
+
+
+def test_m26_genai_status_is_derived_from_the_provider_register(c):
+    """A2-F12: the screen claimed no endpoint existed while M32 held an active
+    self-hosted provider. It is now read from that register."""
+    Provider = c.env["fix.assistant.llm.provider"]
+    active = Provider.create(
+        {
+            "name": "B4 self-hosted chat",
+            "code": "B4-LLM-CHAT",
+            "residency": "self_hosted",
+            "latency_profile": "chat",
+            "state": "active",
+            "may_receive_customer_context": True,
+        }
+    )
+    draft = Provider.create(
+        {
+            "name": "B4 draft voice",
+            "code": "B4-LLM-VOICE",
+            "residency": "self_hosted",
+            "latency_profile": "voice",
+            "state": "draft",
+        }
+    )
+    labels = dict(Provider._fields["state"].selection)
+    residency_labels = dict(Provider._fields["residency"].selection)
+    pack = m26().genai_catalog(c.env)
+    rows = {row["capability"]: row for row in pack["rows"]}
+    active_row = next(r for cap, r in rows.items() if active.code in cap)
+    draft_row = next(r for cap, r in rows.items() if draft.code in cap)
+    assert active_row["status"] == labels["active"], active_row
+    assert draft_row["status"] == labels["draft"], draft_row
+    assert residency_labels["self_hosted"] in active_row["detail"], active_row
+    generations = next(r for cap, r in rows.items() if cap.startswith("Generative answers served"))
+    assert generations["status"].startswith("0 generation"), generations
+    assert not any(
+        "No model endpoint provisioned" in row["detail"] for row in pack["rows"]
+    ), "the static 'nothing is provisioned' text survived a configured provider"
+
+
+def test_m26_bengali_catalog_prints_the_measured_taxonomy_count(c):
+    """A2-F14(c): the '26-code taxonomy' note against 24/25 active rows."""
+    pack = m26().bengali_nlp_catalog(c.env)
+    active = c.env["fix.fault.code"].search_count([("active", "=", True)])
+    notes = " ".join(pack["notes"])
+    assert "%d active fault code" % active in notes, notes
+    if active != 26:
+        assert "26-code" not in notes, "the stale 26-code note is back: %s" % notes
+
+
+def test_m26_portfolio_summary_is_computed(c):
+    """A2-F01/A2-F08: the measured line beside the owner's '(14 models)' title."""
+    mod = m26()
+    models = c.env["fix.ml.model"].search([])
+    live = models.search_count([("status", "=", "production")])
+    planned = models.search_count([("status", "=", "planned")])
+    summary = mod.portfolio_summary(c.env)
+    assert summary == (
+        "%d registered · %d live · %d planned — the specification's portfolio "
+        "names 14 models; the rest are not registered yet." % (len(models), live, planned)
+    ), summary
+    pack = mod.model_portfolio(c.env)
+    assert summary in pack["title"], pack["title"]
+    assert len(pack["rows"]) == len(models)
+    status_labels = dict(c.env["fix.ml.model"]._fields["status"]._description_selection(c.env))
+    for row in pack["rows"]:
+        assert row["status"] in status_labels.values(), row
+
+
 def test_m26_f01_fairness_check_is_enforced(c):
     """Decorative no more (G7/BRU-AIM-07): the bias status GATES promotion —
     'untested' blocks a people-affecting model, 'failed' blocks every model —
@@ -833,4 +979,8 @@ def test_m26_f01_fairness_check_is_enforced(c):
         v.with_user(sci).action_request_promotion()
     rows = m26().fairness_summary(c.env(user=c.clerk.id))["rows"]
     row = next(r for r in rows if r["version"] == "8.8.8" and r["model"] == v.model_id.code)
-    assert row["bias"] == "failed" and row["state"] == "draft"
+    # D-L06 (B4): the pack now prints the selection LABELS the grids print,
+    # not the raw keys — the assertion moved with the behaviour on purpose.
+    bias_labels = dict(c.env["fix.ml.model.version"]._fields["bias_status"].selection)
+    state_labels = dict(c.env["fix.ml.model.version"]._fields["state"].selection)
+    assert row["bias"] == bias_labels["failed"] and row["state"] == state_labels["draft"]

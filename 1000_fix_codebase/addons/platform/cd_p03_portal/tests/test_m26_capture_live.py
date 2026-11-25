@@ -268,7 +268,9 @@ def test_a_model_owner_records_a_fallback_test(env, p03, fault):
     row = next(
         r for r in m26.fallback_status(env(user=owner_user.id))["rows"] if r["code"] == fault.code
     )
-    assert row["test_outcome"] == "passed" and row["last_test"] != "never"
+    # D-L06 (B4): the pack prints the outcome's LABEL ('Passed'), not the key.
+    outcome_labels = dict(env["fix.ml.fallback.test"]._fields["outcome"].selection)
+    assert row["test_outcome"] == outcome_labels["passed"] and row["last_test"] != "never"
     with pytest.raises(UserError, match="evidence"):
         test.with_user(owner_user).unlink()
 

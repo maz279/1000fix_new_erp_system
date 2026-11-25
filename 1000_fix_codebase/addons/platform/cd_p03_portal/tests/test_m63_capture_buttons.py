@@ -181,7 +181,7 @@ CAPTURES = {
     "2": ["M63-form-substitution", "M63-form-doa"],
     "3": ["M63-form-doa", "M30-form-dofa-ladder", "M30-form-dofa-band"],
     "4": ["M63-form-rule", "M63-form-simulation"],
-    "5": ["M63-form-scheduled", "M63-form-event", "M30-form-job"],
+    "5": ["M63-form-scheduled", "M63-form-event", "M63-form-job-registration"],
     "7": ["M63-form-intervention", "M63-form-register"],
 }
 NO_CAPTURE = {"6"}
@@ -258,10 +258,13 @@ def test_rule_simulation_is_a_record_not_the_automation_report(m63):
 
 def test_page_five_fills_in_the_engine_of_what_it_creates(m63):
     sub = _sub(m63, "5")
-    assert sub["presets"] == {"engine": "airflow"}
-    assert m63["screens"]["M63-form-scheduled"]["presets"] == {"engine": "airflow"}
-    assert m63["screens"]["M63-form-event"]["presets"] == {"engine": "odoo_automated_action"}
+    assert sub["presets"] == {"engine": "odoo_cron"}
+    assert m63["screens"]["M63-form-scheduled"]["presets"] == {"engine": "odoo_cron"}
+    assert m63["screens"]["M63-form-event"]["presets"] == {"engine": "event_consumer"}
     assert m63["screens"]["M63-events"]["model"] == "fix.automation"
+    # A11 pass 1, D-L13: the page serves the REAL ir.cron estate, not phantom DAG rows
+    assert m63["screens"]["M63-jobs"]["kind"] == "table_report"
+    assert m63["screens"]["M63-jobs"]["report"] == "scheduled_jobs"
 
 
 def test_each_chip_opens_the_model_its_name_says(m63):
@@ -271,7 +274,7 @@ def test_each_chip_opens_the_model_its_name_says(m63):
         "Authority Ladder": "fix.dofa.ladder",
         "Ladder Band": "fix.dofa.threshold",
         "Rule Simulation": "fix.rule.simulation",
-        "Scheduled Job Registration": "fix.scheduled.job",
+        "Scheduled Job Registration": "fix.automation",
         "Manual Intervention": "fix.workflow.intervention",
         "Automation Register Entry": "fix.automation.register",
     }

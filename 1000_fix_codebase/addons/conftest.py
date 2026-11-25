@@ -178,10 +178,42 @@ def _mark_seed_backlog_relayed(cr):
     backlog opts out with @pytest.mark.relay_backlog."""
     cr.execute("SELECT to_regclass('fix_event_outbox')")
     if cr.fetchone()[0]:
-        cr.execute(
-            "UPDATE fix_event_outbox SET relayed_at = now() AT TIME ZONE 'UTC' "
-            "WHERE relayed_at IS NULL AND create_date < now() AT TIME ZONE 'UTC'"
-        )
+        # Deadlock-proof: several suites (and builders' worktrees) may run this
+        # at once against one database. One bulk UPDATE takes row locks in scan
+        # order, so two concurrent runs deadlock instantly (2026-11-23: 300+
+        # deadlock errors per suite). Small id-ordered batches with
+        # FOR UPDATE SKIP LOCKED never wait on a locked row: a concurrent
+        # session's batch is simply left for the next round.
+        while True:
+            cr.execute(
+                """
+                WITH batch AS (
+                    SELECT id FROM fix_event_outbox
+                     WHERE relayed_at IS NULL
+                       AND create_date < now() AT TIME ZONE 'UTC'
+                     ORDER BY id
+                     FOR UPDATE SKIP LOCKED
+                     LIMIT 5000
+                )
+                UPDATE fix_event_outbox o SET relayed_at = now() AT TIME ZONE 'UTC'
+                  FROM batch WHERE o.id = batch.id
+                RETURNING o.id
+                """
+            )
+            if not cr.fetchall():
+                break
+        # A concurrent suite may hold some rows; they free when it aborts.
+        # Retry briefly so this session still sees a fully relayed backlog.
+        import time as _time
+
+        for _attempt in range(15):
+            cr.execute(
+                "SELECT count(*) FROM fix_event_outbox "
+                "WHERE relayed_at IS NULL AND create_date < now() AT TIME ZONE 'UTC'"
+            )
+            if not cr.fetchone()[0]:
+                break
+            _time.sleep(0.2)
 
 
 @pytest.fixture

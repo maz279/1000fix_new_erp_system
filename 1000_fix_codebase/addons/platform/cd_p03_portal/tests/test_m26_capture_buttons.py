@@ -59,7 +59,8 @@ const subs = mod.freg.sub.map((s) => {
     domain: map.domain || [], presets: (create && create.presets) || null,
     create: create && (create.screen || (create.module ? 'module' : null)), forms };
 });
-console.log(JSON.stringify({ subs,
+console.log(JSON.stringify({ subs, cross: mod.cross, groups: mod.groups,
+  kpis: (mod.kpis || []).map((k) => k.l),
   nav: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
   screens: Object.fromEntries(Object.entries(P03_DATA_SCREENS).filter(([id]) => id.startsWith('M26-')).map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, cols: c.cols || [],
@@ -276,6 +277,56 @@ def test_the_server_serves_every_new_list():
     surfaces = _surfaces()
     for model in ("fix.ml.ai.risk", "fix.ml.drift.observation", "fix.ml.fallback.test"):
         assert model in surfaces, model
+
+
+def test_the_evaluation_gate_form_allows_a_deployed_version(m26):
+    """D-L15: the choice domain excluded deployed versions, and every live
+    version is deployed — the gate could be recorded for no live model."""
+    domain = _fields(m26, "M26-form-gate")["version_id"]["domain"]
+    assert domain == [["state", "in", ["draft", "evaluated", "deployed"]]], domain
+
+
+def test_the_fragment_matches_the_registry_contract(m26):
+    """A2-F13 / item 9: cross links verbatim, the ten registry screens' Bengali
+    labels verbatim, and the registry's four groups first."""
+    assert m26["cross"] == [
+        "M02 dispatch scoring",
+        "M43 demand forecasts",
+        "M48 predictive failure",
+        "M32 conversational AI",
+    ], m26["cross"]
+    assert [g["en"] for g in m26["groups"]][:4] == [
+        "Portfolio",
+        "Operations",
+        "Governance",
+        "Generative",
+    ]
+    labels = {s["id"]: s["bn"] for g in m26["groups"] for s in g["screens"]}
+    expected = {
+        "M26-models": "মডেল পোর্টফোলিও",
+        "M26-registry": "মডেল রেজিস্ট্রি",
+        "M26-deploy": "স্থাপন পদ্ধতি",
+        "M26-monitor": "উৎপাদন পর্যবেক্ষণ",
+        "M26-fallback": "ফলব্যাক",
+        "M26-governance": "গার্ডরেল",
+        "M26-bias": "পক্ষপাত পরীক্ষা",
+        "M26-cards": "মডেল কার্ড",
+        "M26-genai": "জেনএআই",
+        "M26-ocr": "ওসিআর",
+    }
+    for screen_id, bn in expected.items():
+        assert labels[screen_id] == bn, (screen_id, labels.get(screen_id))
+
+
+def test_the_registry_six_kpis_come_first(m26):
+    assert m26["kpis"][:6] == [
+        "Auto-Assign Rate",
+        "Demand MAPE",
+        "Fault Classification F1",
+        "Churn Model AUC",
+        "Override Rate",
+        "Drift Alerts",
+    ], m26["kpis"]
 
 
 def test_the_fallback_report_shows_the_last_test():

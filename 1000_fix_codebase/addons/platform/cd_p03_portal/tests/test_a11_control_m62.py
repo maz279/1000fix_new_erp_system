@@ -607,7 +607,9 @@ def test_m62_26_failing_test_is_labelled_evidence(c):
     it does not flip the rule (the rule's own check/measure does that)."""
     t = dqtest(c, observed_value=10.0)
     assert t.passed is False and t.measured is False
-    assert c.rule.state == "passing", "a typed evidence row must not drive the rule's state"
+    # A11 deep audit A3-F04: a rule nothing has measured is "Not yet tested",
+    # not 'passing' (it was born 'passing' and the typed row left it there).
+    assert c.rule.state == "untested", "a typed evidence row drove the rule's state"
 
 
 # ============================================================ incidents
@@ -787,7 +789,7 @@ def test_m62_37_retention_policy_cannot_be_deleted(c):
 def test_m62_38_retention_duplicate_and_inconsistent(c):
     """Control (E38): one active policy per entity."""
     retention(c)
-    with pytest.raises(ValidationError, match="one.*policy per entity"), c.env.cr.savepoint():
+    with pytest.raises(ValidationError, match=r"one.*policy per entity"), c.env.cr.savepoint():
         retention(c, user=c.gov_b, name="A11M62 dup", retention_months=3, tier="cold")
     n = c.env["fix.data.retention.policy"].sudo().search_count([("entity_id", "=", c.ent_s3.id)])
     assert n == 1
@@ -1095,3 +1097,307 @@ def test_m62_55_reference_superuser_rule_check(c):
     assert c.rule.state == "passing"
     c.rule.action_check(94.9)
     assert c.rule.state == "failing"
+
+
+# ============================================================ registry KPI tiles
+# A11 deep audit A3-F05/F16 (2026-11-23): the registry's six tiles did not
+# exist; the workspace showed six different ones. Each tile below is asserted
+# against the state that produced it, including the cases where the honest
+# answer is None ("—"), and against the report pack that must agree with it.
+REGISTRY_TILES = [
+    "certified_metrics",
+    "quality_tests_passing",
+    "freshness_lag",
+    "lineage_coverage_pct",
+    "pii_columns_masked",
+    "warehouse_cost_mtd",
+]
+
+
+def _m62(module=None):
+    """The m62 controller module (imported late: the portal must be installed)."""
+    from odoo.addons.cd_p03_portal.controllers.a11 import m62 as M
+
+    return M
+
+
+def _kpis(c, user=None):
+    return _m62().kpis(c.env(user=(user or c.plain).id))
+
+
+def _lineage_table(env, name="KPI lineage"):
+    """An entity mapped to a table whose rows are easy to measure."""
+    env["fix.data.lineage"].create(
+        {
+            "name": "one edge",
+            "source_entity_id": env["fix.data.entity"].create({"name": "KPI edge A"}).id,
+            "target_entity_id": env["fix.data.entity"].create({"name": "KPI edge B"}).id,
+        }
+    )
+    return env["fix.data.entity"].create({"name": name, "res_model": "fix.data.lineage"})
+
+
+def test_m62_56_the_registry_tiles_are_served_first_in_contract_order(c):
+    """A3-F05: the six registry tiles are served under the M62 key the fragment
+    reads, before the operational counters, in the registry's order."""
+    from odoo.addons.cd_p03_portal.controllers import a11
+
+    payload = a11.kpis(c.env(user=c.plain.id), "M62")
+    assert list(payload["M62"].keys())[:6] == REGISTRY_TILES
+
+
+def test_m62_57_certified_metrics_needs_a_published_version(c):
+    """A definition 'published' with no version is not certified — the seeded
+    shape — and a governed publication is."""
+    publish(c, metric(c, suffix="KPI"))
+    seeded = metric(c, suffix="SEED")
+    # the seeder's shape: the state without a version (the guard refuses it)
+    c.env.cr.execute(
+        "UPDATE fix_metric_definition SET state = 'published' WHERE id = %s", (seeded.id,)
+    )
+    c.env.invalidate_all()
+    k = _kpis(c)
+    assert k["certified_metrics"] == 1
+    assert k["metrics_published"] == 1  # the same basis, never the five seed rows
+    # retiring the definition removes it from the live certified set
+    publish(c, metric(c, suffix="RETIRED"))
+    retired = c.env["fix.metric.definition"].search([("code", "=", "A11M62-MET-RETIRED")])
+    retired.with_user(c.gov).action_retire()
+    assert _kpis(c)["certified_metrics"] == 1
+
+
+def test_m62_58_contracts_active_counts_only_signed_rows(c):
+    """A contract 'active' with no producer signature is not an active contract
+    (the seeded shape); one that activated on both signatures is."""
+    activate(c, contract(c, suffix="signed"))
+    unsigned = contract(c, suffix="unsigned")
+    c.env.cr.execute("UPDATE fix_data_contract SET state = 'active' WHERE id = %s", (unsigned.id,))
+    c.env.invalidate_all()
+    assert _kpis(c)["contracts_active"] == 1
+
+
+def test_m62_59_quality_pass_rate_counts_measured_tests_only(c):
+    """A3-F16: the pass rate is over MEASURED tests. One measured pass and one
+    measured fail is 50%; a manual 100% row on another rule changes nothing."""
+    entity = _lineage_table(c.env)
+    good = c.env["fix.data.quality.rule"].create(
+        {
+            "name": "kpi measured pass",
+            "entity_id": entity.id,
+            "rule_type": "completeness",
+            "check_field": "name",
+            "threshold": 50.0,
+        }
+    )
+    bad = c.env["fix.data.quality.rule"].create(
+        {
+            "name": "kpi measured fail",
+            "entity_id": entity.id,
+            "rule_type": "completeness",
+            "check_field": "transformation",
+            "threshold": 50.0,
+        }
+    )
+    good.action_measure()  # the edge has a name: 100%
+    bad.action_measure()  # no edge has a transformation: 0%
+    assert _kpis(c)["quality_tests_passing"] == 50.0
+    dqtest(c, observed_value=100.0)  # a person's 100% on c.rule (never measured)
+    assert _kpis(c)["quality_tests_passing"] == 50.0
+
+
+def test_m62_60_unmeasurable_tiles_are_none_never_zero(c):
+    """No measured test, no successful run, no entity to cover: "—", not 0.
+    (Read as a company with no M62 rows, so nothing of company A leaks in.)"""
+    co_b = c.env["res.company"].create({"name": "A11M62 KPI Company B"})
+    user_b = _user(c.env, "a11m62_kpi_b", company=co_b)
+    k = _kpis(c, user_b)
+    assert k["certified_metrics"] == 0
+    assert k["quality_tests_passing"] is None
+    assert k["freshness_lag"] is None
+    assert k["lineage_coverage_pct"] is None
+    assert k["pii_columns_masked"] == 0
+    assert k["warehouse_cost_mtd"] == 0.0
+
+
+def test_m62_61_freshness_lag_is_the_oldest_last_success(c):
+    """The lag is minutes since the OLDEST success among active pipelines, and
+    the tile equals the Freshness SLA row that reports it."""
+    r = run(c, rows_read=1, rows_written=1)
+    U(c, r).action_finish()
+    # flush first: the finish wrote the stamp through the ORM, and a raw UPDATE
+    # issued before that write is flushed would be overwritten by it.
+    c.env.flush_all()
+    c.env.cr.execute(
+        "UPDATE fix_data_pipeline SET last_success_at = now() - interval '90 minutes', "
+        "last_run_at = now() - interval '90 minutes' WHERE id = %s",
+        (c.pipe.id,),
+    )
+    c.env.invalidate_all()
+    k = _kpis(c)
+    row = next(
+        row
+        for row in _m62().freshness_sla(c.env(user=c.plain.id))["rows"]
+        if row["pipeline"] == "A11M62-PL"
+    )
+    assert k["freshness_lag"] == row["age_min"]
+    assert 89 <= k["freshness_lag"] <= 90
+    assert row["breach"] == "Yes"  # the 15-minute SLO is passed
+
+
+def test_m62_62_lineage_coverage_is_edges_over_all_entities(c):
+    """Two entities, one edge between them: 100%. A third entity with no edge
+    drops it to 66.7% — and it equals the Lineage Coverage pack's own count."""
+    a, b = c.env["fix.data.entity"].browse([c.ent.id, c.ent_s3.id])
+    c.env["fix.data.lineage"].create(
+        {"name": "kpi edge", "source_entity_id": a.id, "target_entity_id": b.id}
+    )
+    assert _kpis(c)["lineage_coverage_pct"] == 100.0
+    c.env["fix.data.entity"].create({"name": "KPI unlinked"})
+    assert _kpis(c)["lineage_coverage_pct"] == 66.7
+    pack = _m62().lineage_coverage(c.env(user=c.plain.id))
+    assert pack["title"].startswith("Lineage Coverage — 2 of 3")
+
+
+def test_m62_63_warehouse_cost_is_the_sum_of_active_policies(c):
+    """Hand-computed: 240 GB x 12 + 120 GB x 8 = 3,840 a month, and the tile
+    equals the Cost per Domain pack's total on the same basis."""
+    e1 = c.env["fix.data.entity"].create({"name": "KPI cost one", "owner_module": "M01"})
+    e2 = c.env["fix.data.entity"].create({"name": "KPI cost two", "owner_module": "M20"})
+    for entity, months, volume, rate in ((e1, 36, 240, 12.0), (e2, 84, 120, 8.0)):
+        c.env["fix.data.retention.policy"].create(
+            {
+                "name": "KPI cost %s" % entity.name,
+                "entity_id": entity.id,
+                "retention_months": months,
+                "volume_gb": volume,
+                "storage_cost_per_gb": rate,
+            }
+        )
+    pack = _m62().cost_per_domain(c.env(user=c.plain.id))
+    assert _kpis(c)["warehouse_cost_mtd"] == pack["totals"]["monthly_cost"] == 3840.0
+
+
+def test_m62_64_pii_columns_masked_counts_the_active_rules(c):
+    """The tile is the active sensitive-field rules, read as the caller; an
+    inactive classification is not masking anything."""
+    S = c.env["fix.sensitive.field"]
+    common = {"company_id": c.env.company.id, "sensitivity": "s2", "data_class": "pii"}
+    S.create({"model_name": "res.partner", "field_name": "email", **common})
+    S.create({"model_name": "res.partner", "field_name": "phone", **common})
+    S.create({"model_name": "res.partner", "field_name": "vat", "active": False, **common})
+    assert _kpis(c)["pii_columns_masked"] == 2
+
+
+def test_m62_65_scorecard_names_measured_and_says_why_not(c):
+    """A3-F16: the scorecard carries a Measured column (manual evidence vs
+    cron-measured), a pass rate over measured tests only, and a plain reason
+    per entity when nothing is measurable."""
+    entity = _lineage_table(c.env, "KPI scorecard")
+    for field, threshold in (("name", 50.0), ("transformation", 50.0)):
+        c.env["fix.data.quality.rule"].create(
+            {
+                "name": "scorecard %s" % field,
+                "entity_id": entity.id,
+                "rule_type": "completeness",
+                "check_field": field,
+                "threshold": threshold,
+            }
+        ).action_measure()
+    pack = _m62().quality_scorecard(c.env(user=c.plain.id))
+    assert {"measured", "manual", "reason"} <= set(pack["cols"])
+    row = {r["entity"]: r for r in pack["rows"]}["KPI scorecard"]
+    assert (row["rules"], row["tested"], row["measured"], row["manual"]) == (2, 2, 2, 0)
+    assert row["passed"] == 1 and row["pass_pct"] == 50.0 and row["reason"] == "—"
+
+    # a rule that cannot run: its manual evidence is labelled, the pass rate
+    # stays empty, and the row states the one reason
+    dqtest(c, observed_value=100.0)
+    mapped = c.env["fix.data.entity"].create(
+        {"name": "KPI no check field", "res_model": "fix.data.lineage"}
+    )
+    c.env["fix.data.quality.rule"].create(
+        {
+            "name": "scorecard no field",
+            "entity_id": mapped.id,
+            "rule_type": "completeness",
+            "threshold": 95.0,
+        }
+    )
+    pack = _m62().quality_scorecard(c.env(user=c.plain.id))
+    rows = {r["entity"]: r for r in pack["rows"]}
+    # the fixture entity maps to no model; the new one maps to a table but its
+    # rule names no column — each states its own reason, neither looks green
+    blocked = rows["A11M62 fix_service_order"]
+    assert (blocked["measured"], blocked["manual"], blocked["passed"]) == (0, 1, 0)
+    assert blocked["pass_pct"] is None
+    assert "maps to no Odoo model" in blocked["reason"]
+    no_field = rows["KPI no check field"]
+    assert no_field["measured"] == 0 and no_field["pass_pct"] is None
+    assert "no check field" in no_field["reason"]
+
+
+def test_m62_66_pipelines_active_is_a_register_with_no_executor(c):
+    """A3-F02 honesty: the tile counts registry rows, and the fragment's tile
+    says so — no executor is connected on this estate."""
+    from pathlib import Path
+
+    here = Path(__file__).resolve().parent
+    fragment = (here.parent / "static" / "src" / "a11" / "m62.js").read_text(encoding="utf-8")
+    assert "Pipeline register — no executor is connected" in fragment
+    assert "no executor" in fragment
+    assert "Pipelines Active" in fragment
+    assert _kpis(c)["pipelines_active"] == 1  # the fixture's one active pipeline
+
+
+def test_m62_67_the_six_tiles_after_the_repair_are_honest(c):
+    """A3-F05 end to end: on the repaired live residue the six tiles are
+    0 / — / — / 0% / 0 / ৳7,440 — every value observable, none fabricated."""
+    import importlib.util
+    from pathlib import Path
+
+    # __file__ is .../addons/platform/cd_p03_portal/tests/<this file>
+    addons = Path(__file__).resolve().parents[3]
+    path = (
+        addons
+        / "domain"
+        / "j_data_analytics"
+        / "cd_metric_registry"
+        / "tests"
+        / "test_m62_integrity.py"
+    )
+    spec = importlib.util.spec_from_file_location("_b3_m62_integrity", path)
+    integrity = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(integrity)
+
+    integrity.live_residue(c.env)
+    c.env["fix.data.entity"].action_repair_seed_residue()
+    k = _kpis(c)
+    assert k["certified_metrics"] == 0  # every seeded definition was drafted
+    assert k["quality_tests_passing"] is None  # nothing was ever measured
+    assert k["freshness_lag"] is None  # no run ever stamped a pipeline
+    assert k["lineage_coverage_pct"] == 0.0  # 8 entities, not one lineage edge
+    assert k["pii_columns_masked"] == 0  # no sensitive-field rule on the estate
+    # the projection the Cost per Domain pack reports: 240x12 + 240x12 + 120x8 + 60x12
+    assert k["warehouse_cost_mtd"] == 7440.0
+
+
+def test_m62_68_pii_is_none_when_the_caller_may_not_read_the_register(c):
+    """A3-F05: the PII tile is the CALLER's read. An account without read on
+    M29's sensitive-field register gets None — never a sudo count of rows it
+    cannot open."""
+    Access = c.env["ir.model.access"].sudo()
+    acl = Access.search(
+        [
+            ("model_id.model", "=", "fix.sensitive.field"),
+            ("group_id", "=", c.env.ref("base.group_user").id),
+        ]
+    )
+    assert acl, "base.group_user has no read row on fix.sensitive.field to withdraw"
+    try:
+        acl.unlink()
+        c.env.flush_all()
+        c.env.registry.clear_cache()
+        assert _kpis(c)["pii_columns_masked"] is None
+    finally:
+        # the rollback restores the ACL row; the registry cache must re-read it
+        c.env.registry.clear_cache()

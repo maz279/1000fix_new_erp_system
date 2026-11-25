@@ -258,7 +258,7 @@ def test_a_record_made_on_a_filtered_page_lands_on_that_page(estate):
     sub = next(s for s in estate["M63"]["subs"] if s["no"] == "5")
     # the workflow-definition form, opened as "Scheduled Workflow" (M63 capture audit)
     assert sub["create"]["screen"] == "M63-form-scheduled"
-    assert sub["create"]["presets"] == {"engine": "airflow"}
+    assert sub["create"]["presets"] == {"engine": "odoo_cron"}
     carried = [
         (m, s["no"])
         for m in MODULES

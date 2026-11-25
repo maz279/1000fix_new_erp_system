@@ -241,6 +241,12 @@ def _model(env, **extra):
         "kind": "tradein_valuation",
         "implementation": "rule_based",
         "status": "production",
+        # BRU-AIM-11 (A2-F10): a NEW promotion needs a named consumer, an
+        # accuracy target and a defined fallback. A trade-in model is
+        # financial (not advisory), so the target is required too.
+        "consumer_modules": "M14 Trade-In (probe)",
+        "accuracy_target": "Within 10% of assessed value (probe)",
+        "fallback_definition": "Depreciation table (probe)",
     }
     vals.update(extra)
     return env["fix.ml.model"].create(vals)

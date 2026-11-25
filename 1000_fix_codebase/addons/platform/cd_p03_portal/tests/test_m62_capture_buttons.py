@@ -482,9 +482,20 @@ def test_new_models_are_secured():
 
 
 def test_the_new_file_loads_after_the_models_it_extends():
+    """Every extender is imported after the file that defines what it extends.
+
+    A11 deep audit A3-F04 moved the seed-integrity repair into
+    fix_data_platform (it extends fix.data.entity), so the two base files are
+    imported model-definition-first; fix_m62_capture still comes last."""
     init = (REG / "models" / "__init__.py").read_text(encoding="utf-8")
-    last = init.index("from . import fix_m62_capture")
-    assert last > init.index("import fix_data_platform, fix_metric_registry")
-    assert "ruff: noqa: I001" in init
+    imports = [line for line in init.splitlines() if line.startswith("from . import")]
+    assert len(imports) == 2, imports
+    base, last = imports
+    assert "fix_metric_registry" in base and "fix_data_platform" in base
+    assert "fix_m62_capture" in last
+    # fix.data.entity is defined before anything extends it, and the capture
+    # file (which extends models from both) is imported after both
+    assert init.index("from . import fix_m62_capture") > init.index("fix_data_platform")
+    assert init.index("fix_metric_registry") < init.index("from . import fix_m62_capture")
     manifest = (REG / "__manifest__.py").read_text(encoding="utf-8")
     assert '"cd_party_master"' in manifest, "the erasure extends M33's rights request"

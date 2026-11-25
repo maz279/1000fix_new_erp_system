@@ -3345,9 +3345,10 @@ class FixArConsolidatedBill(models.Model):
                     )
                 )
             foreign = bill.invoice_ids.filtered(
-                lambda i, b=bill: i.customer_id.commercial_partner_id
-                != b.customer_id.commercial_partner_id
-                or i.company_id != b.company_id
+                lambda i, b=bill: (
+                    i.customer_id.commercial_partner_id != b.customer_id.commercial_partner_id
+                    or i.company_id != b.company_id
+                )
             )
             if foreign:
                 raise UserError("A consolidated bill carries this customer's invoices only.")

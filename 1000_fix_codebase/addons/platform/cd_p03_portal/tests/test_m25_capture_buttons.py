@@ -156,7 +156,7 @@ def _report_keys():
 
 def _metric_keys():
     text = CONTROLLER.read_text(encoding="utf-8")
-    body = text[text.index("def _metrics(env):") :]
+    body = text[text.index("def _metrics(env") :]
     body = body[: body.index("\ndef ", 1)]
     return set(re.findall(r'm\["([a-z0-9_]+)"\]\s*=', body))
 
