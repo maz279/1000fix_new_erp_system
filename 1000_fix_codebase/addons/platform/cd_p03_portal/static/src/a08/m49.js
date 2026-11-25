@@ -54,13 +54,18 @@ export const MODULE = {
       { id: 'M49-leases', en: 'Lease Contracts', bn: 'ইজারা চুক্তি', t: 'g' },
       { id: 'M49-lease-schedule', en: 'Lease Schedules', bn: 'ইজারা সূচি', t: 'g' },
       { id: 'M49-lease-summary', en: 'Lease Summary', bn: 'ইজারা সারসংক্ষেপ', t: 'r' }
+    ]},
+    { en: 'Take-on', screens: [
+      { id: 'M49-takeon', en: 'Asset Register Take-on', bn: 'সম্পদ রেজিস্টার টেক-অন', t: 'g' },
+      { id: 'M49-takeon-lines', en: 'Take-on Lines', bn: 'টেক-অন লাইন', t: 'g' },
+      { id: 'M49-takeon-recon', en: 'Take-on Reconciliation', bn: 'টেক-অন মিলকরণ', t: 'r' }
     ]}
   ],
   reports: ['Fixed Asset Movement Schedule', 'Depreciation (Dual Book)', 'NBV by Category', 'Capex vs Budget', 'Disposal Gains/Losses', 'IFRS 16 Lease Summary'],
   forms: ['Capex Request', 'Asset Capitalisation', 'Transfer', 'Disposal', 'Revaluation / Impairment', 'Lease Contract',
     'Capex Budget', 'Capital Project', 'Asset Category', 'CWIP Entry', 'CWIP Component', 'Depreciation Run',
     'Depreciation Change', 'Impairment Assessment', 'Verification Campaign', 'Verification Variance',
-    'Asset Component', 'Insurance Policy'],
+    'Asset Component', 'Insurance Policy', 'Asset Take-on'],
   cross: ['Financial Accounting & GL', 'Enterprise Assets & Test Equipment', 'Fleet & Vehicles'],
   freg: { src: 66, sub: [
     ['1', 'Capex & Approval', 9, { model: 'fix.capex.request', cols: ['name', 'title', 'request_date', 'amount', 'state'], screens: ['M49-requests', 'M49-budget', 'M49-projects', 'M49-capex-budget'], reports: ['Capex vs Budget'], forms: ['Capex Request', 'Capex Budget', 'Capital Project'] }],
@@ -132,6 +137,96 @@ export const SCREENS = {
     cols: ['lease_id','sequence','period_start','opening','payment','interest','principal','closing','depreciation','state'],
     stateField: 'state', create: false, actions: [{m:'action_post',l:'Post Month'}] },
   'M49-lease-summary': { kind: 'table_report', module: 'M49', report: 'lease_summary' },
+  // Take-on (2026-11-25): the governed legacy-register lane
+  'M49-takeon': { kind: 'model_list', model: 'fix.asset.takeon.batch', create: true,
+    cols: ['name','state','import_ref','takeon_date','line_count','ready_count','quarantined_count','posted_count','total_cost','total_accum','total_nbv'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & resolve crosswalks' },
+      { m: 'action_post', l: '3. Post take-on (MIG + activate)' },
+      { m: 'action_rollback', l: 'Rollback (mirror + retire)' },
+    ] },
+  'M49-takeon-lines': { empty: 'Take-on lines are staged from the legacy register file on its batch; they are not typed in.', kind: 'model_list', model: 'fix.asset.takeon.line', create: false,
+    cols: ['batch_id','sl','legacy_coa_code','legacy_head','product_name','acquisition_date','branch_label','branch_id','category_id','cost','accum_depreciation','nbv','life_months','voucher','state','reject_reason'],
+    stateField: 'state' },
+  'M49-takeon-recon': { kind: 'table_report', module: 'M49', report: 'asset_takeon_reconciliation' },
+  'M49-form-takeon': {
+    kind: 'model_form', model: 'fix.asset.takeon.batch',
+    title: 'Asset Register Take-on', back: 'M49-takeon',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      posted: 'Posted', rolled_back: 'Rolled Back' } },
+    tabs: [
+      { id: 'tsrc', label: '1. Source', bn: '১. সোর্স', icon: '📄', badge: '6' },
+      { id: 'tout', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '7' },
+      { id: 'tlog', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'tsrc', title: 'Legacy Register & Take-on Date',
+        note: "Attach the compiled asset register (SL / COA Code / COA Head / Product Name / Acquisition Date / Financial Year / Cost Centre-Branch / Cost / Accumulated Depreciation / NBV / Voucher). Save, then run Stage → Validate → Post from the list's command bar. Posting capitalises every ready row through the M19 seam (Dr category asset account / Cr take-on contra, then opening accumulated depreciation), activates the assets and carries the opening position into the register — never a typed-in active asset.",
+        fields: [
+          { name: 'name', label: 'Take-on', readonly: true },
+          { name: 'source_file', label: 'Asset Register (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'import_ref', label: 'Import Reference (permanent legacy keys)', required: true },
+          { name: 'takeon_date', label: 'Take-on Date (period boundary)', required: true },
+          { name: 'contra_operating_unit_id', label: 'Contra Line Branch', required: true },
+          { name: 'company_id', label: 'Company' }
+        ] },
+      { tab: 'tout', title: 'Counts & Control Totals',
+        fields: [
+          { name: 'line_count', label: 'Source Rows', readonly: true },
+          { name: 'ready_count', label: 'Ready Rows', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined', readonly: true },
+          { name: 'posted_count', label: 'Posted Assets', readonly: true },
+          { name: 'total_cost', label: 'Total Cost (BDT)', readonly: true },
+          { name: 'total_accum', label: 'Total Accumulated Depreciation (BDT)', readonly: true },
+          { name: 'total_nbv', label: 'Total NBV (BDT)', readonly: true }
+        ] },
+      { tab: 'tlog', title: 'Audit Trail',
+        fields: [
+          { name: 'decision_log', label: 'Decision Log (who, when, what)', readonly: true, type: 'text' }
+        ] }
+    ]
+  },
+  'M49-form-takeon-line': {
+    kind: 'model_form', model: 'fix.asset.takeon.line',
+    title: 'Take-on Line — Policy & Resolution', back: 'M49-takeon-lines',
+    status: { field: 'state', labels: {
+      staged: 'Staged', quarantined: 'Quarantined', ready: 'Ready',
+      posted: 'Posted', error: 'Error' } },
+    tabs: [
+      { id: 'lsrc', label: '1. Source Row', bn: '১. সোর্স সারি', icon: '📄', badge: '9' },
+      { id: 'lpol', label: '2. Policy & Resolution', bn: '২. নীতি ও সমাধান', icon: '🧭', badge: '5' }
+    ],
+    sections: [
+      { tab: 'lsrc', title: 'Legacy Register Row (read-only)',
+        fields: [
+          { name: 'batch_id', label: 'Batch', readonly: true },
+          { name: 'sl', label: 'SL', readonly: true },
+          { name: 'legacy_coa_code', label: 'Legacy COA Code', readonly: true },
+          { name: 'legacy_head', label: 'Legacy COA Head', readonly: true },
+          { name: 'product_name', label: 'Product / Asset', readonly: true },
+          { name: 'acquisition_date', label: 'Acquisition Date', readonly: true },
+          { name: 'branch_label', label: 'Cost Centre / Branch (source)', readonly: true },
+          { name: 'cost', label: 'Cost (BDT)', readonly: true },
+          { name: 'accum_depreciation', label: 'Accumulated Depreciation (BDT)', readonly: true },
+          { name: 'nbv', label: 'NBV (BDT)', readonly: true },
+          { name: 'voucher', label: 'Voucher / Move No', readonly: true },
+          { name: 'reject_reason', label: 'Quarantine Reason', readonly: true }
+        ] },
+      { tab: 'lpol', title: 'Go-forward Policy (before posting; terms freeze at activation)',
+        note: 'life_months = remaining life + 1 (the opening take-on line counts as one posted month). Salvage defaults to zero unless Finance rules otherwise. Re-validate the batch after edits.',
+        fields: [
+          { name: 'category_id', label: 'Resolved Category' },
+          { name: 'branch_id', label: 'Resolved Branch' },
+          { name: 'custodian_id', label: 'Custodian' },
+          { name: 'life_months', label: 'Useful Life (months, remaining + 1)' },
+          { name: 'salvage', label: 'Salvage Value (BDT)' }
+        ] }
+    ]
+  },
   // Capture audit 2026-11-17 (cd_fixed_asset_ext models/fix_asset_capture.py)
   'M49-projects': { kind: 'model_list', model: 'fix.capital.project',
     cols: ['reference','name','kind','operating_unit_id','owner_id','total_budget','committed_amount','actual_cost','review_due_date','review_overdue','state'],
@@ -811,6 +906,7 @@ export const FORM_CHIPS = {
   'M49:Verification Variance': 'M49-form-variance',
   'M49:Asset Component': 'M49-form-asset-component',
   'M49:Insurance Policy': 'M49-form-insurance',
+  'M49:Asset Take-on': 'M49-form-takeon',
   'M49:__by_model__': {
     'fix.capex.budget': 'M49-form-budget',
     'fix.cwip.entry': 'M49-form-cwip',
@@ -829,7 +925,9 @@ export const FORM_CHIPS = {
     'fix.asset.impairment.assessment': 'M49-form-impairment-test',
     'fix.asset.verification.variance': 'M49-form-variance',
     'fix.asset.component': 'M49-form-asset-component',
-    'fix.asset.insurance': 'M49-form-insurance'
+    'fix.asset.insurance': 'M49-form-insurance',
+    'fix.asset.takeon.batch': 'M49-form-takeon',
+    'fix.asset.takeon.line': 'M49-form-takeon-line'
   },
   'M49:__by_screen__': {
     'M49-budget': 'M49-form-budget',
@@ -849,7 +947,9 @@ export const FORM_CHIPS = {
     'M49-impairment-tests': 'M49-form-impairment-test',
     'M49-variances': 'M49-form-variance',
     'M49-asset-components': 'M49-form-asset-component',
-    'M49-insurance': 'M49-form-insurance'
+    'M49-insurance': 'M49-form-insurance',
+    'M49-takeon': 'M49-form-takeon',
+    'M49-takeon-lines': 'M49-form-takeon-line'
   }
 };
 

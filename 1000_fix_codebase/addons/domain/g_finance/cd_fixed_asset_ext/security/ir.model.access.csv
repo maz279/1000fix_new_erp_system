@@ -64,3 +64,9 @@ access_fix_asset_component_user,fix.asset.component user,model_fix_asset_compone
 access_fix_asset_component_manager,fix.asset.component manager,model_fix_asset_component,account.group_account_manager,1,1,1,1
 access_fix_asset_insurance_user,fix.asset.insurance user,model_fix_asset_insurance,account.group_account_user,1,1,1,0
 access_fix_asset_insurance_manager,fix.asset.insurance manager,model_fix_asset_insurance,account.group_account_manager,1,1,1,0
+access_fix_asset_takeon_batch_readonly,fix.asset.takeon.batch readonly,model_fix_asset_takeon_batch,account.group_account_readonly,1,0,0,0
+access_fix_asset_takeon_batch_user,fix.asset.takeon.batch user,model_fix_asset_takeon_batch,account.group_account_user,1,1,1,0
+access_fix_asset_takeon_batch_manager,fix.asset.takeon.batch manager,model_fix_asset_takeon_batch,account.group_account_manager,1,1,1,1
+access_fix_asset_takeon_line_readonly,fix.asset.takeon.line readonly,model_fix_asset_takeon_line,account.group_account_readonly,1,0,0,0
+access_fix_asset_takeon_line_user,fix.asset.takeon.line user,model_fix_asset_takeon_line,account.group_account_user,1,1,1,0
+access_fix_asset_takeon_line_manager,fix.asset.takeon.line manager,model_fix_asset_takeon_line,account.group_account_manager,1,1,1,1

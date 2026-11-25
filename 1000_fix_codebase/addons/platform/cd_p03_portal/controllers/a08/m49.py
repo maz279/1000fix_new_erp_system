@@ -137,6 +137,14 @@ SURFACES = {
         "actions": {"action_activate", "action_record_review", "action_expire", "action_cancel"},
         "pickers": {"asset_ids": [("state", "in", ["draft", "active"])]},
     },
+    # legacy register take-on (2026-11-25): the governed asset lane —
+    # stage -> validate -> post (MIG entries + seams + activation) -> rollback
+    "fix.asset.takeon.batch": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_stage", "action_validate", "action_post", "action_rollback"},
+    },
+    "fix.asset.takeon.line": {"order": "batch_id desc, sl", "limit": 500, "actions": set()},
 }
 
 
@@ -682,6 +690,67 @@ def tax_depreciation_rates(env, date_from=None, date_to=None, **_kw):
     }
 
 
+def asset_takeon_reconciliation(env, date_from=None, date_to=None, **_kw):
+    """The take-on batches against their posted entries and the register:
+    source control totals (MIG-02) vs what actually posted, per batch."""
+    rows = []
+    batches = env["fix.asset.takeon.batch"].search(
+        [("company_id", "in", env.companies.ids)], order="id desc"
+    )
+    for batch in batches:
+        posted_lines = batch.line_ids.filtered(lambda ln: ln.state == "posted")
+        rows.append(
+            {
+                "batch": batch.name,
+                "state": batch.state,
+                "rows": batch.line_count,
+                "posted": batch.posted_count,
+                "quarantined": batch.quarantined_count,
+                "source_cost": _r(batch.total_cost),
+                "source_accum": _r(batch.total_accum),
+                "posted_cost": _r(sum(posted_lines.mapped("cost"))),
+                "posted_accum": _r(sum(posted_lines.mapped("accum_depreciation"))),
+                "entries": ", ".join(batch.move_ids.mapped("name")),
+            }
+        )
+    cols = [
+        "batch",
+        "state",
+        "rows",
+        "posted",
+        "quarantined",
+        "source_cost",
+        "source_accum",
+        "posted_cost",
+        "posted_accum",
+        "entries",
+    ]
+    return {
+        "title": "Asset Take-on Reconciliation (MIG-02 control totals)",
+        "cols": cols,
+        "labels": {
+            "batch": "Batch",
+            "state": "State",
+            "rows": "Source Rows",
+            "posted": "Posted Assets",
+            "quarantined": "Quarantined",
+            "source_cost": "Source Cost",
+            "source_accum": "Source Accum",
+            "posted_cost": "Posted Cost",
+            "posted_accum": "Posted Accum",
+            "entries": "Journal Entries",
+        },
+        "rows": rows,
+        "notes": [
+            "Source totals are the staged file's control totals; posted totals are the rows "
+            "that capitalised. A posted batch's posted totals must equal its source totals "
+            "minus quarantined rows. The register-to-GL proof is the Register to GL "
+            "Reconciliation report.",
+        ],
+        "empty": "No asset take-on batches.",
+    }
+
+
 REPORTS = {
     "tax_depreciation_rates": tax_depreciation_rates,
     "register_gl_reconciliation": register_gl_reconciliation,
@@ -691,6 +760,7 @@ REPORTS = {
     "capex_vs_budget": capex_vs_budget,
     "disposal_gains": disposal_gains,
     "lease_summary": lease_summary,
+    "asset_takeon_reconciliation": asset_takeon_reconciliation,
 }
 
 

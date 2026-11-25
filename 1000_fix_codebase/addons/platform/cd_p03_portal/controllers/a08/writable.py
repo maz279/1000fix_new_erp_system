@@ -76,6 +76,8 @@ WRITABLE = {
             "rule_id",
         }
     ),
+    "fix.ap.consignment.settlement": frozenset(),
+    "fix.ap.consignment.settlement.line": frozenset(),
     "fix.ap.dispute": frozenset(
         {
             "description",
@@ -119,6 +121,7 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.ap.retention": frozenset(),
     "fix.ap.takeon.batch": frozenset(
         {
             "contra_account_id",
@@ -175,6 +178,8 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.ar.dunning.action": frozenset(),
+    "fix.ar.dunning.handoff": frozenset(),
     "fix.ar.dunning.policy": frozenset(
         {
             "customer_ids",
@@ -403,6 +408,25 @@ WRITABLE = {
             "new_value",
             "valuer_report_file",
             "valuer_report_filename",
+        }
+    ),
+    "fix.asset.takeon.batch": frozenset(
+        {
+            "company_id",
+            "contra_operating_unit_id",
+            "import_ref",
+            "source_file",
+            "source_filename",
+            "takeon_date",
+        }
+    ),
+    "fix.asset.takeon.line": frozenset(
+        {
+            "branch_id",
+            "category_id",
+            "custodian_id",
+            "life_months",
+            "salvage",
         }
     ),
     "fix.asset.tax.rate": frozenset(),
