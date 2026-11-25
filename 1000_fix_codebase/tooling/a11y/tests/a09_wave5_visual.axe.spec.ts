@@ -1,0 +1,81 @@
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import path from "node:path";
+
+const ARTIFACT_DIR = "C:/Users/DELL/.gemini/antigravity/brain/12d572bf-cfb4-461d-8a64-c9de0de50fde";
+
+test.describe("A09 People & Workforce Wave 5 Complete Visual & WCAG 2.2 AA Suite", () => {
+  test("Verify all 7 A09 modules (M21, M55, M56, M57, M22, M58, M59), new screens, multi-tab forms, and 0 critical/serious Axe violations", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    // Step 1: Login to Odoo
+    await page.goto("http://127.0.0.1:8069/web/login", { waitUntil: "networkidle" });
+    await page.fill("input[name='login']", "admin");
+    await page.fill("input[name='password']", "admin");
+    await page.click("button[type='submit']");
+    await page.waitForURL(/\/web|\/odoo/);
+
+    // Step 2: Navigate to P03 Operations Workspace
+    await page.goto("http://127.0.0.1:8069/odoo/action-cd_p03_portal.action_p03_workspace", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".p03-workspace-root", { timeout: 45000 });
+    await page.waitForTimeout(2500);
+
+    // Unregister any stale service workers
+    await page.evaluate(async () => {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      }
+    });
+
+    const checks = [
+      { modCode: "M21", via: "chip", targetRegex: /Employee/i, shot: "a09_wave5_m21_employee_form.png", minTabs: 10 },
+      { modCode: "M55", via: "chip", targetRegex: /Exception Regularisation/i, shot: "a09_wave5_m55_attendance_form.png", minTabs: 3 },
+      { modCode: "M56", via: "screen_new", targetRegex: /WPPF Profit Sharing/i, shot: "a09_wave5_m56_wppf_form.png", minTabs: 3 },
+      { modCode: "M57", via: "chip", targetRegex: /Incentive Scheme/i, shot: "a09_wave5_m57_incentive_scheme_form.png", minTabs: 2 },
+      { modCode: "M22", via: "screen_new", targetRegex: /Device Categories/i, shot: "a09_wave5_m22_device_category_form.png", minTabs: 2 },
+      { modCode: "M58", via: "screen_new", targetRegex: /Talent Assessment/i, shot: "a09_wave5_m58_talent_assessment_form.png", minTabs: 2 },
+      { modCode: "M59", via: "screen_new", targetRegex: /Statutory Accident Register/i, shot: "a09_wave5_m59_accident_register_form.png", minTabs: 3 },
+    ];
+
+    for (const item of checks) {
+      const modBtn = page.locator("button.nav-mod").filter({ hasText: new RegExp(item.modCode, "i") }).first();
+      await expect(modBtn).toBeVisible({ timeout: 15000 });
+      await modBtn.click();
+      await page.waitForTimeout(1800);
+
+      if (item.via === "chip") {
+        const chipBtn = page.locator("button.form-chip, .form-chip").filter({ hasText: item.targetRegex }).first();
+        await expect(chipBtn).toBeVisible({ timeout: 15000 });
+        await chipBtn.click();
+        await page.waitForTimeout(2000);
+      } else {
+        const screenBtn = page.locator("button.screen-link").filter({ hasText: item.targetRegex }).first();
+        await expect(screenBtn).toBeVisible({ timeout: 15000 });
+        await screenBtn.click();
+        await page.waitForTimeout(2000);
+        const newBtn = page.getByRole("button", { name: "+ New" }).first();
+        await expect(newBtn).toBeVisible({ timeout: 15000 });
+        await newBtn.click();
+        await page.waitForTimeout(2000);
+      }
+
+      await page.waitForSelector(".d365-formtabs", { timeout: 20000 });
+      const tabs = page.locator(".d365-formtabs button[role='tab']");
+      const tabCount = await tabs.count();
+      console.log(`[WAVE5-A11Y] ${item.modCode} (${item.shot}) -> rendered ${tabCount} tabs`);
+      expect(tabCount).toBeGreaterThanOrEqual(item.minTabs);
+
+      await page.screenshot({ path: path.join(ARTIFACT_DIR, item.shot), fullPage: false });
+
+      const axeResults = await new AxeBuilder({ page })
+        .include(".d365-form")
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+
+      const criticalSerious = axeResults.violations.filter(v => v.impact === "critical" || v.impact === "serious");
+      console.log(`[WAVE5-A11Y] ${item.modCode} Axe violations: total=${axeResults.violations.length}, critical/serious=${criticalSerious.length}`);
+      expect(criticalSerious.length).toBe(0);
+    }
+  });
+});

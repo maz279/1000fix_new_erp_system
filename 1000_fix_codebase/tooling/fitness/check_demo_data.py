@@ -10,6 +10,7 @@ Enforces the data architecture policy:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import ast
@@ -28,7 +29,9 @@ def main() -> int:
 
     # 1. Verify seed.py exists as the designated entry point
     if not SEED_SCRIPT.is_file():
-        violations.append("db/seeds/seed.py does not exist - required single entry point for TEST data")
+        violations.append(
+            "db/seeds/seed.py does not exist - required single entry point for TEST data"
+        )
 
     # 2. Check each addon manifest
     for mf in ADDONS_DIR.rglob("__manifest__.py"):
@@ -50,9 +53,13 @@ def main() -> int:
                     if not isinstance(f, str):
                         continue
                     if not (mf.parent / f).exists():
-                        violations.append(f"{mf.parent.name}: demo file referenced in manifest does not exist: {f}")
+                        violations.append(
+                            f"{mf.parent.name}: demo file referenced in manifest does not exist: {f}"
+                        )
                     if not f.startswith("demo/"):
-                        violations.append(f"{mf.parent.name}: demo file must reside under demo/: {f}")
+                        violations.append(
+                            f"{mf.parent.name}: demo file must reside under demo/: {f}"
+                        )
         except Exception:
             pass
 
@@ -60,10 +67,14 @@ def main() -> int:
         print(f"demo-data: FAIL - {len(violations)} demo data policy violation(s):")
         for v in violations:
             print(f"  {v}")
-        print("  remedy: per 03-DATA-STRATEGY §1, all test seeds enter via db/seeds/seed.py; module demo data must be inside demo/.")
+        print(
+            "  remedy: per 03-DATA-STRATEGY §1, all test seeds enter via db/seeds/seed.py; module demo data must be inside demo/."
+        )
         return 1
 
-    print(f"demo-data: OK - {manifests_checked} manifest(s) and db/seeds/seed.py conform to seed isolation policy (E3)")
+    print(
+        f"demo-data: OK - {manifests_checked} manifest(s) and db/seeds/seed.py conform to seed isolation policy (E3)"
+    )
     return 0
 
 

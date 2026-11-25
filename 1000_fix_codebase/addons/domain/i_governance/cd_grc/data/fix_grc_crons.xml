@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 P1-2 (2026-11-05, M60-10): the GRC clocks. The audit found licences,
+  obligations and DSRs had NO clock — a trade licence five years past its
+  validity date stayed 'valid' forever, and an obligation never came due.
+  Expiry is now computed daily and announced on the outbox, never typed.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_grc_licence_expiry" model="ir.cron">
+            <field name="name">M60: licence expiry clock (valid → expiring → expired)</field>
+            <field name="model_id" ref="model_fix_grc_licence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_licence_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_grc_obligation_review" model="ir.cron">
+            <field name="name">M60: compliance obligation review clock</field>
+            <field name="model_id" ref="model_fix_compliance_obligation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_obligation_review()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A10 P1-4 (M60-6): the delegated-authority register is a derived
+             view over the DOFA ladders in force and the M63 approval matrix.
+             A ruling resyncs it immediately; this clock converges it after a
+             matrix edit, so it cannot keep describing retired authority. -->
+        <record id="ir_cron_grc_doa_rebuild" model="ir.cron">
+            <field name="name">M60: rebuild the delegated-authority register from the enforced sources</field>
+            <field name="model_id" ref="model_fix_grc_authority"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rebuild_doa()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_grc_policy_exception_expiry" model="ir.cron">
+            <field name="name">M60: policy exceptions end on their date</field>
+            <field name="model_id" ref="model_fix_grc_policy_exception"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A10 deep audit (2026-11-22, A3-F01): the SoD governance register
+             is derived from the controls M29 actually enforces (fix.sod.control);
+             this clock converges it after a control edit, mirroring the DoA
+             rebuild. Waivers survive rebuilds by design. -->
+        <record id="ir_cron_grc_sod_rebuild" model="ir.cron">
+            <field name="name">M60: rebuild the SoD governance register from the enforced controls</field>
+            <field name="model_id" ref="model_fix_grc_sod_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rebuild_sod()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A10 deep audit (2026-11-22, A3-F04): the PDPA 30-day DSR clock.
+             The due date was derived but nothing watched it. -->
+        <record id="ir_cron_grc_dsr_overdue" model="ir.cron">
+            <field name="name">M60: PDPA data-subject-request 30-day clock</field>
+            <field name="model_id" ref="model_fix_grc_pdpa"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dsr_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

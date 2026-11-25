@@ -1,0 +1,132 @@
+{
+  "test": "R07-M02-T05: Bengali Rendering Verification (TR-07 / Doctor Check 10)",
+  "timestamp_utc": "2026-10-22T11:06:36Z",
+  "overall_status": "PASS",
+  "reference_image_verification": {
+    "status": "PASS",
+    "format": "PNG",
+    "mode": "RGBA",
+    "size_bytes": 12834,
+    "sha256": "fbade3ea7fc869473ed792062868dc22b719b5d612d09b4b247eef3bc7231a0c",
+    "width": 900,
+    "height": 260,
+    "dimensions_correct": true,
+    "border_dark_ratio": {
+      "top": 1.0,
+      "bottom": 1.0,
+      "left": 1.0,
+      "right": 1.0
+    },
+    "border_present": true,
+    "background_samples": {
+      "1,1": [
+        255,
+        255,
+        255
+      ],
+      "898,1": [
+        255,
+        255,
+        255
+      ],
+      "1,258": [
+        255,
+        255,
+        255
+      ],
+      "898,258": [
+        255,
+        255,
+        255
+      ]
+    },
+    "background_white": true,
+    "interior_ink_ratio": 0.0226,
+    "text_rendered": true,
+    "right_margin_ink_pixels": 0,
+    "text_within_margin": true,
+    "max_headline_run_px": 72,
+    "bengali_headline_present": true
+  },
+  "bn007_currency_formatting": {
+    "status": "PASS",
+    "formatted_bn": "৳ ১,৫০,০০০.০০",
+    "formatted_en": "BDT 1,50,000.00",
+    "numerals_test": true,
+    "lakh_crory_grouping": true,
+    "sign_rule_valid": true
+  },
+  "statutory_document_templates": {
+    "status": "PASS",
+    "templates": {
+      "mushak_6_3": {
+        "registered": true,
+        "qweb": "cd_tax_engine_bd.report_mushak63",
+        "model": "fix.mushak.register",
+        "statutory": true,
+        "reference_exists": true,
+        "qweb_template_found": true,
+        "qweb_source": "addons/domain/g_finance/cd_tax_engine_bd/report/report_mushak63.xml"
+      },
+      "mushak_6_6": {
+        "registered": true,
+        "qweb": "cd_tax_engine_bd.report_mushak66",
+        "model": "fix.withholding.certificate",
+        "statutory": true,
+        "reference_exists": true,
+        "qweb_template_found": true,
+        "qweb_source": "addons/domain/g_finance/cd_tax_engine_bd/report/report_withholding_certificates.xml"
+      },
+      "withholding_certificate": {
+        "registered": true,
+        "qweb": "cd_tax_engine_bd.report_withholding_certificate",
+        "model": "fix.withholding.certificate",
+        "statutory": true,
+        "reference_exists": true,
+        "qweb_template_found": true,
+        "qweb_source": "addons/domain/g_finance/cd_tax_engine_bd/report/report_withholding_certificates.xml"
+      },
+      "service_receipt": {
+        "registered": true,
+        "qweb": "cd_service_order.report_jobcard",
+        "model": "fix.service.order",
+        "statutory": false,
+        "reference_exists": true,
+        "qweb_template_found": true,
+        "qweb_source": "addons/domain/a_service_delivery/cd_service_order/report/report_jobcard.xml"
+      }
+    }
+  },
+  "font_stack_verification": {
+    "status": "PASS",
+    "primary_font": "Noto Sans Bengali",
+    "fallback_font": "Nirmala UI",
+    "token_css_declares_family": true,
+    "token_css_in_report_assets": true,
+    "report_asset_css_files": [
+      "addons/domain/g_finance/cd_tax_engine_bd/static/src/css/statutory_bn.css",
+      "addons/platform/cd_design_tokens/static/src/tokens.css"
+    ],
+    "selectors_applying_bengali_font": [
+      ".fix-statutory-bn"
+    ],
+    "statutory_templates_apply_font": {
+      "mushak_6_3": true,
+      "mushak_6_6": true,
+      "withholding_certificate": true,
+      "service_receipt": true
+    },
+    "host_font_source": "Windows font registry (HKLM/HKCU)",
+    "primary_font_installed": false,
+    "fallback_font_installed": true,
+    "failed_checks": []
+  },
+  "sample_conjunct_set": [
+    "1000FiX ERP - Bengali conjunct shaping reference (TR-07)",
+    "কর্তনযোগ্য খরচ (র্ত, জ্য)",
+    "ব্যবধান (ব্য) - ডায়াগনস্টিক পথ (স্ট)",
+    "অনুমোদনকারী - ওয়ারেন্টি - সিরিয়াল নম্বর",
+    "মোট: ৳ ১,৫০,০০০.০০"
+  ],
+  "conclusion": "Reference image pixel profile (900x260, 1px border, white background, rendered text), BN-007 amount formatting, statutory template registration and font-stack declarations all verified."
+}

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_fixed_asset_ext — document numbering for the M49 documents. -->
+<odoo noupdate="1">
+    <record id="seq_fix_fixed_asset" model="ir.sequence">
+        <field name="name">Asset Tag</field>
+        <field name="code">fix.fixed.asset</field>
+        <field name="prefix">FA-</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_capex_request" model="ir.sequence">
+        <field name="name">Capex Request</field>
+        <field name="code">fix.capex.request</field>
+        <field name="prefix">CAPEX/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_transfer" model="ir.sequence">
+        <field name="name">Asset Transfer</field>
+        <field name="code">fix.asset.transfer</field>
+        <field name="prefix">ATR/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_revaluation" model="ir.sequence">
+        <field name="name">Asset Revaluation / Impairment</field>
+        <field name="code">fix.asset.revaluation</field>
+        <field name="prefix">ARV/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_disposal" model="ir.sequence">
+        <field name="name">Asset Disposal</field>
+        <field name="code">fix.asset.disposal</field>
+        <field name="prefix">ADS/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_lease" model="ir.sequence">
+        <field name="name">Lease Contract</field>
+        <field name="code">fix.lease</field>
+        <field name="prefix">LSE-</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <!-- capture audit 2026-11-17 (models/fix_asset_capture.py) -->
+    <record id="seq_fix_capital_project" model="ir.sequence">
+        <field name="name">Capital Project</field>
+        <field name="code">fix.capital.project</field>
+        <field name="prefix">CPJ/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_depreciation_change" model="ir.sequence">
+        <field name="name">Depreciation Change</field>
+        <field name="code">fix.asset.depreciation.change</field>
+        <field name="prefix">ADC/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_impairment_assessment" model="ir.sequence">
+        <field name="name">Impairment Assessment</field>
+        <field name="code">fix.asset.impairment.assessment</field>
+        <field name="prefix">AIA/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_verification_variance" model="ir.sequence">
+        <field name="name">Verification Variance</field>
+        <field name="code">fix.asset.verification.variance</field>
+        <field name="prefix">AVV/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_asset_insurance" model="ir.sequence">
+        <field name="name">Asset Insurance Policy</field>
+        <field name="code">fix.asset.insurance</field>
+        <field name="prefix">INS/%(range_year)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

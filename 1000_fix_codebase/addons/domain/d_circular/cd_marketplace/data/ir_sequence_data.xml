@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M12 capture audit (13 Nov 2026): seller consequence references. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_seller_consequence" model="ir.sequence">
+            <field name="name">Seller Consequence</field>
+            <field name="code">fix.seller.consequence</field>
+            <field name="prefix">SCQ/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_marketplace_job_evidence" model="ir.sequence">
+            <field name="name">Marketplace Job Evidence</field>
+            <field name="code">fix.marketplace.job.evidence</field>
+            <field name="prefix">JEV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_seller_review" model="ir.sequence">
+            <field name="name">Seller Review</field>
+            <field name="code">fix.seller.review</field>
+            <field name="prefix">SRV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- A04 ERP audit (20 Nov 2026) M12-F13: every order and dispute was
+             named MKT/New and DSP/New (the codes had no sequence). -->
+        <record id="seq_fix_marketplace_order" model="ir.sequence">
+            <field name="name">Marketplace Order</field>
+            <field name="code">fix.marketplace.order</field>
+            <field name="prefix">MKT/%(year)s/</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_marketplace_dispute" model="ir.sequence">
+            <field name="name">Marketplace Dispute</field>
+            <field name="code">fix.marketplace.dispute</field>
+            <field name="prefix">DSP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_trust_signal" model="ir.sequence">
+            <field name="name">Trust &amp; Safety Report</field>
+            <field name="code">fix.trust.signal</field>
+            <field name="prefix">TSR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

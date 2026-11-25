@@ -1,0 +1,27 @@
+# profiles.yml — ClickHouse Warehouse dbt Profile (R09-M01-T02)
+# Configured for ClickHouse port 8123 (HTTP)
+bi_warehouse:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      schema: fix_analytics
+      host: 127.0.0.1
+      port: 8123
+      user: default
+      password: ""
+      secure: false
+      connect_timeout: 10
+      custom_settings:
+        session_timezone: "Asia/Dhaka"
+
+    prod:
+      type: clickhouse
+      schema: fix_analytics
+      host: clickhouse.internal
+      port: 8123
+      user: dbt_etl
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
+      secure: true
+      custom_settings:
+        session_timezone: "Asia/Dhaka"

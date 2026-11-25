@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M27 scheduled jobs: delivery (S1), routing (S3), presence/adherence (S4), quality and intent mining.
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_notif_dispatch" model="ir.cron">
+            <field name="name">M27 S1: dispatch the queued message queue</field>
+            <field name="model_id" ref="model_fix_notif_delivery"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispatch_queue()</field>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_notif_expire" model="ir.cron">
+            <field name="name">M27 S1: abandon promotional messages stale beyond 72h</field>
+            <field name="model_id" ref="model_fix_notif_delivery"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_stale_queued()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_routing_assign" model="ir.cron">
+            <field name="name">M27 S3: assign pending work items (push/bullseye)</field>
+            <field name="model_id" ref="model_fix_routing_workstream"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_assign_pending()</field>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_routing_expire_offers" model="ir.cron">
+            <field name="name">M27 S3: take back offers nobody answered</field>
+            <field name="model_id" ref="model_fix_routing_workitem"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_offers()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_routing_eod_capacity" model="ir.cron">
+            <field name="name">M27 S3: end-of-day capacity reset</field>
+            <field name="model_id" ref="model_fix_routing_workitem"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_reset_end_of_day_capacity()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_queue_closure" model="ir.cron">
+            <field name="name">M27 S3: divert contacts waiting when a queue shuts</field>
+            <field name="model_id" ref="model_fix_cc_queue"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_handle_queue_closure()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_wfm_adherence" model="ir.cron">
+            <field name="name">M27 S4: measure yesterday's roster adherence</field>
+            <field name="model_id" ref="model_fix_cc_wfm_adherence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_compute_adherence()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_qa_bulk_evaluate" model="ir.cron">
+            <field name="name">M27: bulk-score closed conversations (AI and human)</field>
+            <field name="model_id" ref="model_fix_cc_qa_evaluation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_bulk_evaluate()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A03 audit M27 G13: the service-level and abandonment alert had a
+             method and no schedule, so it never fired. -->
+        <record id="ir_cron_queue_service_level" model="ir.cron">
+            <field name="name">M27: queue service-level and abandonment alert</field>
+            <field name="model_id" ref="model_fix_cc_queue"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_monitor_service_level()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_intent_mining" model="ir.cron">
+            <field name="name">M32: mine candidate intents from scrubbed traffic</field>
+            <field name="model_id" ref="model_fix_assistant_intent_candidate"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_mine_intents()</field>
+            <field name="interval_number">7</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -16,6 +16,7 @@ Layout rules from BN-007/UX-007 travel with every job: Bengali-first fonts
 (Noto Sans Bengali), numerals in Bengali for the bn locale, amounts via
 the ৳-before rule, identifiers ASCII.
 """
+
 from __future__ import annotations
 
 import json
@@ -55,7 +56,6 @@ DOCUMENT_TEMPLATES: dict[str, dict] = {
 }
 
 
-
 @dataclass
 class RenderJob:
     template: str
@@ -67,7 +67,7 @@ class RenderJob:
 @dataclass
 class RenderResult:
     template: str
-    status: str          # "rendered" | "dry-run" | "unknown-template"
+    status: str  # "rendered" | "dry-run" | "unknown-template"
     qweb_ref: str = ""
     reference_image: str = ""
     detail: str = ""
@@ -90,14 +90,14 @@ def format_amount(amount: float, locale: str) -> str:
         while len(rest) > 2:
             parts.insert(0, rest[-2:])
             rest = rest[:-2]
-        if rest:
-            parts.insert(0, rest)
+        # len(digits) > 5 => len(h) >= 4 => rest starts non-empty, and the
+        # loop above only trims it while len > 2, so it always ends at 1-2 digits.
+        parts.insert(0, rest)
         whole = ",".join(parts) + "." + tail
     else:
-        digits_str = f"{abs(amount):.2f}"
-        whole = digits_str if len(digits_str) <= 6 else digits_str  # small values: plain
+        # Small values (<= 5 digits before the decimal): plain, no grouping.
+        whole = f"{abs(amount):.2f}"
     sign = "-" if amount < 0 else ""
-    out = f"{sign}{whole}"
     if locale == "bn":
         return f"{sign}৳\u2009{_bn_numerals(whole)}"
     return f"{sign}BDT\u2009{whole}"
@@ -106,8 +106,9 @@ def format_amount(amount: float, locale: str) -> str:
 def render(job: RenderJob) -> RenderResult:
     template = DOCUMENT_TEMPLATES.get(job.template)
     if not template:
-        return RenderResult(job.template, "unknown-template",
-                            detail=f"template {job.template!r} not in the W3 set")
+        return RenderResult(
+            job.template, "unknown-template", detail=f"template {job.template!r} not in the W3 set"
+        )
     odoo_up = os.environ.get("FIX_DOCUMENT_RENDER_RUNTIME", "") == "odoo"
     checks = {
         "bengali_font": "Noto Sans Bengali (token typography.font.bengali.family)",
@@ -118,22 +119,32 @@ def render(job: RenderJob) -> RenderResult:
     }
     if not odoo_up:
         return RenderResult(
-            job.template, "dry-run", qweb_ref=template["qweb"],
+            job.template,
+            "dry-run",
+            qweb_ref=template["qweb"],
             reference_image=template["reference"],
             detail="no Odoo runtime — payload validated, rendering deferred",
-            checks=checks)
+            checks=checks,
+        )
     # Runtime path: delegate to the Odoo report controller; the reference
     # comparison (pixel-wise, TR-07) runs in the runtime pipeline.
     return RenderResult(
-        job.template, "rendered", qweb_ref=template["qweb"],
-        reference_image=template["reference"], checks=checks)
+        job.template,
+        "rendered",
+        qweb_ref=template["qweb"],
+        reference_image=template["reference"],
+        checks=checks,
+    )
 
 
 def main() -> None:
     """CLI smoke: render a sample Mushak payload and print the decision."""
-    job = RenderJob("mushak_6_3", locale="bn",
-                    payload={"amount": 150000.0, "bin": "1234567890123"},
-                    correlation_id="sample")
+    job = RenderJob(
+        "mushak_6_3",
+        locale="bn",
+        payload={"amount": 150000.0, "bin": "1234567890123"},
+        correlation_id="sample",
+    )
     result = render(job)
     print(json.dumps(result.__dict__, ensure_ascii=False, indent=2))
 

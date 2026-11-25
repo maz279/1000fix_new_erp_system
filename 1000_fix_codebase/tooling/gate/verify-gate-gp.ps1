@@ -96,10 +96,33 @@ if ($fitLatest) {
 }
 Result $(if ($fitFailures -eq 0) { 'PASS' } else { 'FAIL' }) 'GP-9' 'D15: estate fitness battery 0 failures' "latest evidence: $($fitLatest.Name), $fitFailures failures"
 
-# ---- GP-10..GP-12: deployment-side conditions (never machine-passed here) ----
+# ---- GP-10..GP-12: deployment-side conditions and automated rehearsals ----
 Result 'CONDITION' 'GP-10' 'D18: OTel trace round-trip verified in staging' 'WORKSTATION-BLOCKED: otel-collector image fails exec on this host; Tempo OTLP loopback-bound. Verify at staging: beacon visible in Tempo/Grafana.'
-Result 'CONDITION' 'GP-11' 'D16: migration rehearsal at production volume' 'Run migrations/REHEARSAL.md procedure; MIG-02 control totals; MG-005/MIG-08 sign-offs.'
-Result 'CONDITION' 'GP-12' 'D14: build-once-promote drill + rollback rehearsal' 'Deployment drill with /healthz probes — host has no staging env.'
+
+# ---- GP-11: migration rehearsal at production volume (R10-M05-T02) ----
+$gp11Path = 'docs/traceability/evidence/r10-m05-migration-rehearsal-evidence.json'
+$gp11SignoffPath = 'docs/traceability/evidence/r10-m05-mg004-business-signoff.json'
+$gp11Ok = $false; $gp11Evidence = 'Run migrations/REHEARSAL.md procedure; MIG-02 control totals; MG-005/MIG-08 sign-offs.'
+if ((Test-Path $gp11Path) -and (Test-Path $gp11SignoffPath)) {
+    $gp11 = Get-Content $gp11Path -Raw | ConvertFrom-Json
+    $gp11Signoff = Get-Content $gp11SignoffPath -Raw | ConvertFrom-Json
+    if ($gp11.status -eq 'PASS' -and $gp11.gp_11_discharged -and $gp11Signoff.verdict -like '*SIGN-OFF*') {
+        $gp11Ok = $true
+        $gp11Evidence = "rehearsal run $($gp11.run_id) 100% reconciled ($($gp11.control_totals_reconciliation.reconciled_streams) streams, $($gp11.volume_loaded.customers) customers, $($gp11.volume_loaded.devices) devices); rollback in $($gp11.rollback_rehearsal.rollback_duration_seconds)s; MG-004 signed by $($gp11Signoff.signatory.name)"
+    }
+}
+Result $(if ($gp11Ok) { 'PASS' } else { 'CONDITION' }) 'GP-11' 'D16: migration rehearsal at production volume' $gp11Evidence
+# ---- GP-12: build-once-promote drill + rollback rehearsal (R10-M04-T04) ----
+$gp12Path = 'docs/traceability/evidence/r10-m04-gp12-drill-evidence.json'
+$gp12Ok = $false; $gp12Evidence = 'Deployment drill with /healthz probes — run drill_build_once_promote.py'
+if (Test-Path $gp12Path) {
+    $gp12 = Get-Content $gp12Path -Raw | ConvertFrom-Json
+    if ($gp12.status -eq 'PASS' -and $gp12.gp_12_discharged) {
+        $gp12Ok = $true
+        $gp12Evidence = "immutable digest $($gp12.immutable_digest.Substring(0, 19))... verified across $($gp12.promotion_ladder.Count) envs; rollback in $($gp12.rollback_rehearsal.rollback_duration_seconds)s"
+    }
+}
+Result $(if ($gp12Ok) { 'PASS' } else { 'CONDITION' }) 'GP-12' 'D14: build-once-promote drill + rollback rehearsal' $gp12Evidence
 
 Write-Host "`nGate GP summary: $pass PASS / $condition CONDITION / $fail FAIL" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Red' } )
 $outJson = @{

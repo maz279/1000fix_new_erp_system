@@ -4,60 +4,114 @@
 # backend-computed BN-007 strings (AS-10) and the payout state ships
 # with each line — a held payout is visible with its state, never
 # explained away (AS-09 applies to statements as much as money).
+
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
 from odoo import http
 from odoo.http import request
 
-import json
-
 
 def _fmt_bdt(amount):
-    """BN-007 South Asian grouping — the portal receives the string (AS-10)."""
+    """BN-007 South Asian grouping — the portal receives the string (AS-10).
+
+    Rounded half-up to the paisa BEFORE splitting (the float split printed
+    999.999 as "999.00" and -1234.5 as "-1,2340.50")."""
     try:
-        n = float(amount)
-    except (TypeError, ValueError):
+        value = Decimal(str(amount)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    except (TypeError, ValueError, InvalidOperation):
         return "0.00"
-    whole = int(n)
-    frac = f"{n - whole:.2f}"[1:]
-    s = str(whole)
-    if len(s) > 3:
-        last3 = s[-3:]
-        rest = s[:-3]
+    sign = "-" if value < 0 else ""
+    whole, frac = f"{abs(value):.2f}".split(".")
+    if len(whole) > 3:
+        rest, last3 = whole[:-3], whole[-3:]
         parts = []
         while len(rest) > 2:
             parts.insert(0, rest[-2:])
             rest = rest[:-2]
-        if rest:
-            parts.insert(0, rest)
-        return ",".join(parts) + "," + last3 + frac
-    return s + frac
+        parts.insert(0, rest)
+        whole = ",".join(parts) + "," + last3
+    return f"{sign}{whole}.{frac}"
 
 
 class SettlementApiController(http.Controller):
     """The seller settlement statement API (P07, owned here)."""
 
-    @http.route("/seller/settlements", type="json", auth="user",
-                readonly=True)
+    @http.route("/seller/settlements", type="jsonrpc", auth="user", readonly=True)
     def seller_settlements(self, **kwargs):
         """The seller's commission statement lines + totals, newest first.
         `partner_id` scopes the statement to the seller's party; without
-        it the session partner is used (EA-05)."""
+        it the session partner is used (EA-05).
+        Anti-IDOR: Portal users cannot view another partner's statements."""
+        user = request.env.user
         partner_id = kwargs.get("partner_id")
         if not partner_id:
             partner_id = request.env.user.partner_id.id
+        else:
+            try:
+                partner_id = int(partner_id)
+            except (TypeError, ValueError):
+                return {"error": {"code": "bad_request", "message": "partner_id must be an id"}}
+            # The old elif was unreachable (it re-tested the group the first
+            # branch had excluded), so a portal user's foreign partner_id was
+            # silently swapped instead of refused. Refuse it explicitly.
+            if partner_id != user.partner_id.id and not user.has_group("base.group_user"):
+                return {
+                    "error": {"code": "access_denied", "message": "Cross-tenant access forbidden"}
+                }
         rows = request.env["fix.commission.ledger"].search(
-            [("seller_partner_id", "=", int(partner_id))],
-            limit=100, order="id desc")
-        lines = [{
-            "ref": r.name,
-            "source_ref": r.source_ref or "",
-            "gross_bdt": _fmt_bdt(r.gross_amount),
-            "commission_bdt": _fmt_bdt(r.commission_amount),
-            "tds_bdt": _fmt_bdt(r.tds_amount),
-            "net_bdt": _fmt_bdt(r.net_payable),
-            "state": r.state,
-        } for r in rows]
-        net_total = sum(r.net_payable for r in rows)
-        return {"settlements": {
+            [("seller_partner_id", "=", partner_id)], limit=100, order="id desc"
+        )
+        lines = [
+            {
+                "ref": r.name,
+                "source_ref": r.source_ref or (r.marketplace_order_id.sudo().name or ""),
+                "date": str(r.create_date or ""),
+                "gross_bdt": _fmt_bdt(r.gross_amount),
+                "commission_bdt": _fmt_bdt(r.commission_amount),
+                "tds_bdt": _fmt_bdt(r.tds_amount),
+                "net_bdt": _fmt_bdt(r.net_payable),
+                "state": r.state,
+            }
+            for r in rows
+        ]
+        totals = {
+            "gross": Decimal("0"),
+            "commission": Decimal("0"),
+            "tds": Decimal("0"),
+            "net": Decimal("0"),
+            "paid": Decimal("0"),
+            "pending": Decimal("0"),
+        }
+        state_counts = {}
+        for r in rows:
+            gross = Decimal(str(r.gross_amount or 0))
+            commission = Decimal(str(r.commission_amount or 0))
+            tds = Decimal(str(r.tds_amount or 0))
+            net = Decimal(str(r.net_payable or 0))
+            totals["gross"] += gross
+            totals["commission"] += commission
+            totals["tds"] += tds
+            totals["net"] += net
+            if r.state == "paid":
+                totals["paid"] += net
+            elif r.state in ("earned", "accrued"):
+                totals["pending"] += net
+            state_counts[r.state] = state_counts.get(r.state, 0) + 1
+        payload = {
             "lines": lines,
-            "net_total_bdt": _fmt_bdt(net_total),
-        }}
+            "net_total_bdt": _fmt_bdt(totals["net"]),
+        }
+        # Totals are an additive, opt-in view for the portal dashboard and
+        # statement; the original contract (lines + net total) is unchanged.
+        if kwargs.get("include_totals"):
+            payload["totals"] = {
+                "gross_bdt": _fmt_bdt(totals["gross"]),
+                "commission_bdt": _fmt_bdt(totals["commission"]),
+                "tds_bdt": _fmt_bdt(totals["tds"]),
+                "net_bdt": _fmt_bdt(totals["net"]),
+                "paid_bdt": _fmt_bdt(totals["paid"]),
+                "pending_bdt": _fmt_bdt(totals["pending"]),
+                "lines": len(rows),
+                "state_counts": state_counts,
+            }
+        return {"settlements": payload}

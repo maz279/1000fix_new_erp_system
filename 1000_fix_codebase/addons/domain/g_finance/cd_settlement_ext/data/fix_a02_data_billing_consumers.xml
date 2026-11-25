@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers of the M06 data recovery outcomes (A02 ERP audit M06-F1):
+     a recovered or unrecoverable case raises its M20 invoice in draft, for
+     finance to issue and collect (models/fix_a02_data_billing.py). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_data_case_recovered" model="fix.event.consumer">
+            <field name="name">M20: invoice of a recovered data case</field>
+            <field name="event_type">data_case.recovered</field>
+            <field name="model">fix.data.case.billing</field>
+            <field name="method">consume_data_case_recovered</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
+        <record id="consumer_data_case_unrecoverable" model="fix.event.consumer">
+            <field name="name">M20: donor fee of an unrecoverable data case</field>
+            <field name="event_type">data_case.unrecoverable</field>
+            <field name="model">fix.data.case.billing</field>
+            <field name="method">consume_data_case_unrecoverable</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
+    </data>
+</odoo>

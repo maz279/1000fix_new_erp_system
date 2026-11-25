@@ -191,6 +191,7 @@ export interface Translations {
   estimatesMushakTitle: string;
   estimatesPartsTotal: string;
   estimatesLabourTotal: string;
+  estimatesDiagnosticTotal: string;
   estimatesDiscount: string;
   estimatesVatRate: string;
   estimatesGrandTotal: string;
@@ -283,7 +284,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     bookingSuccessTrackingLink: "ট্র্যাকিং পাতায় যান।",
 
     trackingTitle: "লাইভ ট্র্যাকিং",
-    trackingSubtitle: "অবস্থা প্রতি ১৫ সেকেন্ডে সদ্য হয় (পোলিং)",
+    trackingSubtitle: "অবস্থা প্রতি ১৫ সেকেন্ডে হালনাগাদ হয় (পোলিং)",
     trackingSelectPlaceholder: "— অর্ডার নির্বাচন করুন —",
     trackingLoading: "ট্র্যাক আনা হচ্ছে…",
     trackingStatRef: "রেফারেন্স",
@@ -339,7 +340,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     channelMarketing: "মার্কেটিং (সব চ্যানেল)",
 
     authOtpTab: "মোবাইল ওটিপি (২৫০K+ গ্রাহক)",
-    authCredsTab: "পাসওয়ার্ড ও ডেমো পারসোনা",
+    authCredsTab: "পাসওয়ার্ড",
     authPhoneLabel: "১১-সংখ্যার মোবাইল নম্বর",
     authPhonePlaceholder: "০১৭১১২২৩৩৪৪ বা 017XXXXXXXX",
     authSendOtpBtn: "ওটিপি কোড পাঠান",
@@ -352,9 +353,9 @@ export const DICTIONARY: Record<Locale, Translations> = {
     devicesRegisterTitle: "নতুন ডিভাইস প্রোফাইলে যোগ করুন",
     devicesRegisterDesc: "১০০০ফিক্স অফিসিয়াল ডিভাইস ট্র্যাকিং ও ওয়ারেন্টি ম্যানেজমেন্ট (M17)",
     devicesRegisterModelLabel: "ডিভাইস মডেল নির্বাচন করুন",
-    devicesRegisterSerialLabel: "সিরিয়াল নম্বর (Serial Number)",
+    devicesRegisterSerialLabel: "সিরিয়াল নম্বর",
     devicesRegisterImeiLabel: "আইএমইআই নম্বর (IMEI 1 - ১৫ সংখ্যা)",
-    devicesRegisterChannelLabel: "ক্রয় চ্যানেল (Purchase Channel)",
+    devicesRegisterChannelLabel: "ক্রয় চ্যানেল",
     devicesRegisterBtnSubmit: "ডিভাইস নিবন্ধন সম্পন্ন করুন",
     devicesRegisterSuccess: "ডিভাইসটি সফলভাবে নিবন্ধিত হয়েছে!",
 
@@ -377,17 +378,18 @@ export const DICTIONARY: Record<Locale, Translations> = {
     trackingStageActive: "বর্তমান অবস্থা",
 
     estimatesMushakTitle: "মূসক-৬.৩ সার্ভিস এস্টিমেট ও ট্যাক্স ইনভয়েস প্রিভিউ",
-    estimatesPartsTotal: "যন্ত্রাংশের মূল্য (Parts Total)",
-    estimatesLabourTotal: "মেরামত পারিশ্রমিক (Labour Service)",
-    estimatesDiscount: "বিশেষ ছাড় (Discount)",
+    estimatesPartsTotal: "যন্ত্রাংশের মূল্য",
+    estimatesLabourTotal: "মেরামত পারিশ্রমিক",
+    estimatesDiagnosticTotal: "ডায়াগনস্টিক ফি",
+    estimatesDiscount: "বিশেষ ছাড়",
     estimatesVatRate: "ভ্যাট (১৫% মূসক)",
-    estimatesGrandTotal: "সর্বমোট প্রদেয় (Grand Total BDT)",
+    estimatesGrandTotal: "সর্বমোট প্রদেয়",
     estimatesApproveModalTitle: "এস্টিমেট অনুমোদন ও ই-স্বাক্ষর (BRU-SRM-07)",
     estimatesApprovalRefLabel: "ওটিপি আইডি বা ডিজিটাল স্বাক্ষর রেফারেন্স",
     estimatesApprovalRefPlaceholder: "উদাঃ OTP-994821 অথবা E-SIGN-TXN",
     estimatesConfirmApprove: "অনুমোদন ও ই-স্বাক্ষর নিশ্চিত করুন",
 
-    consentModalTitle: "পিডিপিএ ডেটা সম্মতি প্রদান (PDPA Compliance)",
+    consentModalTitle: "পিডিপিএ ডেটা সম্মতি প্রদান (PDPA)",
     consentProofLabel: "যাচাইযোগ্য সম্মতি প্রমাণ (OTP আইডি / ডিজিটাল ফরম আইডি)",
     consentConfirmGrant: "সম্মতি প্রদান নিশ্চিত করুন",
 
@@ -524,7 +526,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     channelMarketing: "Marketing (All Channels)",
 
     authOtpTab: "Mobile OTP (250K+ Customers)",
-    authCredsTab: "Credentials & Demo Persona",
+    authCredsTab: "Password",
     authPhoneLabel: "11-Digit Mobile Number",
     authPhonePlaceholder: "017XXXXXXXX or 018XXXXXXXX",
     authSendOtpBtn: "Send OTP Code",
@@ -564,6 +566,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     estimatesMushakTitle: "Mushak 6.3 Service Estimate & Tax Breakdown Preview",
     estimatesPartsTotal: "Parts Total",
     estimatesLabourTotal: "Labour Service Fee",
+    estimatesDiagnosticTotal: "Diagnostic Fee",
     estimatesDiscount: "Special Discount",
     estimatesVatRate: "VAT (15% Mushak)",
     estimatesGrandTotal: "Grand Total Payable (BDT)",

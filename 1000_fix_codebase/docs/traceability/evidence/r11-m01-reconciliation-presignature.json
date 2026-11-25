@@ -1,0 +1,14 @@
+{
+  "governance_standard": "DoD-10 / MIG-08 / GV-003",
+  "rehearsal_run_id": "WAVE1_REHEARSAL_20261016",
+  "prepared_at": "2026-10-22T09:02:27.142646+00:00",
+  "status": "UNMEASURED",
+  "reason": "requires the named business owner's signature on this measured reconciliation (and a steward disposition of every quarantined record: {'customers': 1, 'devices': 1, 'attendance_opening': 20}); no signed record exists",
+  "rehearsal_verdict": "INCOMPLETE",
+  "required_signatory_roles": [
+    "Lead Data Steward",
+    "Financial Controller"
+  ],
+  "signatories": [],
+  "authorization": "NOT AUTHORISED: rehearsal verdict is INCOMPLETE and no named signatory has pre-signed this run"
+}

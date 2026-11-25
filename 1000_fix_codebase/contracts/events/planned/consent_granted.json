@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "consent.granted",
+  "description": "Event emitted when a customer grants consent under Bangladesh PDPA 2026",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "consent.granted"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_party_master"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "party_id",
+        "purpose_code",
+        "channel",
+        "proof_reference",
+        "granted_at"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "integer"
+        },
+        "purpose_code": {
+          "type": "string"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "proof_reference": {
+          "type": "string"
+        },
+        "granted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

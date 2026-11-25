@@ -1,0 +1,96 @@
+# notification-dispatcher (M27) - ONE replica: its KPI counters, DLQ and
+# fallback register are in-process state (src/dispatcher.py), so a second
+# replica would split them. Gateway endpoints/tokens come from the optional
+# Secret fix-notification-gateways; an unset channel stays dry-run / fails
+# closed. FIX_ENV=prod is normalised to `production` by the image entrypoint.
+# Kong exposes only GET /svc/notifications/* (ops read surface).
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-dispatcher
+  labels: { app.kubernetes.io/name: notification-dispatcher }
+spec:
+  selector: { app.kubernetes.io/name: notification-dispatcher }
+  ports:
+    - { name: http, port: 8110, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-dispatcher
+  labels: { app.kubernetes.io/name: notification-dispatcher, app.kubernetes.io/component: service }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: notification-dispatcher }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: notification-dispatcher, app.kubernetes.io/component: service }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: notification-dispatcher
+          image: 1000fix/notification-dispatcher:release
+          env:
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - name: FIX_ACTIVE_WAVE
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ACTIVE_WAVE } }
+            - { name: FIX_NOTIFICATION_DISPATCHER_HOST, value: 0.0.0.0 }
+            - name: REDIS_URL
+              valueFrom: { secretKeyRef: { name: fix-redis, key: url } }
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: bootstrap-servers } }
+            - name: KAFKA_SECURITY_PROTOCOL
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: security-protocol } }
+            - name: KAFKA_SASL_MECHANISM
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-mechanism } }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-username } }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-password } }
+            - name: FIX_SMS_GATEWAY_URL
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: sms-url, optional: true } }
+            - name: FIX_SMS_GATEWAY_TOKEN
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: sms-token, optional: true } }
+            - name: FIX_SMS_REDUNDANT_GATEWAY_URL
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: sms-redundant-url, optional: true } }
+            - name: FIX_SMS_REDUNDANT_GATEWAY_TOKEN
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: sms-redundant-token, optional: true } }
+            - name: FIX_WHATSAPP_API_URL
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: whatsapp-url, optional: true } }
+            - name: FIX_WHATSAPP_API_TOKEN
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: whatsapp-token, optional: true } }
+            - name: FIX_EMAIL_API_URL
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: email-url, optional: true } }
+            - name: FIX_EMAIL_API_TOKEN
+              valueFrom: { secretKeyRef: { name: fix-notification-gateways, key: email-token, optional: true } }
+          ports:
+            - { name: http, containerPort: 8110 }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

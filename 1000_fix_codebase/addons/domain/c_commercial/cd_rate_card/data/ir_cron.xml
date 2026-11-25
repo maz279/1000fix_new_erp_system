@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M11 scheduled jobs (A04 audit 2026-11-04, C10: the module had no ir.cron).
+
+  - Price-book versions (AUT-PRC-07): an approved version whose effective
+    date has come becomes Active and supersedes the version in force.
+  - Promotions: an approved promotion starts on its first day; an active one
+    ends after its last day or once its budget or usage cap is spent.
+  - Mass price changes (FR-PRC-024): an approved change whose date has
+    come is applied to every previewed rate.
+  All run daily just after midnight Dhaka time (18:01 / 18:02 UTC) and are
+  idempotent.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_m11_activate_versions" model="ir.cron">
+            <field name="name">M11: activate price-book versions on their effective date</field>
+            <field name="model_id" ref="model_fix_price_version"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_activate_due_versions()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:01:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m11_promotion_window" model="ir.cron">
+            <field name="name">M11: start and end promotions on their window and budget</field>
+            <field name="model_id" ref="model_fix_promotion"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_promotion_window()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:02:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A04 ERP audit (20 Nov 2026) M11-F7: an approved below-floor
+             override the line has not used by its use-by date lapses. -->
+        <record id="ir_cron_m11_expire_overrides" model="ir.cron">
+            <field name="name">M11: expire unused below-floor price overrides</field>
+            <field name="model_id" ref="model_fix_price_override"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_overrides()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:04:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m11_mass_change_apply" model="ir.cron">
+            <field name="name">M11: apply approved mass price changes on their effective date</field>
+            <field name="model_id" ref="model_fix_price_mass_change"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:03:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

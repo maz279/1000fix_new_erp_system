@@ -7,24 +7,175 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__billing
+msgid "Billing"
+msgstr "বিলিং"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__capa_open
+msgid "CAPA Open"
+msgstr "CAPA খোলা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_cx_feedback
+#: model:ir.actions.act_window,name:cd_cx_feedback.action_fix_complaint
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_complaint
 msgid "Complaints"
 msgstr "অভিযোগসমূহ"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__critical
+msgid "Critical"
+msgstr "সংকটজনক"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__delay
+msgid "Delay / SLA"
+msgstr "বিলম্ব / SLA"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__device_damage
+msgid "Device Damage"
+msgstr "ডিভাইসের ক্ষতি"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__investigating
+msgid "Investigating"
+msgstr "তদন্তাধীন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__major
+msgid "Major"
+msgstr "গুরুতর"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__minor
+msgid "Minor"
+msgstr "সামান্য"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__ncr_raised
+msgid "NCR Raised"
+msgstr "NCR উত্থাপিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__rating
+msgid "Overall Rating (NPS-style)"
+msgstr "সামগ্রিক রেটিং (NPS ধরনের)"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__responded
+msgid "Responded"
+msgstr "সাড়া দেওয়া হয়েছে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__root_cause
+msgid "Root Cause Identified"
+msgstr "মূল কারণ চিহ্নিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__sent
+msgid "Sent"
+msgstr "প্রেরিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__service_order_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__service_quality
+msgid "Service Quality"
+msgstr "সার্ভিসের মান"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__staff_conduct
+msgid "Staff Conduct"
+msgstr "কর্মীর আচরণ"
+
+#. module: cd_cx_feedback
+#: model:ir.actions.act_window,name:cd_cx_feedback.action_fix_supplier_scorecard
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_supplier_scorecard
 msgid "Supplier Scorecards"
 msgstr "সরবরাহকারী স্কোরকার্ডসমূহ"
 
+#. module: cd_cx_feedback
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_survey
 msgid "Surveys"
 msgstr "সমীক্ষাসমূহ"
 
+#. module: cd_cx_feedback
+#: model_terms:ir.ui.view,arch_db:cd_cx_feedback.view_fix_survey_tree
 msgid "Triggered"
 msgstr "ট্রিগার্ড"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__vendor_id
 msgid "Vendor"
 msgstr "ভেন্ডর"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__verification
+msgid "Verification"
+msgstr "যাচাই"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__2
+msgid "খারাপ / Poor"
+msgstr "খারাপ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__1
+msgid "খুব খারাপ / Very Poor"
+msgstr "খুব খারাপ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__5
+msgid "খুব ভালো / Excellent"
+msgstr "খুব ভালো"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__4
+msgid "ভালো / Good"
+msgstr "ভালো"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__3
+msgid "মোটামুটি / Fair"
+msgstr "মোটামুটি"

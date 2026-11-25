@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M38 references. Without these sequences the models fell back to a
+     second-resolution timestamp, so two carts / orders / returns created in the
+     same second shared one reference (tracking by order_name then resolved to
+     whichever came first). -->
+<odoo noupdate="1">
+    <record id="seq_fix_storefront_cart" model="ir.sequence">
+        <field name="name">Storefront Cart</field>
+        <field name="code">fix.storefront.cart</field>
+        <field name="prefix">CART/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_storefront_order" model="ir.sequence">
+        <field name="name">Storefront Order</field>
+        <field name="code">fix.storefront.order</field>
+        <field name="prefix">SF/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_storefront_return" model="ir.sequence">
+        <field name="name">Storefront Return (RMA)</field>
+        <field name="code">fix.storefront.return</field>
+        <field name="prefix">RMA/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- A04 audit M38-13: every RMA was named "New". -->
+    <record id="seq_fix_storefront_rma" model="ir.sequence">
+        <field name="name">Storefront RMA Request</field>
+        <field name="code">fix.storefront.rma</field>
+        <field name="prefix">SRMA/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- M38 capture audit (19 Nov 2026) -->
+    <record id="seq_fix_storefront_order_change" model="ir.sequence">
+        <field name="name">Storefront Order Change</field>
+        <field name="code">fix.storefront.order.change</field>
+        <field name="prefix">SFC/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_storefront_service_booking" model="ir.sequence">
+        <field name="name">Storefront Service Booking</field>
+        <field name="code">fix.storefront.service.booking</field>
+        <field name="prefix">SFB/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

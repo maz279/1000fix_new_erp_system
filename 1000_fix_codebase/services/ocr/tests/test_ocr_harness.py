@@ -1,4 +1,5 @@
 """ocr harness tests — P06-M08-T08."""
+
 from __future__ import annotations
 
 import sys
@@ -7,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ocr_harness import EvaluationCase, evaluate  # noqa: E402
+from ocr_harness import EvaluationCase, evaluate
 
 
 class TestHarness(unittest.TestCase):
@@ -29,6 +30,7 @@ class TestHarness(unittest.TestCase):
 
     def test_dry_run_recogniser_recognises_nothing(self):
         from ocr_harness import dry_run_recogniser
+
         self.assertEqual(dry_run_recogniser("x.png"), {})
 
 

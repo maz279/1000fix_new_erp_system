@@ -1,0 +1,471 @@
+# =============================================================================
+# CI/CD pipeline - P02-M09 (PE-004). Five execution profiles; 17 stages.
+#   pre-commit (<30s) | pre-merge (<20min, blocks 2-12+15) | nightly (<3h)
+#   release (<4h, blocks 13-14) | gate (days, blocks 16-17)
+#
+# LOCATION (R01 re-audit 2026-10-22): GitHub Actions reads workflows ONLY from
+# <repository-root>/.github/workflows/. The git root of maz279/1000fix_new_erp_system
+# is the WORKSPACE, and the codebase lives in 1000_fix_codebase/. This file
+# therefore lives at the workspace root and every `run:` executes inside the
+# codebase via `defaults.run.working-directory`. The previous copy at
+# 1000_fix_codebase/.github/workflows/ci.yml could never trigger - no run of it
+# has ever happened on a GitHub-hosted runner.
+#
+# PE-004-D-01: BUILD ONCE, PROMOTE THE ARTEFACT - the same bytes reach prod.
+# BG-01..05: affected-component selection computed from the REGENERATED
+# dependency graph (tooling/architecture-baseline/evidence/*.json), sharding,
+# layer placement, caching, per-gate measurement.
+# PS-01: Pact broker + schema registry FAIL CLOSED - unreachable verifier is
+# a failure, never a pass.
+# DB-01..04: ephemeral PostgreSQL 17 per run, seeded by RESTORING A VERSIONED
+# SNAPSHOT ARTEFACT, never by running a generator.
+# Validate locally (structure only): python 1000_fix_codebase/tooling/ci/validate-workflow.py
+# =============================================================================
+name: ci
+
+on:
+  pull_request: { branches: [develop, main] }     # pre-merge profile
+  push: { branches: [develop] }                   # + nightly on schedule
+  schedule:
+    - cron: "0 18 * * *"                          # nightly (03:00 +06)
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "execution profile"
+        type: choice
+        options: [pre-merge, nightly, release, gate]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false        # releases/gates never cancel mid-run
+
+permissions:
+  contents: read
+
+env:
+  # Same pin as infra/compose (verify-compose-digests.py checks it resolves).
+  # GitHub does NOT expose the `env` context to
+  # jobs.<id>.services.<svc>.image, so the two service blocks take this scalar
+  # through a YAML anchor. `${{ env.PGIMAGE }}` there made the WHOLE workflow
+  # invalid: every run died at parse time with "Unrecognized named-value:
+  # 'env'" (found 2026-11-24 - 260 runs had never actually started).
+  PGIMAGE: &pgimage postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+  CODE: 1000_fix_codebase
+
+defaults:
+  run:
+    shell: bash
+    working-directory: 1000_fix_codebase
+
+jobs:
+  # ---- stage 1 (local layer, re-run for the record) ------------------------
+  precommit:
+    if: inputs.profile != 'gate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }                 # gitleaks needs full history (SE-01)
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # The config lives in the codebase; pre-commit chdirs to the git root
+      # and its top-level `files:` keeps it inside 1000_fix_codebase/.
+      - run: uv run pre-commit run -a --show-diff-on-failure --config .pre-commit-config.yaml
+
+  # ---- stage 2: lint & type (Python/TS/Dart; naming AS-04) -----------------
+  lint-type:
+    needs: precommit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      # PYS-07/10/11 strict typing. `mypy --strict addons services libs` never ran
+      # (hyphenated service dirs / duplicate `src` packages); the runner checks
+      # libs+addons in one run and each service in its own (R01 re-audit).
+      - run: uv run python tooling/ci/run-mypy.py
+      - uses: actions/setup-node@v4
+        with: { node-version-file: 1000_fix_codebase/.nvmrc }
+      # The portals are independent npm packages (package-lock.json each; no
+      # pnpm workspace exists). Type-check each one - tsc is the TS gate that
+      # is actually configured; ESLint is not yet a dependency of any app.
+      - run: |
+          rc=0
+          for app in apps/web/*/; do
+            echo "::group::tsc ${app}"
+            (cd "$app" && npm ci --no-audit --no-fund && npx tsc --noEmit && npm test --if-present) || rc=1
+            echo "::endgroup::"
+          done
+          exit $rc
+      - run: echo "dart analyze activates with D-027 code (apps/mobile has no pubspec CI target yet)"
+
+  # ---- stage 3: model registry (AS-02/03/14; FF-09/20/21/22/37) ------------
+  model-registry:
+    needs: lint-type
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: *pgimage
+        env: { POSTGRES_USER: fix, POSTGRES_PASSWORD: ci, POSTGRES_DB: fix_ci }
+        options: >-
+          --health-cmd "pg_isready -U fix" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # Odoo's py3.12 pins carry known CVEs; the overrides (vendor/ stays
+      # read-only, FF-03) replace them with patched, uv.lock-consistent pins.
+      # python-ldap / psycopg2 publish no wheels: they build against these headers.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libldap2-dev libsasl2-dev libpq-dev
+      - run: uv pip install -r vendor/odoo/requirements.txt --override tooling/ci/odoo-security-overrides.txt
+      - run: uv run python tooling/fitness/run.py   # blocking set incl. model registry checks
+
+  # ---- stages 4-5: unit (>=80%, 100% financial/tax) + integration ----------
+  unit:
+    needs: model-registry
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # The ORM-level tests (addons/conftest.py `odoo_env`) run against a
+    # cleanly installed fix_test database - the same build that proves every
+    # first-party addon installs from scratch (FF-46 is its static half).
+    services:
+      postgres:
+        image: *pgimage
+        env: { POSTGRES_USER: fix, POSTGRES_PASSWORD: ci, POSTGRES_DB: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fix" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: fix
+      PGPASSWORD: ci
+      FIX_TEST_DB: fix_test
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, submodules: recursive }   # affected-selection diffs origin/develop
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # Odoo's py3.12 pins carry known CVEs; the overrides (vendor/ stays
+      # read-only, FF-03) replace them with patched, uv.lock-consistent pins.
+      # python-ldap / psycopg2 publish no wheels: they build against these headers.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libldap2-dev libsasl2-dev libpq-dev
+      - run: uv pip install -r vendor/odoo/requirements.txt --override tooling/ci/odoo-security-overrides.txt
+      # The odoo conf is GENERATED (REPO-15, git-ignored): a fresh runner has
+      # none, and without it odoo-bin has no addons_path. .env.example holds
+      # dev placeholders only; the job env (PG*) overrides the connection.
+      - run: cp .env.example .env && uv run python tooling/scripts/generate-odoo-conf.py
+      - run: uv run python tooling/scripts/build-test-db.py        # clean install of all cd_* addons
+      # BG-01: affected selection from the regenerated graph (PE-004-F-01:
+      # a change inside a cycle marks every member affected - the 11 broken
+      # pairs are the slow sets; measured per gate).
+      # Output is pytest PATHS (module/service dirs, or the full test roots).
+      - run: uv run python tooling/scripts/affected-selection.py --base origin/develop --graph tooling/architecture-baseline/evidence/dependency-graph-2026-10-01.json > affected.txt
+      # Fast signal: affected tests only, no coverage gate (a subset cannot
+      # be gated against estate-wide coverage). Exit 5 = nothing collected.
+      - run: cat affected.txt && { uv run pytest -p no:cacheprovider $(cat affected.txt) || [ $? -eq 5 ]; }
+      # Suites OUTSIDE the coverage harness's test roots (measure-coverage
+      # TEST_ROOTS = addons/services/libs/tests): migration rehearsal,
+      # tooling verdict derivation, fitness self-tests. R01 re-audit: CI never
+      # ran them, so a fabricated-verdict regression could merge green.
+      - run: uv run pytest -p no:cacheprovider migrations/tests tooling test_customer_api.py
+      # Coverage gates via the SAME harness as stage 4: 100% line+branch over
+      # every source file (programme decision 2026-10-22, raising DoD-03's
+      # 80% estate floor) and 100% for the "financial or tax" statutory set
+      # (STATUTORY_SET in measure-coverage.py). Never lowered to pass.
+      # Exit 1 = gate failed, 2 = invalid run (pytest failure / no data).
+      - run: uv run python tooling/scripts/measure-coverage.py --fail-under 100 --fail-under-financial 100
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: |
+            1000_fix_codebase/coverage.xml
+            1000_fix_codebase/coverage.json
+            1000_fix_codebase/coverage-financial.json
+            1000_fix_codebase/docs/traceability/evidence/coverage-baseline-report.json
+          if-no-files-found: warn
+
+  integration:
+    needs: unit
+    if: github.event_name == 'schedule' || inputs.profile == 'nightly'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # Odoo's py3.12 pins carry known CVEs; the overrides (vendor/ stays
+      # read-only, FF-03) replace them with patched, uv.lock-consistent pins.
+      # python-ldap / psycopg2 publish no wheels: they build against these headers.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libldap2-dev libsasl2-dev libpq-dev
+      - run: uv pip install -r vendor/odoo/requirements.txt --override tooling/ci/odoo-security-overrides.txt
+      # R01 re-audit: this stage ran `compose --profile full up` (no .env, and
+      # no service declared `full`) and then `pytest -m integration`, which
+      # collects ZERO tests (exit 5) - it could never pass or test anything.
+      # It now builds the live stack (core + clean fix_test + Odoo on :8069,
+      # FIX_ENV=local) and drives it over HTTP.
+      - run: bash tooling/e2e/ci-stack-up.sh
+      - run: FIX_SMOKE_DB=fix_test uv run python tooling/scripts/test-smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-stack-logs
+          path: 1000_fix_codebase/tooling/e2e/results/stack/
+
+  # ---- stage 13b (nightly): L6 journeys + visual drive + headers + DE-20 ----
+  nightly-journeys:
+    needs: integration
+    if: github.event_name == 'schedule' || inputs.profile == 'nightly'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # Odoo's py3.12 pins carry known CVEs; the overrides (vendor/ stays
+      # read-only, FF-03) replace them with patched, uv.lock-consistent pins.
+      # python-ldap / psycopg2 publish no wheels: they build against these headers.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libldap2-dev libsasl2-dev libpq-dev
+      - run: uv pip install -r vendor/odoo/requirements.txt --override tooling/ci/odoo-security-overrides.txt
+      - uses: actions/setup-node@v4
+        with: { node-version-file: 1000_fix_codebase/.nvmrc }
+      # Odoo + Kong :8000 + the 8 portals on the journey port map (helpers.ts).
+      - run: bash tooling/e2e/ci-stack-up.sh --portals
+      - run: npm ci
+        working-directory: 1000_fix_codebase/tooling/e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: 1000_fix_codebase/tooling/e2e
+      - run: npx playwright test                    # L6 user journeys (incl. J01-J03)
+        working-directory: 1000_fix_codebase/tooling/e2e
+      - run: node visual-drive.mjs                  # responsive layout regression drive
+        working-directory: 1000_fix_codebase/tooling/e2e
+      - run: node headers-sweep.mjs                 # security/CSP header sweep
+        working-directory: 1000_fix_codebase/tooling/e2e
+      # DE-20: scheduled doctor on a CLEAN runner - this VM booted fresh for
+      # the job, which is exactly the property the local harness cannot claim.
+      - run: uv run python tooling/scripts/doctor.py --json doctor-clean-runner.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-telemetry
+          path: |
+            1000_fix_codebase/tooling/e2e/results/
+            1000_fix_codebase/doctor-clean-runner.json
+          if-no-files-found: warn
+
+  # ---- stages 6-7: contract (Pact broker, PS-01 fail-closed) + event -------
+  contract:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: |
+          # PS-01: fail CLOSED. Unset or unreachable broker = failed job, never a pass.
+          if [ -z "${PACT_BROKER_URL}" ]; then
+            echo "contract: FAIL - secrets.PACT_BROKER_URL not provisioned (PS-01 fail-closed)"; exit 1
+          fi
+          if ! curl -fsS "${PACT_BROKER_URL}/diagnostic" > /dev/null; then
+            echo "contract: FAIL - Pact broker unreachable (PS-01 fail-closed)"; exit 1
+          fi
+        env:
+          PACT_BROKER_URL: ${{ secrets.PACT_BROKER_URL }}   # credentials from env/secret store only
+      - run: uv run python -m contracts.check openapi          # OpenAPI 3.1 validation + PS-11
+
+  event:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run python -m contracts.check events           # schema compat + AS-08 outbox coverage
+
+  # ---- stage 8: security (SAST/dep/container/IaC) --------------------------
+  security:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        # full history (SE-01); the vendor/odoo submodule for its requirements
+        with: { fetch-depth: 0, submodules: recursive }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: 1000_fix_codebase/.gitleaks.toml
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # R01 re-audit 2026-10-22: pip-audit saw only the uv lock. Odoo's runtime
+      # set (vendor/odoo/requirements.txt, installed by every ORM/stack job)
+      # was never audited - and carried 130 known CVEs. Install it EXACTLY as
+      # those jobs do, prove the env still matches uv.lock (an override that
+      # drifts from the lock is silently re-synced by `uv run`), then audit
+      # the WHOLE environment = lock + effective Odoo runtime set.
+      # (docs/guides/odoo-runtime-dependency-security.md)
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libldap2-dev libsasl2-dev libpq-dev
+      - run: uv pip install -r vendor/odoo/requirements.txt --override tooling/ci/odoo-security-overrides.txt
+      - run: uv sync --frozen --inexact --check
+      - run: uv run --no-sync pip-audit
+      # Container scan: first-party service images. The Odoo image
+      # (infra/docker/odoo/Dockerfile) is built by build-verify; its digest
+      # stays PENDING-FIRST-BUILD until the first registry push.
+      - run: |
+          for df in services/*/Dockerfile; do
+            svc=$(basename "$(dirname "$df")")
+            # a service that ships libs/py (e.g. identity-lifecycle) declares a repo-root
+            # context; its <Dockerfile>.dockerignore keeps that context minimal
+            if grep -q '^# build-context: repo-root' "$df"; then
+              DOCKER_BUILDKIT=1 docker build -q -f "$df" -t "scan/${svc}:ci" .
+            else
+              docker build -q -t "scan/${svc}:ci" "$(dirname "$df")"
+            fi
+          done
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: 1000_fix_codebase
+          severity: CRITICAL,HIGH
+          skip-dirs: 1000_fix_codebase/vendor,1000_fix_codebase/node_modules
+          exit-code: "1"
+
+  # ---- stage 9: architecture (blocking FF incl. FF-03) ----------------------
+  architecture:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, submodules: recursive }
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: bash tooling/scripts/check-vendor-clean.sh        # FF-03
+      - run: uv run python tooling/scripts/check-cd-id.py $(git diff --name-only origin/develop... -- .)  # FF-16 warning
+
+  # ---- stages 10-12: localisation, bundle, accessibility --------------------
+  localisation:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run python -m i18n.check --completeness 100     # DoD-08
+
+  bundle:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: 1000_fix_codebase/.nvmrc }
+      - run: npm ci --no-audit --no-fund && npm run build
+        working-directory: 1000_fix_codebase/apps/web/customer
+      - run: node tooling/scripts/check-bundle.mjs --app-dir apps/web/customer --budget-kb 400
+
+  accessibility:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # Stage 12 (P04-M06-T07/T08): the static halves always run - UI-copy
+      # budgets (VB-002) and no-truncation-on-translatable-surfaces (UX-007).
+      - run: uv run python tooling/a11y/check-expansion-static.py
+      # The dynamic halves (axe-core WCAG 2.2 AA + bn/en layout comparison)
+      # need the Odoo runtime and an env-provided test credential; without
+      # them the Playwright suite reports SKIP honestly.
+      - uses: actions/setup-node@v4
+        with: { node-version-file: 1000_fix_codebase/.nvmrc }
+      - run: npm ci
+        working-directory: 1000_fix_codebase/tooling/a11y
+      - run: npx playwright install --with-deps chromium
+        working-directory: 1000_fix_codebase/tooling/a11y
+      - run: npx playwright test
+        working-directory: 1000_fix_codebase/tooling/a11y
+        env:
+          FIX_A11Y_BASE_URL: http://127.0.0.1:8069
+          # Credentials come from the environment / secret store only (DE-10).
+          FIX_A11Y_USER: ${{ vars.FIX_A11Y_USER }}
+          FIX_A11Y_PASSWORD: ${{ secrets.FIX_A11Y_PASSWORD }}
+
+  # ---- stage 15: infrastructure (plan + policy when infra/ changed) --------
+  infrastructure:
+    needs: unit
+    if: contains(toJSON(github.event.commits.*.modified), 'infra/')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          # infra/terraform has no modules yet (PE-002 provisioning is runtime
+          # work on real infra). Fail loudly rather than "plan" an empty dir.
+          if ! ls infra/terraform/*.tf >/dev/null 2>&1; then
+            echo "infrastructure: FAIL - infra/terraform contains no .tf modules"; exit 1
+          fi
+          (cd infra/terraform && terraform init -backend=false && terraform plan -detailed-exitcode)
+          conftest test infra/terraform/
+
+  # ---- release profile: stages 13-14 ----------------------------------------
+  licence-sbom:
+    if: inputs.profile == 'release' || github.ref == 'refs/heads/main'
+    needs: [unit, contract, event]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      # D-030 gate: every dependency classified; restricted classes need an
+      # approved entry in tooling/licence/register.yaml
+      - run: uv run python tooling/scripts/check-licence-gate.py
+      - uses: anchore/sbom-action@v0
+        with: { path: 1000_fix_codebase, format: cyclonedx-json, output-file: sbom.cdx.json }
+
+  build-verify:
+    if: inputs.profile == 'release'
+    needs: licence-sbom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - run: |
+          # PE-004 5.1 stage 14 needs the Odoo image build (infra/docker/odoo,
+          # R01 re-audit 2026-10-22) and the odoo-upgrade-dryrun make target,
+          # which does not exist yet. Fail closed until both do.
+          if [ ! -f infra/docker/odoo/Dockerfile ] || ! grep -q '^odoo-upgrade-dryrun:' Makefile; then
+            echo "build-verify: FAIL - infra/docker/odoo/Dockerfile / make odoo-upgrade-dryrun not implemented"; exit 1
+          fi
+          docker build -f infra/docker/odoo/Dockerfile -t "1000fix/odoo:${GITHUB_SHA}" .
+          make odoo-upgrade-dryrun ENV=migration-staging
+
+  # ---- gate profile: stages 16-17 -------------------------------------------
+  performance:
+    if: inputs.profile == 'gate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1440
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          # PE-006 / DoD-14 and PE-007 DR drill record. Fail closed until the
+          # k6 scenario and the dr-drill-record target exist.
+          if [ ! -f tooling/perf/scenario.js ] || ! grep -q '^dr-drill-record:' Makefile; then
+            echo "performance: FAIL - tooling/perf/scenario.js / make dr-drill-record not implemented"; exit 1
+          fi
+          k6 run tooling/perf/scenario.js --env VUS=1.5x-peak
+          make dr-drill-record

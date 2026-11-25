@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP audit M40-F27 (20 Nov 2026): the M40 child registers now carry
+     their partner's company; each is fenced to the user's allowed companies
+     (the shape of the generated fix_isolation_rules.xml). -->
+<odoo>
+    <record id="rule_fix_partner_audit_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.audit: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_audit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_authorisation_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.authorisation: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_authorisation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_deal_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.deal: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_deal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_rebate_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.rebate: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_rebate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_franchise_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.franchise: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_franchise"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_conflict_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.conflict: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_conflict"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_onboarding_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.onboarding: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_onboarding"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_enablement_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.enablement: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_enablement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_contact_role_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.contact.role: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_contact_role"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_franchise_royalty_company_a04erp" model="ir.rule">
+        <field name="name">fix.franchise.royalty: allowed companies</field>
+        <field name="model_id" ref="model_fix_franchise_royalty"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdf_claim_company_a04erp" model="ir.rule">
+        <field name="name">fix.mdf.claim: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdf_claim"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_rate_change_company_a04erp" model="ir.rule">
+        <field name="name">fix.partner.rate.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_rate_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_reseller_draw_company_a04erp" model="ir.rule">
+        <field name="name">fix.reseller.draw: allowed companies</field>
+        <field name="model_id" ref="model_fix_reseller_draw"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

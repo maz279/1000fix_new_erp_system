@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A08 Finance & Treasury — live action children on the P03 workspace's
+     generated module menus (A08 reorganization, 2026-10-24).
+
+     The generated p03_menus.xml (cd_p03_portal) carries the registry's
+     module/section structure as action-less containers; this file attaches
+     ACTION-BACKED children for the real g_finance models so Odoo's native
+     menu tree has ONE finance navigation scheme with clickable surfaces.
+     Models resolve because cd_finance_nav depends on every owning module. -->
+<odoo>
+
+    <!-- M19 · Financial Accounting & GL — cd_gl_ext adds Chart of Accounts,
+         Period Close, CoA Loader and the Fixed Asset Seam via its own views
+         (re-parented onto menu_p03_ws_gl_ext). Here: the Odoo-standard
+         journal entries + the 7-dimension side table. -->
+    <record id="action_fin_journal_entries" model="ir.actions.act_window">
+        <field name="name">Journal Entries</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_journal_entries" name="Journal Entries"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="action_fin_journal_entries" sequence="1"/>
+
+    <record id="action_fin_journal_dimensions" model="ir.actions.act_window">
+        <field name="name">Journal Dimensions (7-D Model)</field>
+        <field name="res_model">fix.journal.dimension</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_journal_dimensions" name="Journal Dimensions"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="action_fin_journal_dimensions" sequence="2"/>
+
+    <!-- cd_gl_ext's own surfaces, attached here (the bridge is the only place
+         that can reference BOTH the cd_gl_ext actions and the platform menu —
+         FF-46 clean-install load order). -->
+    <menuitem id="menu_fix_chart_account" name="Chart of Accounts"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="cd_gl_ext.action_fix_chart_account" sequence="5"/>
+    <menuitem id="menu_fix_period_close" name="Period Close"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="cd_gl_ext.action_fix_period_close" sequence="6"/>
+    <menuitem id="menu_fix_chart_loader" name="CoA Master Loader"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="cd_gl_ext.action_fix_chart_loader" sequence="7"/>
+    <menuitem id="menu_fix_fixed_asset_seam" name="Fixed Asset Seam"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="cd_gl_ext.action_fix_fixed_asset_seam" sequence="8"/>
+
+    <!-- M19 GL engine (FR-FIN-008..017, 026, 042): recurring templates,
+         allocation rules, the immutable posting log. -->
+    <record id="action_fin_journal_templates" model="ir.actions.act_window">
+        <field name="name">Recurring Journal Templates</field>
+        <field name="res_model">fix.journal.template</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_journal_templates" name="Recurring Journal Templates"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="action_fin_journal_templates" sequence="9"/>
+
+    <record id="action_fin_allocation_rules" model="ir.actions.act_window">
+        <field name="name">GL Allocation Rules</field>
+        <field name="res_model">fix.allocation.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_allocation_rules" name="Allocation Rules"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="action_fin_allocation_rules" sequence="10"/>
+
+    <record id="action_fin_posting_log" model="ir.actions.act_window">
+        <field name="name">Journal Posting Log (Audit)</field>
+        <field name="res_model">fix.journal.posting.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_posting_log" name="Posting Log (Audit)"
+              parent="cd_p03_portal.menu_p03_ws_gl_ext" action="action_fin_posting_log" sequence="11"/>
+
+    <!-- M20 · AR, Invoicing & Collections (cd_billing_engine) -->
+    <record id="action_fin_ar_invoices" model="ir.actions.act_window">
+        <field name="name">AR Invoices (Mushak 6.3)</field>
+        <field name="res_model">fix.ar.invoice</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_ar_invoices" name="AR Invoices"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_ar_invoices" sequence="1"/>
+
+    <record id="action_fin_consolidated_bills" model="ir.actions.act_window">
+        <field name="name">Consolidated Corporate Bills</field>
+        <field name="res_model">fix.ar.consolidated.bill</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_consolidated_bills" name="Consolidated Bills"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_consolidated_bills" sequence="2"/>
+
+    <record id="action_fin_dunning" model="ir.actions.act_window">
+        <field name="name">Dunning Worklist</field>
+        <field name="res_model">fix.dunning</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_dunning" name="Dunning"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_dunning" sequence="3"/>
+
+    <record id="action_fin_credit_notes" model="ir.actions.act_window">
+        <field name="name">Credit Notes</field>
+        <field name="res_model">fix.credit.note</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_credit_notes" name="Credit Notes"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_credit_notes" sequence="4"/>
+
+    <!-- M20 engine depth (CD-M20-02): the new AR surfaces -->
+    <record id="action_fin_billable_events" model="ir.actions.act_window">
+        <field name="name">Billable Events</field>
+        <field name="res_model">fix.billable.event</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_billable_events" name="Billable Events"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_billable_events" sequence="5"/>
+
+    <record id="action_fin_ar_receipts" model="ir.actions.act_window">
+        <field name="name">AR Receipts</field>
+        <field name="res_model">fix.ar.receipt</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_ar_receipts" name="Receipts"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_ar_receipts" sequence="6"/>
+
+    <record id="action_fin_ar_allocations" model="ir.actions.act_window">
+        <field name="name">Receipt Allocations</field>
+        <field name="res_model">fix.ar.allocation</field>
+        <field name="view_mode">list</field>
+    </record>
+    <menuitem id="menu_fin_ar_allocations" name="Allocations"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_ar_allocations" sequence="7"/>
+
+    <record id="action_fin_credit_profiles" model="ir.actions.act_window">
+        <field name="name">Customer Credit Profiles</field>
+        <field name="res_model">fix.credit.profile</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_credit_profiles" name="Credit Profiles"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_credit_profiles" sequence="8"/>
+
+    <record id="action_fin_ar_disputes" model="ir.actions.act_window">
+        <field name="name">AR Disputes</field>
+        <field name="res_model">fix.ar.dispute</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_ar_disputes" name="Disputes"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_ar_disputes" sequence="9"/>
+
+    <record id="action_fin_ar_aging" model="ir.actions.act_window">
+        <field name="name">AR Ageing Snapshots</field>
+        <field name="res_model">fix.ar.aging.snapshot</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_ar_aging" name="Ageing Snapshots"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_ar_aging" sequence="10"/>
+
+    <record id="action_fin_payment_links" model="ir.actions.act_window">
+        <field name="name">AR Payment Links</field>
+        <field name="res_model">fix.ar.payment.link</field>
+        <field name="view_mode">list</field>
+    </record>
+    <menuitem id="menu_fin_payment_links" name="Payment Links"
+              parent="cd_p03_portal.menu_p03_ws_billing_engine" action="action_fin_payment_links" sequence="11"/>
+
+    <!-- M52 · AP & Employee Expense (cd_ap_ext) -->
+    <record id="action_fin_vendor_bills" model="ir.actions.act_window">
+        <field name="name">Vendor Bills (3-Way Match)</field>
+        <field name="res_model">fix.vendor.invoice</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_vendor_bills" name="Vendor Bills"
+              parent="cd_p03_portal.menu_p03_ws_ap_ext" action="action_fin_vendor_bills" sequence="1"/>
+
+    <record id="action_fin_expense_claims" model="ir.actions.act_window">
+        <field name="name">Expense Claims</field>
+        <field name="res_model">fix.expense.claim</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_expense_claims" name="Expense Claims"
+              parent="cd_p03_portal.menu_p03_ws_ap_ext" action="action_fin_expense_claims" sequence="2"/>
+
+    <!-- A08 S1 / M52-12: two-person bank-detail and approval-matrix changes -->
+    <menuitem id="menu_fin_payee_bank_change" name="Payee Bank-Detail Changes"
+              parent="cd_p03_portal.menu_p03_ws_ap_ext"
+              action="cd_ap_ext.action_fix_payee_bank_change" sequence="3"/>
+    <menuitem id="menu_fin_ap_approval_rule_change" name="AP Approval-Rule Changes"
+              parent="cd_p03_portal.menu_p03_ws_ap_ext"
+              action="cd_ap_ext.action_fix_ap_approval_rule_change" sequence="4"/>
+
+    <!-- M50 · Treasury & Banking (cd_cash_position) -->
+    <record id="action_fin_cash_position" model="ir.actions.act_window">
+        <field name="name">Cash Position</field>
+        <field name="res_model">fix.cash.position</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_cash_position" name="Cash Position"
+              parent="cd_p03_portal.menu_p03_ws_cash_position" action="action_fin_cash_position" sequence="1"/>
+
+    <record id="action_fin_bank_statements" model="ir.actions.act_window">
+        <field name="name">Bank Statement Lines</field>
+        <field name="res_model">fix.bank.statement.line</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_bank_statements" name="Bank Statements"
+              parent="cd_p03_portal.menu_p03_ws_cash_position" action="action_fin_bank_statements" sequence="2"/>
+
+    <record id="action_fin_payment_execution" model="ir.actions.act_window">
+        <field name="name">Payment Executions</field>
+        <field name="res_model">fix.payment.execution</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_payment_execution" name="Payment Executions"
+              parent="cd_p03_portal.menu_p03_ws_cash_position" action="action_fin_payment_execution" sequence="3"/>
+
+    <!-- M51 · Tax & Regulatory BD (cd_tax_engine_bd) -->
+    <record id="action_fin_mushak_register" model="ir.actions.act_window">
+        <field name="name">Mushak 6.3 Register</field>
+        <field name="res_model">fix.mushak.register</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_mushak_register" name="Mushak 6.3 Register"
+              parent="cd_p03_portal.menu_p03_ws_tax_engine_bd" action="action_fin_mushak_register" sequence="1"/>
+
+    <record id="action_fin_vat_returns" model="ir.actions.act_window">
+        <field name="name">VAT Returns (Mushak 9.1)</field>
+        <field name="res_model">fix.vat.return</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_vat_returns" name="VAT Returns 9.1"
+              parent="cd_p03_portal.menu_p03_ws_tax_engine_bd" action="action_fin_vat_returns" sequence="2"/>
+
+    <record id="action_fin_tds_returns" model="ir.actions.act_window">
+        <field name="name">TDS Returns</field>
+        <field name="res_model">fix.tds.return</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_tds_returns" name="TDS Returns"
+              parent="cd_p03_portal.menu_p03_ws_tax_engine_bd" action="action_fin_tds_returns" sequence="3"/>
+
+    <record id="action_fin_vat_treatments" model="ir.actions.act_window">
+        <field name="name">VAT Treatments</field>
+        <field name="res_model">fix.vat.treatment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_vat_treatments" name="VAT Treatments"
+              parent="cd_p03_portal.menu_p03_ws_tax_engine_bd" action="action_fin_vat_treatments" sequence="4"/>
+
+    <record id="action_fin_withholding_certs" model="ir.actions.act_window">
+        <field name="name">Withholding Certificates</field>
+        <field name="res_model">fix.withholding.certificate</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_withholding_certs" name="Withholding Certificates"
+              parent="cd_p03_portal.menu_p03_ws_tax_engine_bd" action="action_fin_withholding_certs" sequence="5"/>
+
+    <!-- M53 · Revenue Recognition & Settlement (cd_settlement_ext + cd_subscription) -->
+    <record id="action_fin_commission_ledger" model="ir.actions.act_window">
+        <field name="name">Commission Ledger</field>
+        <field name="res_model">fix.commission.ledger</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_commission_ledger" name="Commission Ledger"
+              parent="cd_p03_portal.menu_p03_ws_settlement_ext" action="action_fin_commission_ledger" sequence="1"/>
+
+    <record id="action_fin_payout_runs" model="ir.actions.act_window">
+        <field name="name">Payout Runs</field>
+        <field name="res_model">fix.payout.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_payout_runs" name="Payout Runs"
+              parent="cd_p03_portal.menu_p03_ws_settlement_ext" action="action_fin_payout_runs" sequence="2"/>
+
+    <record id="action_fin_seller_statements" model="ir.actions.act_window">
+        <field name="name">Seller Statements</field>
+        <field name="res_model">fix.seller.statement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_seller_statements" name="Seller Statements"
+              parent="cd_p03_portal.menu_p03_ws_settlement_ext" action="action_fin_seller_statements" sequence="3"/>
+
+    <record id="action_fin_payout_reconciliation" model="ir.actions.act_window">
+        <field name="name">Payout Reconciliation</field>
+        <field name="res_model">fix.payout.reconciliation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_payout_reconciliation" name="Payout Reconciliation"
+              parent="cd_p03_portal.menu_p03_ws_settlement_ext" action="action_fin_payout_reconciliation" sequence="4"/>
+
+    <record id="action_fin_revenue_schedules" model="ir.actions.act_window">
+        <field name="name">Revenue Schedules</field>
+        <field name="res_model">fix.revenue.schedule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_revenue_schedules" name="Revenue Schedules"
+              parent="cd_p03_portal.menu_p03_ws_settlement_ext" action="action_fin_revenue_schedules" sequence="5"/>
+
+    <!-- M49 · Fixed Assets & Capex (cd_fixed_asset_ext) -->
+    <record id="action_fin_fixed_assets" model="ir.actions.act_window">
+        <field name="name">Fixed Asset Register</field>
+        <field name="res_model">fix.fixed.asset</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_fixed_assets" name="Fixed Asset Register"
+              parent="cd_p03_portal.menu_p03_ws_fixed_asset_ext" action="action_fin_fixed_assets" sequence="1"/>
+
+    <record id="action_fin_cwip" model="ir.actions.act_window">
+        <field name="name">CWIP Entries</field>
+        <field name="res_model">fix.cwip.entry</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_cwip" name="CWIP Entries"
+              parent="cd_p03_portal.menu_p03_ws_fixed_asset_ext" action="action_fin_cwip" sequence="2"/>
+
+    <!-- M54 · Costing, Budget & FP&A (cd_fpa) -->
+    <record id="action_fin_budgets" model="ir.actions.act_window">
+        <field name="name">Budgets</field>
+        <field name="res_model">fix.budget</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_budgets" name="Budgets"
+              parent="cd_p03_portal.menu_p03_ws_fpa" action="action_fin_budgets" sequence="1"/>
+
+    <record id="action_fin_cost_allocation" model="ir.actions.act_window">
+        <field name="name">Cost Allocations</field>
+        <field name="res_model">fix.cost.allocation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fin_cost_allocation" name="Cost Allocations"
+              parent="cd_p03_portal.menu_p03_ws_fpa" action="action_fin_cost_allocation" sequence="2"/>
+
+</odoo>

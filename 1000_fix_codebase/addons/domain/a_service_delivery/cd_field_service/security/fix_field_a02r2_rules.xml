@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 ERP audit pass 2 M02-08 (20 Nov 2026): a technician rewrote any field
+  order of his unit (schedule, notes) and could edit or forge location pings.
+  A technician changes only the orders assigned to him (or unassigned ones he
+  raised); a dispatcher changes any. A ping is created for the technician's
+  own employee (checked in fix.technician.location.create) and never edited.
+  A02 pass 2 review: group rules are ORed with the operating-unit rule every
+  internal user holds, so these two restrict nothing on their own; the
+  technician's own-orders check is fix.field.order._fix_refuse_foreign_write.
+-->
+<odoo>
+    <record id="rule_fix_field_order_technician_own" model="ir.rule">
+        <field name="name">fix.field.order: a technician changes his own orders</field>
+        <field name="model_id" ref="model_fix_field_order"/>
+        <field name="groups" eval="[(4, ref('group_fix_field_service_user'))]"/>
+        <field name="domain_force">['|', ('technician_id.user_id', '=', user.id), '&amp;', ('technician_id', '=', False), ('create_uid', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_field_order_dispatcher_all" model="ir.rule">
+        <field name="name">fix.field.order: a dispatcher changes any order</field>
+        <field name="model_id" ref="model_fix_field_order"/>
+        <field name="groups" eval="[(4, ref('group_fix_field_service_manager'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+</odoo>

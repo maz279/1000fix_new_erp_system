@@ -53,6 +53,7 @@
                             <field name="suspense_opening"/>
                             <field name="suspense_closing"/>
                             <field name="suspense_reconciled" readonly="1"/>
+                            <field name="cutover_move_id" domain="[('state', '=', 'posted'), ('company_id', '=', company_id)]"/>
                             <field name="cutover_voucher_ref" readonly="1"/>
                         </group>
                     </group>
@@ -147,6 +148,27 @@
     </record>
 
     <!-- Master Data Loader Views -->
+    <record id="view_fix_chart_loader_list" model="ir.ui.view">
+        <field name="name">fix.chart.loader.list</field>
+        <field name="model">fix.chart.loader</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="source_file" optional="hide"/>
+                <field name="loaded_at"/>
+                <field name="account_count"/>
+                <field name="linked_count"/>
+                <field name="reconciled_at"/>
+                <field name="unmapped_ledger_count"/>
+                <field name="recon_discrepancy"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'reconciled'"
+                       decoration-info="state == 'loaded'"/>
+            </list>
+        </field>
+    </record>
+
     <record id="view_fix_chart_loader_form" model="ir.ui.view">
         <field name="name">fix.chart.loader.form</field>
         <field name="model">fix.chart.loader</field>
@@ -155,8 +177,10 @@
                 <header>
                     <button name="action_load_from_csv" string="Import MD-035 CoA"
                             type="object" class="oe_highlight" invisible="state != 'draft'"/>
-                    <button name="action_reconcile_chart" string="Reconcile Chart"
-                            type="object" class="oe_highlight" invisible="state != 'loaded'"/>
+                    <button name="action_link_odoo_accounts" string="Link to Ledger Accounts"
+                            type="object" invisible="state == 'draft'"/>
+                    <button name="action_reconcile_chart" string="Reconcile with Ledger"
+                            type="object" class="oe_highlight" invisible="state == 'draft'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,loaded,reconciled"/>
                 </header>
                 <sheet>
@@ -174,12 +198,20 @@
                             <field name="checksum" readonly="1"/>
                         </group>
                     </group>
+                    <group string="Ledger Reconciliation">
+                        <group>
+                            <field name="linked_count"/>
+                            <field name="reconciled_at"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="recon_discrepancy"/>
+                            <field name="unmapped_ledger_count"/>
+                            <field name="unmapped_ledger_balance"/>
+                        </group>
+                    </group>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -187,7 +219,68 @@
     <record id="action_fix_chart_loader" model="ir.actions.act_window">
         <field name="name">CoA Master Data Loader</field>
         <field name="res_model">fix.chart.loader</field>
-        <field name="view_mode">form</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Statutory report bridge: statements computed from the posted ledger -->
+    <record id="view_fix_financial_report_bridge_list" model="ir.ui.view">
+        <field name="name">fix.financial.report.bridge.list</field>
+        <field name="model">fix.financial.report.bridge</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="report_type"/>
+                <field name="fiscal_year_id"/>
+                <field name="date_from" optional="show"/>
+                <field name="date_to" optional="show"/>
+                <field name="generated_at"/>
+                <field name="line_count"/>
+                <field name="headline_amount"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="is_balanced"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_financial_report_bridge_form" model="ir.ui.view">
+        <field name="name">fix.financial.report.bridge.form</field>
+        <field name="model">fix.financial.report.bridge</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate_report" string="Generate from Ledger"
+                            type="object" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="report_type"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="fiscal_year_id"/>
+                            <field name="date_from" invisible="fiscal_year_id"/>
+                            <field name="date_to" invisible="fiscal_year_id"/>
+                        </group>
+                        <group>
+                            <field name="generated_at"/>
+                            <field name="generated_by_id"/>
+                            <field name="line_count"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="headline_amount"/>
+                            <field name="is_balanced"/>
+                        </group>
+                    </group>
+                    <field name="report_data" widget="ace" options="{'mode': 'json'}"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_financial_report_bridge" model="ir.actions.act_window">
+        <field name="name">Statutory Report Bridge</field>
+        <field name="res_model">fix.financial.report.bridge</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_fixed_asset_seam" model="ir.actions.act_window">
@@ -196,18 +289,9 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- Menus -->
-    <menuitem id="menu_ws_finance" name="Finance"
-              parent="cd_entity_config.menu_fix_operations_root"
-              groups="cd_rbac_ext.group_fix_portal_user"
-              sequence="80"/>
-    <menuitem id="menu_fix_chart_account" name="Chart of Accounts"
-              parent="menu_ws_finance" action="action_fix_chart_account" sequence="5"/>
-    <menuitem id="menu_fix_period_close" name="Period Close"
-              parent="menu_ws_finance" action="action_fix_period_close" sequence="10"/>
-    <menuitem id="menu_fix_chart_loader" name="CoA Master Loader"
-              parent="menu_ws_finance" action="action_fix_chart_loader" sequence="15"/>
-    <menuitem id="menu_fix_fixed_asset_seam" name="Fixed Asset Seam"
-              parent="menu_ws_finance" action="action_fix_fixed_asset_seam" sequence="20"/>
+    <!-- The menuitems attaching these actions to the generated P03 workspace
+         menu live in cd_finance_nav (the bridge depending on BOTH cd_gl_ext
+         and cd_p03_portal) — a domain module must not reference platform
+         menus it does not depend on (clean-install load order, FF-46). -->
 
 </odoo>

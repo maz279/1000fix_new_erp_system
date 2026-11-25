@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- fix.consolidation.book tree view -->
+    <record id="view_fix_consolidation_book_tree" model="ir.ui.view">
+        <field name="name">fix.consolidation.book.tree</field>
+        <field name="model">fix.consolidation.book</field>
+        <field name="arch" type="xml">
+            <list string="Consolidation Books">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="parent_entity_id"/>
+                <field name="consolidation_date"/>
+                <field name="fiscal_year"/>
+                <field name="total_subsidiary_revenue"/>
+                <field name="total_eliminations"/>
+                <field name="net_consolidated_profit"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- fix.consolidation.book form view. Lines and eliminations are
+         computed from the posted ledger and matched inter-company
+         transactions: read-only here, never typed in. -->
+    <record id="view_fix_consolidation_book_form" model="ir.ui.view">
+        <field name="name">fix.consolidation.book.form</field>
+        <field name="model">fix.consolidation.book</field>
+        <field name="arch" type="xml">
+            <form string="Consolidation Book">
+                <header>
+                    <button name="action_run_consolidation" type="object" string="Run Consolidation"
+                            invisible="state == 'closed'" class="btn-primary"/>
+                    <button name="action_generate_eliminations" type="object" string="Generate Eliminations"
+                            invisible="state not in ('consolidated', 'eliminated')" class="btn-primary"/>
+                    <button name="action_close" type="object" string="Close Consolidation"
+                            invisible="state != 'eliminated'" class="btn-secondary"
+                            groups="account.group_account_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,consolidated,eliminated,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Consolidation Book Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="parent_entity_id"/>
+                            <field name="currency_id"/>
+                            <field name="consolidation_date"/>
+                            <field name="fiscal_year"/>
+                            <field name="run_by_id"/>
+                            <field name="run_at"/>
+                            <field name="closed_by_id"/>
+                        </group>
+                        <group>
+                            <field name="total_subsidiary_revenue"/>
+                            <field name="total_subsidiary_expense"/>
+                            <field name="total_eliminations"/>
+                            <field name="consolidated_revenue"/>
+                            <field name="consolidated_expense"/>
+                            <field name="net_consolidated_profit"/>
+                            <field name="total_assets"/>
+                            <field name="total_liabilities"/>
+                            <field name="consolidated_assets"/>
+                            <field name="consolidated_liabilities"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Participating Entities">
+                            <field name="entity_ids" readonly="state == 'closed'"/>
+                        </page>
+                        <page string="Consolidated Lines">
+                            <field name="line_ids" readonly="1">
+                                <list string="Lines">
+                                    <field name="entity_id"/>
+                                    <field name="account_code"/>
+                                    <field name="account_name"/>
+                                    <field name="account_type"/>
+                                    <field name="original_amount"/>
+                                    <field name="original_currency_id"/>
+                                    <field name="exchange_rate"/>
+                                    <field name="consolidated_amount"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Elimination Entries">
+                            <field name="elimination_ids" readonly="1">
+                                <list string="Eliminations">
+                                    <field name="name"/>
+                                    <field name="elimination_type"/>
+                                    <field name="from_entity_id"/>
+                                    <field name="to_entity_id"/>
+                                    <field name="amount"/>
+                                    <field name="transaction_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- fix.elimination.entry: generated by the book, read-only -->
+    <record id="view_fix_elimination_entry_list" model="ir.ui.view">
+        <field name="name">fix.elimination.entry.list</field>
+        <field name="model">fix.elimination.entry</field>
+        <field name="arch" type="xml">
+            <list string="Eliminations" create="false" edit="false">
+                <field name="book_id"/>
+                <field name="name"/>
+                <field name="elimination_type"/>
+                <field name="from_entity_id"/>
+                <field name="to_entity_id"/>
+                <field name="amount"/>
+                <field name="reference"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_elimination_entry_form" model="ir.ui.view">
+        <field name="name">fix.elimination.entry.form</field>
+        <field name="model">fix.elimination.entry</field>
+        <field name="arch" type="xml">
+            <form string="Elimination Entry" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="book_id"/>
+                            <field name="name"/>
+                            <field name="elimination_type"/>
+                            <field name="amount"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="from_entity_id"/>
+                            <field name="to_entity_id"/>
+                            <field name="transaction_id"/>
+                            <field name="reference"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action & Menu -->
+    <record id="action_fix_consolidation_book" model="ir.actions.act_window">
+        <field name="name">Group Consolidation</field>
+        <field name="res_model">fix.consolidation.book</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_elimination_entry" model="ir.actions.act_window">
+        <field name="name">Eliminations</field>
+        <field name="res_model">fix.elimination.entry</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_consolidation_root" name="Group Consolidation" parent="cd_entity_config.menu_fix_entity_root" sequence="50"/>
+    <menuitem id="menu_fix_consolidation_book" name="Consolidation Books" parent="menu_fix_consolidation_root" action="action_fix_consolidation_book" sequence="10"/>
+    <menuitem id="menu_fix_elimination_entry" name="Eliminations" parent="menu_fix_consolidation_root" action="action_fix_elimination_entry" sequence="20"/>
+</odoo>

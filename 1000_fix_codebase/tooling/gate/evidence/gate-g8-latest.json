@@ -1,0 +1,58 @@
+{
+    "schema":  "1000fix-erp/gate-g8/2",
+    "ranAtUtc":  "2026-10-22T14:17:50.1184158Z",
+    "pass":  2,
+    "conditions":  4,
+    "failures":  2,
+    "verdict":  "RED",
+    "criteria":  [
+                     {
+                         "Id":  "G8-1",
+                         "Criterion":  "T-6 entry: fitness clean",
+                         "Status":  "PASS",
+                         "Evidence":  "0 failures (fitness-20261022T134317Z.json)"
+                     },
+                     {
+                         "Id":  "G8-2",
+                         "Criterion":  "All modules delivered",
+                         "Status":  "PASS",
+                         "Evidence":  "71 manifests; FF-23: tests-present: OK - 71 modules, all have tests/"
+                     },
+                     {
+                         "Id":  "G8-3",
+                         "Criterion":  "Warehouse + data governance",
+                         "Status":  "CONDITION",
+                         "Evidence":  "metric-registry suite exit 0, 44 tests (governance/residency logic) executed; compose profile present=True and NFR-086c residency string in the model=True are artefact presence, not measurement; the warehouse migration itself is unmeasured - the ClickHouse container is not running in this environment (open external)"
+                     },
+                     {
+                         "Id":  "G8-4",
+                         "Criterion":  "Journey 10 + IoT telemetry",
+                         "Status":  "CONDITION",
+                         "Evidence":  "e-waste + stream-registry suites exit 0, 39 tests executed; wipe-certificate destruction gate in source=True (grep - artefact present, not measured); journey-10 EXECUTION (L6) and live IoT telemetry ingestion are unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G8-5",
+                         "Criterion":  "ML completion (STT + models)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "services/stt suite exit 0, 38 tests green - echo-level STT: transcribe() returns the caller-supplied text, no model behind it, so the measured WER in tests is fixture-typed, not a transcription measurement; the PDPA legal-basis refusal path is executed and asserted; a real Bengali WER measurement needs the acoustic model (open external)"
+                     },
+                     {
+                         "Id":  "G8-6",
+                         "Criterion":  "Warning fitness functions blocking",
+                         "Status":  "CONDITION",
+                         "Evidence":  "registry parse exit 0: 4 of 4 promoted FFs declared blocking (problems: none); executed now: FF-13 exit 0 (measured 0 OpenAPI contracts/clients - vacuous pass), FF-14 exit 0, FF-16 exit 0, FF-27 exit 0; CI runs the blocking set (model-registry job greps true in ci.yml: True) - configuration, not an executed CI run here; the r09-m04 promotion record is hand-authored with no generator and is not read as evidence"
+                     },
+                     {
+                         "Id":  "G8-7",
+                         "Criterion":  "Automated regression",
+                         "Status":  "FAIL",
+                         "Evidence":  "addons suite exit 1, 2783 passed, 2 failed - failing: addons/domain/b_customer_engagement/cd_corporate_portal/tests/test_corporate_api.py::test_service_request_is_created_and_tracked, addons/domain/b_customer_engagement/cd_corporate_portal/tests/test_corporate_api.py::test_service_request_model_gates_leave_nothing_behind - exit code honoured, today\u0027s failures are today\u0027s truth"
+                     },
+                     {
+                         "Id":  "G8-8",
+                         "Criterion":  "Zero high/critical security \u0026 full-estate DR",
+                         "Status":  "FAIL",
+                         "Evidence":  "L9 estate pen-test verdict=INCOMPLETE at 2026-10-22T13:40:04.712465+00:00 (critical=0, high=0, unmeasured vectors=3); DoD-15 remediation verdict=FAIL at 2026-10-22T10:19:04.709674+00:00 (all critical/high remediated=False; the record cites pentest run 2026-10-22T08:57:26.561970+00:00); PE-007 DR drill verdict=FAIL, RPO=UNMEASURED, RTO=UNMEASURED, data loss records=UNMEASURED, 6 PASS / 1 FAIL / 5 UNMEASURED of 12 checks [docs/traceability/evidence/g8-pe007-full-estate-dr-drill-evidence.json]"
+                     }
+                 ]
+}

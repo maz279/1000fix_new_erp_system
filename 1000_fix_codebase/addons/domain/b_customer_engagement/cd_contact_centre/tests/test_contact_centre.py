@@ -1,8 +1,10 @@
 # cd_contact_centre tests — M27 + M32 (P07-M05; G4-04/G4-05).
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_contact_centre.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_contact_centre.py").read_text(
+    encoding="utf-8"
+)
 
 
 class TestUnifiedChannels(unittest.TestCase):
@@ -29,7 +31,9 @@ class TestSystemOfRecord(unittest.TestCase):
 class TestHandoff(unittest.TestCase):
     def test_full_context_transfer(self):
         """T07: the handoff carries channel, intent, reason and turn count."""
-        body = SOURCE[SOURCE.index("def action_handoff_to_agent"):SOURCE.index("def action_resolve")]
+        body = SOURCE[
+            SOURCE.index("def action_handoff_to_agent") : SOURCE.index("def action_resolve")
+        ]
         for key in ("channel", "intent", "reason", "turns"):
             self.assertIn(key, body)
 
@@ -41,7 +45,7 @@ class TestResolutionRate(unittest.TestCase):
     def test_measured_against_handoffs_not_sessions(self):
         """G4-05: AI resolutions / (AI resolutions + handoffs) — the honest
         denominator."""
-        body = SOURCE[SOURCE.index("def resolution_rate"):]
+        body = SOURCE[SOURCE.index("def resolution_rate") :]
         self.assertIn("ai + handoffs", body)
         self.assertNotIn("search_count([])", body)
 
@@ -63,6 +67,26 @@ class TestAssistantIntents(unittest.TestCase):
 
     def test_handoff_on_failure(self):
         self.assertIn("handoff_on_failure", SOURCE)
+
+
+class TestTelephonyAndPIIMasking(unittest.TestCase):
+    def test_call_sid_telephony_field(self):
+        self.assertIn("call_sid", SOURCE)
+
+    def test_pii_masked_pdpa_field(self):
+        self.assertIn("pii_masked", SOURCE)
+
+    def test_intake_hotline_call_method(self):
+        self.assertIn("def intake_hotline_call", SOURCE)
+        self.assertIn("conversation.hotline_captured", SOURCE)
+
+    def test_intake_message_method(self):
+        self.assertIn("def intake_message", SOURCE)
+
+    def test_mask_pii_for_mining_method(self):
+        self.assertIn("def mask_pii_for_mining", SOURCE)
+        self.assertIn("[PHONE_MASKED]", SOURCE)
+        self.assertIn("[EMAIL_MASKED]", SOURCE)
 
 
 if __name__ == "__main__":

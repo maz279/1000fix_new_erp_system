@@ -6,7 +6,8 @@
 #   integration   + Kong + Airflow + Novu                                ~5 GB
 #   field         + Traccar + OSRM + VROOM                               ~7 GB
 #   observability + Prometheus + Grafana + Loki + Tempo + OTel collector  ~8 GB
-#   full          everything                                             ~10-12 GB
+#   full          everything (every service lists "full" - R01 re-audit:
+#                 no service did, so `--profile full` selected NOTHING)  ~10-12 GB
 #
 # Standing rules (BE-001 DE-01..DE-09), enforced here and checked by doctor:
 #   DE-03 every service declares a healthcheck; `up` waits for health
@@ -39,7 +40,7 @@ services:
   # ------------------------------------------------------------------ core
   postgres:
     image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
-    profiles: ["core"]
+    profiles: ["core", "full"]
     environment:
       FIX_ENV: local
       POSTGRES_USER: fix
@@ -54,8 +55,15 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
     ports: ["127.0.0.1:5433:5432"]   # 5433: a neighbouring project's postgres
                                        # holds 5432 on this shared workstation
+    # Parallel queries and parallel index builds take their shared memory from
+    # /dev/shm. Docker's 64 MB default ran out under parallel test runs:
+    # "could not resize shared memory segment ... No space left on device",
+    # then a backend segfault and a 30+ minute crash recovery that took every
+    # database down (5 Nov and 12 Nov 2026). Idle use is already ~32 MB.
+    shm_size: "1gb"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fix -d fix_dev"]
       interval: 5s
@@ -65,7 +73,7 @@ services:
   redis:
     # D-031 interim pin: 7.2.x = last BSD-3 line. Valkey alternative pending.
     image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
-    profiles: ["core"]
+    profiles: ["core", "full"]
     environment:
       FIX_ENV: local
     command: ["redis-server", "--save", "", "--appendonly", "no"]
@@ -84,7 +92,7 @@ services:
     # the ceph/daemon wrapper image, which does (verified: radosgw +
     # /opt/ceph-container/bin/entrypoint.sh present).
     image: ceph/daemon@sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586
-    profiles: ["core"]
+    profiles: ["core", "full"]
     environment:
       # The demo entrypoint refuses to start without the public network and
       # monitor IP declared (observed exits: CEPH_PUBLIC_NETWORK / MON_IP
@@ -105,7 +113,11 @@ services:
     volumes:
       - cephdata:/var/lib/ceph
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080 || exit 1"]
+      # --max-time is load-bearing: when the OSD goes down RGW accepts the
+      # connection and never answers, and Docker's own timeout does not kill
+      # the probe. 2026-11-10: 15,180 hung curls (14.5 GB) accumulated in two
+      # days and starved Postgres of process slots ("could not fork").
+      test: ["CMD-SHELL", "curl -sf --max-time 4 http://127.0.0.1:8080 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -113,7 +125,7 @@ services:
   mailpit:
     # DE-07: the ONLY mail sink. No service sends real mail from local. Ever.
     image: axllent/mailpit:v1.22@sha256:f7f7c31de4de59540ad6515a0ca057a77525bca2069b6e747d873ca66c10fe08
-    profiles: ["core"]
+    profiles: ["core", "full"]
     environment:
       FIX_ENV: local
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
@@ -134,7 +146,7 @@ services:
     # ONLY, structurally incapable of reaching a real resident store (no
     # network route is configured at all).
     build: ../../services/local-residency-stub
-    profiles: ["core"]
+    profiles: ["core", "full"]
     environment:
       FIX_ENV: local
       RESIDENCY_MODE: synthetic-only
@@ -148,7 +160,7 @@ services:
   # ------------------------------------------------------------------ auth
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.0@sha256:08a31919cfcd814bf1b465142b1a716c4d1a8830f772bb5c9dffcbd96de3fba6
-    profiles: ["auth"]
+    profiles: ["auth", "full"]
     environment:
       FIX_ENV: local
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -167,9 +179,37 @@ services:
       timeout: 5s
       retries: 30
 
+  identity-lifecycle:
+    # M29 leaver deprovisioning (KPI-090): consumes employee.left through
+    # libs/py/fix_events, disables the Keycloak account, revokes sessions and
+    # role mappings, and reports identity.deprovisioned / identity.deprovision_failed
+    # back (cd_hr_core applies it). Built from the repo root (needs libs/py).
+    build:
+      context: ../..
+      dockerfile: services/identity-lifecycle/Dockerfile
+    profiles: ["auth", "full"]
+    environment:
+      FIX_ENV: local
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: 1000fix-dev
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set in .env - development-only value}
+      IDENTITY_LIFECYCLE_HOST: 0.0.0.0   # in-container bind; published on loopback only (DE-04)
+      IDENTITY_LIFECYCLE_LEDGER: /var/lib/identity-lifecycle/ledger.json
+    volumes:
+      - identitylifecycledata:/var/lib/identity-lifecycle
+    ports: ["127.0.0.1:8120:8120"]
+    depends_on:
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8120/health',timeout=5)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
   pgbouncer:
     image: edoburu/pgbouncer:v1.24.0-p0@sha256:a578416121c1c991caa1abb314736178236f03811a721e97a028a9824e436c2c
-    profiles: ["auth"]
+    profiles: ["auth", "full"]
     environment:
       FIX_ENV: local
       DB_USER: fix
@@ -179,6 +219,7 @@ services:
       POOL_MODE: transaction
       MAX_CLIENT_CONN: "200"
       DEFAULT_POOL_SIZE: "20"
+      LISTEN_PORT: "6432"        # image default is 5432; port map + healthcheck use 6432
     ports: ["127.0.0.1:6432:6432"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -191,12 +232,16 @@ services:
   # ------------------------------------------------------------ integration
   kong:
     image: kong:3.9@sha256:92035d16d7ff86b7bc12fb1d0090d29357d924238b1880f78735f3f2fea6b631
-    profiles: ["integration"]
+    profiles: ["integration", "full"]
     environment:
       FIX_ENV: local
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
-      KONG_PROXY_LISTEN: 0.0.0.0:8000 reuseport backlog=16384, 0.0.0.0:8443
+      # 8000 plain + 8443 TLS with the development gateway certificate
+      # (infra/compose/kong/certs; production swaps a real CA cert in).
+      KONG_PROXY_LISTEN: 0.0.0.0:8000 reuseport backlog=16384, 0.0.0.0:8443 ssl reuseport backlog=16384
+      KONG_SSL_CERT: /kong/declarative/certs/gateway.crt
+      KONG_SSL_CERT_KEY: /kong/declarative/certs/gateway.key
     extra_hosts:
       # host.docker.internal is Docker-Desktop-only; this makes it work on
       # Linux CI runners too (Docker 20.10+).
@@ -206,6 +251,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
       - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8443:8443"
     healthcheck:
       test: ["CMD-SHELL", "kong health"]
       interval: 10s
@@ -215,7 +261,7 @@ services:
   airflow:
     # D-030 replacement for n8n (orchestration use case only).
     image: apache/airflow:3.1.0@sha256:e81cb98fe4e5f60fadde8cc6a1c926a363720339062cd53db04b6442950ab9ee
-    profiles: ["integration"]
+    profiles: ["integration", "full"]
     environment:
       FIX_ENV: local
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -226,20 +272,49 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
-      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname localhost"]
+      # Airflow 3 standalone: SchedulerJob job-check does not see the combined
+      # process; the v2 monitor endpoint is the supported liveness probe.
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/api/v2/monitor/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
 
+  # Novu persists to MongoDB and queues on Redis; without these three secrets
+  # and a Mongo URL the API exits at boot (it never started before 2026-10-22).
+  novu-mongo:
+    image: mongo:7.0.14@sha256:0032d2ca20db5fa34926f196c8a43b74e34ed239a7f2453ff1505b6f12ba8ea6
+    profiles: ["integration", "full"]
+    environment:
+      FIX_ENV: local
+    volumes: ["novu-mongo:/data/db"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
   novu:
-    image: ghcr.io/novuhq/novu:4.0.0@sha256:9396bf27ffbc7766cbff77cf02fb6f38fe1cb349479b3ba5c65f9733055e810a
-    profiles: ["integration"]
+    image: ghcr.io/novuhq/novu/api:2.3.0@sha256:99ba6b4611169bfa2a96f251a61136efcb3d9c6a688b6c706db5608b76445a12
+    profiles: ["integration", "full"]
     environment:
       FIX_ENV: local
       NODE_ENV: dev
-    ports: ["127.0.0.1:3000:3000"]
+      PORT: "3000"
+      MONGO_URL: mongodb://novu-mongo:27017/novu-db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_CACHE_SERVICE_HOST: redis
+      REDIS_CACHE_SERVICE_PORT: "6379"
+      JWT_SECRET: ${NOVU_JWT_SECRET:?set NOVU_JWT_SECRET in .env}
+      STORE_ENCRYPTION_KEY: ${NOVU_STORE_ENCRYPTION_KEY:?set NOVU_STORE_ENCRYPTION_KEY (32 chars) in .env}
+      NOVU_SECRET_KEY: ${NOVU_SECRET_KEY:?set NOVU_SECRET_KEY in .env}
+    # host 3040: 3000 is the customer portal dev server
+    ports: ["127.0.0.1:3040:3000"]
+    depends_on:
+      novu-mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/v1/health-check >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -249,11 +324,14 @@ services:
   # (EP-11): non-production email routes to Mailpit on the compose network.
   notification-dispatcher:
     build:
-      context: ../../services/notification-dispatcher
-    profiles: ["integration"]
+      # repo root: the image ships libs/py/fix_telemetry (NFR-092 spans)
+      context: ../..
+      dockerfile: services/notification-dispatcher/Dockerfile
+    profiles: ["integration", "full"]
     environment:
       FIX_ENV: local
       FIX_ACTIVE_WAVE: W1
+      FIX_NOTIFICATION_DISPATCHER_HOST: "0.0.0.0"
       FIX_EMAIL_API_URL: http://mailpit:8025/api/v1/send
       FIX_NOVU_API_URL: http://novu:3000
     ports: ["127.0.0.1:8110:8110"]
@@ -268,7 +346,7 @@ services:
   # ------------------------------------------------------------------ field
   traccar:
     image: traccar/traccar:6.7@sha256:621c8d6d46fdb990aa43224c6644947d2de52f20728bd71e21c0808d1012db1f
-    profiles: ["field"]
+    profiles: ["field", "full"]
     environment:
       FIX_ENV: local
     ports:
@@ -277,14 +355,16 @@ services:
     volumes:
       - traccardata:/opt/traccar/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/health >/dev/null || exit 1"]
+      # /api/health 404s on this Traccar image; /api/server is the live
+      # anonymous endpoint (verified 200 on 2026-10-24).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/server >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
 
   osrm:
     image: osrm/osrm-backend:v5.25.0@sha256:bdfa60e64ae1376bff6ff5605991be50600132a27469a4a9e77c23afd3a6d555
-    profiles: ["field"]
+    profiles: ["field", "full"]
     command: ["osrm-routed", "--algorithm", "mld", "/data/bangladesh.osrm"]
     volumes:
       - osrmdata:/data
@@ -297,7 +377,7 @@ services:
 
   vroom:
     image: vroomvrp/vroom-docker:v1.13.0@sha256:2e417553320bf68a25f6614ba8bdc31b0b2fc1172f8c25518c4656f488031c2a
-    profiles: ["field"]
+    profiles: ["field", "full"]
     environment:
       FIX_ENV: local
       OSRM_HOST: osrm
@@ -313,7 +393,7 @@ services:
   # ---------------------------------------------------------- observability
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.116.0@sha256:70217a89d27c678ead44f196d80aa8c2717cb68d0301dbdc40331dbec0a3e605
-    profiles: ["observability"]
+    profiles: ["observability", "full"]
     environment:
       FIX_ENV: local
     command: ["--config=/etc/otelcol/config.yaml"]
@@ -330,7 +410,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.3.0@sha256:339ce86a59413be18d0e445472891d022725b4803fab609069110205e79fb2f1
-    profiles: ["observability"]
+    profiles: ["observability", "full"]
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -344,13 +424,15 @@ services:
 
   grafana:
     image: grafana/grafana:11.6.0@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb
-    profiles: ["observability"]
+    profiles: ["observability", "full"]
     environment:
       FIX_ENV: local
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in .env - development-only value}
     volumes:
       - grafanadata:/var/lib/grafana
-    ports: ["127.0.0.1:3002:3000"]
+    # 3300, not 3002: the 3000-3007 range is reserved for the eight web
+    # portals (their package.json dev scripts); P06 analytics owns 3002.
+    ports: ["127.0.0.1:3300:3000"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
       interval: 10s
@@ -359,7 +441,7 @@ services:
 
   loki:
     image: grafana/loki:3.4.0@sha256:74b8ccbd6e4b4932874742cf3997389592389ea721b3f210aad266486b985a4c
-    profiles: ["observability"]
+    profiles: ["observability", "full"]
     command: ["-config.file=/etc/loki/local-config.yaml"]
     volumes:
       - lokidata:/loki
@@ -372,7 +454,7 @@ services:
 
   tempo:
     image: grafana/tempo:2.7.0@sha256:12e904cc509a8e0bd87815e0bc719b6167933bc3f2532716a85811af967780f6
-    profiles: ["observability"]
+    profiles: ["observability", "full"]
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     volumes:
       - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
@@ -384,8 +466,40 @@ services:
       timeout: 5s
       retries: 20
 
+  telemetry-collector:
+    # CD-M02-03 / ARCH-040 / NFR-056: high-throughput technician telemetry
+    # collector (Go). Pings are flushed with real batch INSERTs into
+    # fix_technician_telemetry. STORAGE NOTE (honest trade-off): the compose
+    # core postgres is plain postgres:17 with NO TimescaleDB extension, so in
+    # this stack the collector runs on the plain-table code path
+    # (storage_mode=plain-postgres-table, /health reports timescaledb_ready=false).
+    # It still creates the table + indexes + latest-location view itself on
+    # boot, and automatically creates the hypertable instead when pointed at a
+    # server that has TimescaleDB (see
+    # migrations/sql/timescaledb_telemetry_hypertable.sql). Pulling a
+    # timescale/timescaledb image into the stack was rejected to keep the
+    # observability profile's memory footprint unchanged.
+    build:
+      context: ../../services/telemetry-collector
+    profiles: ["observability", "full"]
+    environment:
+      FIX_ENV: local
+      PORT: "8084"
+      DATABASE_URL: postgres://fix:${POSTGRES_PASSWORD:?set in .env - development-only value}@postgres:5432/fix_dev?sslmode=disable
+    ports: ["127.0.0.1:8084:8084"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      # /health is honest: 503 + degraded until the DB store is actually connected.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
 volumes:
   pgdata:
+  novu-mongo:
+  identitylifecycledata:
   cephdata:
   traccardata:
   osrmdata:

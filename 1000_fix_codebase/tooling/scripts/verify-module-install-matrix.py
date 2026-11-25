@@ -7,13 +7,14 @@ Proves OD-02 installability per module across the 66-module estate:
 - Proves runtime installability in dependency sequence against the live database.
 - Emits a machine-readable evidence record to tooling/fitness/evidence/module-install-matrix-latest.json.
 """
+
 from __future__ import annotations
 
 import ast
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -43,7 +44,7 @@ def get_all_manifests() -> dict[str, dict]:
 
 def compute_topological_order(modules: dict[str, dict]) -> list[str]:
     cd_mods = set(modules.keys())
-    in_degree = {m: 0 for m in cd_mods}
+    in_degree = dict.fromkeys(cd_mods, 0)
     adj = {m: [] for m in cd_mods}
 
     for m, info in modules.items():
@@ -71,9 +72,22 @@ def compute_topological_order(modules: dict[str, dict]) -> list[str]:
 def query_installed_modules() -> dict[str, dict]:
     """Query PostgreSQL ir_module_module in Docker container."""
     cmd = [
-        "docker", "compose", "-f", "infra/compose/docker-compose.yml", "--env-file", ".env",
-        "exec", "-T", "postgres", "psql", "-U", "fix", "-d", "fix_dev", "-tAc",
-        "SELECT name, state, latest_version FROM ir_module_module WHERE name LIKE 'cd_%'"
+        "docker",
+        "compose",
+        "-f",
+        "infra/compose/docker-compose.yml",
+        "--env-file",
+        ".env",
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "fix",
+        "-d",
+        "fix_dev",
+        "-tAc",
+        "SELECT name, state, latest_version FROM ir_module_module WHERE name LIKE 'cd_%'",
     ]
     try:
         res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, check=True)
@@ -81,7 +95,10 @@ def query_installed_modules() -> dict[str, dict]:
         for line in res.stdout.strip().splitlines():
             parts = line.split("|")
             if len(parts) >= 2:
-                installed[parts[0]] = {"state": parts[1], "version": parts[2] if len(parts) > 2 else ""}
+                installed[parts[0]] = {
+                    "state": parts[1],
+                    "version": parts[2] if len(parts) > 2 else "",
+                }
         return installed
     except Exception as e:
         print(f"Warning: could not query Docker postgres: {e}", file=sys.stderr)
@@ -142,7 +159,9 @@ def main() -> int:
         installed_so_far.add(mod)
 
         status_flag = "[PASS]" if is_ok else "[FAIL]"
-        print(f"{status_flag} {idx:02d}/66 {mod:<24} layer={info['layer']:<8} deps={len(info['depends']):<2} db={db_state}")
+        print(
+            f"{status_flag} {idx:02d}/66 {mod:<24} layer={info['layer']:<8} deps={len(info['depends']):<2} db={db_state}"
+        )
 
     print("----------------------------------------------------------------------")
     print(f"OD-02 Installability Matrix: {66 - failures}/66 PASS (Failures: {failures})")
@@ -151,7 +170,7 @@ def main() -> int:
     evidence_path = EVIDENCE_DIR / "module-install-matrix-latest.json"
     evidence_data = {
         "schema": "1000fix-erp/module-install-matrix/1",
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "total_modules": len(matrix),
         "passed": 66 - failures,
         "failed": failures,

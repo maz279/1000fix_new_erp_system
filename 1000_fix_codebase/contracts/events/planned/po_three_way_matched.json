@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "po.three_way_matched",
+  "description": "Event emitted when PO, GRN, and vendor invoice match within financial tolerance (Journey 12)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "po.three_way_matched"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ap_ext"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "match_id",
+        "po_id",
+        "invoice_id",
+        "matched_amount",
+        "matched_at"
+      ],
+      "properties": {
+        "match_id": {
+          "type": "string"
+        },
+        "po_id": {
+          "type": "integer"
+        },
+        "invoice_id": {
+          "type": "integer"
+        },
+        "matched_amount": {
+          "type": "number"
+        },
+        "variance": {
+          "type": "number"
+        },
+        "matched_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

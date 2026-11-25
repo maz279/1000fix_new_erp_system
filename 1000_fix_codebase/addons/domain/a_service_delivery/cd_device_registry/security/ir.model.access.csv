@@ -1,6 +1,31 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_device,fix.device,model_fix_device,base.group_user,1,1,1,0
 access_fix_warranty,fix.warranty,model_fix_warranty,base.group_user,1,1,1,0
-access_fix_device_ownership,fix.device.ownership,model_fix_device_ownership,base.group_user,1,1,1,0
+access_fix_device_ownership,fix.device.ownership,model_fix_device_ownership,base.group_user,1,0,0,0
+access_fix_device_ownership_agent,fix.device.ownership agent,model_fix_device_ownership,group_device_registry_user,1,1,1,0
 access_fix_device_history,fix.device.history,model_fix_device_history,base.group_user,1,0,1,0
-access_fix_device_part_compatibility,fix.device.part.compatibility,model_fix_device_part_compatibility,base.group_user,1,1,1,0
+access_fix_device_part_compatibility,fix.device.part.compatibility,model_fix_device_part_compatibility,base.group_user,1,0,0,0
+access_fix_device_part_compatibility_manager,fix.device.part.compatibility manager,model_fix_device_part_compatibility,group_device_branch_manager,1,1,1,1
+access_fix_device_estate,fix.device.estate,model_fix_device_estate,base.group_user,1,1,1,0
+access_fix_device_estate_manager,fix.device.estate manager,model_fix_device_estate,group_device_branch_manager,1,1,1,1
+access_fix_device_pm,fix.device.pm,model_fix_device_pm,base.group_user,1,1,1,0
+access_fix_device_pm_manager,fix.device.pm manager,model_fix_device_pm,group_device_branch_manager,1,1,1,1
+access_fix_device_condition,fix.device.condition,model_fix_device_condition,base.group_user,1,1,1,0
+access_fix_device_identity,fix.device.identity,model_fix_device_identity,base.group_user,1,1,1,0
+access_fix_device_custody,fix.device.custody,model_fix_device_custody,base.group_user,1,1,1,0
+access_fix_device_component,fix.device.component,model_fix_device_component,base.group_user,1,1,1,0
+access_fix_device_identifier,fix.device.identifier,model_fix_device_identifier,base.group_user,1,0,0,0
+access_fix_device_merge,fix.device.merge,model_fix_device_merge,base.group_user,1,0,0,0
+access_fix_device_bulk_load,fix.device.bulk.load,model_fix_device_bulk_load,base.group_user,1,1,1,0
+access_fix_device_bulk_load_manager,fix.device.bulk.load manager,model_fix_device_bulk_load,group_device_branch_manager,1,1,1,1
+access_fix_device_bulk_line,fix.device.bulk.line,model_fix_device_bulk_line,base.group_user,1,0,0,0
+access_fix_device_label,fix.device.label,model_fix_device_label,base.group_user,1,1,1,0
+access_fix_device_accessory,fix.device.accessory,model_fix_device_accessory,base.group_user,1,1,1,0
+access_fix_device_configuration,fix.device.configuration,model_fix_device_configuration,base.group_user,1,1,1,0
+access_fix_device_population_change,fix.device.population.change,model_fix_device_population_change,base.group_user,1,0,0,0
+access_fix_device_population_change_agent,fix.device.population.change agent,model_fix_device_population_change,group_device_registry_user,1,1,1,0
+access_fix_device_estate_node,fix.device.estate.node,model_fix_device_estate_node,base.group_user,1,1,1,0
+access_fix_device_estate_node_manager,fix.device.estate.node manager,model_fix_device_estate_node,group_device_branch_manager,1,1,1,1
+access_fix_device_estate_placement,fix.device.estate.placement,model_fix_device_estate_placement,base.group_user,1,1,1,0
+access_fix_device_eol_decision,fix.device.eol.decision,model_fix_device_eol_decision,base.group_user,1,1,1,1
+access_fix_device_quality_issue,fix.device.quality.issue,model_fix_device_quality_issue,base.group_user,1,1,1,0

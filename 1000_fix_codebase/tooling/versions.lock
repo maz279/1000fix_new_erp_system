@@ -91,6 +91,15 @@ WORKSTATION_WKHTMLTOPDF_CONTAINER_VERSION=0.12.6.1-3
 WORKSTATION_WKHTMLTOPDF_CONTAINER_URL_BASE=https://github.com/wkhtmltopdf/packaging/releases/download
 WORKSTATION_WKHTMLTOPDF_CONTAINER_SHA256_AMD64=4f723b2691ad8638a9df960e0421d346d7315083e3583a334f33362280ddba15
 WORKSTATION_WKHTMLTOPDF_CONTAINER_SHA256_ARM64=2095f20256661ebf0983b9311168596c9d012666e21a94bc24f304db6ac69ec5
+# Odoo IMAGE (infra/docker/odoo, R01 re-audit 2026-10-22): the jammy .deb above
+# cannot install on Debian (Depends libjpeg-turbo8). The image runs the SAME
+# patched-Qt 0.12.6.1-3 release built for Debian 12 bookworm. Upstream publishes
+# no checksum: the pin is the SHA256 of the release asset, fetched twice on
+# 2026-10-22 with identical results (16986150 bytes; SHA1
+# e9f95436298c77cc9406bd4bbd242f4771d0a4b2). Verified before install by
+# infra/docker/odoo/fetch-pinned.py.
+WORKSTATION_WKHTMLTOPDF_CONTAINER_BOOKWORM_URL_AMD64=https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb
+WORKSTATION_WKHTMLTOPDF_CONTAINER_BOOKWORM_SHA256_AMD64=98ba0d157b50d36f23bd0dedf4c0aa28c7b0c50fcdcdc54aa5b6bbba81a3941d
 
 # --- Bengali fonts (T05, TR-07 - non-negotiable) -----------------------------
 # Primary: Noto Sans Bengali, full hinted family, hash-pinned from the
@@ -224,7 +233,49 @@ COMPOSE_DIGEST_apache_kafka=sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d58
 COMPOSE_DIGEST_ghcr.io_mlflow_mlflow=sha256:65aa7a75fe37554bd7dd9e539b58e1ec130dac99f27fef9756df316a272dfee2
 COMPOSE_DIGEST_ollama_ollama=sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6
 COMPOSE_DIGEST_clickhouse_clickhouse-server=sha256:bdb5c911a23d92fd364e246ab20b5a0a485f00112f3663fa626b083fb46c146b
-COMPOSE_DIGEST_ylianyona_meshcentral=sha256:9ea262ff902fa18fcca8688af4c7fe62988254f5cf08f273193bec6b4cf626be
 COMPOSE_DIGEST_wazuh_wazuh-manager=sha256:238c2f30c4a677e57467eaac5794be579d3ca6a58e4fc7dd54d470bce267f4c0
 COMPOSE_DIGEST_mayanedms_mayanedms=sha256:03f7f43a686433e7dfc1151c3df37d8c376149e59b026008a5e846e578f03747
-COMPOSE_DIGEST_ghcr.io_novuhq_novu_4.0.0=sha256:9396bf27ffbc7766cbff77cf02fb6f38fe1cb349479b3ba5c65f9733055e810a
+
+# [compose-digests] - R01 audit correction 2026-10-21: real registry digests for
+# ha.yml/vault.yml images (previously synthetic sequential-hex values) and
+# PENDING-FIRST-BUILD markers for locally-built 1000fix/odoo images.
+COMPOSE_DIGEST_kong_3.8.0=sha256:322e80209a919d6eb221e5082db939753a602a09f210f8314a4c7533b7d170d4
+COMPOSE_DIGEST_nginx_1.27-alpine=sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+COMPOSE_DIGEST_quay.io_keycloak_keycloak_26.0.0=sha256:db0d0f2c2eee8618a37a50e04affb69823e56687b4d1b676a847a4b85de62178
+# 1000fix/odoo:19.0-{dev,sit,uat,sandbox,staging,training,perf,prod,dr} -
+# FIRST BUILD PINNED 2026-10-22 (deployment-readiness pass): image built from
+# infra/docker/odoo/Dockerfile, pushed to the LOCAL registry (127.0.0.1:5500,
+# registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373),
+# digest captured from the registry's Docker-Content-Digest header, and both
+# the Odoo and portal images ROUND-TRIPPED: booted strictly by digest from the
+# registry (Odoo /web/health 200 on the compose network; portal HTTP 200).
+# All nine env tags reference this one digest; pushing to a PRODUCTION
+# registry and re-pinning there is the documented operator step
+# (docs/guides/digest-pinning-policy.md).
+COMPOSE_DIGEST_1000fix_odoo_19.0=sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1
+COMPOSE_DIGEST_1000fix_portal-customer_19.0.0=sha256:282984d4f5bfafc3c8280ba3731e2b7cfc5bf6fc74ec39b450d7ca7d4a76ae53
+
+# [compose-digests] - R01 re-audit 2026-10-22: four references that the
+# registries reject (HEAD manifest-by-digest -> 404/401/nonexistent repo) were
+# replaced with digests resolved live from the registry for the named tag:
+#   apache/superset:4.0.2      old digest 404 on Docker Hub
+#   python:3.12-slim           old digest 404 on Docker Hub (migration-runner)
+#   ylianyona/meshcentral      repository does not exist -> ghcr.io/ylianst/meshcentral:1.1.60
+#   ghcr.io/novuhq/novu:4.0.0  repository/tag does not exist -> ghcr.io/novuhq/novu/api:2.3.0
+# Verify any time with tooling/scripts/verify-compose-digests.py (network).
+COMPOSE_DIGEST_apache_superset_4.0.2=sha256:51a90d11a59ac522172642cece4bd8047917253e13d884293fcd0cd48419939c
+COMPOSE_DIGEST_python_3.12-slim=sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2
+COMPOSE_DIGEST_ghcr.io_ylianst_meshcentral_1.1.60=sha256:6a18ca8f5e1f86b5c8a0c111b42a138895dc1724182a50c6a46690237ac98185
+COMPOSE_DIGEST_ghcr.io_novuhq_novu_api_2.3.0=sha256:99ba6b4611169bfa2a96f251a61136efcb3d9c6a688b6c706db5608b76445a12
+DOCKERFILE_DIGEST_python_3.12-slim=sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2
+DOCKERFILE_DIGEST_golang_1.24-alpine=sha256:8bee1901f1e530bfb4a7850aa7a479d17ae3a18beb6e09064ed54cfd245b7191
+DOCKERFILE_DIGEST_alpine_3.20=sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+# D-030: hashicorp/vault (BUSL-1.1, not-approved) replaced by OpenBao (R01 re-audit 2026-10-22)
+COMPOSE_DIGEST_openbao_openbao_2.7.1=sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+
+# [dockerfile-digests] - R01 re-audit 2026-10-22: infra/docker/odoo/Dockerfile
+# Base: python:3.12-slim-bookworm (Debian 12, the newest Debian release with a
+# wkhtmltopdf 0.12.6.1-3 build; oldstable - Debian LTS security support to
+# 2028-06-30). Both digests resolved with `docker buildx imagetools inspect`.
+DOCKERFILE_DIGEST_python_3.12-slim-bookworm=sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70
+DOCKERFILE_DIGEST_ghcr.io_astral-sh_uv_0.12.13=sha256:b485bd65cc2cf1c9a93b3554012c9c3778cf7b1b5fd3d3096ce9e1226c97e1e6

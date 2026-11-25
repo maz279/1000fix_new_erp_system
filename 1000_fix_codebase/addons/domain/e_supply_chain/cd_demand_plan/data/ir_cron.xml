@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M43 (A06 final pass, BRU-DPL-01): a provisional manual demand expires once its
+  part has real M15 history. A plan on such a policy is refused until it is
+  revised from history.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_demand_provisional_expire" model="ir.cron">
+            <field name="name">M43: expire provisional demand where real history exists</field>
+            <field name="model_id" ref="model_fix_demand_policy"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire_provisional()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

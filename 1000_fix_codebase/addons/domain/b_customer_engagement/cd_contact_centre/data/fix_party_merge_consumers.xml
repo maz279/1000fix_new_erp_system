@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumer of party.merged for M27 (A03 audit W1): open conversations follow a
+     supervised party merge. Each re-point is logged in
+     fix.party.repoint.log, so a merge reversal moves it back. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_party_merged_conversation" model="fix.event.consumer">
+            <field name="name">M27: open conversations follow the merged customer</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.conversation</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,13 @@
+# portal-seller (apps/web/seller) - instance of ../_template.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../_template
+nameSuffix: -seller
+labels:
+  - pairs:
+      app.kubernetes.io/name: portal-seller
+    includeSelectors: true
+images:
+  - name: 1000fix/portal
+    newName: 1000fix/portal-seller

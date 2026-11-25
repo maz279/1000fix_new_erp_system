@@ -1,60 +1,62 @@
-﻿{
-    "configured_at":  "2026-10-16T07:00:17Z",
-    "standard":  "BE-003 Section 3.3 / P02-M03-T05 / R01-M03-T01",
-    "branches":  {
-                     "develop":  {
-                                     "allow_deletions":  false,
-                                     "required_status_checks":  {
-                                                                    "contexts":  [
-                                                                                     "precommit",
-                                                                                     "lint-type",
-                                                                                     "model-registry",
-                                                                                     "unit",
-                                                                                     "architecture"
-                                                                                 ],
-                                                                    "strict":  true
-                                                                },
-                                     "restrictions":  null,
-                                     "required_conversation_resolution":  true,
-                                     "required_linear_history":  true,
-                                     "required_pull_request_reviews":  {
-                                                                           "required_approving_review_count":  1,
-                                                                           "require_code_owner_reviews":  true,
-                                                                           "dismiss_stale_reviews":  true
-                                                                       },
-                                     "allow_force_pushes":  false,
-                                     "enforce_admins":  false
-                                 },
-                     "main":  {
-                                  "allow_deletions":  false,
-                                  "required_status_checks":  {
-                                                                 "contexts":  [
-                                                                                  "precommit",
-                                                                                  "lint-type",
-                                                                                  "model-registry",
-                                                                                  "unit",
-                                                                                  "contract",
-                                                                                  "event",
-                                                                                  "security",
-                                                                                  "architecture",
-                                                                                  "localisation",
-                                                                                  "bundle",
-                                                                                  "accessibility"
-                                                                              ],
-                                                                 "strict":  true
-                                                             },
-                                  "restrictions":  null,
-                                  "required_conversation_resolution":  true,
-                                  "required_linear_history":  true,
-                                  "required_pull_request_reviews":  {
-                                                                        "required_approving_review_count":  2,
-                                                                        "require_code_owner_reviews":  true,
-                                                                        "dismiss_stale_reviews":  true
-                                                                    },
-                                  "allow_force_pushes":  false,
-                                  "enforce_admins":  true
-                              }
-                 },
-    "declarative_file":  ".github/settings.yml",
-    "repository":  "maz279/1000fix_new_erp_system"
+{
+  "configured_at": "2026-10-16T07:00:17Z",
+  "standard": "BE-003 Section 3.3 / P02-M03-T05 / R01-M03-T01",
+  "branches": {
+    "develop": {
+      "allow_deletions": false,
+      "required_status_checks": {
+        "contexts": [
+          "precommit",
+          "lint-type",
+          "model-registry",
+          "unit",
+          "architecture"
+        ],
+        "strict": true
+      },
+      "restrictions": null,
+      "required_conversation_resolution": true,
+      "required_linear_history": true,
+      "required_pull_request_reviews": {
+        "required_approving_review_count": 1,
+        "require_code_owner_reviews": true,
+        "dismiss_stale_reviews": true
+      },
+      "allow_force_pushes": false,
+      "enforce_admins": false
+    },
+    "main": {
+      "allow_deletions": false,
+      "required_status_checks": {
+        "contexts": [
+          "precommit",
+          "lint-type",
+          "model-registry",
+          "unit",
+          "contract",
+          "event",
+          "security",
+          "architecture",
+          "localisation",
+          "bundle",
+          "accessibility"
+        ],
+        "strict": true
+      },
+      "restrictions": null,
+      "required_conversation_resolution": true,
+      "required_linear_history": true,
+      "required_pull_request_reviews": {
+        "required_approving_review_count": 2,
+        "require_code_owner_reviews": true,
+        "dismiss_stale_reviews": true
+      },
+      "allow_force_pushes": false,
+      "enforce_admins": true
+    }
+  },
+  "declarative_file": ".github/settings.yml",
+  "repository": "maz279/1000fix_new_erp_system",
+  "api_verified": false,
+  "correction_note": "R01 audit correction 2026-10-21: this file was written by apply-branch-protection.ps1 BEFORE any GitHub API call (script exited silently without gh). The rules below are the INTENDED configuration, not confirmation they exist on the remote. Run apply-branch-protection.ps1 -VerifyOnly with an authenticated gh CLI to verify."
 }

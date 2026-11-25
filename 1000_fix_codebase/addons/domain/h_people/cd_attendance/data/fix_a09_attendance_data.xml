@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 audit M55-13 / C5: 0 crons on the M55 models. -->
+<odoo>
+    <!-- AUT-WFM-05: every pending attendance record reaches a decider's inbox
+         (idempotent; the M63 engine's own cron escalates overdue tasks) -->
+    <record id="cron_route_pending_attendance" model="ir.cron">
+        <field name="name">M55: route pending attendance for a decision</field>
+        <field name="model_id" ref="model_fix_attendance_record"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_route_pending_attendance()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- FR-WFM-052: a forward adjustment that found no approver when it was
+         raised is routed again (idempotent) -->
+    <record id="cron_route_attendance_adjustments" model="ir.cron">
+        <field name="name">M55: route forward attendance adjustments for approval</field>
+        <field name="model_id" ref="model_fix_attendance_adjustment"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_route_adjustments()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- M55-F7 / AUT-WFM-04: a biometric terminal whose last ingest sync is
+         older than fix.attendance.device_stale_hours (ir.config_parameter,
+         default 1 h) alerts the attendance supervisors (to-do + event) -->
+    <record id="cron_check_device_health" model="ir.cron">
+        <field name="name">M55: flag biometric terminals not syncing</field>
+        <field name="model_id" ref="model_fix_biometric_device"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_check_device_health()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- M55-F9 (part) / FR-WFM-011: end-of-day detection of the ordinary
+         exceptions (missing punch-out, late arrival, early departure against
+         the rostered shift) over yesterday's Dhaka day; the flagged records
+         route to a decider through the routing cron above -->
+    <record id="cron_detect_attendance_exceptions" model="ir.cron">
+        <field name="name">M55: detect roster-day attendance exceptions</field>
+        <field name="model_id" ref="model_fix_attendance_record"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_detect_attendance_exceptions()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- M55-F7 / AUT-WFM-06: attendance exceptions still pending inside the
+         company's escalation window (res.company
+         .fix_attendance_exception_escalate_days days before the next payroll
+         period starts; 0 = off) are escalated to the supervisors -->
+    <record id="cron_escalate_pending_exceptions" model="ir.cron">
+        <field name="name">M55: escalate pending exceptions before the payroll cut-off</field>
+        <field name="model_id" ref="model_fix_attendance_record"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_escalate_pending_exceptions()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- AUT-WFM-16: a leaver's roster after the last working day is closed -->
+    <record id="event_consumer_employee_left_roster" model="fix.event.consumer">
+        <field name="name">M55: close the leaver's roster and planned on-call on employee.left</field>
+        <field name="event_type">employee.left</field>
+        <field name="model">hr.employee</field>
+        <field name="method">consume_employee_left_roster</field>
+        <field name="module">cd_attendance</field>
+    </record>
+
+    <!-- T-07: version 1 of the working-time rules = the pre-audit figures
+         (idempotent; must run before the revaluation below) -->
+    <function model="fix.working.time.rule" name="_fix_seed_version_one"/>
+
+    <!-- BRU-WFM-12: the slots that existed before publication are the roster
+         people already work to (idempotent: only slots with no state) -->
+    <function model="fix.roster.slot" name="_fix_publish_legacy_slots"/>
+
+    <!-- upgrade: payable overtime is the APPROVED part (BRU-WFM-02), valued per
+         employee-day; records in locked periods keep their figures -->
+    <function model="fix.attendance.record" name="_fix_revalue_open_periods"/>
+</odoo>

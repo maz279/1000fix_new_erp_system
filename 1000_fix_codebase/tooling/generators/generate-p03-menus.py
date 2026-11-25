@@ -12,6 +12,7 @@ Deterministic and idempotent: re-running produces byte-identical output.
 
 Exit: 0 written / 1 registry or mapping invalid.
 """
+
 from __future__ import annotations
 
 import json
@@ -50,8 +51,9 @@ def slug(text: str) -> str:
 def esc(text: str) -> str:
     """Escape XML entities in module/group/report names (e.g. '&' in
     'CX, Feedback & Complaints' would break lxml otherwise)."""
-    return (text.replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;").replace('"', "&quot;"))
+    return (
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    )
 
 
 def main() -> int:
@@ -91,7 +93,8 @@ def main() -> int:
             ledger.append(
                 f"| {mid} {mod['en']} | (shares `{cd}` workspace) "
                 f"| — | 0 | {sum(len(g['screens']) for g in mod['groups'])} "
-                f"| {len(mod['reports'])} |\n")
+                f"| {len(mod['reports'])} |\n"
+            )
             continue
         seen_cd.add(cd)
         menu_id = f"menu_p03_ws_{cd}"
@@ -99,46 +102,62 @@ def main() -> int:
         groups = mod["groups"]
         primary = groups[:MAX_SECTIONS]
         overflow = groups[MAX_SECTIONS:]
-        lines.append(f'    <!-- {mid}: {esc(mod["en"])} ({len(groups)} groups, '
-                     f'{sum(len(g["screens"]) for g in groups)} screens, '
-                     f'{len(mod["reports"])} reports) -->\n')
-        lines.append(f'    <menuitem id="{menu_id}" name="{esc(mod["en"])}"\n'
-                     f'              parent="cd_entity_config.menu_fix_operations_root"\n'
-                     f'              sequence="{int(mid[1:]) * 2}"/>\n')
+        lines.append(
+            f'    <!-- {mid}: {esc(mod["en"])} ({len(groups)} groups, '
+            f'{sum(len(g["screens"]) for g in groups)} screens, '
+            f'{len(mod["reports"])} reports) -->\n'
+        )
+        lines.append(
+            f'    <menuitem id="{menu_id}" name="{esc(mod["en"])}"\n'
+            f'              parent="cd_entity_config.menu_fix_operations_root"\n'
+            f'              sequence="{int(mid[1:]) * 2}"/>\n'
+        )
         backed = unbacked = 0
         sec_ids: list[str] = []
         for gi, g in enumerate(primary, 1):
             sec = f"{menu_id}_s{gi}"
             sec_ids.append(sec)
-            lines.append(f'    <menuitem id="{sec}" name="{esc(g["en"])}" parent="{menu_id}" sequence="{gi * 10}"/>\n')
-            for screen in g["screens"]:
+            lines.append(
+                f'    <menuitem id="{sec}" name="{esc(g["en"])}" parent="{menu_id}" sequence="{gi * 10}"/>\n'
+            )
+            for _screen in g["screens"]:
                 # PP2-M01: screens point at the module's list action; the
                 # action mapping lands per-phase. The generator records them.
                 unbacked += 1
         if overflow:
             sec = f"{menu_id}_s7more"
-            lines.append(f'    <menuitem id="{sec}" name="More Sections" parent="{menu_id}" sequence="70"/>\n')
+            lines.append(
+                f'    <menuitem id="{sec}" name="More Sections" parent="{menu_id}" sequence="70"/>\n'
+            )
             for g in overflow:
                 sub = f"{sec}_{slug(g['en'])}"
-                lines.append(f'    <menuitem id="{sub}" name="{esc(g["en"])}" parent="{sec}" sequence="10"/>\n')
-                for screen in g["screens"]:
+                lines.append(
+                    f'    <menuitem id="{sub}" name="{esc(g["en"])}" parent="{sec}" sequence="10"/>\n'
+                )
+                for _screen in g["screens"]:
                     unbacked += 1
         total_backed += backed
         total_unbacked += unbacked
         ledger.append(
             f"| {mid} {mod['en']} | `{menu_id}` | {len(primary)}"
             f"{'+' + str(len(overflow)) + ' nested' if overflow else ''} "
-            f"| {backed} | {unbacked} | {len(mod['reports'])} |\n")
+            f"| {backed} | {unbacked} | {len(mod['reports'])} |\n"
+        )
 
     lines.append(FOOTER)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("".join(lines), encoding="utf-8", newline="\n")
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
-    LEDGER.write_text("".join(ledger) +
-                      f"\n**Totals**: {total_backed} backed, {total_unbacked} unbacked "
-                      f"(the phase-by-phase burn-down target).\n", encoding="utf-8", newline="\n")
-    print(f"generate-p03-menus: {sum(1 for l in lines if 'menu_p03_ws_' in l and '_s' not in l)} workspace menus "
-          f"-> {OUT.relative_to(REPO)}; ledger: {total_backed} backed / {total_unbacked} unbacked")
+    LEDGER.write_text(
+        "".join(ledger) + f"\n**Totals**: {total_backed} backed, {total_unbacked} unbacked "
+        f"(the phase-by-phase burn-down target).\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(
+        f"generate-p03-menus: {sum(1 for line in lines if 'menu_p03_ws_' in line and '_s' not in line)} workspace menus "
+        f"-> {OUT.relative_to(REPO)}; ledger: {total_backed} backed / {total_unbacked} unbacked"
+    )
     return 0
 
 

@@ -130,11 +130,47 @@ export class ApiClient {
     } catch (err) {
       throw new ApiError(0, "network", `request failed: ${(err as Error).message}`);
     }
-    const data = await res.json();
+    // A down upstream (or a plain-text proxy 500) must surface as a typed
+    // ApiError, never as a JSON SyntaxError ("Unexpected token 'I'").
+    let data: { error?: { code?: string; message?: string }; result?: unknown };
+    try {
+      data = (await res.json()) as typeof data;
+    } catch {
+      const text = await res.text().catch(() => "");
+      throw new ApiError(
+        res.status,
+        res.ok ? "invalid_json" : `http_${res.status}`,
+        `non-JSON response from ${path}: ${text.slice(0, 80) || res.statusText}`
+      );
+    }
     if (data.error) {
       throw new ApiError(res.status, data.error.code || "odoo_error",
                           data.error.message || "Odoo error");
     }
     return data.result as T;
+  }
+}
+
+/**
+ * Liveness probe for a shell's online/offline indicator.
+ *
+ * P-11 keeps every `fetch()` inside this library, so a portal cannot quietly
+ * grow its own HTTP surface with different timeout, cache and error behaviour.
+ * The customer shell polled its health URL with a bare `fetch()` and tripped
+ * FF-39 (re-audit 2026-10-31); it calls this instead.
+ *
+ * Never throws: a health poll that raises is a health poll that breaks the
+ * component it decorates. An unreachable or non-OK endpoint is simply `false`.
+ */
+export async function pingHealth(
+  url: string,
+  options: { fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<boolean> {
+  const doFetch = options.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(url, { cache: "no-store", signal: options.signal });
+    return res.ok;
+  } catch {
+    return false;
   }
 }

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 C10 (2026-11-04, M12-12): the 48-hour dispute SLA was a deadline
+     nothing acted on. Every open dispute past it is escalated once to
+     executive arbitration (idempotent through escalated_at). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_marketplace_dispute_sla" model="ir.cron">
+            <field name="name">Marketplace: escalate disputes past the 48h SLA</field>
+            <field name="model_id" ref="model_fix_marketplace_dispute"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispute_sla_escalation()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- M12-training (12 Nov 2026): a verified seller certification past
+             its expiry date is expired, once a day (Dhaka calendar). -->
+        <record id="ir_cron_seller_certification_expiry" model="ir.cron">
+            <field name="name">Marketplace: expire lapsed seller certifications</field>
+            <field name="model_id" ref="model_fix_seller_certification"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_certifications()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- M12 capture audit (13 Nov 2026): a seller consequence in force
+             past its end date expires, once a day (Dhaka calendar). -->
+        <record id="ir_cron_seller_consequence_expiry" model="ir.cron">
+            <field name="name">Marketplace: expire lapsed seller consequences</field>
+            <field name="model_id" ref="model_fix_seller_consequence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_consequences()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A04 ERP round 2 (21 Nov 2026) M12-F15: an award the seller has
+             not accepted inside the acceptance window
+             (cd_marketplace.award_acceptance_hours) goes back to bidding. -->
+        <record id="ir_cron_marketplace_award_lapse" model="ir.cron">
+            <field name="name">Marketplace: lapse awards not accepted in time</field>
+            <field name="model_id" ref="model_fix_marketplace_order"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_lapse_unaccepted_awards()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data></odoo>

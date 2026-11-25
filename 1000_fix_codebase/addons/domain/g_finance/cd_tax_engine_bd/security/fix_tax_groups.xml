@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M51 (workflow audit 2026-11-04, M51-1 / BRU-TAX-13): a Mushak 9.1 or a
+  quarterly withholding return is filed only with CFO approval, and never by
+  the accountant who prepared it. The filing approver is a separate duty, so
+  it is its own group. It ships EMPTY: who files statutory returns for the
+  company is a business appointment (db/seeds/appoint_approvers.py, B6).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_tax_compliance" model="res.groups.privilege">
+            <field name="name">Tax &amp; Regulatory Compliance (BD)</field>
+            <field name="description">Statutory filing roles of the M51 tax module.</field>
+            <field name="sequence">62</field>
+        </record>
+
+        <record id="group_tax_filing_approver" model="res.groups">
+            <field name="name">Tax Return Filing Approver (CFO)</field>
+            <field name="privilege_id" ref="privilege_fix_tax_compliance"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Files the prepared, reconciled Mushak 9.1 (online, NBR IVAS) and the quarterly withholding return. Never files a return they prepared.</field>
+        </record>
+
+    </data>
+</odoo>

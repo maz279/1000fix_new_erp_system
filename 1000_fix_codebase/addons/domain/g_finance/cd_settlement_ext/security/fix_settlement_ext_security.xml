@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_settlement_ext security: cross-tenant isolation record rules for seller statements and commissions (R08-M04-T01, G7-6).
+     Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <!-- Seller sees only their own commission ledger entries -->
+    <record id="rule_fix_commission_ledger_seller_self" model="ir.rule">
+        <field name="name">Settlement: own commission ledger only</field>
+        <field name="model_id" ref="model_fix_commission_ledger"/>
+        <field name="domain_force">[('seller_partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Seller sees only their own settlement statements -->
+    <record id="rule_fix_seller_statement_self" model="ir.rule">
+        <field name="name">Settlement: own seller statements only</field>
+        <field name="model_id" ref="model_fix_seller_statement"/>
+        <field name="domain_force">[('seller_partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

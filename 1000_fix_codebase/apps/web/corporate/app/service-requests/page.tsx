@@ -1,23 +1,37 @@
 "use client";
 
 /**
- * Service Requests at Scale (PP3-M02-T02) — Create + Track.
- * The create form posts to Odoo ERP via Kong gateway.
- * Server-side validation enforced (AS-09).
- * Dynamically loads fleet devices from /corporate/estate for valid device_id selection (M17).
- * Zero local/mock data (FF-39). Tokens only (CFM-01).
+ * Service requests at scale — create one request across many devices, or
+ * track the account's existing orders.
+ *
+ * The backend validates every device against the session's commercial
+ * partner, writes the whole batch atomically and applies priority at intake.
+ * This page never trusts client-side ownership and never computes money.
  */
-import { useEffect, useState, useId } from "react";
-import { tokens } from "../../lib/imports";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { Loading, LoadError, tokens } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
-import { useAuth } from "../../components/auth-modal";
+import { RequireAuth } from "../../components/require-auth";
+import {
+  PageHeader,
+  Panel,
+  StatePill,
+  StatCard,
+  linkButtonStyle,
+  pageStyle,
+  primaryLinkStyle,
+  tdStyle,
+  thStyle,
+} from "../../components/ui";
 
 interface Device {
   id: number;
   brand: string;
   model: string;
   identifier: string;
+  serial_number: string;
+  site: string;
   warranty_status: string;
 }
 
@@ -27,464 +41,367 @@ interface ServiceOrder {
   state: string;
   customer: string;
   device: string;
+  serial_number: string;
+  site: string;
+  priority: string;
+  service_type: string;
+  technician: string;
+  response_deadline: string;
+  resolution_deadline: string;
   opened_at: string;
 }
 
-export default function ServiceRequestsPage() {
-  const { t } = useLanguage();
-  const { user, openLoginModal } = useAuth();
+const label = (v: string) => v.replace(/_/g, " ");
 
-  const categoryId = useId();
-  const deviceId = useId();
-  const descriptionId = useId();
-
+function RequestsContent() {
+  const { locale } = useLanguage();
+  const bn = locale === "bn";
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [authError, setAuthError] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formCategory, setFormCategory] = useState("standard");
-  const [selectedDeviceId, setSelectedDeviceId] = useState<number | "">("");
-  const [formDescription, setFormDescription] = useState("");
 
-  const loadData = () => {
+  const [selected, setSelected] = useState<number[]>([]);
+  const [category, setCategory] = useState("standard");
+  const [priority, setPriority] = useState("normal");
+  const [fault, setFault] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+
+  const load = () => {
     setLoading(true);
-    setAuthError(false);
     setError(null);
-
     Promise.all([
-      callOdoo<{ orders: ServiceOrder[]; total: number }>("/corporate/service-requests"),
-      callOdoo<{ devices: Device[]; total: number }>("/corporate/estate"),
+      callOdoo<{ orders: ServiceOrder[] }>("/corporate/service-requests"),
+      callOdoo<{ devices: Device[] }>("/corporate/estate"),
     ])
-      .then(([ordersRes, estateRes]) => {
-        setOrders(ordersRes.orders || []);
-        const devList = estateRes.devices || [];
-        setDevices(devList);
-        if (devList.length > 0 && selectedDeviceId === "") {
-          setSelectedDeviceId(devList[0].id);
+      .then(([o, e]) => {
+        setOrders(o.orders || []);
+        const list = e.devices || [];
+        setDevices(list);
+        // Preselect devices handed over from the estate page (?devices=1,2)
+        if (typeof window !== "undefined") {
+          const raw = new URLSearchParams(window.location.search).get("devices");
+          if (raw) {
+            const ids = raw
+              .split(",")
+              .map((v) => Number(v))
+              .filter((v) => list.some((d) => d.id === v));
+            if (ids.length) {
+              setSelected(ids);
+              setShowForm(true);
+            }
+          }
         }
         setLoading(false);
       })
       .catch((e: Error) => {
-        const msg = e.message || "";
-        if (msg.includes("Session expired") || msg.includes("Odoo Session Expired")) {
-          setAuthError(true);
-        } else {
-          setError(msg);
-        }
+        setError(e.message);
         setLoading(false);
       });
   };
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    load();
+  }, []);
 
-  const submit = async (e: React.FormEvent) => {
+  const toggle = (id: number) => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedDeviceId) {
-      setError("Please select a device from the corporate estate.");
+    if (selected.length === 0) {
+      setError(bn ? "কমপক্ষে একটি ডিভাইস নির্বাচন করুন।" : "Select at least one device.");
       return;
     }
-    if (!formDescription.trim()) {
-      setError("Please provide a fault description.");
+    if (!fault.trim()) {
+      setError(bn ? "ত্রুটির বিবরণ লিখুন।" : "Describe the fault.");
       return;
     }
-
     setSubmitting(true);
     setError(null);
-
+    setNotice(null);
     try {
-      // Contract fix: backend requires device_id, fault_description, customer_id, order_category
-      const res = await callOdoo<{ id?: number; error?: { message: string } }>("/corporate/service-requests", {
-        order_category: formCategory,
-        device_id: Number(selectedDeviceId),
-        fault_description: formDescription,
-        customer_id: user?.partnerId || 1,
-      });
-
-      if (res.error) {
-        throw new Error(res.error.message || "Failed to create service request");
-      }
-
-      setFormDescription("");
+      const res = await callOdoo<{ created?: { name: string }[]; error?: { message: string } }>(
+        "/corporate/service-requests",
+        {
+          device_ids: selected,
+          order_category: category,
+          priority,
+          fault_description: fault,
+        }
+      );
+      if (res.error) throw new Error(res.error.message);
+      const names = (res.created || []).map((c) => c.name).join(", ");
+      setNotice(
+        bn
+          ? `${selected.length}টি সার্ভিস অনুরোধ তৈরি হয়েছে${names ? `: ${names}` : ""}।`
+          : `${selected.length} service request${selected.length === 1 ? "" : "s"} created${names ? `: ${names}` : ""}.`
+      );
+      setSelected([]);
+      setFault("");
       setShowForm(false);
-      setSubmitting(false);
-      loadData();
+      load();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
       setSubmitting(false);
     }
   };
 
+  const filtered = useMemo(
+    () =>
+      orders.filter((o) => {
+        const q = query.trim().toLowerCase();
+        const matchesQuery =
+          !q ||
+          o.name.toLowerCase().includes(q) ||
+          (o.device || "").toLowerCase().includes(q) ||
+          (o.serial_number || "").toLowerCase().includes(q) ||
+          (o.site || "").toLowerCase().includes(q);
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "open" && !["delivered", "closed", "cancelled"].includes(o.state)) ||
+          (filter === "priority" && ["high", "urgent"].includes(o.priority)) ||
+          o.state === filter;
+        return matchesQuery && matchesFilter;
+      }),
+    [orders, query, filter]
+  );
+
+  if (loading) return <Loading label={bn ? "সার্ভিস অনুরোধ লোড হচ্ছে…" : "Loading service requests…"} />;
+  if (error && orders.length === 0) return <LoadError what={bn ? "সার্ভিস অনুরোধ" : "Service requests"} message={error} />;
+
+  const open = orders.filter((o) => !["delivered", "closed", "cancelled"].includes(o.state)).length;
+  const high = orders.filter((o) => ["high", "urgent"].includes(o.priority) && !["delivered", "closed", "cancelled"].includes(o.state)).length;
+  const delivered = orders.filter((o) => ["delivered", "closed"].includes(o.state)).length;
+
   return (
-    <main style={{ padding: "32px 24px", maxWidth: 1280, margin: "0 auto" }}>
-      {/* Header bar */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              margin: "0 0 6px",
-              fontSize: tokens["typography.size.500"],
-              color: tokens["color.text.primary"],
-            }}
-          >
-            {t.requestsTitle}
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              color: tokens["color.text.secondary"],
-              fontSize: tokens["typography.size.200"],
-            }}
-          >
-            {t.requestsSubtitle(orders.length)}
-          </p>
-        </div>
-
-        <button
-          onClick={() => setShowForm(!showForm)}
-          aria-expanded={showForm}
-          style={{
-            padding: "10px 20px",
-            background: showForm ? tokens["color.surface.secondary"] : tokens["color.primary.base"],
-            color: showForm ? tokens["color.text.primary"] : tokens["color.text.inverse"],
-            border: showForm ? `1px solid ${tokens["color.border.default"]}` : "none",
-            borderRadius: tokens["dimension.border.radius-sm"],
-            fontSize: tokens["typography.size.200"],
-            fontWeight: Number(tokens["typography.weight.semibold"]),
-            cursor: "pointer",
-          }}
-        >
-          {showForm ? t.cancelButton : t.newRequestButton}
-        </button>
-      </div>
-
-      {/* Unauthenticated Banner */}
-      {authError && (
-        <div
-          role="alert"
-          style={{
-            padding: 20,
-            marginBottom: 24,
-            background: tokens["color.surface.primary"],
-            border: `1px solid ${tokens["color.primary.base"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <strong style={{ color: tokens["color.text.primary"], fontSize: tokens["typography.size.300"] }}>
-              🔐 {t.unauthenticatedNotice}
-            </strong>
-          </div>
+    <main style={pageStyle}>
+      <PageHeader
+        title={bn ? "সার্ভিস অনুরোধ" : "Service requests"}
+        subtitle={
+          bn
+            ? "একাধিক ডিভাইসের জন্য একসাথে অনুরোধ তৈরি করুন, প্রায়োরিটি নির্ধারণ করুন এবং এসএলএ ডেডলাইনের সাথে ট্র্যাক করুন।"
+            : "Raise one request across many devices, set priority and track it against the SLA deadlines."
+        }
+        actions={
           <button
-            onClick={openLoginModal}
-            style={{
-              padding: "8px 16px",
-              background: tokens["color.primary.base"],
-              color: tokens["color.text.inverse"],
-              border: "none",
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-              cursor: "pointer",
-            }}
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            aria-expanded={showForm}
+            style={{ ...primaryLinkStyle, cursor: "pointer", border: "none" }}
           >
-            {t.unauthenticatedSignInBtn}
+            {showForm ? (bn ? "ফর্ম বন্ধ" : "Close form") : `+ ${bn ? "নতুন অনুরোধ" : "New request"}`}
           </button>
+        }
+      />
+
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label={bn ? "খোলা" : "Open"} value={open} tone="primary" />
+        <StatCard label={bn ? "উচ্চ/জরুরি" : "High / urgent"} value={high} tone={high ? "error" : "neutral"} />
+        <StatCard label={bn ? "সম্পন্ন" : "Delivered / closed"} value={delivered} tone="success" />
+        <StatCard label={bn ? "মোট" : "Total requests"} value={orders.length} />
+      </section>
+
+      {notice && (
+        <div role="status" style={{ marginBottom: 12, padding: "8px 12px", borderRadius: tokens["dimension.border.radius-sm"], background: tokens["color.status.success-bg"], color: tokens["color.status.success"], border: `1px solid ${tokens["color.status.success"]}`, fontSize: 12.5 }}>
+          {notice}
         </div>
       )}
-
       {error && (
-        <div
-          role="alert"
-          style={{
-            padding: 12,
-            marginBottom: 20,
-            background: tokens["color.status.error-bg"],
-            color: tokens["color.status.error"],
-            border: `1px solid ${tokens["color.status.error"]}`,
-            borderRadius: tokens["dimension.border.radius-sm"],
-            fontSize: tokens["typography.size.200"],
-          }}
-        >
-          ⚠️ {t.errorPrefix} {error}
+        <div role="alert" style={{ marginBottom: 12, padding: "8px 12px", borderRadius: tokens["dimension.border.radius-sm"], background: tokens["color.status.error-bg"], color: tokens["color.status.error"], border: `1px solid ${tokens["color.status.error"]}`, fontSize: 12.5 }}>
+          {error}
         </div>
       )}
 
-      {/* New Request Creation Form */}
       {showForm && (
-        <section
-          aria-labelledby="new-request-heading"
-          style={{
-            padding: 24,
-            marginBottom: 32,
-            border: `1px solid ${tokens["color.border.default"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-            background: tokens["color.surface.primary"],
-            boxShadow: tokens["shadow.md"],
-          }}
-        >
-          <h2
-            id="new-request-heading"
-            style={{
-              margin: "0 0 16px",
-              fontSize: tokens["typography.size.400"],
-              color: tokens["color.text.primary"],
-            }}
-          >
-            {t.newRequestButton}
-          </h2>
-
-          <form onSubmit={submit}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
-              {/* Category */}
+        <Panel title={bn ? "নতুন সার্ভিস অনুরোধ" : "New service request"}>
+          <form onSubmit={submit} style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
               <div>
-                <label
-                  htmlFor={categoryId}
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: tokens["typography.size.200"],
-                    fontWeight: Number(tokens["typography.weight.medium"]),
-                    color: tokens["color.text.primary"],
-                  }}
-                >
-                  {t.formCategory}
-                </label>
-                <select
-                  id={categoryId}
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  style={{
-                    padding: "10px 12px",
-                    border: `1px solid ${tokens["color.border.default"]}`,
-                    borderRadius: tokens["dimension.border.radius-sm"],
-                    fontSize: tokens["typography.size.200"],
-                    background: tokens["color.surface.canvas"],
-                    color: tokens["color.text.primary"],
-                    width: "100%",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <option value="standard">{t.catStandard}</option>
-                  <option value="warranty">{t.catWarranty}</option>
-                  <option value="amc">{t.catAmc}</option>
+                <label htmlFor="req-category" style={{ display: "block", marginBottom: 5, fontSize: 12, fontWeight: 600 }}>{bn ? "শ্রেণি" : "Category"}</label>
+                <select id="req-category" value={category} onChange={(e) => setCategory(e.target.value)} style={selectStyle}>
+                  <option value="standard">{bn ? "স্ট্যান্ডার্ড" : "Standard"}</option>
+                  <option value="warranty">{bn ? "ওয়ারেন্টি" : "Warranty"}</option>
+                  <option value="amc">{bn ? "এএমসি" : "AMC"}</option>
                 </select>
               </div>
-
-              {/* Target Fleet Device */}
               <div>
-                <label
-                  htmlFor={deviceId}
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: tokens["typography.size.200"],
-                    fontWeight: Number(tokens["typography.weight.medium"]),
-                    color: tokens["color.text.primary"],
-                  }}
-                >
-                  {t.formDevice}
-                </label>
-                <select
-                  id={deviceId}
-                  value={selectedDeviceId}
-                  onChange={(e) => setSelectedDeviceId(Number(e.target.value))}
-                  required
-                  style={{
-                    padding: "10px 12px",
-                    border: `1px solid ${tokens["color.border.default"]}`,
-                    borderRadius: tokens["dimension.border.radius-sm"],
-                    fontSize: tokens["typography.size.200"],
-                    background: tokens["color.surface.canvas"],
-                    color: tokens["color.text.primary"],
-                    width: "100%",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  {devices.length === 0 && (
-                    <option value="">{t.formDeviceSelectPlaceholder}</option>
-                  )}
-                  {devices.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.brand} {d.model} ({d.identifier}) — [{d.warranty_status}]
-                    </option>
-                  ))}
+                <label htmlFor="req-priority" style={{ display: "block", marginBottom: 5, fontSize: 12, fontWeight: 600 }}>{bn ? "প্রায়োরিটি" : "Priority"}</label>
+                <select id="req-priority" value={priority} onChange={(e) => setPriority(e.target.value)} style={selectStyle}>
+                  <option value="normal">{bn ? "সাধারণ" : "Normal"}</option>
+                  <option value="high">{bn ? "উচ্চ" : "High"}</option>
+                  <option value="urgent">{bn ? "জরুরি" : "Urgent"}</option>
                 </select>
               </div>
             </div>
 
-            {/* Fault Description */}
-            <div style={{ marginBottom: 20 }}>
-              <label
-                htmlFor={descriptionId}
-                style={{
-                  display: "block",
-                  marginBottom: 6,
-                  fontSize: tokens["typography.size.200"],
-                  fontWeight: Number(tokens["typography.weight.medium"]),
-                  color: tokens["color.text.primary"],
-                }}
-              >
-                {t.formDescription}
-              </label>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>{bn ? "ডিভাইস নির্বাচন" : "Select devices"}</strong>
+                <span style={{ fontSize: 11.5, color: tokens["color.text.secondary"] }}>
+                  {selected.length} {bn ? "নির্বাচিত" : "selected"}
+                </span>
+              </div>
+              <div style={{ maxHeight: 230, overflowY: "auto", border: `1px solid ${tokens["color.border.default"]}`, borderRadius: tokens["dimension.border.radius-sm"] }}>
+                {devices.map((d) => (
+                  <label
+                    key={d.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "7px 10px",
+                      borderBottom: `1px solid ${tokens["color.border.default"]}`,
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggle(d.id)} />
+                    <span style={{ flex: 1 }}>
+                      {d.brand} {d.model}
+                      <span style={{ color: tokens["color.text.secondary"] }}>
+                        {" · "}{d.serial_number || d.identifier || "—"}
+                        {d.site ? ` · ${d.site}` : ""}
+                      </span>
+                    </span>
+                    <StatePill state={d.warranty_status} />
+                  </label>
+                ))}
+                {devices.length === 0 && (
+                  <div style={{ padding: 14, fontSize: 12, color: tokens["color.text.secondary"] }}>
+                    {bn ? "আপনার বহরে কোনো ডিভাইস নেই।" : "No devices in your estate."}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="req-fault" style={{ display: "block", marginBottom: 5, fontSize: 12, fontWeight: 600 }}>{bn ? "ত্রুটির বিবরণ" : "Fault description"}</label>
               <textarea
-                id={descriptionId}
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
+                id="req-fault"
+                value={fault}
+                onChange={(e) => setFault(e.target.value)}
                 rows={3}
                 required
-                placeholder={t.formDescriptionPlaceholder}
-                style={{
-                  padding: "10px 12px",
-                  border: `1px solid ${tokens["color.border.default"]}`,
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  fontSize: tokens["typography.size.200"],
-                  background: tokens["color.surface.canvas"],
-                  color: tokens["color.text.primary"],
-                  width: "100%",
-                  resize: "vertical",
-                  boxSizing: "border-box",
-                }}
+                placeholder={bn ? "কী সমস্যা হচ্ছে, কখন শুরু, কোনো ত্রুটি কোড…" : "What is failing, when it started, any error code…"}
+                style={{ ...selectStyle, height: "auto", resize: "vertical" }}
               />
             </div>
 
-            <div style={{ display: "flex", gap: 12 }}>
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{
-                  padding: "10px 24px",
-                  background: tokens["color.primary.base"],
-                  color: tokens["color.text.inverse"],
-                  border: "none",
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  fontSize: tokens["typography.size.200"],
-                  fontWeight: Number(tokens["typography.weight.semibold"]),
-                  cursor: submitting ? "wait" : "pointer",
-                  opacity: submitting ? 0.7 : 1,
-                }}
-              >
-                {submitting ? t.submitting : t.formSubmit}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="submit" disabled={submitting} style={{ ...primaryLinkStyle, border: "none", cursor: submitting ? "wait" : "pointer", opacity: submitting ? 0.7 : 1 }}>
+                {submitting
+                  ? bn ? "তৈরি হচ্ছে…" : "Creating…"
+                  : bn ? `${selected.length || ""} অনুরোধ তৈরি করুন`.trim() : `Create request${selected.length === 1 ? "" : "s"}`}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                style={{
-                  padding: "10px 20px",
-                  background: "transparent",
-                  color: tokens["color.text.secondary"],
-                  border: `1px solid ${tokens["color.border.default"]}`,
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  fontSize: tokens["typography.size.200"],
-                  cursor: "pointer",
-                }}
-              >
-                {t.cancelButton}
+              <button type="button" onClick={() => setShowForm(false)} style={{ ...linkButtonStyle, cursor: "pointer" }}>
+                {bn ? "বাতিল" : "Cancel"}
               </button>
             </div>
           </form>
-        </section>
+        </Panel>
       )}
 
-      {/* Orders Table */}
-      <section aria-labelledby="requests-table-heading">
-        <h2 id="requests-table-heading" style={{ display: "none" }}>{t.requestsTitle}</h2>
-        <div
-          style={{
-            border: `1px solid ${tokens["color.border.default"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-            overflow: "hidden",
-            background: tokens["color.surface.primary"],
-          }}
-        >
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "16px 0 12px" }}>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={bn ? "রেফারেন্স, ডিভাইস বা সাইট খুঁজুন…" : "Reference, device or site…"}
+          style={{ ...selectStyle, flex: "1 1 260px", maxWidth: 400, height: 34 }}
+        />
+        {[
+          { key: "all", en: "All", bn: "সব" },
+          { key: "open", en: "Open", bn: "খোলা" },
+          { key: "priority", en: "High/urgent", bn: "উচ্চ/জরুরি" },
+          { key: "ready", en: "Ready", bn: "প্রস্তুত" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            aria-pressed={filter === f.key}
+            onClick={() => setFilter(f.key)}
+            style={{
+              padding: "6px 12px",
+              fontSize: tokens["typography.size.200"],
+              borderRadius: tokens["dimension.border.radius-sm"],
+              border: `1px solid ${filter === f.key ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
+              background: filter === f.key ? tokens["color.primary.base"] : tokens["color.surface.primary"],
+              color: filter === f.key ? tokens["color.text.inverse"] : tokens["color.text.secondary"],
+              cursor: "pointer",
+            }}
+          >
+            {bn ? f.bn : f.en}
+          </button>
+        ))}
+      </div>
+
+      <Panel>
+        <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <caption style={{ display: "none" }}>{t.requestsTitle}</caption>
             <thead>
               <tr style={{ background: tokens["color.surface.secondary"] }}>
-                <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                  {t.colOrderRef}
-                </th>
-                <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                  {t.colCustomer}
-                </th>
-                <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                  {t.colDevice}
-                </th>
-                <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                  Status
-                </th>
-                <th scope="col" style={{ textAlign: "left", padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                  {t.colOpenedDate}
-                </th>
+                <th style={thStyle}>{bn ? "রেফারেন্স" : "Reference"}</th>
+                <th style={thStyle}>{bn ? "ডিভাইস / সাইট" : "Device / site"}</th>
+                <th style={thStyle}>{bn ? "চ্যানেল" : "Channel"}</th>
+                <th style={thStyle}>{bn ? "প্রায়োরিটি" : "Priority"}</th>
+                <th style={thStyle}>{bn ? "অবস্থা" : "Status"}</th>
+                <th style={thStyle}>{bn ? "রেসপন্স ডেডলাইন" : "Response deadline"}</th>
+                <th style={thStyle}>{bn ? "খোলা হয়েছে" : "Opened"}</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
-                <tr key={o.id} style={{ borderBottom: `1px solid ${tokens["color.border.default"]}` }}>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"], fontWeight: 600 }}>
-                    {o.name}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                    {o.customer}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
+              {filtered.map((o) => (
+                <tr key={o.id}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{o.name}</td>
+                  <td style={tdStyle}>
                     {o.device || "—"}
+                    {o.site ? <span style={{ color: tokens["color.text.secondary"] }}> · {o.site}</span> : null}
+                    {o.serial_number ? <div style={{ fontSize: 10.5, fontFamily: "monospace", color: tokens["color.text.secondary"] }}>{o.serial_number}</div> : null}
                   </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "3px 10px",
-                        borderRadius: tokens["dimension.border.radius-pill"],
-                        fontSize: tokens["typography.size.100"],
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        background: tokens["color.surface.secondary"],
-                        color: tokens["color.text.primary"],
-                      }}
-                    >
-                      {o.state}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {o.opened_at.slice(0, 10)}
-                  </td>
+                  <td style={tdStyle}>{label(o.service_type)}</td>
+                  <td style={tdStyle}><StatePill state={o.priority} /></td>
+                  <td style={tdStyle}><StatePill state={o.state} /></td>
+                  <td style={tdStyle}>{o.response_deadline ? o.response_deadline.slice(0, 16) : "—"}</td>
+                  <td style={tdStyle}>{o.opened_at ? o.opened_at.slice(0, 10) : "—"}</td>
                 </tr>
               ))}
-              {orders.length === 0 && !loading && (
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ padding: 32, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                    {authError ? t.unauthenticatedNotice : t.requestsEmpty}
-                  </td>
-                </tr>
-              )}
-              {loading && (
-                <tr>
-                  <td colSpan={5} style={{ padding: 32, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                    {t.loading}
+                  <td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: tokens["color.text.secondary"], padding: 28 }}>
+                    {bn ? "কোনো অনুরোধ নেই — উপরের ‘নতুন অনুরোধ’ থেকে শুরু করুন।" : "No requests — start with “New request” above."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
     </main>
+  );
+}
+
+const selectStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "8px 10px",
+  border: `1px solid ${tokens["color.border.default"]}`,
+  borderRadius: tokens["dimension.border.radius-sm"],
+  background: tokens["color.surface.primary"],
+  color: tokens["color.text.primary"],
+  fontSize: tokens["typography.size.200"],
+};
+
+export default function ServiceRequestsPage() {
+  return (
+    <RequireAuth>
+      <RequestsContent />
+    </RequireAuth>
   );
 }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_multi_entity security: multi-company consolidation and inter-company rules -->
+<odoo>
+    <!-- R01 re-audit 2026-10-22: both rules were [(1, '=', 1)] for every
+         internal user (base.group_user) - a group rule that grants all and,
+         OR-ed with any other group rule, cancels operating-unit isolation.
+         Group-level books / rules carry no operating unit and stay visible
+         to every internal user of an allowed company; unit-stamped ones are
+         restricted to that unit. -->
+    <record id="rule_fix_consolidation_book_group" model="ir.rule">
+        <field name="name">Fix Consolidation Book: Group Access</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="model_id" ref="model_fix_consolidation_book"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_fix_intercompany_rule_group" model="ir.rule">
+        <field name="name">Fix Intercompany Rule: Group Access</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="model_id" ref="model_fix_intercompany_rule"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Lines and eliminations follow their book's company (A08 rule 5). -->
+    <record id="rule_fix_consolidation_line_company" model="ir.rule">
+        <field name="name">fix.consolidation.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_consolidation_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_elimination_entry_company" model="ir.rule">
+        <field name="name">fix.elimination.entry: allowed companies</field>
+        <field name="model_id" ref="model_fix_elimination_entry"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

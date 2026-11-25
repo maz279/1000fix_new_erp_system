@@ -1,0 +1,180 @@
+{
+  "milestone": "R10-M05",
+  "task": "R10-M05-T02",
+  "tool": "tooling/scripts/run_production_migration_rehearsal.py",
+  "run_id": "WAVE1_REHEARSAL_20261016",
+  "measured_at": "2026-10-22T09:02:26.644666+00:00",
+  "status": "INCOMPLETE",
+  "gp_11_discharged": false,
+  "summary": {
+    "pass": 8,
+    "fail": 0,
+    "unmeasured": 3
+  },
+  "checks": [
+    {
+      "id": "MG005_PRODUCTION_VOLUME",
+      "status": "UNMEASURED",
+      "detail": "the committed rehearsal run 'WAVE1_REHEARSAL_20261016' is 146 records over 5 streams on the local rehearsal target; a production-volume run on migration-staging is not observable by this tool",
+      "local_records": 146,
+      "local_streams": 5
+    },
+    {
+      "id": "MIG02_EXTRACT_ATTENDANCE_OPENING",
+      "status": "PASS",
+      "detail": "20 records; sha256 matches the extract-time manifest",
+      "stream": "attendance_opening",
+      "extract_file": "attendance_opening_extract.json",
+      "control_total": 20,
+      "manifest_sha256": "36a9a7b8f9b8661b0e45188a997f50e15a87c085e3d3f7630ad561ea57f71393",
+      "record_count": 20,
+      "sha256": "36a9a7b8f9b8661b0e45188a997f50e15a87c085e3d3f7630ad561ea57f71393"
+    },
+    {
+      "id": "MIG02_EXTRACT_BRANCHES",
+      "status": "PASS",
+      "detail": "6 records; sha256 matches the extract-time manifest",
+      "stream": "branches",
+      "extract_file": "branches_extract.json",
+      "control_total": 6,
+      "manifest_sha256": "1cf111c75d017d62c89bb29803cec751784c5120877260888cd727a700a43796",
+      "record_count": 6,
+      "sha256": "1cf111c75d017d62c89bb29803cec751784c5120877260888cd727a700a43796"
+    },
+    {
+      "id": "MIG02_EXTRACT_CUSTOMERS",
+      "status": "PASS",
+      "detail": "50 records; sha256 matches the extract-time manifest",
+      "stream": "customers",
+      "extract_file": "customers_extract.json",
+      "control_total": 50,
+      "manifest_sha256": "2a6785f237f6a06aa4ed7a660f961c89972b205b7198c44e3c3d86c04dfdc283",
+      "record_count": 50,
+      "sha256": "2a6785f237f6a06aa4ed7a660f961c89972b205b7198c44e3c3d86c04dfdc283"
+    },
+    {
+      "id": "MIG02_EXTRACT_DEVICES",
+      "status": "PASS",
+      "detail": "50 records; sha256 matches the extract-time manifest",
+      "stream": "devices",
+      "extract_file": "devices_extract.json",
+      "control_total": 50,
+      "manifest_sha256": "5a1ed2ea809c43a6d411fcc95bce1cc1bd34a01f4ef352465cb16c59ab70d8f2",
+      "record_count": 50,
+      "sha256": "5a1ed2ea809c43a6d411fcc95bce1cc1bd34a01f4ef352465cb16c59ab70d8f2"
+    },
+    {
+      "id": "MIG02_EXTRACT_EMPLOYEES",
+      "status": "PASS",
+      "detail": "20 records; sha256 matches the extract-time manifest",
+      "stream": "employees",
+      "extract_file": "employees_extract.json",
+      "control_total": 20,
+      "manifest_sha256": "c07165dfb9829d31a505dd11cd30cd2eee2686fa58de69e9350497419697f508",
+      "record_count": 20,
+      "sha256": "c07165dfb9829d31a505dd11cd30cd2eee2686fa58de69e9350497419697f508"
+    },
+    {
+      "id": "MIG02_CONTROL_TOTALS",
+      "status": "PASS",
+      "detail": "5/5 streams reconciled",
+      "streams": {
+        "attendance_opening": {
+          "control": 20,
+          "loaded": 20,
+          "accepted": 0,
+          "quarantined": 20
+        },
+        "branches": {
+          "control": 6,
+          "loaded": 6,
+          "accepted": 6,
+          "quarantined": 0
+        },
+        "customers": {
+          "control": 50,
+          "loaded": 50,
+          "accepted": 49,
+          "quarantined": 1
+        },
+        "devices": {
+          "control": 50,
+          "loaded": 50,
+          "accepted": 49,
+          "quarantined": 1
+        },
+        "employees": {
+          "control": 20,
+          "loaded": 20,
+          "accepted": 20,
+          "quarantined": 0
+        }
+      },
+      "streams_in_manifest": 5,
+      "streams_reconciled": 5,
+      "variance_count": 0,
+      "quarantined_total": 22
+    },
+    {
+      "id": "MIG02_LIVE_COUNTS",
+      "status": "PASS",
+      "detail": "5 streams: accepted records == rows in 127.0.0.1:5433/fix_migration",
+      "target_database": "127.0.0.1:5433/fix_migration",
+      "live_counts": {
+        "attendance_opening": 0,
+        "branches": 6,
+        "customers": 49,
+        "devices": 49,
+        "employees": 20
+      }
+    },
+    {
+      "id": "MIG06_RESIDENCY",
+      "status": "PASS",
+      "detail": "70 classified values absent from 115 text columns over 69 migrated rows",
+      "target_database": "127.0.0.1:5433/fix_migration",
+      "classified_values_scanned": 70,
+      "classified_streams": [
+        "customers",
+        "employees"
+      ],
+      "migrated_rows_in_scope": 69,
+      "tables_scanned": [
+        "fix_attendance_record",
+        "fix_branch",
+        "fix_device",
+        "fix_event_outbox",
+        "fix_identity_document",
+        "fix_party_role",
+        "hr_employee",
+        "res_partner",
+        "resource_resource"
+      ],
+      "columns_scanned": 115,
+      "plaintext_leaks": {}
+    },
+    {
+      "id": "MG007_ROLLBACK",
+      "status": "UNMEASURED",
+      "detail": "MG-007 rollback (migrations/rollback.py) deletes migrated rows; this measure-only tool never runs it and no rollback-rehearsal record from migration-staging exists"
+    },
+    {
+      "id": "MG004_BUSINESS_SIGNOFF",
+      "status": "UNMEASURED",
+      "detail": "requires the named business owner's signature on this measured reconciliation (and a steward disposition of every quarantined record: {'customers': 1, 'devices': 1, 'attendance_opening': 20}); no signed record exists",
+      "quarantined_records": {
+        "customers": 1,
+        "devices": 1,
+        "attendance_opening": 20
+      }
+    }
+  ],
+  "volume_loaded": {
+    "branches": 6,
+    "customers": 50,
+    "devices": 50,
+    "employees": 20,
+    "attendance_opening": 20
+  },
+  "business_signoff_file": "docs/traceability/evidence/r10-m05-mg004-business-signoff.json"
+}

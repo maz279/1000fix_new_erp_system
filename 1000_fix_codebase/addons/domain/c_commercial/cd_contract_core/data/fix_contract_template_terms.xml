@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DRAFT contract wording for the six seeded templates.
+
+  These are a STARTING POINT FOR LEGAL, not approved terms. Every template
+  carries terms_are_draft=True and no legal_reviewed_by, so none of them is
+  issuable: fix.contract.template.is_publishable requires English terms,
+  Bengali terms AND a named Legal sign-off. Legal edits what is here and
+  presses Legal Sign-Off; until then assert_publishable() refuses.
+
+  noupdate="1" so that Legal's edits are never overwritten by a module
+  upgrade. Re-seeding a template means deleting the record first, on purpose.
+
+  Drafted 2026-11-01 as part of the A04 remediation, at the operator's
+  instruction to complete the item. The clauses below state the commercial
+  shape each contract family already has in the system (duration, notice
+  period, entitlement consumption, SLA credits, stamp duty, governing law)
+  rather than inventing commitments the platform does not implement.
+-->
+<odoo>
+  <data noupdate="1">
+
+    <!-- ============================================ AMC ============== -->
+    <record id="ctpl_amc" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. SCOPE
+1.1 1000 FiX Services Ltd. ("the Service Provider") shall provide annual maintenance services for the equipment listed in the Schedule of Covered Assets.
+1.2 Cover comprises preventive maintenance visits and corrective repair of the covered assets, to the entitlement quantities recorded in this contract.
+
+2. TERM AND RENEWAL
+2.1 This contract runs for the Standard Term stated on its face from the commencement date.
+2.2 Either party may terminate by giving the Notice Period stated on its face, in writing.
+
+3. ENTITLEMENTS
+3.1 Preventive visits and corrective repairs are drawn against the entitlement quantities recorded against this contract.
+3.2 Work beyond the remaining entitlement is chargeable at the rate card in force on the date of service.
+
+4. CUSTOMER OBLIGATIONS
+4.1 The Customer shall provide safe and timely access to the covered assets.
+4.2 The Customer shall report faults through the Service Provider's published channels.
+
+5. EXCLUSIONS
+5.1 Cover excludes damage by misuse, unauthorised repair, power irregularity, flood, fire and other force majeure events.
+5.2 Consumables and parts beyond normal wear are chargeable unless expressly included.
+
+6. CHARGES AND TAX
+6.1 Charges are stated exclusive of VAT, which is added at the rate prevailing in Bangladesh.
+6.2 Invoices are payable within the agreed credit period.
+
+7. STAMP DUTY
+7.1 This instrument is chargeable under the Stamp Act 1899, Schedule I, Article 5, unless exempt. Duty is discharged before the contract takes effect.
+
+8. GOVERNING LAW
+8.1 This contract is governed by the laws of Bangladesh. The courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. পরিধি
+১.১ ১০০০ ফিক্স সার্ভিসেস লিমিটেড ("সেবা প্রদানকারী") কভার করা সম্পদের তালিকায় উল্লিখিত সরঞ্জামের বার্ষিক রক্ষণাবেক্ষণ সেবা প্রদান করবে।
+১.২ কভারেজের মধ্যে রয়েছে প্রতিরোধমূলক রক্ষণাবেক্ষণ পরিদর্শন এবং সংশোধনমূলক মেরামত, চুক্তিতে লিপিবদ্ধ এনটাইটেলমেন্ট পরিমাণ অনুযায়ী।
+
+২. মেয়াদ ও নবায়ন
+২.১ এই চুক্তি শুরুর তারিখ থেকে চুক্তিপত্রে উল্লিখিত মেয়াদ পর্যন্ত কার্যকর থাকবে।
+২.২ উভয় পক্ষ চুক্তিপত্রে উল্লিখিত নোটিশ সময়সীমা দিয়ে লিখিতভাবে চুক্তি বাতিল করতে পারবে।
+
+৩. এনটাইটেলমেন্ট
+৩.১ প্রতিরোধমূলক পরিদর্শন ও সংশোধনমূলক মেরামত এই চুক্তির অধীনে লিপিবদ্ধ এনটাইটেলমেন্ট থেকে কাটা হবে।
+৩.২ অবশিষ্ট এনটাইটেলমেন্টের অতিরিক্ত কাজ সেবার তারিখে প্রযোজ্য রেট কার্ড অনুযায়ী চার্জযোগ্য হবে।
+
+৪. গ্রাহকের দায়িত্ব
+৪.১ গ্রাহক কভার করা সম্পদে নিরাপদ ও সময়মতো প্রবেশাধিকার দেবেন।
+৪.২ গ্রাহক সেবা প্রদানকারীর প্রকাশিত চ্যানেলের মাধ্যমে ত্রুটি জানাবেন।
+
+৫. ব্যতিক্রম
+৫.১ অপব্যবহার, অননুমোদিত মেরামত, বিদ্যুৎ বিভ্রাট, বন্যা, অগ্নিকাণ্ড ও অন্যান্য দৈব দুর্বিপাকজনিত ক্ষতি কভারেজের বাইরে।
+৫.২ স্বাভাবিক ক্ষয়ের অতিরিক্ত কনজিউমেবল ও যন্ত্রাংশ সুস্পষ্টভাবে অন্তর্ভুক্ত না হলে চার্জযোগ্য।
+
+৬. চার্জ ও কর
+৬.১ সকল চার্জ ভ্যাট ব্যতীত; বাংলাদেশে প্রচলিত হারে ভ্যাট যুক্ত হবে।
+৬.২ চালান সম্মত ক্রেডিট সময়সীমার মধ্যে পরিশোধযোগ্য।
+
+৭. স্ট্যাম্প ডিউটি
+৭.১ অব্যাহতিপ্রাপ্ত না হলে এই দলিল স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৫ অনুযায়ী শুল্কযোগ্য। চুক্তি কার্যকর হওয়ার পূর্বে শুল্ক পরিশোধ করতে হবে।
+
+৮. প্রযোজ্য আইন
+৮.১ এই চুক্তি বাংলাদেশের আইন দ্বারা পরিচালিত। ঢাকার আদালতের এখতিয়ার প্রযোজ্য।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+    <!-- =========================================== RAMC ============== -->
+    <record id="ctpl_ramc" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. SCOPE
+1.1 This contract provides repair and maintenance cover for the covered assets, including parts and labour to the limits recorded against it.
+
+2. TERM AND NOTICE
+2.1 The term and the termination notice period are those stated on the face of this contract.
+
+3. PARTS AND LABOUR
+3.1 Replacement parts supplied under this contract are chargeable against the contract entitlement unless expressly stated as included.
+3.2 Labour is provided at the contracted rate; work outside the covered scope is quoted before it is carried out.
+
+4. RESPONSE
+4.1 Response and resolution targets, where stated, are measured by the Service Provider's service-level policy attached to this contract.
+
+5. EXCLUSIONS
+5.1 Cover excludes misuse, unauthorised repair, consumables, cosmetic damage and force majeure.
+
+6. CHARGES AND TAX
+6.1 Charges are exclusive of VAT at the prevailing Bangladesh rate.
+
+7. STAMP DUTY
+7.1 Chargeable under the Stamp Act 1899, Schedule I, Article 5, unless exempt.
+
+8. GOVERNING LAW
+8.1 The laws of Bangladesh apply; the courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. পরিধি
+১.১ এই চুক্তি কভার করা সম্পদের মেরামত ও রক্ষণাবেক্ষণ কভারেজ প্রদান করে, এতে চুক্তিতে লিপিবদ্ধ সীমা পর্যন্ত যন্ত্রাংশ ও শ্রম অন্তর্ভুক্ত।
+
+২. মেয়াদ ও নোটিশ
+২.১ মেয়াদ ও বাতিলের নোটিশ সময়সীমা চুক্তিপত্রে উল্লিখিত অনুযায়ী প্রযোজ্য।
+
+৩. যন্ত্রাংশ ও শ্রম
+৩.১ সুস্পষ্টভাবে অন্তর্ভুক্ত না হলে এই চুক্তির অধীনে সরবরাহকৃত প্রতিস্থাপন যন্ত্রাংশ চুক্তির এনটাইটেলমেন্ট থেকে চার্জযোগ্য।
+৩.২ শ্রম চুক্তিকৃত হারে প্রদান করা হবে; কভারেজের বাইরের কাজ সম্পাদনের পূর্বে কোটেশন দেওয়া হবে।
+
+৪. সাড়াদান
+৪.১ উল্লিখিত থাকলে সাড়াদান ও সমাধানের লক্ষ্যমাত্রা এই চুক্তির সাথে সংযুক্ত সেবা-স্তর নীতি অনুযায়ী পরিমাপ করা হবে।
+
+৫. ব্যতিক্রম
+৫.১ অপব্যবহার, অননুমোদিত মেরামত, কনজিউমেবল, বাহ্যিক ক্ষতি ও দৈব দুর্বিপাক কভারেজের বাইরে।
+
+৬. চার্জ ও কর
+৬.১ সকল চার্জ ভ্যাট ব্যতীত; বাংলাদেশে প্রচলিত হারে প্রযোজ্য।
+
+৭. স্ট্যাম্প ডিউটি
+৭.১ অব্যাহতিপ্রাপ্ত না হলে স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৫ অনুযায়ী শুল্কযোগ্য।
+
+৮. প্রযোজ্য আইন
+৮.১ বাংলাদেশের আইন প্রযোজ্য; ঢাকার আদালতের এখতিয়ার।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+    <!-- ==================================== MANAGED SERVICES ========= -->
+    <record id="ctpl_managed" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. SCOPE
+1.1 The Service Provider shall deliver the managed services described in the Statement of Work attached to this contract.
+
+2. TERM
+2.1 The term and notice period are as stated on the face of this contract, and renewal follows the generation method recorded against it.
+
+3. SERVICE LEVELS
+3.1 Service levels, and any service credits arising from failure to meet them, are those recorded in the service-level policy attached to this contract.
+3.2 Service credits are the Customer's sole financial remedy for a missed service level.
+
+4. PERSONNEL AND ACCESS
+4.1 The Service Provider's personnel shall comply with the Customer's site access and safety requirements.
+
+5. DATA AND CONFIDENTIALITY
+5.1 Each party shall keep the other's confidential information in confidence.
+5.2 Personal data is processed in accordance with applicable Bangladesh law.
+
+6. CHARGES AND TAX
+6.1 Recurring charges are invoiced per the billing schedule; all charges are exclusive of VAT.
+
+7. STAMP DUTY
+7.1 Chargeable under the Stamp Act 1899, Schedule I, Article 5, unless exempt.
+
+8. GOVERNING LAW
+8.1 The laws of Bangladesh apply; the courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. পরিধি
+১.১ সেবা প্রদানকারী এই চুক্তির সাথে সংযুক্ত কার্যবিবরণীতে বর্ণিত ম্যানেজড সেবা প্রদান করবে।
+
+২. মেয়াদ
+২.১ মেয়াদ ও নোটিশ সময়সীমা চুক্তিপত্রে উল্লিখিত অনুযায়ী; নবায়ন লিপিবদ্ধ পদ্ধতি অনুসারে হবে।
+
+৩. সেবার মান
+৩.১ সেবার মান এবং তা রক্ষায় ব্যর্থতার ক্ষেত্রে প্রযোজ্য সার্ভিস ক্রেডিট সংযুক্ত সেবা-স্তর নীতিতে লিপিবদ্ধ।
+৩.২ সেবার মান রক্ষিত না হলে সার্ভিস ক্রেডিটই গ্রাহকের একমাত্র আর্থিক প্রতিকার।
+
+৪. কর্মী ও প্রবেশাধিকার
+৪.১ সেবা প্রদানকারীর কর্মীগণ গ্রাহকের সাইট প্রবেশ ও নিরাপত্তা বিধি মেনে চলবেন।
+
+৫. তথ্য ও গোপনীয়তা
+৫.১ উভয় পক্ষ অপর পক্ষের গোপনীয় তথ্যের গোপনীয়তা রক্ষা করবে।
+৫.২ ব্যক্তিগত তথ্য বাংলাদেশের প্রযোজ্য আইন অনুযায়ী প্রক্রিয়াকরণ করা হবে।
+
+৬. চার্জ ও কর
+৬.১ বিলিং সময়সূচি অনুযায়ী পুনরাবৃত্ত চার্জ চালান করা হবে; সকল চার্জ ভ্যাট ব্যতীত।
+
+৭. স্ট্যাম্প ডিউটি
+৭.১ অব্যাহতিপ্রাপ্ত না হলে স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৫ অনুযায়ী শুল্কযোগ্য।
+
+৮. প্রযোজ্য আইন
+৮.১ বাংলাদেশের আইন প্রযোজ্য; ঢাকার আদালতের এখতিয়ার।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+    <!-- ========================================== RENTAL ============= -->
+    <record id="ctpl_rental" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. HIRE
+1.1 The Service Provider hires the equipment listed in the Schedule to the Customer for the hire period stated on the face of this contract.
+1.2 Title in the equipment remains with the Service Provider at all times.
+
+2. SECURITY DEPOSIT
+2.1 The security deposit stated on the face of this contract is payable before delivery and is refundable on return of the equipment in good order, less any deductions properly made under clause 4.
+
+3. CUSTOMER OBLIGATIONS
+3.1 The Customer shall use the equipment only for its intended purpose and shall not sub-hire, relocate or alter it without written consent.
+3.2 The Customer shall permit inspection on reasonable notice.
+
+4. LOSS AND DAMAGE
+4.1 The Customer is liable for loss of, or damage to, the equipment beyond fair wear and tear, up to the replacement value recorded against this contract.
+
+5. RETURN
+5.1 The equipment shall be returned on expiry or earlier termination. Late return is chargeable at the daily rate.
+
+6. CHARGES AND TAX
+6.1 Hire charges are invoiced per the billing schedule and are exclusive of VAT.
+
+7. STAMP DUTY
+7.1 This is an instrument of lease or hire and is chargeable under the Stamp Act 1899, Schedule I, Article 35, unless exempt.
+
+8. GOVERNING LAW
+8.1 The laws of Bangladesh apply; the courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. ভাড়া
+১.১ সেবা প্রদানকারী চুক্তিপত্রে উল্লিখিত ভাড়ার সময়কালের জন্য তফসিলে বর্ণিত সরঞ্জাম গ্রাহককে ভাড়া দেবে।
+১.২ সরঞ্জামের মালিকানা সর্বদা সেবা প্রদানকারীর নিকট থাকবে।
+
+২. জামানত
+২.১ চুক্তিপত্রে উল্লিখিত জামানত সরবরাহের পূর্বে পরিশোধযোগ্য এবং সরঞ্জাম সুষ্ঠু অবস্থায় ফেরত দিলে ধারা ৪ অনুযায়ী প্রযোজ্য কর্তন বাদে ফেরতযোগ্য।
+
+৩. গ্রাহকের দায়িত্ব
+৩.১ গ্রাহক সরঞ্জাম কেবল নির্ধারিত উদ্দেশ্যে ব্যবহার করবেন এবং লিখিত সম্মতি ব্যতীত উপ-ভাড়া, স্থানান্তর বা পরিবর্তন করবেন না।
+৩.২ যুক্তিসঙ্গত নোটিশে গ্রাহক পরিদর্শনের সুযোগ দেবেন।
+
+৪. ক্ষতি ও বিনষ্ট
+৪.১ স্বাভাবিক ক্ষয় ব্যতীত সরঞ্জামের ক্ষতি বা বিনষ্টের জন্য গ্রাহক দায়ী থাকবেন, চুক্তিতে লিপিবদ্ধ প্রতিস্থাপন মূল্য পর্যন্ত।
+
+৫. ফেরত
+৫.১ মেয়াদ শেষে বা পূর্বে বাতিল হলে সরঞ্জাম ফেরত দিতে হবে। বিলম্বে ফেরত দৈনিক হারে চার্জযোগ্য।
+
+৬. চার্জ ও কর
+৬.১ ভাড়া চার্জ বিলিং সময়সূচি অনুযায়ী চালান করা হবে এবং ভ্যাট ব্যতীত।
+
+৭. স্ট্যাম্প ডিউটি
+৭.১ এটি ইজারা বা ভাড়ার দলিল এবং অব্যাহতিপ্রাপ্ত না হলে স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৩৫ অনুযায়ী শুল্কযোগ্য।
+
+৮. প্রযোজ্য আইন
+৮.১ বাংলাদেশের আইন প্রযোজ্য; ঢাকার আদালতের এখতিয়ার।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+    <!-- ===================================== MARKETPLACE ============= -->
+    <record id="ctpl_marketplace" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. APPOINTMENT
+1.1 The Seller is admitted to the Service Provider's marketplace to offer the services and goods approved in its listing.
+
+2. ONBOARDING AND KYC
+2.1 Admission is conditional on completing identity and trade-licence verification and keeping those records current.
+
+3. COMMISSION AND SETTLEMENT
+3.1 Commission is charged at the rate recorded against the Seller's agreement.
+3.2 Net proceeds are settled to the Seller after deduction of commission, applicable tax deducted at source under the Income Tax Act 2023, and any sums recoverable under clause 5.
+3.3 Marketplace proceeds are released only after the buyer dispute window recorded in the settlement policy has elapsed.
+
+4. SELLER OBLIGATIONS
+4.1 The Seller shall meet the published service standards for acceptance, punctuality and quality.
+4.2 The Seller shall not solicit marketplace customers off-platform for services offered through the marketplace.
+
+5. DISPUTES AND RECOVERY
+5.1 Buyer disputes are handled under the published dispute policy. Sums refunded to a buyer are recoverable from the Seller's subsequent settlements.
+
+6. SUSPENSION
+6.1 The Service Provider may suspend or remove a listing for breach of these terms or of the published standards.
+
+7. STAMP DUTY
+7.1 Chargeable under the Stamp Act 1899, Schedule I, Article 5, unless exempt.
+
+8. GOVERNING LAW
+8.1 The laws of Bangladesh apply; the courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. নিয়োগ
+১.১ বিক্রেতাকে সেবা প্রদানকারীর মার্কেটপ্লেসে তার লিস্টিংয়ে অনুমোদিত সেবা ও পণ্য প্রদানের জন্য অন্তর্ভুক্ত করা হলো।
+
+২. অনবোর্ডিং ও কেওয়াইসি
+২.১ পরিচয় ও ট্রেড লাইসেন্স যাচাই সম্পন্ন করা এবং তা হালনাগাদ রাখার শর্তে অন্তর্ভুক্তি কার্যকর।
+
+৩. কমিশন ও নিষ্পত্তি
+৩.১ বিক্রেতার চুক্তিতে লিপিবদ্ধ হারে কমিশন ধার্য হবে।
+৩.২ কমিশন, আয়কর আইন ২০২৩ অনুযায়ী উৎসে কর কর্তন এবং ধারা ৫ অনুযায়ী আদায়যোগ্য অর্থ কর্তনের পর নিট অর্থ বিক্রেতাকে পরিশোধ করা হবে।
+৩.৩ নিষ্পত্তি নীতিতে লিপিবদ্ধ ক্রেতা-বিরোধ সময়সীমা অতিক্রান্ত হওয়ার পরই মার্কেটপ্লেসের অর্থ ছাড় করা হবে।
+
+৪. বিক্রেতার দায়িত্ব
+৪.১ বিক্রেতা গ্রহণযোগ্যতা, সময়ানুবর্তিতা ও গুণমানের প্রকাশিত মান রক্ষা করবেন।
+৪.২ মার্কেটপ্লেসের মাধ্যমে প্রদত্ত সেবার জন্য বিক্রেতা প্ল্যাটফর্মের বাইরে গ্রাহক আকর্ষণ করবেন না।
+
+৫. বিরোধ ও আদায়
+৫.১ ক্রেতা-বিরোধ প্রকাশিত নীতি অনুযায়ী নিষ্পন্ন হবে। ক্রেতাকে ফেরত দেওয়া অর্থ বিক্রেতার পরবর্তী নিষ্পত্তি থেকে আদায়যোগ্য।
+
+৬. স্থগিতকরণ
+৬.১ এই শর্তাবলি বা প্রকাশিত মান লঙ্ঘনে সেবা প্রদানকারী লিস্টিং স্থগিত বা অপসারণ করতে পারবে।
+
+৭. স্ট্যাম্প ডিউটি
+৭.১ অব্যাহতিপ্রাপ্ত না হলে স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৫ অনুযায়ী শুল্কযোগ্য।
+
+৮. প্রযোজ্য আইন
+৮.১ বাংলাদেশের আইন প্রযোজ্য; ঢাকার আদালতের এখতিয়ার।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+    <!-- ============================================= SLA ============= -->
+    <record id="ctpl_sla" model="fix.contract.template">
+      <field name="standard_terms">DRAFT — FOR LEGAL REVIEW. NOT APPROVED FOR ISSUE.
+
+1. PURPOSE
+1.1 This agreement records the service levels that apply to the services identified on its face, and the credits payable if they are not met.
+
+2. MEASUREMENT
+2.1 Response time runs from acceptance of a valid service request through the Service Provider's published channels.
+2.2 Resolution time runs to the point the fault is remedied or a workaround is accepted by the Customer.
+2.3 Time is not counted while the Service Provider is awaiting the Customer, parts on back-order, or access to site.
+
+3. SERVICE CREDITS
+3.1 Where a service level is missed, the Customer may claim the service credit stated in the service-level policy.
+3.2 Service credits are applied against future invoices and are the Customer's sole financial remedy for a missed service level.
+3.3 A claim must be made within thirty days of the end of the measurement period.
+
+4. EXCLUSIONS
+4.1 Service levels do not apply during agreed maintenance windows, or to faults caused by misuse, unauthorised change or force majeure.
+
+5. REVIEW
+5.1 The parties shall review performance against these service levels at the agreed interval.
+
+6. STAMP DUTY
+6.1 Chargeable under the Stamp Act 1899, Schedule I, Article 5, unless exempt.
+
+7. GOVERNING LAW
+7.1 The laws of Bangladesh apply; the courts of Dhaka have jurisdiction.</field>
+      <field name="terms_bn">খসড়া — আইন বিভাগের পর্যালোচনার জন্য। ইস্যু করার জন্য অনুমোদিত নয়।
+
+১. উদ্দেশ্য
+১.১ এই চুক্তি সংশ্লিষ্ট সেবার ক্ষেত্রে প্রযোজ্য সেবার মান এবং তা রক্ষিত না হলে প্রদেয় ক্রেডিট লিপিবদ্ধ করে।
+
+২. পরিমাপ
+২.১ সেবা প্রদানকারীর প্রকাশিত চ্যানেলে বৈধ সেবা অনুরোধ গৃহীত হওয়ার সময় থেকে সাড়াদানের সময় গণনা শুরু হবে।
+২.২ ত্রুটি নিরসন বা গ্রাহক কর্তৃক বিকল্প সমাধান গৃহীত হওয়া পর্যন্ত সমাধানের সময় গণনা করা হবে।
+২.৩ গ্রাহকের সাড়ার অপেক্ষা, যন্ত্রাংশের ব্যাক-অর্ডার বা সাইটে প্রবেশাধিকারের অপেক্ষার সময় গণনায় ধরা হবে না।
+
+৩. সার্ভিস ক্রেডিট
+৩.১ সেবার মান রক্ষিত না হলে গ্রাহক সেবা-স্তর নীতিতে উল্লিখিত সার্ভিস ক্রেডিট দাবি করতে পারবেন।
+৩.২ সার্ভিস ক্রেডিট পরবর্তী চালানের বিপরীতে সমন্বয় করা হবে এবং তা গ্রাহকের একমাত্র আর্থিক প্রতিকার।
+৩.৩ পরিমাপ সময়কাল শেষ হওয়ার ত্রিশ দিনের মধ্যে দাবি করতে হবে।
+
+৪. ব্যতিক্রম
+৪.১ সম্মত রক্ষণাবেক্ষণ সময়ে, অথবা অপব্যবহার, অননুমোদিত পরিবর্তন বা দৈব দুর্বিপাকজনিত ত্রুটিতে সেবার মান প্রযোজ্য নয়।
+
+৫. পর্যালোচনা
+৫.১ উভয় পক্ষ সম্মত বিরতিতে এই সেবার মানের বিপরীতে কর্মক্ষমতা পর্যালোচনা করবে।
+
+৬. স্ট্যাম্প ডিউটি
+৬.১ অব্যাহতিপ্রাপ্ত না হলে স্ট্যাম্প আইন ১৮৯৯, তফসিল ১, অনুচ্ছেদ ৫ অনুযায়ী শুল্কযোগ্য।
+
+৭. প্রযোজ্য আইন
+৭.১ বাংলাদেশের আইন প্রযোজ্য; ঢাকার আদালতের এখতিয়ার।</field>
+      <field name="terms_are_draft" eval="True"/>
+    </record>
+
+  </data>
+</odoo>

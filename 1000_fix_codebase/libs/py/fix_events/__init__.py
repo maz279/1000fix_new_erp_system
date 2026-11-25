@@ -13,14 +13,60 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
+# Kafka Bus, Dual-Write, Migration, and Replay Exports (EP-05 / EP-06 / P09-M01)
+from .dual_write import DualWriteEventBus, get_dual_bus, get_redis_store
+from .kafka_backend import EventBus, KafkaBackend
+from .kafka_bus import InMemoryBus, KafkaRecord, get_kafka_client, map_topic_for_event
+from .migration import (
+    CANONICAL_CONSUMER_GROUPS,
+    ConsumerBusState,
+    ConsumerGroupMigrationManager,
+    get_migration_manager,
+)
+from .replay import EventReplayEngine, get_replay_engine
+
 logger = logging.getLogger(__name__)
 
+_ENVELOPE_KEYS = ("event_id", "event_type", "aggregate", "correlation_id", "causation_id")
 
-def publish(env, event_type: str, aggregate: str, aggregate_id: int,
-            payload: dict[str, Any], metadata: dict[str, Any] | None = None) -> str:
+
+def normalize_bus_event(raw: dict[str, Any]) -> dict[str, Any]:
+    """One shape for a consumed event, whichever bus delivered it.
+
+    Kafka hands a consumer the FixEvent envelope (payload is a dict); Redis Streams
+    hands it the stream fields (payload is canonical JSON, aggregate_id a string,
+    absent ids are ""). Consumers code against the normalised form only.
+    """
+    payload = raw.get("payload")
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload) if payload else {}
+        except ValueError as exc:
+            raise ValueError(f"event payload is not JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("event payload must be a JSON object")
+    event = {key: (raw.get(key) or None) for key in _ENVELOPE_KEYS}
+    aggregate_id = raw.get("aggregate_id")
+    try:
+        event["aggregate_id"] = int(aggregate_id) if aggregate_id not in (None, "") else None
+    except (TypeError, ValueError):
+        event["aggregate_id"] = None
+    event["payload"] = payload
+    return event
+
+
+def publish(
+    env,
+    event_type: str,
+    aggregate: str,
+    aggregate_id: int,
+    payload: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+) -> str:
     """Publish a domain event via the transactional outbox (AS-08).
 
     Args:
@@ -46,6 +92,7 @@ def publish(env, event_type: str, aggregate: str, aggregate_id: int,
         if not ctx_corr:
             try:
                 from libs.py.fix_telemetry import get_current_correlation_id
+
                 ctx_corr = get_current_correlation_id()
             except ImportError:
                 pass
@@ -54,13 +101,18 @@ def publish(env, event_type: str, aggregate: str, aggregate_id: int,
 
     outbox = env["fix.event.outbox"]
     record = outbox.emit(event_type, aggregate, aggregate_id, payload, meta)
-    logger.debug("fix_events: emitted %s (id=%s, aggregate=%s/%s, corr=%s)",
-                 event_type, record.event_id, aggregate, aggregate_id, meta.get("correlation_id"))
+    logger.debug(
+        "fix_events: emitted %s (id=%s, aggregate=%s/%s, corr=%s)",
+        event_type,
+        record.event_id,
+        aggregate,
+        aggregate_id,
+        meta.get("correlation_id"),
+    )
     return record.event_id
 
 
-def consume(env, handler: callable, event_type: str, *,
-            dead_letter_on_error: bool = True) -> int:
+def consume(env, handler: callable, event_type: str, *, dead_letter_on_error: bool = True) -> int:
     """Register an idempotent event consumer (DI-05).
 
     The consumer framework retries failed messages; a poisoned message
@@ -95,9 +147,35 @@ def replay_from_timestamp(env, timestamp: str, event_type: str | None = None) ->
     if event_type:
         domain.append(("event_type", "=", event_type))
     events = env["fix.event.outbox"].search(domain, order="create_date asc")
-    return [{
-        "event_id": e.event_id,
-        "event_type": e.event_type,
-        "payload": __import__("json").loads(e.payload),
-        "metadata": __import__("json").loads(e.metadata_json) if e.metadata_json else {},
-    } for e in events]
+    return [
+        {
+            "event_id": e.event_id,
+            "event_type": e.event_type,
+            "payload": __import__("json").loads(e.payload),
+            "metadata": __import__("json").loads(e.metadata_json) if e.metadata_json else {},
+        }
+        for e in events
+    ]
+
+
+__all__ = [
+    "CANONICAL_CONSUMER_GROUPS",
+    "ConsumerBusState",
+    "ConsumerGroupMigrationManager",
+    "DualWriteEventBus",
+    "EventBus",
+    "EventReplayEngine",
+    "InMemoryBus",
+    "KafkaBackend",
+    "KafkaRecord",
+    "consume",
+    "get_dual_bus",
+    "get_kafka_client",
+    "get_migration_manager",
+    "get_redis_store",
+    "get_replay_engine",
+    "map_topic_for_event",
+    "normalize_bus_event",
+    "publish",
+    "replay_from_timestamp",
+]

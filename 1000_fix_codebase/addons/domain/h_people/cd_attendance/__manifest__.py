@@ -20,13 +20,36 @@ CD-M55-01 (P08-M02) — Wave 5 attendance:
 - biometric templates are S3 residency data: only the device reference
   lands here; the template itself routes through fix.identity.document
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Attendance",
-    "depends": ["base", "mail", "cd_entity_config", "cd_hr_core",
-                 "cd_employee_core", "cd_event_outbox", "cd_service_order"],
-    "data": ["security/ir.model.access.csv", "views/fix_attendance_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "hr",
+        "hr_attendance",
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_service_order",
+        # M55 capture audit 2026-11-17 (FF-46): timesheet lines are allocated
+        # to M67 projects and M05 contracts; a capacity forecast is by skill
+        "cd_competency",
+        "cd_ppm",
+        "cd_msp_contract",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
+        "security/ir.model.access.csv",
+        # A09 P0-b/P1/P2 (M55): own-record rules and the routing cron
+        "security/fix_a09_attendance_rules.xml",
+        "data/fix_a09_attendance_data.xml",
+        "data/wfm_sequences.xml",
+        "views/fix_attendance_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M55-01",

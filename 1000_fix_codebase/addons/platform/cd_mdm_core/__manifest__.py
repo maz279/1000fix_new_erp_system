@@ -11,16 +11,32 @@ Owns:
 - fix.mdm.change.request (the change-request model for master data governance)
 - fix.mdm.golden.rule (the golden-record rule engine consumed by M33's dedup)
 - fix.mdm.match.rule (field-level match rules for dedup scoring)
+- fix.mdm.governed.attribute (what a change request may write)
 
 Wired to M33 (party) and M37 (catalogue) as the governance layer over both.
 The rest of M64 (full workflow, data quality dashboards) stays in W2.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/MDM",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_mdm_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "product",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_workflow_engine",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "security/fix_mdm_rules.xml",
+        "data/fix_mdm_core_data.xml",
+        "data/fix_mdm_governed_data.xml",
+        "data/fix_mdm_crons.xml",
+        "views/fix_mdm_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M64-01",

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_vehicle_document" model="ir.sequence">
+            <field name="name">Vehicle Document</field>
+            <field name="code">fix.vehicle.document</field>
+            <field name="prefix">VDOC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_offroad" model="ir.sequence">
+            <field name="name">Vehicle Off-Road Record</field>
+            <field name="code">fix.vehicle.offroad</field>
+            <field name="prefix">VOFF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_check" model="ir.sequence">
+            <field name="name">Vehicle Pre-Use Check</field>
+            <field name="code">fix.vehicle.check</field>
+            <field name="prefix">VCHK/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_pm" model="ir.sequence">
+            <field name="name">Vehicle PM Job</field>
+            <field name="code">fix.vehicle.pm</field>
+            <field name="prefix">VPM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_fuel" model="ir.sequence">
+            <field name="name">Fuel Transaction</field>
+            <field name="code">fix.vehicle.fuel</field>
+            <field name="prefix">VFUEL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_telemetry" model="ir.sequence">
+            <field name="name">Telemetry Snapshot</field>
+            <field name="code">fix.vehicle.telemetry</field>
+            <field name="prefix">VTEL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_accident" model="ir.sequence">
+            <field name="name">Vehicle Accident</field>
+            <field name="code">fix.vehicle.accident</field>
+            <field name="prefix">VACC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_document_renewal" model="ir.sequence">
+            <field name="name">Vehicle Document Renewal</field>
+            <field name="code">fix.vehicle.document.renewal</field>
+            <field name="prefix">VREN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_defect" model="ir.sequence">
+            <field name="name">Vehicle Defect</field>
+            <field name="code">fix.vehicle.defect</field>
+            <field name="prefix">VDEF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_penalty" model="ir.sequence">
+            <field name="name">Vehicle Traffic Penalty</field>
+            <field name="code">fix.vehicle.penalty</field>
+            <field name="prefix">VPEN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- A07 ERP audit M46-10: vehicle disposals -->
+        <record id="seq_fix_vehicle_disposal" model="ir.sequence">
+            <field name="name">Vehicle Disposal</field>
+            <field name="code">fix.vehicle.disposal</field>
+            <field name="prefix">VDSP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

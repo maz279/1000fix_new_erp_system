@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 finish E16: a reporter reads what they reported; a Security Officer reads all. -->
+<odoo>
+    <record id="rule_fix_security_incident_reporter" model="ir.rule">
+        <field name="name">Security incident: own reports</field>
+        <field name="model_id" ref="model_fix_security_incident"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('create_uid', '=', user.id), ('detected_by_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_security_incident_officer" model="ir.rule">
+        <field name="name">Security incident: Security Officer sees all</field>
+        <field name="model_id" ref="model_fix_security_incident"/>
+        <field name="groups" eval="[(4, ref('group_security_officer')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- M29 capture audit 2026-11-14: a vulnerability is an unfixed weakness. Its
+         reporter and its remediation owner read it; a Security Officer reads all. -->
+    <record id="rule_fix_vulnerability_reporter" model="ir.rule">
+        <field name="name">Vulnerability: reporter and owner</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('create_uid', '=', user.id), ('reported_by_id', '=', user.id), ('owner_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_vulnerability_officer" model="ir.rule">
+        <field name="name">Vulnerability: Security Officer sees all</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="groups" eval="[(4, ref('group_security_officer')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_vulnerability_company" model="ir.rule">
+        <field name="name">fix.vulnerability: allowed companies</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- M29 capture pass 2 (2026-11-19): company isolation on the new registers -->
+    <!-- a service account's owner reads it (to register a rotation); the officers,
+         Access Approvers and administrators who manage them read all -->
+    <record id="rule_fix_service_account_owner" model="ir.rule">
+        <field name="name">Service account: own</field>
+        <field name="model_id" ref="model_fix_service_account"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('owner_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_service_account_managers" model="ir.rule">
+        <field name="name">Service account: managers see all</field>
+        <field name="model_id" ref="model_fix_service_account"/>
+        <field name="groups" eval="[(4, ref('group_security_officer')), (4, ref('group_access_approver')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_service_account_company" model="ir.rule">
+        <field name="name">fix.service.account: allowed companies</field>
+        <field name="model_id" ref="model_fix_service_account"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_security_pentest_company" model="ir.rule">
+        <field name="name">fix.security.pentest: allowed companies</field>
+        <field name="model_id" ref="model_fix_security_pentest"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- New User form (capture audit 2026-11-14): a person reads their own narrowed
+         module permissions; Access Approvers and administrators read everyone's. -->
+    <record id="rule_fix_module_permission_own" model="ir.rule">
+        <field name="name">Module permission: own</field>
+        <field name="model_id" ref="model_fix_module_permission"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_module_permission_approver" model="ir.rule">
+        <field name="name">Module permission: approvers see all</field>
+        <field name="model_id" ref="model_fix_module_permission"/>
+        <field name="groups" eval="[(4, ref('group_access_approver')), (4, ref('base.group_erp_manager')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

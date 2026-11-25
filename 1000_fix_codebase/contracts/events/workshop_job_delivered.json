@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "workshop.job.delivered",
+  "description": "Published by cd_workshop through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "workshop.job.delivered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_workshop"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "workshop_job_id",
+        "job_name",
+        "service_order_id",
+        "service_order_ref",
+        "workshop_id",
+        "technician_id",
+        "repair_level",
+        "total_repair_cost",
+        "completed_at",
+        "is_comeback"
+      ],
+      "properties": {
+        "workshop_job_id": {
+          "type": "integer"
+        },
+        "job_name": {
+          "type": "string"
+        },
+        "service_order_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "service_order_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "workshop_id": {
+          "type": "integer"
+        },
+        "technician_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "repair_level": {
+          "type": "string"
+        },
+        "total_repair_cost": {
+          "type": "number"
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "is_comeback": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_workshop",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_job_p1p2.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

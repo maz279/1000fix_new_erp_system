@@ -11,13 +11,42 @@ Warranty status (consumed by M09 in Phase 7). Ownership and transfer-of-ownershi
 (exposed to customers via portal P01 in Phase 5). Device history — every service
 order against a device, permanently.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Registry",
-    "depends": ["base", "mail", "cd_entity_config", "cd_catalogue", "cd_party_master",
-                 "cd_document_core", "cd_event_outbox", "cd_employee_core"],
-    "data": ["security/ir.model.access.csv", "views/fix_device_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_document_core",
+        "cd_event_outbox",
+        "cd_employee_core",
+    ],
+    "data": [
+        "security/fix_device_registry_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        # A07 P1 (2026-11-04): satellite rows follow their device's scope.
+        "security/fix_device_registry_rules.xml",
+        # M17 capture pass 2 (2026-11-19): the new registers follow their device.
+        "security/fix_device_capture_rules.xml",
+        "data/ir_sequence.xml",
+        # A07 P1: warranty expiry and maintenance-due jobs.
+        "data/ir_cron.xml",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
+        # A02 audit B4: warranty expiry.
+        "data/fix_warranty_expiry_cron.xml",
+        # M17 capture pass 2: sequences and the stewardship sweep.
+        "data/fix_device_capture_data.xml",
+        # A07 ERP audit (2026-11-20): circular-economy, M15 and timeline
+        # consumers, and the dormancy job.
+        "data/fix_device_erp_data.xml",
+        "views/fix_device_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M17-01",

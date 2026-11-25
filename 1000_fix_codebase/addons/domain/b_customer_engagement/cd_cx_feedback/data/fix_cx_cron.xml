@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_cx_feedback — M34 scheduled jobs (REQ-34.5).
+
+     ISO 10002 closure is time-bound: a complaint still open 72 hours after
+     intake escalates to the COO and flags its operating unit. The A03
+     zero-trust audit (2026-10-31) found no such job anywhere. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="ir_cron_complaint_escalate_72h" model="ir.cron">
+            <field name="name">CX: escalate complaints unresolved after 72 hours</field>
+            <field name="model_id" ref="model_fix_complaint"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_escalate_stale_complaints()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- A03 audit M34-5: open complaints with no SLA clocks (raised before
+             the S9 binding, or before a policy existed) get them. Idempotent,
+             so daily is safe; daily because a policy configured later must
+             still reach complaints already open. -->
+        <record id="ir_cron_complaint_backfill_sla" model="ir.cron">
+            <field name="name">CX: open missing SLA clocks on open complaints</field>
+            <field name="model_id" ref="model_fix_complaint"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_backfill_sla_clocks()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

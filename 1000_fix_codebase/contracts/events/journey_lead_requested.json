@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "journey.lead_requested",
+  "description": "Published by cd_campaign through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "journey.lead_requested"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_campaign"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "journey_id",
+        "journey",
+        "campaign_id",
+        "partner_id",
+        "step",
+        "note"
+      ],
+      "properties": {
+        "journey_id": {
+          "type": "integer"
+        },
+        "journey": {
+          "type": "string"
+        },
+        "campaign_id": {
+          "type": "integer"
+        },
+        "partner_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "step": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "note": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_campaign",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_campaign/models/fix_journey_runtime.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

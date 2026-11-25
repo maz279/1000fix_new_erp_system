@@ -1,0 +1,75 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M02",
+  "task": "R10-M02-T06",
+  "title": "Baseline Findings Disposition Evidence",
+  "timestamp": "2026-10-22T09:13:18.599937+00:00",
+  "total_requirements": 3347,
+  "undeclared_prior_to_run": 0,
+  "undeclared_post_run": 0,
+  "priority_distribution": {
+    "P0": 551,
+    "P1": 2061,
+    "P2": 735
+  },
+  "reciprocity_baseline_target": 53,
+  "reciprocity_ar006_estimate": 55,
+  "reciprocity_measured": 53,
+  "reciprocity_verdict": "ACCEPT_AND_REBASELINE (ruling; ratification UNMEASURED)",
+  "findings": [
+    {
+      "id": "F-P01M03-4",
+      "class": "Requirements Baseline",
+      "check": "priority_classification",
+      "state": "CLOSED"
+    },
+    {
+      "id": "F-P01M04-2",
+      "class": "Architecture Reciprocity",
+      "check": "reciprocity_baseline",
+      "state": "CLOSED"
+    }
+  ],
+  "open_findings_remaining": 0,
+  "checks": {
+    "priority_classification": {
+      "status": "PASS",
+      "register": "docs/p01-m03/registers/fit-gap-register.csv",
+      "mode": "dry-run (register not rewritten)",
+      "total_requirements": 3347,
+      "undeclared_before_run": 0,
+      "classified_this_run": 0,
+      "undeclared_after_run": 0,
+      "rows_carrying_r10_m02_disposition_marker": 1468,
+      "priority_distribution": {
+        "P0": 551,
+        "P1": 2061,
+        "P2": 735
+      }
+    },
+    "reciprocity_baseline": {
+      "status": "PASS",
+      "extractor_exit_code": 0,
+      "reciprocity_measured": 53,
+      "reciprocity_by_module": {
+        "M33": 24,
+        "M21": 12,
+        "M24": 8,
+        "M19": 4,
+        "M27": 3,
+        "M25": 1,
+        "M64": 1
+      },
+      "ratified_baseline": 53,
+      "ar006_estimate": 55,
+      "nodes": 67,
+      "edges": 447
+    },
+    "change_board_ratification": {
+      "status": "UNMEASURED",
+      "reason": "the rulings are recorded by this tool; their Change Board / CTO ratification is a human approval and no signed minute is observable here"
+    }
+  },
+  "verdict": "INCOMPLETE",
+  "status": "INCOMPLETE"
+}

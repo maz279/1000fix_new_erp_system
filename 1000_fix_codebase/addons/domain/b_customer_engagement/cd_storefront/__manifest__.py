@@ -5,12 +5,39 @@
     "description": """
 CD-M38-02 (P10) — E-Commerce & Digital Storefront.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.3",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "E-Commerce & Digital Storefront",
-    "depends": ["base", "mail", "cd_entity_config", "cd_catalogue", "cd_party_master", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/cd_storefront_views.xml"],
+    "depends": [
+        "base",
+        "portal",
+        "mail",
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_event_outbox",
+        "cd_consignment",
+        # A04 audit (2026-11-04): payment is confirmed against an M20 receipt
+        # (cd_billing_engine), graded refurb stock is reserved and sold (M15
+        # cd_inventory), and the refund is a routed M63 approval
+        # (cd_workflow_engine). All three load before this module on fix_dev.
+        "cd_billing_engine",
+        "cd_inventory",
+        "cd_workflow_engine",
+        # A04 ERP audit (20 Nov 2026) M38-F1: storefront lines are priced by the
+        # M11 price service (fix.rate.card.price_for, channel 'storefront').
+        "cd_rate_card",
+    ],
+    "data": [
+        "security/cd_storefront_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/fix_storefront_security.xml",
+        "security/ir.model.access.csv",
+        "data/ir_sequence_data.xml",
+        "data/ir_cron.xml",
+        "views/cd_storefront_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M38-02",

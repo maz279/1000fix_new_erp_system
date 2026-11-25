@@ -20,13 +20,38 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
 - payslip.pdf — the Bengali payslip (TR-07's named failure mode)
 - GL posting to M19 on approval; approval SoD negative-tested
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.4.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Payroll",
-    "depends": ["base", "mail", "cd_entity_config", "cd_hr_core",
-                 "cd_attendance", "cd_gl_ext", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_payroll_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_attendance",
+        "cd_gl_ext",
+        "cd_event_outbox",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        # The groups must exist before the payslip scope rule references them
+        # (a clean install failed with "External ID not found:
+        # cd_payroll_bd.group_payroll_officer" when this was loaded first).
+        "security/fix_payroll_security.xml",
+        # M56-F19: the payslip's real scope (company-wide for payroll, the cost
+        # unit for anyone else) - replaces the generated no-op unit rule.
+        "security/fix_payslip_scope_rules.xml",
+        "security/ir.model.access.csv",
+        "data/payroll_ops_sequences.xml",
+        "data/fix_payroll_a09_data.xml",
+        "data/fix_payroll_r2_data.xml",
+        # A09 ERP audit (2026-11-23): the statutory-pack tables and the
+        # gratuity/PAYE wiring added by builder stream B1b.
+        "data/fix_payroll_a09_erp_b1b.xml",
+        "views/fix_payroll_views.xml",
+        "report/report_payslip_bn.xml",
+    ],
     "installable": True,
     "application": True,
     "x_cd_id": "CD-M56-01",

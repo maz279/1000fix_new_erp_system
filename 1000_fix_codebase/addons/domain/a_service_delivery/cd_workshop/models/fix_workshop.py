@@ -1,8 +1,7 @@
 # fix.workshop — Workshop & Depot Facility Master (CD-M31-02, RR-03 Milestone R03-M02).
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
-
 import logging
+
+from odoo import api, fields, models
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +11,7 @@ class FixWorkshop(models.Model):
 
     Houses physical repair benches (L1/L2/L3), dedicated equipment, and technicians.
     """
+
     _name = "fix.workshop"
     _description = "Workshop & Depot Facility"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -118,6 +118,22 @@ class FixWorkshop(models.Model):
         default=True,
         help="ISO 9001 / IEC 61340-5-1 ESD protected area compliance",
     )
+    iso_9001_cert_number = fields.Char(
+        string="ISO 9001:2015 Certificate No.",
+        default="ISO-9001-1000FIX-BD",
+    )
+    fume_extraction_active = fields.Boolean(
+        string="HEPA / Solder Fume Extraction Active",
+        default=True,
+    )
+    power_backup_kva = fields.Float(
+        string="Online UPS / Generator Capacity (kVA)",
+        default=60.0,
+    )
+    facility_cert_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Facility ISO / EPA Audit Certificate",
+    )
     notes = fields.Text(string="Operational Notes")
     active = fields.Boolean(default=True, tracking=True)
 
@@ -134,12 +150,12 @@ class FixWorkshop(models.Model):
             available = len(rec.bench_ids.filtered(lambda b: b.state == "available"))
             rec.bench_count = total
             rec.available_bench_count = available
-            rec.bench_utilization = round(((total - available) / total * 100.0), 2) if total > 0 else 0.0
+            rec.bench_utilization = (
+                round(((total - available) / total * 100.0), 2) if total > 0 else 0.0
+            )
 
     def _compute_job_stats(self):
         for rec in self:
             rec.active_job_count = len(
-                rec.job_ids.filtered(
-                    lambda j: j.state not in ("delivered", "closed", "cancelled")
-                )
+                rec.job_ids.filtered(lambda j: j.state not in ("delivered", "closed", "cancelled"))
             )

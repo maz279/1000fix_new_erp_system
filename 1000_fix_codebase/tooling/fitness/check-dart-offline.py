@@ -7,6 +7,7 @@ and the SP-07/SP-09/DI-05/AR-010 §6 rules are present in the source.
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,18 +26,31 @@ def main() -> int:
 
     # 1. The barrel exports all 7 source files
     barrel = read("lib/fix_offline.dart")
-    for name in ("command", "journal", "sync_engine", "idempotency_ledger",
-                 "conflict_disclosure", "evidence_channel", "sync_state"):
+    for name in (
+        "command",
+        "journal",
+        "sync_engine",
+        "idempotency_ledger",
+        "conflict_disclosure",
+        "evidence_channel",
+        "sync_state",
+    ):
         if f"src/{name}.dart" not in barrel:
             v.append(f"barrel: src/{name}.dart not exported")
 
     # 2. Command (AR-010 §3)
     cmd = read("lib/src/command.dart")
-    for member in ("commandId", "model", "recordId", "operation", "payload",
-                    "createdAt", "status"):
-        if f"final {member}" not in cmd.replace("final String", "final ").replace("final Map", "final ").replace("final DateTime", "final ").replace("final int?", "final ").replace("final CommandStatus", "final "):
-            if f"this.{member}" not in cmd:
-                v.append(f"Command: missing field {member}")
+    for member in ("commandId", "model", "recordId", "operation", "payload", "createdAt", "status"):
+        if (
+            f"final {member}"
+            not in cmd.replace("final String", "final ")
+            .replace("final Map", "final ")
+            .replace("final DateTime", "final ")
+            .replace("final int?", "final ")
+            .replace("final CommandStatus", "final ")
+            and f"this.{member}" not in cmd
+        ):
+            v.append(f"Command: missing field {member}")
     if "CommandStatus.pending" not in cmd:
         v.append("Command: pending status missing")
     if "rejected" not in cmd:
@@ -44,9 +58,10 @@ def main() -> int:
     if "acknowledged" not in cmd:
         v.append("Command: acknowledged status missing")
     # The idempotency key is client-generated
-    if "commandId" not in cmd or "UUID" not in cmd:
-        if "client-generated" not in cmd and "idempotency key" not in cmd:
-            v.append("Command: commandId must be documented as the client-generated idempotency key")
+    if ("commandId" not in cmd or "UUID" not in cmd) and (
+        "client-generated" not in cmd and "idempotency key" not in cmd
+    ):
+        v.append("Command: commandId must be documented as the client-generated idempotency key")
 
     # 3. Journal (AR-010 §4)
     journal = read("lib/src/journal.dart")
@@ -135,10 +150,12 @@ def main() -> int:
         for line in v:
             print(f"  {line}")
         return 1
-    print("dart-offline: OK — 7 source files, all AR-010 mandates present "
-          "(command model, append-only journal, SP-07 upload-first, "
-          "DI-05 idempotency, §6 two-state disclosure, SP-09 evidence "
-          "channel, sync state machine)")
+    print(
+        "dart-offline: OK — 7 source files, all AR-010 mandates present "
+        "(command model, append-only journal, SP-07 upload-first, "
+        "DI-05 idempotency, §6 two-state disclosure, SP-09 evidence "
+        "channel, sync state machine)"
+    )
     return 0
 
 

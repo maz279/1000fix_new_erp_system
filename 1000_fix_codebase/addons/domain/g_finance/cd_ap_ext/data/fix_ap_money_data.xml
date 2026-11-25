@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FR-APE-027 / FR-APE-030: document sequences for retention and brand
+     consignment settlements. No account code or policy default is seeded:
+     cd_ap_ext.account_code.retention_payable is deliberately unset (a bill
+     that withholds retention fails closed naming it). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_ap_retention" model="ir.sequence">
+            <field name="name">AP Retention Withheld</field>
+            <field name="code">fix.ap.retention</field>
+            <field name="prefix">RET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ap_consignment_settlement" model="ir.sequence">
+            <field name="name">Brand Consignment Settlement</field>
+            <field name="code">fix.ap.consignment.settlement</field>
+            <field name="prefix">CSET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -15,6 +15,7 @@ The P03 W1 portal contract, checked statically:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -39,11 +40,19 @@ WORKSPACE_GROUPS = re.compile(r"cd_rbac_ext\.group_ws_\w+")
 # Odoo CE core models our actions legitimately target. The vendor/ submodules
 # are not initialised on every workstation, so these are allow-listed here;
 # anything else must be defined in addons/.
-CORE_MODELS = frozenset({
-    "res.partner", "res.company", "res.users", "res.groups",
-    "crm.lead", "product.template", "product.product",
-    "hr.employee", "hr.department",
-})
+CORE_MODELS = frozenset(
+    {
+        "res.partner",
+        "res.company",
+        "res.users",
+        "res.groups",
+        "crm.lead",
+        "product.template",
+        "product.product",
+        "hr.employee",
+        "hr.department",
+    }
+)
 
 
 def module_of(path: Path) -> str:
@@ -74,7 +83,8 @@ def collect_xml_records() -> dict[str, set[str]]:
                 declared[module].add(match.group(1))
         for match in re.finditer(
             r'<record\s+id="([\w.]+)"[^>]*model="(ir\.ui\.menu|'
-            r'ir\.actions\.act_window|res\.groups)"', text
+            r'ir\.actions\.act_window|res\.groups)"',
+            text,
         ):
             record_id = match.group(1)
             if "." in record_id:  # override of another module's record
@@ -155,9 +165,9 @@ def main() -> int:
     def sections_of(module: str, menu_id: str) -> list[dict]:
         full_id = f"{module}.{menu_id}"
         return [
-            m for m in menus
-            if m.get("parent") == full_id
-            or (m.get("parent") == menu_id and m["module"] == module)
+            m
+            for m in menus
+            if m.get("parent") == full_id or (m.get("parent") == menu_id and m["module"] == module)
         ]
 
     for module, menu_id in W1_WORKSPACES.items():
@@ -176,7 +186,9 @@ def main() -> int:
         for py in root.rglob("*.py"):
             if "__pycache__" in py.parts:
                 continue
-            for m in re.finditer(r'_name\s*=\s*"([\w.]+)"', py.read_text(encoding="utf-8", errors="ignore")):
+            for m in re.finditer(
+                r'_name\s*=\s*"([\w.]+)"', py.read_text(encoding="utf-8", errors="ignore")
+            ):
                 model_names.add(m.group(1))
     for xml in ADDONS.rglob("*.xml"):
         if "vendor" in xml.parts:
@@ -214,10 +226,12 @@ def main() -> int:
         f"{menu_id}:{len(sections_of(module, menu_id))}"
         for module, menu_id in W1_WORKSPACES.items()
     )
-    print(f"portal-contract: OK - 6 W1 workspaces gated under the shared root; "
-          f"references resolve; sections [{section_counts}] within NVR-23; "
-          f"view fields resolve ({len(fields_by_model)} models); "
-          f"nav-registry module coverage verified")
+    print(
+        f"portal-contract: OK - 6 W1 workspaces gated under the shared root; "
+        f"references resolve; sections [{section_counts}] within NVR-23; "
+        f"view fields resolve ({len(fields_by_model)} models); "
+        f"nav-registry module coverage verified"
+    )
 
 
 # ---------------------------------------------------- check 6 (PP0-M03-T02)

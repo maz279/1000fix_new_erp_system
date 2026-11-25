@@ -1,0 +1,75 @@
+{
+  "milestone": "R09-M03",
+  "task": "R09-M03-T01",
+  "standard": "TSS Design Volume / NFR-056 Telemetry Ingestion",
+  "benchmark_timestamp": "2026-10-22T18:57:02.508115+00:00",
+  "targets": {
+    "sustained_events_per_minute": 50000,
+    "peak_events_per_minute": 75000,
+    "p95_latency_budget_ms": 100.0
+  },
+  "collector_probe": {
+    "reachable": true,
+    "detail": "GET http://127.0.0.1:8084/health -> 200",
+    "health": "{\"capacity_epm\":50000,\"db_reachable\":true,\"nfr_056_throttle\":\"30s/100m\",\"schema_ready\":true,\"service\":\"telemetry-collector\",\"status\":\"healthy\",\"storage_mode\":\"plain-postgres-table\",\"timescaledb_ready\":false,\"version\":\"v2.1.0\"}\n"
+  },
+  "live_window": {
+    "sustained": {
+      "batch_ref": "c73d008f",
+      "events_sent": 16750,
+      "events_accepted": 16750,
+      "events_errored": 0,
+      "post_roundtrips": 67,
+      "p95_post_latency_ms": 30.7,
+      "window_seconds": 20.0,
+      "measurement_scope": "live: HTTP POST ingest into the running collector"
+    },
+    "peak": {
+      "batch_ref": "193b2ca4",
+      "events_sent": 12500,
+      "events_accepted": 12500,
+      "events_errored": 0,
+      "post_roundtrips": 50,
+      "p95_post_latency_ms": 31.16,
+      "window_seconds": 10.0,
+      "measurement_scope": "live: HTTP POST ingest into the running collector"
+    }
+  },
+  "in_process_microbenchmark": {
+    "note": "in-process ping generation + reference throttle only; nothing is ingested, this is not telemetry-path throughput",
+    "technicians_simulated": 500,
+    "pings_generated": 6250,
+    "pings_throttled": 2330,
+    "throttled_pct": 37.28,
+    "elapsed_seconds": 0.0345,
+    "throttle_evaluations_per_minute": 10861569
+  },
+  "checks": [
+    {
+      "check": "nfr056_reference_rule_boundaries",
+      "status": "PASS",
+      "detail": "6/6 boundary cases as expected"
+    },
+    {
+      "check": "product_model_encodes_nfr056_thresholds",
+      "status": "PASS",
+      "detail": "fix_technician_location.py: 'elapsed < 30 and dist < 100' rule found"
+    },
+    {
+      "check": "sustained_50000_events_per_minute",
+      "status": "PASS",
+      "detail": "LIVE: 16750 pings POSTed to the running collector over 20.0s; accepted 16750, errored 0"
+    },
+    {
+      "check": "peak_1_5x_75000_events_per_minute",
+      "status": "PASS",
+      "detail": "LIVE peak window: 12500 pings over 10.0s; accepted 12500, errored 0"
+    },
+    {
+      "check": "end_to_end_p95_le_100ms",
+      "status": "PASS",
+      "detail": "LIVE POST round-trip p95: sustained 30.7ms, peak 31.16ms (budget 100ms; collector->DB flush is async and observed via the collector's own stats)"
+    }
+  ],
+  "status": "PASS"
+}

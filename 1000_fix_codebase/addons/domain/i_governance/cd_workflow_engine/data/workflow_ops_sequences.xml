@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_workflow_instance" model="ir.sequence">
+            <field name="name">Workflow Instance</field>
+            <field name="code">fix.workflow.instance</field>
+            <field name="prefix">WFI/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_workflow_task" model="ir.sequence">
+            <field name="name">Workflow Task</field>
+            <field name="code">fix.workflow.task</field>
+            <field name="prefix">TSK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_approval_request" model="ir.sequence">
+            <field name="name">Approval Request</field>
+            <field name="code">fix.approval.request</field>
+            <field name="prefix">APR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_approval_substitution" model="ir.sequence">
+            <field name="name">Approval Substitution</field>
+            <field name="code">fix.approval.substitution</field>
+            <field name="prefix">SUB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rule_simulation" model="ir.sequence">
+            <field name="name">Approval Rule Simulation</field>
+            <field name="code">fix.rule.simulation</field>
+            <field name="prefix">RSIM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_workflow_intervention" model="ir.sequence">
+            <field name="name">Workflow Manual Intervention</field>
+            <field name="code">fix.workflow.intervention</field>
+            <field name="prefix">WFX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

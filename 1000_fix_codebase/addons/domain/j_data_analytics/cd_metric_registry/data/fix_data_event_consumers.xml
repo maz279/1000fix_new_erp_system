@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M62's in-Odoo event consumers (A11 audit G3, M62-9).
+
+  data_quality.failing is published by the quality runner
+  (fix_metric_registry.py _record_result); nothing consumed it, so a failing
+  rule never opened an incident and the subject area was never marked
+  degraded. The relay cron hands each event here once; the consumer is
+  idempotent per event.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_data_quality_failing" model="fix.event.consumer">
+            <field name="name">M62: open an incident for a failing quality rule</field>
+            <field name="event_type">data_quality.failing</field>
+            <field name="model">fix.data.incident</field>
+            <field name="method">consume_data_quality_failing</field>
+            <field name="module">cd_metric_registry</field>
+        </record>
+    </data>
+</odoo>

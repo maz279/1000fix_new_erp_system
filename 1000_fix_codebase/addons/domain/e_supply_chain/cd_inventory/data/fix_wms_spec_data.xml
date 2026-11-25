@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M41 capture pass 2 (2026-11-19): sequences of the new floor records and
+     the nightly labour measurement (AUT-WMS-15). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_wms_handling_unit" model="ir.sequence">
+            <field name="name">Handling Unit (licence plate)</field>
+            <field name="code">fix.wms.handling.unit</field>
+            <field name="prefix">HU/%(year)s/</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_crossdock" model="ir.sequence">
+            <field name="name">Cross-Dock</field>
+            <field name="code">fix.wms.crossdock</field>
+            <field name="prefix">XD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_return_receipt" model="ir.sequence">
+            <field name="name">Return Receiving</field>
+            <field name="code">fix.wms.return.receipt</field>
+            <field name="prefix">RET/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_outbound_demand" model="ir.sequence">
+            <field name="name">Outbound Demand</field>
+            <field name="code">fix.wms.outbound.demand</field>
+            <field name="prefix">OBD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_count_plan" model="ir.sequence">
+            <field name="name">Floor Count Plan</field>
+            <field name="code">fix.wms.count.plan</field>
+            <field name="prefix">CNTP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_productivity_run" model="ir.sequence">
+            <field name="name">Labour Productivity Run</field>
+            <field name="code">fix.wms.productivity.run</field>
+            <field name="prefix">PROD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_wms_productivity_nightly" model="ir.cron">
+            <field name="name">M41: nightly labour productivity (AUT-WMS-15)</field>
+            <field name="model_id" ref="model_fix_wms_productivity_run"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_nightly()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="seq_fix_wms_substitution" model="ir.sequence">
+            <field name="name">Pick Substitution</field>
+            <field name="code">fix.wms.substitution</field>
+            <field name="prefix">SUB/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_slot_proposal" model="ir.sequence">
+            <field name="name">Slotting Proposal</field>
+            <field name="code">fix.wms.slot.proposal</field>
+            <field name="prefix">PROP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_wms_auto_release" model="ir.cron">
+            <field name="name">M41: wave auto-release at the template cut-off (AUT-WMS-07)</field>
+            <field name="model_id" ref="model_fix_wms_wave_template"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_auto_release()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_wms_slot_proposals" model="ir.cron">
+            <field name="name">M41: nightly slot velocity and re-slot / consolidation proposals (AUT-WMS-15)</field>
+            <field name="model_id" ref="model_fix_wms_slot_proposal"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_propose()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="param_wms_fast_picks_90d" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_fast_picks_90d</field>
+            <field name="value">20</field>
+        </record>
+        <record id="param_wms_medium_picks_90d" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_medium_picks_90d</field>
+            <field name="value">5</field>
+        </record>
+        <!-- A06 ERP audit (20 Nov 2026), stream M41 -->
+        <record id="seq_fix_wms_slot_load" model="ir.sequence">
+            <field name="name">Opening Slot Load</field>
+            <field name="code">fix.wms.slot.load</field>
+            <field name="prefix">SLOAD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- O4: a WMS bin count variance is always recounted and approved (0 %) -->
+        <record id="param_wms_count_tolerance_pct" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_count_tolerance_pct</field>
+            <field name="value">0</field>
+        </record>
+    </data>
+</odoo>

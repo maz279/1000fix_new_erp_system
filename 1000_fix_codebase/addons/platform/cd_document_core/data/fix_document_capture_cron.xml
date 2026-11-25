@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M24 capture pass 2 (19 Nov 2026): the scheduled half of the new records.
+     A cron method with no ir.cron record never runs (area-audit playbook). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_physical_destruction_due" model="ir.cron">
+            <field name="name">M24: paper originals due for destruction (AUT-DMS-20)</field>
+            <field name="model_id" ref="model_fix_physical_record"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_destruction_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_integrity_sweep" model="ir.cron">
+            <field name="name">M24: integrity sweep (AUT-DMS-19)</field>
+            <field name="model_id" ref="model_fix_document_integrity_check"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_integrity_sweep()</field>
+            <field name="interval_number">7</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_retention_violation_scan" model="ir.cron">
+            <field name="name">M24: retention violation scan, both directions (AUT-DMS-11)</field>
+            <field name="model_id" ref="model_fix_retention_violation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_retention_scan()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_external_release_expiry" model="ir.cron">
+            <field name="name">M24: expire external releases (AUT-DMS-17)</field>
+            <field name="model_id" ref="model_fix_external_release"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_releases()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

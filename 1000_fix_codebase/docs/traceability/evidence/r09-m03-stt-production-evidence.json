@@ -1,0 +1,91 @@
+{
+  "milestone": "R09-M03",
+  "task": "R09-M03-T04",
+  "standard": "M26 W8 Slice / Bengali STT / Model Drift Loop",
+  "evaluation_scope": "FIXTURE-LEVEL REGRESSION ONLY: hand-typed Bengali transcript pairs. No STT backend is deployed and no production audio was transcribed.",
+  "timestamp": "2026-10-22T14:55:02.642670+00:00",
+  "model_registry": {
+    "model_name": "bengali-stt",
+    "active_version": "0.1.0",
+    "stage": "not-deployed",
+    "architecture": "external-backend-required",
+    "backend_configured": false,
+    "production_wer": null,
+    "production_wer_note": "UNMEASURED: no backend deployed; the registry carries no invented WER"
+  },
+  "evaluation_summary": {
+    "fixture_batches": [
+      {
+        "batch_id": "FIXTURE-EVAL-C01",
+        "timestamp": "2026-10-22T14:55:02.642149+00:00",
+        "samples": 4,
+        "average_wer": 0.1125,
+        "substitutions": 2,
+        "insertions": 0,
+        "deletions": 0,
+        "accuracy_class": "production-ready"
+      },
+      {
+        "batch_id": "FIXTURE-EVAL-D01",
+        "timestamp": "2026-10-22T14:55:02.642149+00:00",
+        "samples": 3,
+        "average_wer": 0.85,
+        "substitutions": 5,
+        "insertions": 2,
+        "deletions": 4,
+        "accuracy_class": "unusable"
+      }
+    ],
+    "fixture_baseline_wer_used_for_drift": 0.1,
+    "fixture_baseline_note": "declared fixture baseline for the drift demonstration - not a production measurement"
+  },
+  "drift_monitoring": {
+    "against_fixture_baseline": {
+      "timestamp": "2026-10-22T14:55:02.642149+00:00",
+      "baseline_wer": 0.1,
+      "current_wer": 0.4813,
+      "drift_detected": true,
+      "threshold": 0.15,
+      "retraining_event": {
+        "model_name": "bengali-stt",
+        "from_version": "0.0.0",
+        "to_version": "0.1.0",
+        "reason": "WER drifted from 0.100 to 0.481 (threshold=0.15)",
+        "triggered_at": "2026-10-22",
+        "status": "recorded",
+        "note": "no training backend is deployed; metrics remain unmeasured"
+      },
+      "status": "RETRAINED"
+    },
+    "without_any_baseline": {
+      "timestamp": "2026-10-22T14:55:02.642670+00:00",
+      "baseline_wer": null,
+      "current_wer": null,
+      "drift_detected": null,
+      "threshold": 0.15,
+      "retraining_event": null,
+      "status": "BASELINE_UNMEASURED",
+      "reason": "no measured WER baseline exists for bengali-stt; drift cannot be evaluated"
+    }
+  },
+  "checks": {
+    "wer_arithmetic_over_fixtures": true,
+    "degraded_fixture_scores_worse": true,
+    "drift_loop_records_retraining_event": true,
+    "no_baseline_is_baseline_unmeasured": true,
+    "registry_carries_no_invented_metrics": true,
+    "transcribe_refuses_without_backend": true
+  },
+  "pdpa_compliance": {
+    "legal_basis_gate_enforced": true,
+    "dpia_reference": "DPIA-2026-W2-VOICE",
+    "retention_policy": "Transcripts retained for 90 days with audit logging"
+  },
+  "api_surface": {
+    "controller_endpoint": "/analytics/stt/dashboard",
+    "openapi_operation": "getSTTDashboardMetrics",
+    "contract": "contracts/openapi/w4-portals.json"
+  },
+  "status": "PASS",
+  "finding": "Fixture-level regression PASS: WER arithmetic and the drift/retraining bookkeeping loop behave as specified against hand-typed fixtures (clean avg WER 0.1125, degraded avg WER 0.85, fixture baseline 0.1). Production Bengali STT accuracy is UNMEASURED: no backend is deployed, transcribe() refuses rather than echoing input, and the registry claims no production WER."
+}

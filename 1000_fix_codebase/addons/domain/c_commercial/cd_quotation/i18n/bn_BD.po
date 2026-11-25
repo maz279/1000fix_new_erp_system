@@ -7,18 +7,74 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_estimate__quotation_state__accepted
+msgid "Accepted"
+msgstr "গৃহীত"
 
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_discount_approval__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_estimate__quotation_state__declined
+msgid "Declined"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_quotation
+#: model:ir.model.fields,field_description:cd_quotation.field_fix_discount_approval__discount_pct
 msgid "Discount (%)"
 msgstr "ছাড় (%)"
 
+#. module: cd_quotation
+#: model:ir.actions.act_window,name:cd_quotation.action_fix_discount_approval
+#: model:ir.model.fields,field_description:cd_quotation.field_fix_estimate__approval_ids
+#: model:ir.ui.menu,name:cd_quotation.menu_fix_discount_approval
 msgid "Discount Approvals"
 msgstr "ছাড় অনুমোদনসমূহ"
 
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_estimate__quotation_state__internal
+msgid "Internal Estimate"
+msgstr "অভ্যন্তরীণ আনুমানিক খরচ"
+
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_estimate__quotation_state__negotiating
+msgid "Negotiating"
+msgstr "আলোচনাধীন"
+
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_discount_approval__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_quotation
+#: model:ir.model.fields,field_description:cd_quotation.field_fix_discount_approval__quotation_id
 msgid "Quotation"
 msgstr "কোটেশন"
 
+#. module: cd_quotation
+#: model_terms:ir.ui.view,arch_db:cd_quotation.view_fix_estimate_form_quotation
 msgid "Quotation (M36)"
 msgstr "কোটেশন (M36)"
 
+#. module: cd_quotation
+#: model:ir.model.fields,field_description:cd_quotation.field_fix_estimate__quotation_state
+msgid "Quotation State"
+msgstr "কোটেশনের অবস্থা"
+
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_estimate__quotation_state__quoted
+msgid "Quoted to Customer"
+msgstr "গ্রাহককে কোটেশন দেওয়া হয়েছে"
+
+#. module: cd_quotation
+#: model:ir.model.fields.selection,name:cd_quotation.selection__fix_discount_approval__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_quotation
+#: model:ir.model.fields,field_description:cd_quotation.field_fix_estimate__tender_ref
 msgid "Tender Reference"
 msgstr "টেন্ডার রেফারেন্স"

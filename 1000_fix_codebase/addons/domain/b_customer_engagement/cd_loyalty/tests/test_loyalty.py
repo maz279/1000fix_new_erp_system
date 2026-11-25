@@ -1,15 +1,15 @@
-# cd_loyalty tests — P05-M08-T01..T03 / R03-M05-T01 (CD-M10-01).
+import ast
 import inspect
-from pathlib import Path
 import unittest
-import yaml
+from pathlib import Path
 
-from odoo.addons.cd_loyalty.models.fix_loyalty_program import FixLoyaltyProgram
-from odoo.addons.cd_loyalty.models.fix_loyalty_tier import FixLoyaltyTier
+import yaml
 from odoo.addons.cd_loyalty.models.fix_loyalty_account import FixLoyaltyAccount
 from odoo.addons.cd_loyalty.models.fix_loyalty_ledger import FixLoyaltyLedger
-from odoo.addons.cd_loyalty.models.fix_loyalty_voucher import FixLoyaltyVoucher
+from odoo.addons.cd_loyalty.models.fix_loyalty_program import FixLoyaltyProgram
 from odoo.addons.cd_loyalty.models.fix_loyalty_stub import FixLoyaltyRedemptionStub
+from odoo.addons.cd_loyalty.models.fix_loyalty_tier import FixLoyaltyTier
+from odoo.addons.cd_loyalty.models.fix_loyalty_voucher import FixLoyaltyVoucher
 
 
 class TestLoyaltyProgram(unittest.TestCase):
@@ -81,7 +81,10 @@ class TestLoyaltyStub(unittest.TestCase):
         """Task R04-M02-T08: STUB-M10-M11-001 closure proof."""
         src = inspect.getsource(FixLoyaltyRedemptionStub.execute_redemption)
         self.assertIn("fix.loyalty.ledger", src)
-        self.assertIn("fix.ar.invoice", src)
+        self.assertIn("_redeemable_invoice", src)
+        self.assertIn(
+            "fix.ar.invoice", inspect.getsource(FixLoyaltyRedemptionStub._redeemable_invoice)
+        )
         self.assertIn('"status": "closed"', src)
         self.assertIn("STUB-M10-M11-001 CLOSED", src)
 
@@ -89,7 +92,7 @@ class TestLoyaltyStub(unittest.TestCase):
 class TestLoyaltyManifest(unittest.TestCase):
     def test_cd_id_is_registered(self):
         manifest_path = Path(__file__).resolve().parents[1] / "__manifest__.py"
-        manifest = eval(manifest_path.read_text(encoding="utf-8"))
+        manifest = ast.literal_eval(manifest_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["x_cd_id"], "CD-M10-01")
         self.assertEqual(manifest["x_module_id"], "M10")
         self.assertEqual(manifest["x_wave"], "W2")

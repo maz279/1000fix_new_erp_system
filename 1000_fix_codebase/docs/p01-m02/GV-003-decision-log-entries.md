@@ -22,6 +22,11 @@ reconstructed later. Every row names its allocating authority (`DL-08`).
 | `CO-003-AMD` | 2026-10-05 | SoW F-08 Scope Gap Settlement & Living Baseline Adoption | EXECUTED | Client & Partner Signatories | `docs/p01-m08/SoW-F08-signed-amendment.md` | **Closes `B-11`**; sets baseline at 3,389 / 122 NFRs |
 | `D-002` | 2026-10-05 | Super-User Availability Roster (Option C Phased Model — 85 Names) | APPROVED | Board (`BM-2026-10-D002`) | `docs/p01-m09/D-002-super-user-named-roster.md` | **Closes `B-12`**; commits 30% UAT time |
 | `MIG-01` | 2026-10-10 | 48 Legacy Sources Profiled across 8 Classes & Non-Migration Rulings | ACCEPTED | Migration Lead & ARB | `docs/p01-m07/legacy-source-profiles-completed.md` | **Closes `B-06`**; 100% profiles completed |
+| `D-034` | 2026-10-17 | L6 Commercial Software: Cloud Telephony / CPaaS for Hotline 16743 (TC-070) | ACCEPTED | CFO, CTO, `CA` | `docs/decisions/D-034-l6-cpaas-telephony.md` | **R05-M03-T01**; written Asterisk review; carrier interconnect |
+| `D-035` | 2026-10-17 | L6 Commercial Software: Qualified E-Signature under Bangladesh ICT Act 2006 (TC-071) | ACCEPTED | CFO, `SL`, `CA` | `docs/decisions/D-035-l6-qualified-e-signature.md` | **R05-M03-T01**; written OSS review; CCA evidentiary presumption |
+| `D-017` | 2026-10-18 | Gate G4 Tranche Decision: Formal Re-Authorisation of Waves 5–9 | RATIFIED | Executive Steering Committee | `docs/decisions/D-017-g4-tranche-decision-waves-5-9.md` | **R05-M05-T05 / G4-08**; unblocks Tranche 2 (Waves 5–9) |
+| `D-037` | 2026-10-18 | Kafka Event Bus Migration & Redis Streams Retirement (P09-M01) | ACCEPTED | ARB, `CA`, Integration Lead | `docs/decisions/D-037-kafka-event-bus-migration.md` | **R07-M01**; 3-node HA KRaft cluster, G6-3 PASS |
+| `D-038` | 2026-10-18 | Odoo 20 Upgrade Slot Execution: Formal Controlled Deferral (P09-M02) | RATIFIED | Executive Steering Committee & ARB | `docs/decisions/D-038-odoo20-upgrade-slot-execution.md` | **R07-M02**; D-025 §5 trigger; Odoo 19 extended support to Sep 2029 |
 
 Also paste (context rows, not new decisions):
 

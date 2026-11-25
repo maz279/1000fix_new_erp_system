@@ -74,3 +74,21 @@ signed commits, linear history, no force-push.
 
 `local` is synthetic-only, below `staging` on the ladder. Twelve environments
 and their data rules: `infra/environments.yaml` (`PE-002-D-01`).
+
+---
+
+## Enterprise Multi-Tab Forms & Bangladesh Workforce Master Standard (October 2026)
+
+### 1. Dynamics 365 In-Workspace Multi-Tab Forms Architecture
+- **Tabbed Layout**: Complex data-entry forms (>15 fields) must NEVER be rendered as a single vertical scroll page. They must be partitioned into Microsoft Dynamics 365 multi-tab navigation (`tabs: [{id, label, bn, icon, badge}]`).
+- **Engine Support**: `p03_workspace.js` handles active tab state (`formActiveTab`, `formSetTab(tabId)`), dynamic section filtering (`formSections`), and atomic full-form writes across all tabs (`/p03/model/write`).
+- **Accessible ARIA Standards**: Tab navigation uses `.d365-formtabs` with `role="tablist"` and `aria-label="Form Tabs"`, tab buttons with `role="tab"`, `aria-selected`, roving `tabindex="0|-1"`, and panel container with `role="tabpanel"`. Minimum 44px tap target height and visible 2px focus ring satisfy WCAG 2.2 AA.
+- **Photo & Avatar Field**: Support `image_1920` / binary image fields using dedicated `.d365-image-field` components with avatar preview, camera icon button, file picker, and clearing buttons. Automatically strip `data:image/...;base64,` prefixes before ORM commits.
+
+### 2. Bangladesh Statutory Workforce Master Compliance
+Under the Bangladesh Labour Act 2006 (BLA 2006), Labour Rules 2015, and Income Tax Act 2023, every employee master record must capture:
+- **Statutory Identity**: English legal name, Bengali legal name (`name_bn`), employee code, Father's name, Mother's name, Date of Birth, Gender (`sex`), Blood Group, Religion, Marital Status.
+- **Statutory & Tax Registrations**: 10-digit Smart / 17-digit National ID (`nid_number`), 12-digit e-TIN (`tin_number`), NBR Tax Zone (`tax_zone`), NBR Tax Circle (`tax_circle`), Form 7 Service Book Register No (`service_book_number`), Passport No.
+- **Addresses & Contacts**: Present residential address (`private_street`, `private_city`), statutory permanent ancestral address (`permanent_address`, `permanent_district`, `permanent_division`), personal email/phone, and official work channels.
+- **Scheduled Bank & MFS Accounts**: Scheduled bank name, branch, 9-digit BEFTN routing code (`routing_number`), bank account number, MFS wallet provider (`mfs_provider`: bKash/Nagad/Rocket), MFS account number, and BLA s.108 overtime eligibility (`overtime_eligible`).
+- **Emergency Next-of-Kin**: Primary emergency contact person, relation, primary phone, alternative phone, full address, spouse name, and dependent children count.

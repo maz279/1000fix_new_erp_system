@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The contract-number sequence fix.contract.create() has always called
+         (next_by_code('fix.contract')). Without it every contract fell back to
+         'CTR/<today>' and the SECOND contract (or renewal) of a day violated
+         the UNIQUE (code) constraint. -->
+    <data noupdate="1">
+        <record id="seq_fix_contract" model="ir.sequence">
+            <field name="name">Contract</field>
+            <field name="code">fix.contract</field>
+            <field name="prefix">CTR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- M19 GL engine: recurring journal templates, allocation rules,
+         posting log (CD-M19-01 / FR-FIN-008..017, 026, 042). -->
+
+    <!-- Recurring journal templates -->
+    <record id="view_fix_journal_template_list" model="ir.ui.view">
+        <field name="name">fix.journal.template.list</field>
+        <field name="model">fix.journal.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="journal_id"/>
+                <field name="schedule"/>
+                <field name="next_run_date"/>
+                <field name="auto_reverse" optional="show"/>
+                <field name="run_count" optional="show"/>
+                <field name="last_run_date" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'active'"
+                       decoration-info="state == 'draft'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_journal_template_form" model="ir.ui.view">
+        <field name="name">fix.journal.template.form</field>
+        <field name="model">fix.journal.template</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" type="object" string="Activate"
+                            class="btn-primary" invisible="state == 'active'"
+                            groups="account.group_account_manager"/>
+                    <button name="action_generate_entry" type="object" string="Generate Due Entry"
+                            class="btn-primary" invisible="state != 'active'"/>
+                    <button name="action_pause" type="object" string="Pause"
+                            invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,active,paused"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="journal_id"/>
+                            <field name="memo"/>
+                        </group>
+                        <group>
+                            <field name="schedule"/>
+                            <field name="next_run_date"/>
+                            <field name="auto_reverse"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="last_move_id" readonly="1"/>
+                            <field name="run_count" readonly="1"/>
+                            <field name="activated_by_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Template Lines" name="lines">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="account_id"/>
+                                    <field name="label"/>
+                                    <field name="debit"/>
+                                    <field name="credit"/>
+                                    <field name="branch_id" optional="show"/>
+                                    <field name="cost_centre" optional="show"/>
+                                    <field name="business_line" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Allocation rules -->
+    <record id="view_fix_allocation_rule_list" model="ir.ui.view">
+        <field name="name">fix.allocation.rule.list</field>
+        <field name="model">fix.allocation.rule</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="source_account_id"/>
+                <field name="journal_id"/>
+                <field name="run_count" optional="show"/>
+                <field name="last_run_date" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'active'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_allocation_rule_form" model="ir.ui.view">
+        <field name="name">fix.allocation.rule.form</field>
+        <field name="model">fix.allocation.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_run" type="object" string="Run Allocation (Month to Date)"
+                            class="btn-primary" invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="source_account_id"/>
+                            <field name="journal_id"/>
+                        </group>
+                        <group>
+                            <field name="last_run_id" readonly="1"/>
+                            <field name="run_count" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Targets" name="targets">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="account_id"/>
+                                    <field name="percent"/>
+                                    <field name="branch_id" optional="show"/>
+                                    <field name="cost_centre" optional="show"/>
+                                    <field name="business_line" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Posting log: read-only audit evidence -->
+    <record id="view_fix_journal_posting_log_list" model="ir.ui.view">
+        <field name="name">fix.journal.posting.log.list</field>
+        <field name="model">fix.journal.posting.log</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="move_name" string="Entry"/>
+                <field name="source"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'posted'"
+                       decoration-warning="state == 'requested'"/>
+                <field name="amount" sum="Total"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="requested_by"/>
+                <field name="posted_by" optional="show"/>
+                <field name="posted_at" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_journal_posting_log_form" model="ir.ui.view">
+        <field name="name">fix.journal.posting.log.form</field>
+        <field name="model">fix.journal.posting.log</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="move_id"/>
+                            <field name="move_name"/>
+                            <field name="source"/>
+                            <field name="state"/>
+                        </group>
+                        <group>
+                            <field name="amount"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="requested_by"/>
+                            <field name="posted_by"/>
+                            <field name="posted_at"/>
+                            <field name="template_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "van.reconciled",
-  "description": "Event emitted when mobile technician van inventory is reconciled or audited (M15, CD-M15-01)",
+  "description": "Event emitted when mobile technician van inventory is reconciled or audited (M15, CD-M15-01) Published by cd_inventory through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
-  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
   "properties": {
     "event_id": {
       "type": "string",
       "format": "uuid",
-      "description": "Unique event identifier for idempotency"
+      "description": "Unique event identifier for idempotency (UUIDv4)"
     },
     "event_type": {
       "type": "string",
@@ -16,7 +22,8 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
     },
     "producer": {
       "type": "string",
@@ -24,16 +31,48 @@
     },
     "payload": {
       "type": "object",
-      "required": ["location_id", "location_code", "technician_id", "van_plate", "audit_date", "discrepancy_count"],
+      "required": [
+        "van_id",
+        "van_code",
+        "technician_id",
+        "audited_qty",
+        "discrepancy_qty",
+        "accuracy_pct",
+        "audit_date"
+      ],
       "properties": {
-        "location_id": { "type": "integer" },
-        "location_code": { "type": "string" },
-        "technician_id": { "type": "integer" },
-        "van_plate": { "type": "string" },
-        "audit_date": { "type": "string" },
-        "discrepancy_count": { "type": "integer" },
-        "reconciled_at": { "type": "string" }
-      }
+        "van_id": {
+          "type": "integer"
+        },
+        "van_code": {
+          "type": "string"
+        },
+        "technician_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "audited_qty": {
+          "type": "integer"
+        },
+        "discrepancy_qty": {
+          "type": "number"
+        },
+        "accuracy_pct": {
+          "type": "number"
+        },
+        "audit_date": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "x-owner-module": "cd_inventory",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_stock_location.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)",
+  "x-curated-description": "Event emitted when mobile technician van inventory is reconciled or audited (M15, CD-M15-01)"
 }

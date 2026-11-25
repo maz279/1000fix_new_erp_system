@@ -1,0 +1,183 @@
+{
+  "$schema": "1000fix-erp/technical-debt-register/1",
+  "standard": "BE-009 Technical Debt Register & Refactoring Policy",
+  "milestone": "R09-M04",
+  "task": "R09-M04-T02",
+  "audit_reference": "P11-M08-T01 / Todo Tree convention",
+  "as_of_date": "2026-10-20",
+  "summary": {
+    "total_registered_items": 15,
+    "burned_down_items": 15,
+    "open_unowned_todos": 0,
+    "debt_ratio_pct": 0.0,
+    "debt_ceiling_pct": 15.0,
+    "status": "HEALTHY_BURNED_DOWN"
+  },
+  "items": [
+    {
+      "id": "DBT-001",
+      "title": "Declared events not registered in the event catalogue",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 953,
+      "owner": "Chief Architect / Platform Lead",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Enforced by libs/py/fix_events schema registry and FF-19 blocking event schema validation."
+    },
+    {
+      "id": "DBT-002",
+      "title": "Unreciprocated module dependency declarations",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 55,
+      "owner": "Odoo Lead Architect",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Resolved by FF-14 reciprocity extractor and reciprocal __manifest__.py dependencies."
+    },
+    {
+      "id": "DBT-003",
+      "title": "Entities declared owned by more than one module",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 34,
+      "owner": "Data Architect",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Resolved by DA-002 entity catalogue and single-ownership validation in cd_metric_registry."
+    },
+    {
+      "id": "DBT-004",
+      "title": "Dependency cycles outside the six approved co-design pairs",
+      "quadrant": "deliberate-prudent",
+      "severity": "S2",
+      "initial_instances": 11,
+      "owner": "Chief Architect",
+      "repay_by_wave": "W2",
+      "disposition": "repaid",
+      "resolution": "Broken by port-interface abstractions and event-driven asynchronous decoupling."
+    },
+    {
+      "id": "DBT-005",
+      "title": "Roles used and unregistered (R39-R46, R60, R54/R57)",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 11,
+      "owner": "Security Architect",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "Formally registered in cd_rbac_ext fix_roles.xml with bidirectional privilege mapping."
+    },
+    {
+      "id": "DBT-006",
+      "title": "Segregation-of-duties controls used and unregistered (SOD-13..SOD-30)",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 18,
+      "owner": "GRC Lead",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "Implemented in cd_grc and cd_rbac_ext with automated conflict detection."
+    },
+    {
+      "id": "DBT-007",
+      "title": "Colliding KPI identifiers",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 22,
+      "owner": "Analytics Lead",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "Reconciled against 06-02 Master KPI Register in kpi-register.json (BM-002 reconciliation)."
+    },
+    {
+      "id": "DBT-008",
+      "title": "NFR-090/091/092 multi-requirement duplication",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 5,
+      "owner": "Requirements Lead",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "Disambiguated and split into atomic NFR definitions in TSS §25.1.5."
+    },
+    {
+      "id": "DBT-009",
+      "title": "Acceptance criteria in run-on prose not decomposable",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 237,
+      "owner": "QA Lead",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Decomposed into structured Playwright and Vitest/Pytest executable acceptance specs."
+    },
+    {
+      "id": "DBT-010",
+      "title": "Requirement rows containing no modal verb",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S2",
+      "initial_instances": 3347,
+      "owner": "Programme Delivery Lead",
+      "repay_by_wave": "W4",
+      "disposition": "repaid",
+      "resolution": "Normalized during Phase 1-4 requirements engineering pass per RQA-02."
+    },
+    {
+      "id": "DBT-011",
+      "title": "Requirements allocated to no wave",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 1816,
+      "owner": "Chief Architect",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "100% mapped into 9-wave delivery schedule in IR-002 master roadmap."
+    },
+    {
+      "id": "DBT-012",
+      "title": "OCA modules not migrated to v19",
+      "quadrant": "deliberate-prudent",
+      "severity": "S2",
+      "initial_instances": 16,
+      "owner": "Odoo Lead Architect",
+      "repay_by_wave": "W2",
+      "disposition": "repaid",
+      "resolution": "All required functionality implemented natively in cd_* modules under zero-fork policy (FORKS.yaml: [])."
+    },
+    {
+      "id": "DBT-013",
+      "title": "Navigation footers that do not resolve",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S3",
+      "initial_instances": 14,
+      "owner": "Frontend UX Architect",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Reconciled with contracts/nav/registry.json and verified by FF-38 navigation integrity check."
+    },
+    {
+      "id": "DBT-014",
+      "title": "Business-rule identifiers double-allocated (BRU-ECM-01..10)",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 10,
+      "owner": "Solutions Architect",
+      "repay_by_wave": "W0",
+      "disposition": "repaid",
+      "resolution": "Re-indexed and de-duplicated in business rule catalog."
+    },
+    {
+      "id": "DBT-015",
+      "title": "MinIO at end of life without named fallback",
+      "quadrant": "inadvertent-prudent",
+      "severity": "S1",
+      "initial_instances": 1,
+      "owner": "Principal SRE / DevOps Lead",
+      "repay_by_wave": "W1",
+      "disposition": "repaid",
+      "resolution": "Migrated to SeaweedFS / S3-compatible cloud storage adapter in libs/py/fix_storage."
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A08 M51 (CD-M51-01): company isolation of the statutory master data and
+     compliance records; operating-unit isolation of the transactional rows. -->
+<odoo>
+    <record id="rule_fix_tax_rate_company" model="ir.rule">
+        <field name="name">fix.tax.rate: allowed companies</field>
+        <field name="model_id" ref="model_fix_tax_rate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_parameter_company" model="ir.rule">
+        <field name="name">fix.tax.parameter: allowed companies</field>
+        <field name="model_id" ref="model_fix_tax_parameter"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_statutory_due_rule_company" model="ir.rule">
+        <field name="name">fix.statutory.due.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_statutory_due_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_statutory_filing_company" model="ir.rule">
+        <field name="name">fix.statutory.filing: allowed companies</field>
+        <field name="model_id" ref="model_fix_statutory_filing"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_withholding_line_company" model="ir.rule">
+        <field name="name">fix.withholding.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_withholding_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_withholding_line_operating_unit" model="ir.rule">
+        <field name="name">fix.withholding.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_withholding_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_challan_company" model="ir.rule">
+        <field name="name">fix.tax.challan: allowed companies</field>
+        <field name="model_id" ref="model_fix_tax_challan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_challan_operating_unit" model="ir.rule">
+        <field name="name">fix.tax.challan: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tax_challan"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_input_vat_credit_company" model="ir.rule">
+        <field name="name">fix.input.vat.credit: allowed companies</field>
+        <field name="model_id" ref="model_fix_input_vat_credit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_input_vat_credit_operating_unit" model="ir.rule">
+        <field name="name">fix.input.vat.credit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_input_vat_credit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_audit_pack_company" model="ir.rule">
+        <field name="name">fix.tax.audit.pack: allowed companies</field>
+        <field name="model_id" ref="model_fix_tax_audit_pack"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

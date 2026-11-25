@@ -1,142 +1,76 @@
 # cd_ap_ext tests — M52 core (P06-M04).
-import inspect
+#
+# A08 build (2026-11-04): the three source-grep tests that lived here
+# (inspect.getsource of action_request_payment and _compute_tds, asserting
+# words such as "match_state" and "payment.requested" appear in the code)
+# certified nothing about behaviour. They are replaced by executed tests:
+#   - payment refused unless matched: test_a06_m16_match.py
+#     (test_m16_qty_variance_blocks_and_refuses_payment, ..._price_variance_...)
+#     and test_a08_m52_controls.py::test_m52_15_blocked_bill_not_payable;
+#   - TDS from M51's effective-dated rate master: test_ap_a08_orm.py
+#     (TestVendorTaxProfile) and test_a08_m52_controls.py::test_m52_12_...;
+#   - payment requests are events: test_a08_m52_controls.py
+#     (test_bill_payment_requested_payload, test_m52_60_...).
 import pytest
+
+pytestmark = [pytest.mark.financial, pytest.mark.tax]
 
 
 class TestThreeWayMatch:
-    def test_model_exists(self):
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
-        assert FixVendorInvoice is not None
+    def test_unmatched_po_bill_is_refused_payment(self, odoo_env):
+        """G3-06, as behaviour: a purchase-order bill with no order behind it is
+        unmatched, and the payment request refuses it and publishes nothing."""
+        from odoo.exceptions import UserError
+
+        env = odoo_env
+        ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
+        bill = env["fix.vendor.invoice"].create(
+            {
+                "operating_unit_id": ou.id,
+                "vendor_id": env["res.partner"].create({"name": "G3-06 vendor"}).id,
+                "invoice_ref": "G3-06-1",
+                "bill_type": "po",
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "product_id": env["product.product"].create({"name": "G3-06"}).id,
+                            "description": "G3-06",
+                            "quantity": 1.0,
+                            "unit_price": 100.0,
+                        },
+                    )
+                ],
+            }
+        )
+        assert bill.match_state == "unmatched"
+        with pytest.raises(UserError, match="G3-06"):
+            bill.action_request_payment()
+        assert bill.payment_state == "not_paid"
+        assert not env["fix.ap.bill.payment"].sudo().search([("bill_id", "=", bill.id)])
 
     def test_match_states_block_not_warn(self):
         """G3-06: the match outcome set includes 'blocked' — an unmatched
         invoice is BLOCKED, never warned about."""
         from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
+
         states = dict(FixVendorInvoice.match_state.selection)
         assert "blocked" in states
-
-    def test_payment_refused_unless_matched(self):
-        source = inspect.getsource(
-            __import__("odoo.addons.cd_ap_ext.models.fix_ap_ext",
-                       fromlist=["FixVendorInvoice"]).FixVendorInvoice.action_request_payment)
-        assert "match_state" in source and "raise UserError" in source
 
     def test_match_lives_in_m52_not_m16(self):
         """AR-006 section 4.1 pair 11: the seam belongs in M52, consuming
         M16 (fix.purchase.order) events — verified by the model location
         and the PO reference."""
         from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
+
         assert "fix.purchase.order" in FixVendorInvoice.requisition_id.comodel_name
-
-    def test_tds_is_synchronous_import(self):
-        """AR-006 pair 8: M52 calls M51 synchronously."""
-        source = inspect.getsource(
-            __import__("odoo.addons.cd_ap_ext.models.fix_ap_ext",
-                       fromlist=["FixVendorInvoice"]))
-        assert "from odoo.addons.cd_tax_engine_bd.models import tax_logic" in source
-
-    def test_payment_requests_are_events(self):
-        """AR-006 pair 9: M52 -> M50 is an event, never a synchronous call."""
-        source = inspect.getsource(
-            __import__("odoo.addons.cd_ap_ext.models.fix_ap_ext",
-                       fromlist=["FixVendorInvoice"]).FixVendorInvoice.action_request_payment)
-        assert '"payment.requested"' in source
-        # The docstring disclaims the synchronous call by naming it; mask the
-        # disclaimers before scanning for an actual call.
-        masked = (source.replace("events", "")
-                  .replace("No synchronous call into M50", "")
-                  .replace("never a synchronous call", ""))
-        assert "call" not in masked
-
-    def test_live_negative_match_qty_variance_blocks_and_refuses_payment(self):
-        """G3-06b: Live negative test — quantity invoiced > quantity received strictly blocks."""
-        from odoo.exceptions import UserError
-        from unittest.mock import MagicMock
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
-
-        class MockRecordset(list):
-            def filtered(self, predicate):
-                return MockRecordset([x for x in self if predicate(x)])
-            def __getitem__(self, item):
-                res = super().__getitem__(item)
-                return MockRecordset(res) if isinstance(res, list) else res
-            def __getattr__(self, name):
-                if len(self) == 1:
-                    return getattr(self[0], name)
-                raise AttributeError(name)
-
-        inv = MagicMock()
-        line = MagicMock()
-        line.product_id.id = 101
-        line.description = "Spare Battery Pack"
-        line.quantity = 10.0
-        line.unit_price = 500.0
-
-        po_line = MagicMock()
-        po_line.product_id.id = 101
-        po_line.qty_ordered = 10.0
-        po_line.qty_received = 4.0
-        po_line.unit_price = 500.0
-
-        po = MagicMock()
-        po.line_ids = MockRecordset([po_line])
-
-        inv.requisition_id = po
-        inv.line_ids = [line]
-
-        FixVendorInvoice._compute_match([inv])
-        assert inv.match_state == "blocked"
-        assert "received 4.00 < invoiced 10.00" in inv.match_detail
-
-        with pytest.raises(UserError, match="G3-06: an unmatched vendor invoice cannot be paid"):
-            FixVendorInvoice.action_request_payment([inv])
-
-    def test_live_negative_match_price_variance_blocks_and_refuses_payment(self):
-        """G3-06b: Live negative test — unit price invoiced > PO price strictly blocks."""
-        from odoo.exceptions import UserError
-        from unittest.mock import MagicMock
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
-
-        class MockRecordset(list):
-            def filtered(self, predicate):
-                return MockRecordset([x for x in self if predicate(x)])
-            def __getitem__(self, item):
-                res = super().__getitem__(item)
-                return MockRecordset(res) if isinstance(res, list) else res
-            def __getattr__(self, name):
-                if len(self) == 1:
-                    return getattr(self[0], name)
-                raise AttributeError(name)
-
-        inv = MagicMock()
-        line = MagicMock()
-        line.product_id.id = 202
-        line.description = "Display Panel"
-        line.quantity = 1.0
-        line.unit_price = 3500.0  # above PO price
-
-        po_line = MagicMock()
-        po_line.product_id.id = 202
-        po_line.qty_ordered = 1.0
-        po_line.qty_received = 1.0
-        po_line.unit_price = 3000.0
-
-        po = MagicMock()
-        po.line_ids = MockRecordset([po_line])
-
-        inv.requisition_id = po
-        inv.line_ids = [line]
-
-        FixVendorInvoice._compute_match([inv])
-        assert inv.match_state == "blocked"
-        assert "price above PO" in inv.match_detail
-
-        with pytest.raises(UserError, match="G3-06: an unmatched vendor invoice cannot be paid"):
-            FixVendorInvoice.action_request_payment([inv])
 
 
 class TestExpenseClaim:
     def test_threshold_and_employee_master(self):
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixExpenseClaim
-        assert FixExpenseClaim.APPROVAL_THRESHOLD == 25000
+        from odoo.addons.cd_ap_ext.models.fix_ap_controls import DEFAULT_CLAIM_MANAGER_THRESHOLD
+        from odoo.addons.cd_ap_ext.models.fix_ap_expense import FixExpenseClaim
+
+        assert FixExpenseClaim.APPROVAL_THRESHOLD == DEFAULT_CLAIM_MANAGER_THRESHOLD == 25000
         assert FixExpenseClaim.employee_id.comodel_name == "hr.employee"

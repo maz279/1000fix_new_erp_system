@@ -10,6 +10,7 @@ api-client generation and the tests can trust them.
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -73,8 +74,10 @@ def main() -> int:
         for line in v:
             print(f"  {line}")
         return 1
-    print(f"check-openapi: OK - {len(list(SPECS.glob('*.json')))} specs valid "
-          "(3.x, info, servers, operations, refs resolve)")
+    print(
+        f"check-openapi: OK - {len(list(SPECS.glob('*.json')))} specs valid "
+        "(3.x, info, servers, operations, refs resolve)"
+    )
     return 0
 
 

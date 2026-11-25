@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumer of contract.renewed for M05 (A02 audit M05-P2, probe L1):
+     after a renewal the MSP layer still pointed at the expired term, so the
+     entitlement it checks would refuse every ticket. The renewal re-points it. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_contract_renewed_msp" model="fix.event.consumer">
+            <field name="name">M05: MSP contracts follow the renewed M08 term</field>
+            <field name="event_type">contract.renewed</field>
+            <field name="model">fix.msp.contract</field>
+            <field name="method">consume_contract_renewed</field>
+            <field name="module">cd_msp_contract</field>
+        </record>
+        <!-- A02 ERP pass 2 (M05-S07): a terminated or expired M08 contract
+             starts the MSP offboarding (agents, access, data). -->
+        <record id="consumer_contract_terminated_msp" model="fix.event.consumer">
+            <field name="name">M05: a terminated contract starts the MSP offboarding</field>
+            <field name="event_type">contract.terminated</field>
+            <field name="model">fix.msp.contract</field>
+            <field name="method">consume_contract_terminated</field>
+            <field name="module">cd_msp_contract</field>
+        </record>
+        <record id="consumer_contract_expired_msp" model="fix.event.consumer">
+            <field name="name">M05: an expired contract starts the MSP offboarding</field>
+            <field name="event_type">contract.expired</field>
+            <field name="model">fix.msp.contract</field>
+            <field name="method">consume_contract_expired</field>
+            <field name="module">cd_msp_contract</field>
+        </record>
+        <!-- A02 ERP pass 2 (M05-S15): the month's service report goes to the
+             client's reporting contacts by M27 e-mail. -->
+        <record id="consumer_msp_report_to_client" model="fix.event.consumer">
+            <field name="name">M05: send the monthly service report to the client</field>
+            <field name="event_type">msp.service_report_published</field>
+            <field name="model">fix.msp.service.report</field>
+            <field name="method">consume_service_report_published</field>
+            <field name="module">cd_msp_contract</field>
+        </record>
+
+    </data>
+</odoo>

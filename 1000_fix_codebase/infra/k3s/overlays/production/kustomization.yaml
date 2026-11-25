@@ -1,0 +1,97 @@
+# 1000fix-erp - PRODUCTION overlay (infra/environments.yaml `prod`).
+#
+#   kubectl kustomize infra/k3s/overlays/production            # render
+#   kubectl apply -k infra/k3s/overlays/production             # deploy
+#
+# Before the first apply the Secrets listed in infra/README-production.md must
+# exist in namespace fix-erp-prod (created from the Terraform outputs / the
+# vault - never from this repository) and RELEASE_TAG below must be replaced
+# by the pipeline (`kustomize edit set image ...@sha256:<digest>`), e.g.
+#   cd infra/k3s/overlays/production && \
+#   kustomize edit set image 1000fix/odoo=registry.digitalocean.com/fix-erp/odoo@sha256:<digest>
+# An unreplaced RELEASE_TAG fails at image pull (fail closed).
+#
+# Host names: the 1000fix.com sub-domains below are the intended production
+# names - confirm them against the DNS zone before the first deploy.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fix-erp-prod
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: prod
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+configMapGenerator:
+  - name: fix-platform
+    behavior: merge
+    literals:
+      - FIX_ENV=prod
+      - ODOO_DB=fix_production
+      - ODOO_WORKERS=4
+      - KEYCLOAK_REALM=1000fix
+      - KEYCLOAK_ISSUER=https://auth.1000fix.com/realms/1000fix
+      - API_HOST=api.1000fix.com
+      - ERP_HOST=erp.1000fix.com
+      - AUTH_HOST=auth.1000fix.com
+      - PORTAL_HOST_CUSTOMER=customer.1000fix.com
+      - PORTAL_HOST_CORPORATE=corporate.1000fix.com
+      - PORTAL_HOST_VENDOR=vendor.1000fix.com
+      - PORTAL_HOST_PARTNER=partner.1000fix.com
+      - PORTAL_HOST_SELLER=seller.1000fix.com
+      - PORTAL_HOST_BRAND=brand.1000fix.com
+      - PORTAL_HOST_ANALYTICS=analytics.1000fix.com
+      - PORTAL_HOST_AGENT_CONSOLE=agent.1000fix.com
+      - FIX_API_BASE=https://api.1000fix.com
+      - CSP_CONNECT_SRC=https://api.1000fix.com https://auth.1000fix.com
+      - CORPORATE_OIDC_REDIRECT_URI=https://corporate.1000fix.com/auth/callback
+
+images:
+  - { name: 1000fix/odoo, newName: registry.digitalocean.com/fix-erp/odoo, newTag: RELEASE_TAG }
+  - { name: 1000fix/ml-gateway, newName: registry.digitalocean.com/fix-erp/ml-gateway, newTag: RELEASE_TAG }
+  - { name: 1000fix/telemetry-collector, newName: registry.digitalocean.com/fix-erp/telemetry-collector, newTag: RELEASE_TAG }
+  - { name: 1000fix/notification-dispatcher, newName: registry.digitalocean.com/fix-erp/notification-dispatcher, newTag: RELEASE_TAG }
+  - { name: 1000fix/identity-lifecycle, newName: registry.digitalocean.com/fix-erp/identity-lifecycle, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-customer, newName: registry.digitalocean.com/fix-erp/portal-customer, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-corporate, newName: registry.digitalocean.com/fix-erp/portal-corporate, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-vendor, newName: registry.digitalocean.com/fix-erp/portal-vendor, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-partner, newName: registry.digitalocean.com/fix-erp/portal-partner, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-seller, newName: registry.digitalocean.com/fix-erp/portal-seller, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-brand, newName: registry.digitalocean.com/fix-erp/portal-brand, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-analytics, newName: registry.digitalocean.com/fix-erp/portal-analytics, newTag: RELEASE_TAG }
+  - { name: 1000fix/portal-agent-console, newName: registry.digitalocean.com/fix-erp/portal-agent-console, newTag: RELEASE_TAG }
+
+patches:
+  # public host names on the edge Ingress
+  - target: { kind: Ingress, name: fix-edge }
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts
+        value:
+          - api.1000fix.com
+          - erp.1000fix.com
+          - auth.1000fix.com
+          - customer.1000fix.com
+          - corporate.1000fix.com
+          - vendor.1000fix.com
+          - partner.1000fix.com
+          - seller.1000fix.com
+          - brand.1000fix.com
+          - analytics.1000fix.com
+          - agent.1000fix.com
+      - { op: replace, path: /spec/rules/0/host, value: api.1000fix.com }
+      - { op: replace, path: /spec/rules/1/host, value: erp.1000fix.com }
+      - { op: replace, path: /spec/rules/2/host, value: auth.1000fix.com }
+      - { op: replace, path: /spec/rules/3/host, value: customer.1000fix.com }
+      - { op: replace, path: /spec/rules/4/host, value: corporate.1000fix.com }
+      - { op: replace, path: /spec/rules/5/host, value: vendor.1000fix.com }
+      - { op: replace, path: /spec/rules/6/host, value: partner.1000fix.com }
+      - { op: replace, path: /spec/rules/7/host, value: seller.1000fix.com }
+      - { op: replace, path: /spec/rules/8/host, value: brand.1000fix.com }
+      - { op: replace, path: /spec/rules/9/host, value: analytics.1000fix.com }
+      - { op: replace, path: /spec/rules/10/host, value: agent.1000fix.com }

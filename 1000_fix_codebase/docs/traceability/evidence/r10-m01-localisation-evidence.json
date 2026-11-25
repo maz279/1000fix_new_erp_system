@@ -1,0 +1,36 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M01",
+  "task": "R10-M01-T03",
+  "title": "Localisation Completeness & Statutory Calendars",
+  "timestamp": "2026-10-22T08:57:27.683043+00:00",
+  "verdict": "PASS",
+  "tests": [
+    {
+      "check": "Entity Localisation Fields",
+      "passed": true,
+      "details": "BIN (13-digit VAT), TIN (12-digit income tax), and statutory calendar rule present"
+    },
+    {
+      "check": "Mushak Weekend Rollover (Saturday to Sunday)",
+      "passed": true,
+      "details": "July 2026 period due on 2026-08-16 (weekday 6 = Sunday)"
+    },
+    {
+      "check": "Mushak Standard Working Day (Sunday)",
+      "passed": true,
+      "details": "Oct 2026 period due on 2026-11-15 (Sunday, no shift needed)"
+    },
+    {
+      "check": "TDS Q2 Weekend Rollover (Friday to Sunday)",
+      "passed": true,
+      "details": "TDS Q2 due on 2027-01-17 (rolled over from Friday to Sunday)"
+    },
+    {
+      "check": "4-Tier BD Address & Postal Code Validation",
+      "passed": true,
+      "details": "Accepted valid 4-digit postal code (1208) and rejected non-4-digit (12089)"
+    }
+  ],
+  "status": "PASS"
+}

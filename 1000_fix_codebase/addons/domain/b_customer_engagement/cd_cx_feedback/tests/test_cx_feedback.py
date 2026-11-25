@@ -1,8 +1,10 @@
 # cd_cx_feedback tests — M34 + M42 (P07-M06).
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_cx_feedback.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_cx_feedback.py").read_text(
+    encoding="utf-8"
+)
 
 
 class TestSurvey(unittest.TestCase):
@@ -13,14 +15,13 @@ class TestSurvey(unittest.TestCase):
         self.assertNotIn('self.env["fix.service.order"].write', SOURCE)
 
     def test_one_survey_per_order(self):
-        names = [c[0] for c in []]
         self.assertIn("order_unique", SOURCE)
 
     def test_bengali_ratings(self):
         self.assertIn("খুব ভালো", SOURCE)
 
     def test_nps_computed(self):
-        body = SOURCE[SOURCE.index("def _compute_nps"):]
+        body = SOURCE[SOURCE.index("def _compute_nps") :]
         self.assertIn("-100", body)
         self.assertIn("100", body)
 
@@ -32,7 +33,7 @@ class TestComplaint(unittest.TestCase):
 
     def test_critical_requires_capa(self):
         """No shortcut: critical closes only through CAPA verification."""
-        body = SOURCE[SOURCE.index("def action_close"):]
+        body = SOURCE[SOURCE.index("def action_close") :]
         self.assertIn("CRITICAL complaint closes only through CAPA", body)
 
     def test_ncr_stub_registered_with_expiry(self):
@@ -52,7 +53,7 @@ class TestSupplierScorecard(unittest.TestCase):
         self.assertNotIn('self.env["fix.purchase.order"].search', SOURCE)
 
     def test_score_weights(self):
-        body = SOURCE[SOURCE.index("def _compute_scores"):]
+        body = SOURCE[SOURCE.index("def _compute_scores") :]
         self.assertIn("0.6 * on_time + 0.4 * quality", body)
 
     def test_scorecards_publish_for_portal(self):

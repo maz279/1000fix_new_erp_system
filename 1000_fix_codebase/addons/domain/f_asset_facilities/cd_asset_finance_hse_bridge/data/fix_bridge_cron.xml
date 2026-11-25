@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 ERP audit (2026-11-20) D5(g) / FIN-18: the IFRS 16 months post themselves on the
+     Dhaka month end (daily job: posts every month whose end has been reached, in order;
+     idempotent; a lease that cannot post is skipped with its reason on the chatter). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_ifrs16_post_due_months" model="ir.cron">
+            <field name="name">M49: post due IFRS 16 lease months (Dhaka month end)</field>
+            <field name="model_id" ref="cd_fixed_asset_ext.model_fix_lease"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_post_due_months()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

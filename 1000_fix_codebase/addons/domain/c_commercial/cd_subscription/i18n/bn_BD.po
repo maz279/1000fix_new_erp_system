@@ -7,30 +7,359 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__active
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__active
+msgid "Active"
+msgstr "সক্রিয়"
 
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Allocate Price (IFRS 15)"
+msgstr "মূল্য বরাদ্দ (IFRS 15)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__allocated_amount
+msgid "Allocated Price"
+msgstr "বরাদ্দকৃত মূল্য"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__amc_service
+msgid "AMC Service (stand-ready)"
+msgstr "AMC সেবা (সদা-প্রস্তুত)"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__annual
+msgid "Annual"
+msgstr "বার্ষিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__basic
+msgid "Basic"
+msgstr "বেসিক"
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Cancel & Refund"
+msgstr "বাতিল ও ফেরত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__cancelled
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__cancelled
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__cancelled_date
+msgid "Cancelled On"
+msgstr "বাতিলের তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__amount
+msgid "Charge (VAT excl.)"
+msgstr "চার্জ (VAT ছাড়া)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__charge_ids
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Charges"
+msgstr "চার্জসমূহ"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__churned
+msgid "Churned"
+msgstr "ছেড়ে যাওয়া"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__complete
+msgid "Complete"
+msgstr "সম্পন্ন করুন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__subscription_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_id
 msgid "Contract"
 msgstr "চুক্তি"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_end_date
+msgid "Contract End"
+msgstr "চুক্তির সমাপ্তি"
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_performance_obligation_form
+msgid "Create Revenue Schedule"
+msgstr "রাজস্ব সূচি তৈরি করুন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__total_amount
 msgid "Deferred Amount"
 msgstr "স্থগিত পরিমাণ"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__deferred_balance
+msgid "Deferred Balance"
+msgstr "বিলম্বিত স্থিতি"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__last_refund_earned
+msgid "Earned at Cancellation"
+msgstr "বাতিলের সময় অর্জিত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__final
+msgid "Final Notice (L2)"
+msgstr "চূড়ান্ত নোটিশ (L2)"
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Generate Charge"
+msgstr "চার্জ তৈরি করুন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__move_id
+msgid "GL Move"
+msgstr "GL এন্ট্রি"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__invoice_id
+msgid "Invoice"
+msgstr "ইনভয়েস"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__invoice_state
+msgid "Invoice State"
+msgstr "ইনভয়েসের অবস্থা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__last_refund_amount
+msgid "Last Refund (net)"
+msgstr "সর্বশেষ ফেরত (নিট)"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__none
+msgid "None"
+msgstr "কোনোটি নয়"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__other
+msgid "Other Distinct Service"
+msgstr "অন্যান্য স্বতন্ত্র সেবা"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__satisfaction__over_time
+msgid "Over Time (ratable)"
+msgstr "সময়ের সাথে (আনুপাতিক)"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__parts
+msgid "Parts Included"
+msgstr "অন্তর্ভুক্ত যন্ত্রাংশ"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__past_due
+msgid "Past Due"
+msgstr "মেয়াদোত্তীর্ণ বকেয়া"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__paused
+msgid "Paused"
+msgstr "স্থগিত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__obligation_ids
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Performance Obligations"
+msgstr "পারফরম্যান্স বাধ্যবাধকতা"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__satisfaction__point_in_time
+msgid "Point in Time"
+msgstr "নির্দিষ্ট সময়ে"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__premium
+msgid "Premium"
+msgstr "প্রিমিয়াম"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__allocated
+msgid "Price Allocated"
+msgstr "মূল্য বরাদ্দকৃত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_performance_obligation_form
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_revenue_schedule_form
+msgid "Recognise to Today"
+msgstr "আজ পর্যন্ত স্বীকৃতি দিন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__recognized_amount
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_revenue_schedule_form
+msgid "Recognised"
+msgstr "স্বীকৃত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__line_ids
+msgid "Recognition Postings"
+msgstr "স্বীকৃতি পোস্টিং"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__recognized_amount
 msgid "Recognized"
 msgstr "স্বীকৃত"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__recurring_amount
 msgid "Recurring Amount"
 msgstr "পুনরাবৃত্ত পরিমাণ"
 
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Refund"
+msgstr "ফেরত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__refund_credit_note_id
+msgid "Refund Credit Note"
+msgstr "ফেরতের ক্রেডিট নোট"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__refund_requires_approval
+msgid "Refund Needs Manager Approval"
+msgstr "ফেরতে ম্যানেজারের অনুমোদন প্রয়োজন"
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Reinstate"
+msgstr "পুনর্বহাল"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__reminder
+msgid "Reminder (L1)"
+msgstr "অনুস্মারক (L1)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__schedule_id
+msgid "Revenue Schedule"
+msgstr "রাজস্ব সূচি"
+
+#. module: cd_subscription
+#: model:ir.actions.act_window,name:cd_subscription.action_fix_revenue_schedule
 msgid "Revenue Schedules"
 msgstr "রাজস্ব সময়সূচি"
 
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Run Dunning"
+msgstr "তাগাদা চালান"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__end_date
+msgid "Satisfaction End / Date"
+msgstr "পূরণের সমাপ্তি / তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__start_date
+msgid "Satisfaction Start"
+msgstr "পূরণের শুরু"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__satisfied
+msgid "Satisfied"
+msgstr "পূরণকৃত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__scheduled
+msgid "Scheduled"
+msgstr "সূচিভুক্ত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__hold
+msgid "Service Hold"
+msgstr "সার্ভিস স্থগিত"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__escalate
+msgid "Service Suspended (L3)"
+msgstr "সার্ভিস স্থগিত (L3)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__source_id
 msgid "Source ID"
 msgstr "উৎস আইডি"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__source_model
 msgid "Source Model"
 msgstr "উৎস মডেল"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__standalone_price
+msgid "Standalone Selling Price"
+msgstr "স্বতন্ত্র বিক্রয়মূল্য"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__standard
+msgid "Standard"
+msgstr "স্ট্যান্ডার্ড"
+
+#. module: cd_subscription
+#: model:ir.actions.act_window,name:cd_subscription.action_fix_subscription
+#: model:ir.ui.menu,name:cd_subscription.menu_fix_subscription
 msgid "Subscriptions"
 msgstr "সাবস্ক্রিপশনসমূহ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_value
+msgid "Transaction Price"
+msgstr "লেনদেন মূল্য"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__trial
+msgid "Trial"
+msgstr "ট্রায়াল"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__workmanship_warranty
+msgid "Workmanship Warranty (service-type)"
+msgstr "কারিগরি ওয়ারেন্টি (সেবা-ধরন)"

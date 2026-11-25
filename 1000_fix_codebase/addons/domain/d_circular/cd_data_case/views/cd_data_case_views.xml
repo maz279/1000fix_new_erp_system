@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_data_case views (P09). -->
+<!-- cd_data_case views (P09 / R07-M04) + iteration-2 lab engines. -->
 <odoo>
+    <!-- ================= Data Recovery Case ================= -->
     <record id="view_fix_data_recovery_case_list" model="ir.ui.view">
         <field name="name">fix.data.recovery.case.list</field>
         <field name="model">fix.data.recovery.case</field>
@@ -8,34 +9,631 @@
             <list>
                 <field name="name"/>
                 <field name="customer_id"/>
+                <field name="specialism" optional="show"/>
                 <field name="media_type"/>
-                <field name="state"/>
+                <field name="residency_zone" widget="badge"/>
+                <field name="attempt_count" optional="hide"/>
+                <field name="audit_count"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_data_recovery_case_form" model="ir.ui.view">
+        <field name="name">fix.data.recovery.case.form</field>
+        <field name="model">fix.data.recovery.case</field>
+        <field name="arch" type="xml">
+            <form string="Data Recovery Case">
+                <header>
+                    <button name="action_take_custody_me" type="object" string="Take Custody"
+                            class="oe_highlight" invisible="state != 'new'"/>
+                    <button name="action_transfer_me" type="object" string="Log Custody Transfer"
+                            invisible="state not in ('custody', 'recovering', 'recovered', 'handover')"/>
+                    <button name="action_route_to_z4" type="object" string="Route to Z4"
+                            invisible="state not in ('new', 'custody') or residency_zone == 'z4'"/>
+                    <button name="action_start_recovery" type="object" string="Start Recovery"
+                            class="oe_highlight" invisible="state != 'custody'"/>
+                    <button name="action_recovered" type="object" string="Mark Recovered"
+                            invisible="state != 'recovering'"/>
+                    <button name="action_mark_unrecoverable" type="object" string="Mark Unrecoverable"
+                            invisible="state not in ('custody', 'recovering')"/>
+                    <button name="action_handover_me" type="object" string="Secure Handover"
+                            invisible="state != 'recovered'"/>
+                    <button name="action_purge" type="object" string="Purge (Verified Certificate)"
+                            class="oe_highlight" invisible="state != 'handover'"/>
+                    <button name="action_close" type="object" string="Close Case"
+                            invisible="state not in ('custody', 'purged', 'unrecoverable')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="new,custody,recovering,recovered,handover,purged,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="media_type"/>
+                            <field name="media_serial_number" readonly="state != 'new'"/>
+                            <field name="specialism"/>
+                        </group>
+                        <group>
+                            <field name="residency_zone" widget="badge"/>
+                            <field name="received_at"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="audit_count"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chain of Custody" name="custody">
+                            <field name="custody_chain" readonly="1" widget="text"/>
+                        </page>
+                        <page string="Sealed Media" name="media_units">
+                            <field name="media_unit_ids">
+                                <list editable="bottom">
+                                    <field name="seal_number"/>
+                                    <field name="media_label"/>
+                                    <field name="location" readonly="1"/>
+                                    <field name="seal_state" readonly="1"/>
+                                    <field name="holder" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Evaluations" name="evaluations">
+                            <field name="evaluation_ids">
+                                <list>
+                                    <field name="received_at"/>
+                                    <field name="verdict"/>
+                                    <field name="recoverability_pct"/>
+                                    <field name="recommended_specialism"/>
+                                    <field name="evaluated_at"/>
+                                    <field name="eval_hours"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Recovery Attempts" name="attempts">
+                            <field name="attempt_ids">
+                                <list>
+                                    <field name="method"/>
+                                    <field name="started_at"/>
+                                    <field name="finished_at"/>
+                                    <field name="outcome"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Quotations" name="quotes">
+                            <field name="quote_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="amount"/>
+                                    <field name="valid_until"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Z4 Per-Read Access Audits (SC-002)" name="z4_audits">
+                            <field name="audit_ids" readonly="1">
+                                <list>
+                                    <field name="access_time"/>
+                                    <field name="user_name"/>
+                                    <field name="access_type"/>
+                                    <field name="purpose"/>
+                                    <field name="ip_address"/>
+                                    <field name="step_up_verified" widget="boolean"/>
+                                    <field name="sha256_audit_hash"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Statutory Purge &amp; Wipe Record" name="purge">
+                            <group>
+                                <field name="purge_certificate_id" readonly="1"/>
+                            </group>
+                            <group string="Destructive-Work Consent">
+                                <field name="destructive_consent_at"/>
+                                <field name="destructive_consent_by_id"/>
+                                <field name="destructive_consent_reference"/>
+                                <field name="destructive_consent_attachment_id"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_data_recovery_case" model="ir.actions.act_window">
         <field name="name">Data Recovery Case</field>
         <field name="res_model">fix.data.recovery.case</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- ================= Z4 Access Audit ================= -->
+    <record id="view_fix_z4_access_audit_list" model="ir.ui.view">
+        <field name="name">fix.z4.access.audit.list</field>
+        <field name="model">fix.z4.access.audit</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="access_time"/>
+                <field name="case_id"/>
+                <field name="user_name"/>
+                <field name="access_type"/>
+                <field name="purpose"/>
+                <field name="ip_address"/>
+                <field name="step_up_verified"/>
+                <field name="sha256_audit_hash"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_z4_access_audit" model="ir.actions.act_window">
+        <field name="name">Z4 Sovereign Access Audit Log</field>
+        <field name="res_model">fix.z4.access.audit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Data Wipe Certificate ================= -->
     <record id="view_fix_data_wipe_certificate_list" model="ir.ui.view">
         <field name="name">fix.data.wipe.certificate.list</field>
         <field name="model">fix.data.wipe.certificate</field>
         <field name="arch" type="xml">
-            <list>
+            <list delete="false">
                 <field name="name"/>
                 <field name="device_id"/>
+                <field name="serial_number"/>
                 <field name="method"/>
+                <field name="sanitization_status" widget="badge"/>
+                <field name="statutory_record_retained" widget="boolean"/>
+                <field name="verification_hash"/>
                 <field name="certified_at"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_data_wipe_certificate_form" model="ir.ui.view">
+        <field name="name">fix.data.wipe.certificate.form</field>
+        <field name="model">fix.data.wipe.certificate</field>
+        <field name="arch" type="xml">
+            <form string="Data Wipe Certificate" delete="false">
+                <header>
+                    <button name="action_verify" type="object" string="Verify Evidence" class="oe_highlight" invisible="sanitization_status != 'pending_verification'"/>
+                    <button name="action_mark_failed" type="object" string="Mark Failed" invisible="sanitization_status != 'pending_verification'"/>
+                    <field name="sanitization_status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="device_id" readonly="sanitization_status != 'pending_verification'"/>
+                            <field name="serial_number" required="1" readonly="sanitization_status != 'pending_verification'"/>
+                            <field name="method" required="1" readonly="sanitization_status == 'verified'"/>
+                            <field name="sector_count" required="method != 'physical_destruction'" readonly="sanitization_status == 'verified'"/>
+                            <field name="duration_seconds" readonly="sanitization_status == 'verified'"/>
+                            <field name="tool_name" readonly="sanitization_status == 'verified'"/>
+                            <field name="wipe_log_attachment_id" required="1" readonly="sanitization_status == 'verified'"/>
+                        </group>
+                        <group>
+                            <field name="statutory_record_retained" readonly="1"/>
+                            <field name="technician_id" readonly="1"/>
+                            <field name="certified_by"/>
+                            <field name="certified_at"/>
+                            <field name="verified_by_id"/>
+                            <field name="verified_at"/>
+                            <field name="verification_hash"/>
+                            <field name="verified_hash"/>
+                            <field name="evidence_intact"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_data_wipe_certificate" model="ir.actions.act_window">
         <field name="name">Data Wipe Certificate</field>
         <field name="res_model">fix.data.wipe.certificate</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_data_recovery_case" name="Data Recovery Case" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_recovery_case" sequence="200"/>
-    <menuitem id="menu_fix_data_wipe_certificate" name="Data Wipe Certificate" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_wipe_certificate" sequence="210"/>
+    <!-- ================= Recovery Attempt ================= -->
+    <record id="view_fix_data_attempt_list" model="ir.ui.view">
+        <field name="name">fix.data.recovery.attempt.list</field>
+        <field name="model">fix.data.recovery.attempt</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="case_id"/>
+                <field name="method"/>
+                <field name="specialism" optional="hide"/>
+                <field name="started_at"/>
+                <field name="finished_at"/>
+                <field name="outcome"/>
+                <field name="notes" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_attempt_form" model="ir.ui.view">
+        <field name="name">fix.data.recovery.attempt.form</field>
+        <field name="model">fix.data.recovery.attempt</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_finish" type="object" string="Finish Attempt"
+                            class="oe_highlight" invisible="outcome != 'in_progress'"/>
+                    <field name="outcome" widget="statusbar" statusbar_visible="in_progress,success"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="case_id"/>
+                            <field name="method"/>
+                            <field name="specialism"/>
+                        </group>
+                        <group>
+                            <field name="started_at"/>
+                            <field name="finished_at"/>
+                            <field name="outcome" readonly="1"/>
+                            <field name="destructive"/>
+                            <field name="cleanroom_slot_id"/>
+                            <field name="notes"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_attempt" model="ir.actions.act_window">
+        <field name="name">Recovery Attempts</field>
+        <field name="res_model">fix.data.recovery.attempt</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Sealed Media Unit ================= -->
+    <record id="view_fix_data_media_unit_list" model="ir.ui.view">
+        <field name="name">fix.data.media.unit.list</field>
+        <field name="model">fix.data.media.unit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="seal_number"/>
+                <field name="case_id"/>
+                <field name="media_label"/>
+                <field name="media_type" optional="hide"/>
+                <field name="location"/>
+                <field name="seal_state"/>
+                <field name="holder"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_media_unit_form" model="ir.ui.view">
+        <field name="name">fix.data.media.unit.form</field>
+        <field name="model">fix.data.media.unit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_return" type="object" string="Return to Customer"
+                            invisible="location in ('destroyed', 'returned_to_customer')"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="case_id"/>
+                            <field name="seal_number"/>
+                            <field name="media_label"/>
+                            <field name="media_type"/>
+                        </group>
+                        <group>
+                            <field name="location" readonly="1"/>
+                            <field name="seal_state" readonly="1"/>
+                            <field name="holder" readonly="1"/>
+                            <field name="witness_user_id" readonly="1"/>
+                            <field name="witness_verified_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_media_unit" model="ir.actions.act_window">
+        <field name="name">Sealed Media Custody</field>
+        <field name="res_model">fix.data.media.unit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Cleanroom Slot ================= -->
+    <record id="view_fix_data_cleanroom_list" model="ir.ui.view">
+        <field name="name">fix.data.cleanroom.slot.list</field>
+        <field name="model">fix.data.cleanroom.slot</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="start_at"/>
+                <field name="end_at"/>
+                <field name="purpose"/>
+                <field name="iso_class" optional="show"/>
+                <field name="case_id"/>
+                <field name="technician_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_cleanroom_form" model="ir.ui.view">
+        <field name="name">fix.data.cleanroom.slot.form</field>
+        <field name="model">fix.data.cleanroom.slot</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_use" type="object" string="Mark Used"
+                            class="oe_highlight" invisible="state != 'planned'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state != 'planned'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="case_id"/>
+                            <field name="technician_id"/>
+                            <field name="purpose"/>
+                        </group>
+                        <group>
+                            <field name="iso_class"/>
+                            <field name="start_at"/>
+                            <field name="end_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_cleanroom" model="ir.actions.act_window">
+        <field name="name">Cleanroom Schedule</field>
+        <field name="res_model">fix.data.cleanroom.slot</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Evaluation ================= -->
+    <record id="view_fix_data_evaluation_list" model="ir.ui.view">
+        <field name="name">fix.data.evaluation.list</field>
+        <field name="model">fix.data.evaluation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="case_id"/>
+                <field name="received_at"/>
+                <field name="verdict"/>
+                <field name="recoverability_pct" optional="show"/>
+                <field name="recommended_specialism"/>
+                <field name="evaluated_at"/>
+                <field name="eval_hours"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_evaluation_form" model="ir.ui.view">
+        <field name="name">fix.data.evaluation.form</field>
+        <field name="model">fix.data.evaluation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_complete" type="object" string="Complete Evaluation"
+                            class="oe_highlight" invisible="evaluated_at"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="case_id"/>
+                            <field name="received_at"/>
+                            <field name="evaluated_at"/>
+                            <field name="eval_hours"/>
+                        </group>
+                        <group>
+                            <field name="verdict"/>
+                            <field name="recoverability_pct"/>
+                            <field name="recommended_specialism"/>
+                        </group>
+                    </group>
+                    <field name="findings" placeholder="What the bench found…"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_evaluation" model="ir.actions.act_window">
+        <field name="name">Free Evaluations</field>
+        <field name="res_model">fix.data.evaluation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Quotation ================= -->
+    <record id="view_fix_data_quote_list" model="ir.ui.view">
+        <field name="name">fix.data.quote.list</field>
+        <field name="model">fix.data.quote</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="case_id"/>
+                <field name="amount" sum="Total"/>
+                <field name="description" optional="hide"/>
+                <field name="valid_until"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_quote_form" model="ir.ui.view">
+        <field name="name">fix.data.quote.form</field>
+        <field name="model">fix.data.quote</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_send" type="object" string="Send"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_accept" type="object" string="Accept"
+                            class="oe_highlight" invisible="state != 'sent'"/>
+                    <button name="action_decline" type="object" string="Decline"
+                            invisible="state not in ('draft', 'sent')"/>
+                    <button name="action_requote" type="object" string="Re-quote"
+                            invisible="state not in ('sent', 'accepted')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="case_id"/>
+                            <field name="valid_until"/>
+                        </group>
+                        <group>
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="acceptance_channel"/>
+                            <field name="signed_quote_attachment_id"/>
+                            <field name="customer_acceptance_reference"/>
+                            <field name="accepted_by_id"/>
+                            <field name="accepted_at"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="What the quoted recovery covers…"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_quote" model="ir.actions.act_window">
+        <field name="name">Firm Quotations</field>
+        <field name="res_model">fix.data.quote</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Backup Plan ================= -->
+    <record id="view_fix_data_backup_plan_list" model="ir.ui.view">
+        <field name="name">fix.data.backup.plan.list</field>
+        <field name="model">fix.data.backup.plan</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="plan_type"/>
+                <field name="rpo_hours" optional="hide"/>
+                <field name="rto_hours" optional="hide"/>
+                <field name="last_test_date"/>
+                <field name="last_test_result"/>
+                <field name="next_test_due"/>
+                <field name="compliant" widget="boolean"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_data_backup_plan_form" model="ir.ui.view">
+        <field name="name">fix.data.backup.plan.form</field>
+        <field name="model">fix.data.backup.plan</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_log_test" type="object" string="Log Restore Test (Passed)"
+                            class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="plan_type"/>
+                        </group>
+                        <group>
+                            <field name="rpo_hours"/>
+                            <field name="rto_hours"/>
+                            <field name="test_frequency_days"/>
+                            <field name="next_test_due"/>
+                            <field name="last_test_result"/>
+                            <field name="compliant"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Restore Tests" name="tests">
+                            <field name="test_ids" readonly="1">
+                                <list>
+                                    <field name="tested_at"/>
+                                    <field name="tested_by"/>
+                                    <field name="result"/>
+                                    <field name="restored_gb"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_data_backup_plan" model="ir.actions.act_window">
+        <field name="name">Backup Plans</field>
+        <field name="res_model">fix.data.backup.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Menus ================= -->
+    <menuitem id="menu_fix_data_services" name="Data Services"
+              parent="cd_entity_config.menu_fix_operations_root" sequence="200"/>
+    <menuitem id="menu_fix_data_recovery_case" name="Recovery Cases" parent="menu_fix_data_services" action="action_fix_data_recovery_case" sequence="10"/>
+    <menuitem id="menu_fix_data_attempts" name="Recovery Attempts" parent="menu_fix_data_services" action="action_fix_data_attempt" sequence="15"/>
+    <menuitem id="menu_fix_data_media_units" name="Sealed Media Custody" parent="menu_fix_data_services" action="action_fix_data_media_unit" sequence="20"/>
+    <menuitem id="menu_fix_data_cleanroom" name="Cleanroom Schedule" parent="menu_fix_data_services" action="action_fix_data_cleanroom" sequence="25"/>
+    <menuitem id="menu_fix_data_evaluations" name="Free Evaluations" parent="menu_fix_data_services" action="action_fix_data_evaluation" sequence="30"/>
+    <menuitem id="menu_fix_data_quotes" name="Firm Quotations" parent="menu_fix_data_services" action="action_fix_data_quote" sequence="35"/>
+    <menuitem id="menu_fix_data_backup_plans" name="Backup Plans" parent="menu_fix_data_services" action="action_fix_data_backup_plan" sequence="40"/>
+    <menuitem id="menu_fix_z4_access_audit" name="Z4 Sovereign Access Audits" parent="menu_fix_data_services" action="action_fix_z4_access_audit" sequence="45"/>
+    <menuitem id="menu_fix_data_wipe_certificate" name="Data Wipe Certificates" parent="menu_fix_data_services" action="action_fix_data_wipe_certificate" sequence="50"/>
 </odoo>

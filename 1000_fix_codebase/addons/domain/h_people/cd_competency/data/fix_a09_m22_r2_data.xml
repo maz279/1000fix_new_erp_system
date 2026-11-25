@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 round 2, M22: the in-process consumers of the certification and
+     training events (report "Still open" item 4, M22-F11), registered with
+     the relay (cd_event_outbox fix.event.consumer; cron_relay delivers). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_certification_expired" model="fix.event.consumer">
+            <field name="name">M22: a lapsed certification flags the technician's not-started jobs to a dispatcher</field>
+            <field name="event_type">certification.expired</field>
+            <field name="model">fix.certification</field>
+            <field name="method">consume_certification_lost</field>
+            <field name="module">cd_competency</field>
+        </record>
+        <record id="consumer_certification_suspended" model="fix.event.consumer">
+            <field name="name">M22: a suspended certification flags the technician's not-started jobs to a dispatcher</field>
+            <field name="event_type">certification.suspended</field>
+            <field name="model">fix.certification</field>
+            <field name="method">consume_certification_lost</field>
+            <field name="module">cd_competency</field>
+        </record>
+        <record id="consumer_certification_revoked" model="fix.event.consumer">
+            <field name="name">M22: a revoked certification flags the technician's not-started jobs to a dispatcher</field>
+            <field name="event_type">certification.revoked</field>
+            <field name="model">fix.certification</field>
+            <field name="method">consume_certification_lost</field>
+            <field name="module">cd_competency</field>
+        </record>
+        <record id="consumer_training_passed" model="fix.event.consumer">
+            <field name="name">M22: a passed training records its ISO 9001 cl. 7.2 competence evidence on the enrolment</field>
+            <field name="event_type">training.passed</field>
+            <field name="model">fix.training.enrollment</field>
+            <field name="method">consume_training_passed</field>
+            <field name="module">cd_competency</field>
+        </record>
+        <!-- M22-F4 / FR-LMS-022 / BRU-LMS-08: training removes availability.
+             The trainees' roster slots over the session window are flagged
+             (fix.roster.slot.on_leave — M55's availability marker); a
+             cancelled session releases them. -->
+        <record id="consumer_training_session_scheduled" model="fix.event.consumer">
+            <field name="name">M22: a scheduled session flags the trainees' roster slots out for training (M55 availability)</field>
+            <field name="event_type">training.session.scheduled</field>
+            <field name="model">fix.training.session</field>
+            <field name="method">consume_training_session_scheduled</field>
+            <field name="module">cd_competency</field>
+        </record>
+
+        <record id="seq_fix_training_budget_exception" model="ir.sequence">
+            <field name="name">Over-Budget Training Request</field>
+            <field name="code">fix.training.budget.exception</field>
+            <field name="prefix">TBX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

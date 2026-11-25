@@ -1,0 +1,91 @@
+# =============================================================================
+# tooling/ci/odoo-security-overrides.txt - Odoo 19 runtime security overrides
+# (R01 re-audit 2026-10-22; policy: docs/guides/odoo-runtime-dependency-security.md)
+#
+# vendor/odoo/requirements.txt is READ-ONLY (FF-03 vendor-clean). Its Python
+# 3.12 pins are the Ubuntu 24.04 "Noble" package set and carried 130 known
+# vulnerability entries (80 distinct advisories) in 14 packages (pip-audit
+# over the resolved Linux set, 2026-10-22). This file is applied
+# with uv's --override, which REPLACES every requirement on the named package
+# (direct and transitive), markers included:
+#
+#   uv pip install -r vendor/odoo/requirements.txt \
+#       --override tooling/ci/odoo-security-overrides.txt
+#
+# Used by every CI job that installs Odoo's requirements and by
+# infra/docker/odoo/Dockerfile. Never install the Odoo requirements without it.
+#
+# Selection rules (in order):
+#   1. A package that is ALSO in the root uv.lock is pinned to EXACTLY the
+#      locked version - `uv run` re-syncs locked packages, so any other value
+#      leaves CI with two competing versions (finding B). Enforced by
+#      tooling/tests/test_odoo_security_overrides.py.
+#   2. Else the version Odoo 19 itself pins for a newer Python, if patched.
+#   3. Else the LOWEST version that clears every known advisory.
+# Keep the markers: an override without `sys_platform != 'win32'` would force
+# a Linux-only package onto Windows workstations.
+# =============================================================================
+
+# --- shared with the uv lock (rule 1: must equal uv.lock) --------------------
+# Odoo pin 42.0.8. CVE-2024-12797 (44.0.1), GHSA-h4gh-qq45-vh27 (43.0.1),
+# CVE-2026-26007 (46.0.5), CVE-2026-34073 (46.0.6), GHSA-537c-gmf6-5ccf
+# (48.0.1), CVE-2026-69248 / CVE-2026-69249 (49.0.0). uv.lock: 50.0.2
+# (signxml 5.2.0 needs >=45).
+cryptography==50.0.2
+# Odoo pin 5.2.1. CVE-2026-41066 / GHSA-vfmq-68hx-4jfw (6.1.0). uv.lock:
+# 6.1.3 (signxml 5.2.0 needs >=5.2.1,<7). Odoo 19 pins 6.0.2 for py3.14.
+lxml==6.1.3
+# Odoo pin 3.6. CVE-2024-3651 (3.7), CVE-2026-45409 (3.15). uv.lock: 3.20.
+idna==3.20
+# Odoo pin 2.31.0. CVE-2024-35195 (2.32.0), CVE-2024-47081 (2.32.4),
+# CVE-2026-25645 (2.33.0). uv.lock: 2.34.2.
+requests==2.34.2
+# Odoo pin 2.0.7. CVE-2024-37891 (2.2.2), CVE-2025-50181 (2.5.0),
+# CVE-2025-66418 / CVE-2025-66471 (2.6.0), CVE-2026-21441 (2.6.3),
+# CVE-2026-44431 (2.7.0), CVE-2026-97687 / CVE-2026-97689 (2.8.0).
+# uv.lock: 2.8.0. urllib3.contrib.pyopenssl (ir_mail_server) still ships.
+urllib3==2.8.0
+
+# --- forced by the cryptography pin -------------------------------------------
+# Odoo pin 24.1.0 (requires cryptography<43). CVE-2026-27448 / CVE-2026-27459
+# (26.0.0). 26.4.0 is the only release accepting cryptography 50.x
+# (>=49,<51). odoo/_monkeypatches/OpenSSL.py skips its shim for >=24.3.0.
+pyopenssl==26.4.0
+
+# --- Odoo-only packages (rules 2/3) -------------------------------------------
+# Odoo pin 3.0.1 (no newer-Python pin). CVE-2024-34069 (3.0.3),
+# CVE-2024-49766 / CVE-2024-49767 (3.0.6), CVE-2025-66221 (3.1.4),
+# CVE-2026-21860 (3.1.5), CVE-2026-27199 (3.1.6), CVE-2026-102598 (3.1.9).
+werkzeug==3.1.9
+# Odoo pin 10.2.0; its py3.13/3.14 pins (11.1.0 / 12.1.1) are NOT patched.
+# 37 advisories: CVE-2024-28219 (10.3.0), CVE-2026-42308/42310 (12.2.0),
+# twelve CVE-2026-54058 ... 59205 (12.3.0) and 22 CVE-2026-112390 ...
+# 112901 that are fixed only in 13.0.0.
+pillow==13.0.0
+# Odoo pin 3.1.2. CVE-2024-22195 (3.1.3), CVE-2024-34064 (3.1.4),
+# CVE-2024-56201 / CVE-2024-56326 (3.1.5), CVE-2025-27516 (3.1.6).
+jinja2==3.1.6
+# Odoo pin 5.6.2. CVE-2025-64076 (5.7.1), CVE-2025-68131 (5.8.0),
+# CVE-2026-26209 (5.9.0).
+cbor2==5.9.0
+# Odoo pin 4.2.1; its py3.13 pin 4.3.1 is NOT patched. CVE-2026-58501 (4.3.3).
+zeep==4.3.3
+# Linux-only (Odoo marker kept). Odoo pin 3.4.4. CVE-2025-61911 /
+# CVE-2025-61912 (3.4.5).
+python-ldap==3.4.5 ; sys_platform != 'win32'
+# Unpinned by Odoo, but resolved to 0.4.4 under lxml 5.2.1. CVE-2026-49825
+# (0.4.5). Pinned so the fix cannot silently regress.
+lxml-html-clean==0.4.5
+
+# --- PDF library: PyPDF2 -> pypdf --------------------------------------------
+# PyPDF2 is abandoned (last release 3.0.1): CVE-2023-36464 is fixed only in
+# its successor pypdf (3.9.0), so no PyPDF2 version is clean. Odoo 19 already
+# supports pypdf (odoo/tools/pdf/_pypdf.py; it is Odoo's own pin for py3.13+,
+# PyPDF==5.4.0 - not patched). The never-true marker REMOVES PyPDF2;
+# odoo.tools.pdf then falls through from _pypdf2_2 to _pypdf.
+# pypdf 6.21.1 is the lowest release clearing all 56 pypdf advisories
+# (CVE-2025-55197 ... CVE-2026-113786).
+# Note: OCA report_py3o (not installed by any cd_* addon) imports PyPDF2
+# only for multi-report merging and degrades to a debug log without it.
+pypdf2 ; sys_platform == 'never'
+pypdf==6.21.1

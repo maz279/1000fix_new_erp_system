@@ -1,0 +1,117 @@
+{
+  "milestone": "R11-M01",
+  "task": "R11-M01-T03",
+  "title": "Production Cutover Weekend Execution Record",
+  "tool": "tooling/scripts/execute_cutover_weekend.py",
+  "measured_at": "2026-10-22T09:03:04.234480+00:00",
+  "status": "INCOMPLETE",
+  "summary": {
+    "pass": 1,
+    "fail": 0,
+    "unmeasured": 9
+  },
+  "steps_executed": [
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "PRE-01-RUNBOOK",
+      "description": "RB-53 master cutover runbook present with its smoke-gate journey table",
+      "verdict": "PASS",
+      "detail": "RB-53-production-cutover-master-runbook.md present; 15 smoke-gate journeys declared"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "PRE-02-REHEARSAL",
+      "description": "R11-M01-T02 final full-volume rehearsal verdict (cutover entry criterion)",
+      "verdict": "UNMEASURED",
+      "detail": "r11-m01-final-volume-rehearsal.json status = 'INCOMPLETE'"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-01-FREEZE",
+      "description": "Legacy databases set to read-only; edge maintenance page activated",
+      "verdict": "UNMEASURED",
+      "detail": "production cutover event - not observable by this tool; requires the Incident Commander's timestamped execution record from the production estate"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-02-DELTA",
+      "description": "Capture final transactional deltas across legacy sources",
+      "verdict": "UNMEASURED",
+      "detail": "production cutover event - not observable by this tool; requires the Incident Commander's timestamped execution record from the production estate"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-03-INGEST",
+      "description": "Execute production ingestion pipeline into the production PostgreSQL cluster",
+      "verdict": "UNMEASURED",
+      "detail": "production cutover event - not observable by this tool; requires the Incident Commander's timestamped execution record from the production estate"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-04-MIG02",
+      "description": "MIG-02 control totals verification of the production load",
+      "verdict": "UNMEASURED",
+      "detail": "requires the production load report and a read-only count in the production database; neither is reachable from this tool"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-05-SMOKE",
+      "description": "Critical-journey smoke gates against the production database",
+      "verdict": "UNMEASURED",
+      "detail": "requires the smoke-gate run results against production; none recorded"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-06-BRANCHES",
+      "description": "Service centre POS & workshop terminal heartbeat check",
+      "verdict": "UNMEASURED",
+      "detail": "requires live heartbeats from production branch terminals; none observable here"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-07-SIGNOFF",
+      "description": "Incident Commander & Steering Committee final authorization",
+      "verdict": "UNMEASURED",
+      "detail": "requires named human signatures; no signed authorization exists"
+    },
+    {
+      "timestamp": "2026-10-22 09:03:04 UTC",
+      "step": "STEP-08-UNFREEZE",
+      "description": "Deactivate maintenance mode; switch DNS to the production cluster",
+      "verdict": "UNMEASURED",
+      "detail": "production cutover event - not observable by this tool; requires the Incident Commander's timestamped execution record from the production estate"
+    }
+  ],
+  "control_totals": {
+    "status": "UNMEASURED",
+    "totals": null
+  },
+  "smoke_gate": {
+    "journeys": [
+      "J01: Customer Online Booking",
+      "J02: Front-Desk Walk-in Intake",
+      "J03: Pick & Drop Logistics",
+      "J04: Brand Warranty Claim",
+      "J05: Corporate AMC Bulk Service",
+      "J06: MSP SNMP Alert to Ticket",
+      "J07: Rental / Loaner Device",
+      "J08: E-Waste DOD Wipe & Certificate",
+      "J09: Trade-in Instant Valuation",
+      "J10: Marketplace Seller Order",
+      "J11: Cleanroom Data Recovery",
+      "J12: Procure-to-Pay 3-Way Match",
+      "J13: Monthly Payroll Run",
+      "J14: Customer Grievance & CAPA",
+      "J15: Month-End Trial Balance"
+    ],
+    "total_journeys": 15,
+    "passed_journeys": null,
+    "failed_journeys": null,
+    "verdict": "UNMEASURED"
+  },
+  "branch_readiness": {
+    "online_service_centres": null,
+    "status": "UNMEASURED"
+  },
+  "live_traffic_status": "UNMEASURED"
+}

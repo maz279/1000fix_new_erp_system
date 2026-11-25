@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_party_master — the M33 registry-screen surfaces (2026-10-27 rebuild;
+  forms completed same day per the user's D365-convention directive).
+
+  D365 SCREEN CONVENTION: the user-facing grids are the in-workspace screens
+  (cd_p03_portal static/src/a03/m33.js). The record forms below are the
+  COMPLETE D365-convention data-entry surfaces for the workspace's create and
+  form chips: status headers, workflow button boxes, every business field —
+  no auto-generated skeletons. Views read/write only (AS-09).
+-->
+<odoo>
+
+    <!-- ================= Transparency Notices ================= -->
+    <record id="view_fix_transparency_notice_tree" model="ir.ui.view">
+        <field name="name">fix.transparency.notice.tree</field>
+        <field name="model">fix.transparency.notice</field>
+        <field name="arch" type="xml">
+            <list string="Transparency Notices">
+                <field name="version"/>
+                <field name="purpose_set" optional="show"/>
+                <field name="published_at"/>
+                <field name="retired_at" optional="hide"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_transparency_notice_form" model="ir.ui.view">
+        <field name="name">fix.transparency.notice.form</field>
+        <field name="model">fix.transparency.notice</field>
+        <field name="arch" type="xml">
+            <form string="Transparency Notice">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_retire" type="object" class="oe_stat_button"
+                                icon="fa-archive" string="Retire Version"
+                                invisible="retired_at != False"
+                                confirm="Retire this version? Existing consents keep their reference; new captures must use the successor (AUT-CPM-07)."/>
+                    </div>
+                    <div class="oe_title">
+                        <label for="version"/>
+                        <h1><field name="version" placeholder="e.g. 1.2"/></h1>
+                    </div>
+                    <group>
+                        <group string="Coverage">
+                            <field name="purpose_set" placeholder="marketing, research"/>
+                            <field name="active" readonly="1"/>
+                        </group>
+                        <group string="Lifecycle">
+                            <field name="published_at" readonly="1"/>
+                            <field name="retired_at" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Notice Text (English)" name="text_en">
+                            <field name="text_en" nolabel="1" placeholder="The full transparency notice as presented at capture (PDPA §: categories, purposes, risks, retention, transfers, withdrawal)"/>
+                        </page>
+                        <page string="বিজ্ঞপ্তি (বাংলা)" name="text_bn">
+                            <field name="text_bn" nolabel="1" placeholder="বাংলা সংস্করণ — গ্রহণের সময় যে পাঠ দেখানো হয়েছিল"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_transparency_notice" model="ir.actions.act_window">
+        <field name="name">Transparency Notices</field>
+        <field name="res_model">fix.transparency.notice</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= OTP Verification Log ================= -->
+    <record id="view_fix_otp_log_tree" model="ir.ui.view">
+        <field name="name">fix.otp.log.tree</field>
+        <field name="model">fix.otp.log</field>
+        <field name="arch" type="xml">
+            <list string="OTP Verification Log" create="false">
+                <field name="requested_at"/>
+                <field name="partner_id"/>
+                <field name="channel"/>
+                <field name="destination_masked"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'verified'"
+                       decoration-warning="state == 'pending'"
+                       decoration-danger="state == 'expired'"/>
+                <field name="verified_at" optional="hide"/>
+                <field name="channel_ref" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_otp_log_form" model="ir.ui.view">
+        <field name="name">fix.otp.log.form</field>
+        <field name="model">fix.otp.log</field>
+        <field name="arch" type="xml">
+            <form string="OTP Verification" create="false">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_mark_verified" type="object" class="oe_stat_button"
+                                icon="fa-check" string="Mark Verified"
+                                invisible="state != 'pending'"/>
+                        <button name="action_expire" type="object" class="oe_stat_button"
+                                icon="fa-clock-o" string="Expire"
+                                invisible="state != 'pending'"/>
+                    </div>
+                    <div class="oe_title"><h2>OTP Verification Event</h2></div>
+                    <group>
+                        <group string="Attempt">
+                            <field name="partner_id"/>
+                            <field name="channel"/>
+                            <field name="destination_masked"/>
+                        </group>
+                        <group string="Outcome">
+                            <field name="requested_at" readonly="1"/>
+                            <field name="state" readonly="1"/>
+                            <field name="verified_at" readonly="1"/>
+                            <field name="channel_ref"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Handling note">
+                        <div colspan="2" class="text-muted">
+                            The code itself is issued and checked by the channel owner (M27);
+                            this record holds only the masked destination and the outcome —
+                            the raw code and raw contact never land here.
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_otp_log" model="ir.actions.act_window">
+        <field name="name">OTP Verification Log</field>
+        <field name="res_model">fix.otp.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Registration Approvals ================= -->
+    <record id="view_fix_registration_approval_tree" model="ir.ui.view">
+        <field name="name">fix.registration.approval.tree</field>
+        <field name="model">fix.registration.approval</field>
+        <field name="arch" type="xml">
+            <list string="Registration Approvals">
+                <field name="requested_at"/>
+                <field name="partner_id"/>
+                <field name="party_class"/>
+                <field name="lm_state" widget="badge"
+                       decoration-success="lm_state == 'approved'"
+                       decoration-danger="lm_state == 'rejected'"/>
+                <field name="admin_state" widget="badge"
+                       decoration-success="admin_state == 'approved'"
+                       decoration-danger="admin_state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_registration_approval_form" model="ir.ui.view">
+        <field name="name">fix.registration.approval.form</field>
+        <field name="model">fix.registration.approval</field>
+        <field name="arch" type="xml">
+            <form string="Registration Approval">
+                <header>
+                    <!-- A03 audit M33-1: each step is decided from the M63 approval
+                         inbox, by a different person; this form only routes it. -->
+                    <field name="approval_state" invisible="1"/>
+                    <button name="action_request_approval" type="object" string="Request Approval"
+                            class="btn-primary"
+                            invisible="approval_state == 'pending' or admin_state != 'pending' or lm_state == 'rejected'"/>
+                    <button name="action_recall_approval" type="object" string="Recall Approval Request"
+                            invisible="approval_state != 'pending'"/>
+                    <field name="lm_state" widget="statusbar" statusbar_visible="pending,approved,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="Dealer / Corporate / Government party"/></h2>
+                    </div>
+                    <group>
+                        <group string="Chain (BRU-CPM-02: two tiers, in order)">
+                            <field name="party_class"/>
+                            <field name="lm_state" readonly="1"/>
+                            <field name="lm_decided_by" readonly="1"/>
+                            <field name="lm_decided_at" readonly="1"/>
+                        </group>
+                        <group string="Second tier">
+                            <field name="admin_state" readonly="1"/>
+                            <field name="admin_decided_by" readonly="1"/>
+                            <field name="admin_decided_at" readonly="1"/>
+                            <field name="requested_at" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Notes">
+                        <field name="reason" nolabel="1" placeholder="Approval context / rejection reason"/>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            The party may transact only after BOTH tiers approve
+                            (the party activates automatically on completion).
+                        </div>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_registration_approval" model="ir.actions.act_window">
+        <field name="name">Registration Approvals</field>
+        <field name="res_model">fix.registration.approval</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Duplicate Candidates ================= -->
+    <record id="view_fix_party_duplicate_tree" model="ir.ui.view">
+        <field name="name">fix.party.duplicate.tree</field>
+        <field name="model">fix.party.duplicate</field>
+        <field name="arch" type="xml">
+            <list string="Duplicate Candidates" decoration-muted="state in ('dismissed', 'merged')">
+                <field name="score" widget="progressbar"/>
+                <field name="party_a"/>
+                <field name="party_b"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('dismissed', 'merged')"
+                       decoration-warning="state in ('new', 'reviewed')"
+                       decoration-danger="state == 'confirmed'"/>
+                <field name="reviewed_by" optional="show"/>
+                <field name="decision" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_party_duplicate_form" model="ir.ui.view">
+        <field name="name">fix.party.duplicate.form</field>
+        <field name="model">fix.party.duplicate</field>
+        <field name="arch" type="xml">
+            <form string="Duplicate Candidate">
+                <header>
+                    <button name="action_review" type="object" string="Start Review"
+                            invisible="state != 'new'"/>
+                    <button name="action_confirm" type="object" string="Confirm Duplicate → Open Merge"
+                            class="btn-primary" invisible="state not in ('new', 'reviewed')"/>
+                    <button name="action_dismiss" type="object" string="Dismiss (not a duplicate)"
+                            invisible="state in ('dismissed', 'merged')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="new,reviewed,confirmed,merged"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h2>Duplicate Candidate</h2></div>
+                    <group>
+                        <group string="Candidate pair">
+                            <field name="party_a"/>
+                            <field name="party_b"/>
+                            <field name="score"/>
+                        </group>
+                        <group string="Stewardship">
+                            <field name="reviewed_by" readonly="1"/>
+                            <field name="decision" placeholder="Dismissal reason / decision note"/>
+                        </group>
+                    </group>
+                    <group string="Match factors (why this scored)">
+                        <field name="factors" nolabel="1" placeholder='JSON, e.g. {"phone": "exact", "name": "fuzzy"}'/>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            Automated merge is prohibited (BRU-CPM-04): confirming opens a
+                            supervised merge draft for a data steward — the merge itself is
+                            a separate, SoD-guarded action.
+                        </div>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_party_duplicate" model="ir.actions.act_window">
+        <field name="name">Duplicate Candidates</field>
+        <field name="res_model">fix.party.duplicate</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Supervised Merges ================= -->
+    <record id="view_fix_party_merge_tree" model="ir.ui.view">
+        <field name="name">fix.party.merge.tree</field>
+        <field name="model">fix.party.merge</field>
+        <field name="arch" type="xml">
+            <list string="Supervised Merges">
+                <field name="requested_at"/>
+                <field name="survivor_id"/>
+                <field name="victim_id"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'executed'"
+                       decoration-info="state == 'reversed'"/>
+                <field name="executed_by" optional="show"/>
+                <field name="reversible_until" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_party_merge_form" model="ir.ui.view">
+        <field name="name">fix.party.merge.form</field>
+        <field name="model">fix.party.merge</field>
+        <field name="arch" type="xml">
+            <form string="Supervised Merge">
+                <header>
+                    <button name="action_execute" type="object" string="Execute Merge"
+                            class="btn-primary" invisible="state != 'draft'"
+                            confirm="Execute the supervised merge? All party-owned records move to the survivor, the victim is tombstoned (never deleted), and a merge event is published. The steward executing cannot be the creator of either record (SOD-15)."/>
+                    <button name="action_reverse" type="object" string="Reverse (inside window)"
+                            invisible="state != 'executed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,executed,reversed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h2>Supervised Party Merge</h2></div>
+                    <group>
+                        <group string="Records">
+                            <field name="survivor_id" readonly="state != 'draft'"/>
+                            <field name="victim_id" readonly="state != 'draft'"
+                                   string="Victim (tombstoned)"/>
+                        </group>
+                        <group string="Execution">
+                            <field name="requested_at" readonly="1"/>
+                            <field name="executed_by" readonly="1"/>
+                            <field name="executed_at" readonly="1"/>
+                            <field name="reversible_until" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Move audit (what moved, what was skipped — the reversal map)">
+                        <field name="attribute_decisions" nolabel="1" readonly="1"/>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            Hierarchy edges are not auto-restored on reversal (the UNIQUE
+                            parent/child/relation rule makes verbatim restore unsafe) — the
+                            steward re-links. Downstream modules re-point on party.merged.
+                        </div>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_party_merge" model="ir.actions.act_window">
+        <field name="name">Supervised Merges</field>
+        <field name="res_model">fix.party.merge</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Quality Scores ================= -->
+    <record id="view_fix_party_quality_tree" model="ir.ui.view">
+        <field name="name">fix.party.quality.tree</field>
+        <field name="model">fix.party.quality</field>
+        <field name="arch" type="xml">
+            <list string="Quality Scores">
+                <field name="partner_id"/>
+                <field name="completeness" widget="progressbar"/>
+                <field name="validity" widget="progressbar"/>
+                <field name="recency" widget="progressbar" optional="hide"/>
+                <field name="composite" widget="progressbar"
+                       decoration-success="composite >= 85"
+                       decoration-warning="composite >= 60 and composite &lt; 85"
+                       decoration-danger="composite &lt; 60"/>
+                <field name="evaluated_at" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_party_quality_form" model="ir.ui.view">
+        <field name="name">fix.party.quality.form</field>
+        <field name="model">fix.party.quality</field>
+        <field name="arch" type="xml">
+            <form string="Party Data Quality">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_recompute" type="object" class="oe_stat_button"
+                                icon="fa-refresh" string="Recompute Score"/>
+                    </div>
+                    <div class="oe_title"><h2><field name="partner_id" readonly="1"/></h2></div>
+                    <group>
+                        <group string="Score (KPI-120 weights)">
+                            <field name="completeness" widget="progressbar" readonly="1"/>
+                            <field name="validity" widget="progressbar" readonly="1"/>
+                            <field name="recency" widget="progressbar" readonly="1"/>
+                            <field name="composite" widget="progressbar" readonly="1"/>
+                        </group>
+                        <group string="Evaluation">
+                            <field name="evaluated_at" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Deficiencies (act on causes, not the number)">
+                        <field name="deficiencies" nolabel="1" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_party_quality" model="ir.actions.act_window">
+        <field name="name">Quality Scores</field>
+        <field name="res_model">fix.party.quality</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Data-Subject Requests ================= -->
+    <record id="view_fix_rights_request_tree" model="ir.ui.view">
+        <field name="name">fix.rights.request.tree</field>
+        <field name="model">fix.rights.request</field>
+        <field name="arch" type="xml">
+            <list string="Data-Subject Requests"
+                  decoration-danger="state not in ('fulfilled', 'rejected') and statutory_due &lt; today">
+                <field name="received_at"/>
+                <field name="partner_id"/>
+                <field name="request_type"/>
+                <field name="statutory_due"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'fulfilled'"
+                       decoration-warning="state in ('received', 'verified', 'in_progress')"
+                       decoration-danger="state == 'rejected'"/>
+                <field name="evidence_ref" optional="show"/>
+                <field name="fulfilled_at" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_rights_request_form" model="ir.ui.view">
+        <field name="name">fix.rights.request.form</field>
+        <field name="model">fix.rights.request</field>
+        <field name="arch" type="xml">
+            <form string="Data-Subject Request">
+                <header>
+                    <button name="action_verify" type="object" string="Verify Identity"
+                            invisible="state != 'received'"/>
+                    <button name="action_start" type="object" string="Start Work"
+                            invisible="state not in ('received', 'verified')"/>
+                    <button name="action_fulfil" type="object" string="Fulfil (needs evidence)"
+                            class="btn-primary" invisible="state not in ('verified', 'in_progress')"/>
+                    <button name="action_reject" type="object" string="Reject (stated basis)"
+                            invisible="state in ('fulfilled', 'rejected')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="received,verified,in_progress,fulfilled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The data subject"/></h2>
+                    </div>
+                    <group>
+                        <group string="Request">
+                            <field name="request_type"/>
+                            <field name="received_at" readonly="1"/>
+                            <field name="statutory_due" readonly="1"/>
+                        </group>
+                        <group string="Outcome">
+                            <field name="identity_verified" readonly="1"/>
+                            <field name="fulfilled_at" readonly="1"/>
+                            <field name="notified_at"
+                                   placeholder="Rectification notified to the party (BRU-CRM-10: within 30 days)"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Fulfilment evidence">
+                        <field name="evidence_ref" placeholder="Export file ID / rectification notice ID — fulfilment without evidence is not fulfilment (AC-09)"/>
+                    </group>
+                    <group string="Decision &amp; rejection basis">
+                        <field name="decision" nolabel="1" placeholder="Decision summary"/>
+                        <field name="rejected_reason" nolabel="1"
+                               placeholder="Rejection basis — an erasure may only be rejected on a statutory retention override, stated to the party (BRU-CPM-11)"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_rights_request" model="ir.actions.act_window">
+        <field name="name">Data-Subject Requests</field>
+        <field name="res_model">fix.rights.request</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Segments ================= -->
+    <record id="view_fix_segment_tree" model="ir.ui.view">
+        <field name="name">fix.segment.tree</field>
+        <field name="model">fix.segment</field>
+        <field name="arch" type="xml">
+            <list string="Segments">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn"/>
+                <field name="member_count"/>
+                <field name="evaluation_mode"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_segment_form" model="ir.ui.view">
+        <field name="name">fix.segment.form</field>
+        <field name="model">fix.segment</field>
+        <field name="arch" type="xml">
+            <form string="Segment">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="code"/>
+                        <h1><field name="code" placeholder="VIP-DHK"/></h1>
+                    </div>
+                    <group>
+                        <group string="Definition">
+                            <field name="name"/>
+                            <field name="name_bn"/>
+                            <field name="evaluation_mode"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Membership">
+                            <field name="member_count" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Criteria (declarative)">
+                        <field name="criteria_json" nolabel="1"
+                               placeholder='JSON over party attributes — the dynamic evaluation engine is the M64/M35 seam; membership here is governed and event-published.'/>
+                    </group>
+                    <notebook>
+                        <page string="Members" name="members">
+                            <field name="membership_ids" readonly="1">
+                                <list>
+                                    <field name="partner_id"/>
+                                    <field name="entered_at"/>
+                                    <field name="exited_at"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_segment" model="ir.actions.act_window">
+        <field name="name">Segments</field>
+        <field name="res_model">fix.segment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Credit Profiles =================
+         The model of record is cd_billing_engine's fix.credit.profile (M20,
+         loads after this module) — an act_window cannot be declared here.
+         The M33-credit registry screen serves it through the P03 generic API;
+         its forms are the billing engine's own (M20 territory). -->
+
+    <!-- ================= Identity Document (form chip) ================= -->
+    <record id="view_fix_identity_document_form" model="ir.ui.view">
+        <field name="name">fix.identity.document.form.m33</field>
+        <field name="model">fix.identity.document</field>
+        <field name="arch" type="xml">
+            <form string="Identity Document">
+                <header>
+                    <!-- A03 audit M33-9: KYC is a steward decision that stamps the verifier. -->
+                    <button name="action_kyc_submit" type="object" string="Submit for Verification"
+                            invisible="verification_status not in ('unverified', 'failed')"/>
+                    <button name="action_kyc_verify" type="object" string="Verify (Data Steward)"
+                            class="btn-primary"
+                            invisible="verification_status not in ('unverified', 'pending')"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h2>Identity Document</h2></div>
+                    <group>
+                        <group string="Document">
+                            <field name="partner_id"/>
+                            <field name="document_type"/>
+                            <field name="document_number"
+                                   placeholder="NID (10/17) / Passport / TIN / BIN"/>
+                            <field name="is_primary"/>
+                        </group>
+                        <group string="Verification">
+                            <field name="verification_status" readonly="1"/>
+                            <field name="verification_note" readonly="1"/>
+                            <field name="checksum_valid" readonly="1"/>
+                            <field name="verified_by" readonly="1"/>
+                            <field name="verified_at" readonly="1"/>
+                            <field name="expiry_date"/>
+                            <field name="issuing_country"/>
+                        </group>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            RESIDENCY-CLASSIFIED: the number routes through the residency
+                            service to the Bangladesh-resident store (Z4); the regional
+                            database holds only the pointer — the value never appears in
+                            caches, logs or exports (FR-CPM-021, NFR-086/099).
+                        </div>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Address with GPS (form chip) ================= -->
+    <record id="view_fix_bd_address_form_m33" model="ir.ui.view">
+        <field name="name">fix.bd.address.form.m33</field>
+        <field name="model">fix.bd.address</field>
+        <field name="arch" type="xml">
+            <form string="Party Address">
+                <sheet>
+                    <div class="oe_title"><h2>Party Address</h2></div>
+                    <group>
+                        <group string="Owner &amp; purpose">
+                            <field name="party_id"/>
+                            <field name="address_tag"/>
+                            <field name="landmark" placeholder="Field dispatch relies on landmarks"/>
+                        </group>
+                        <group string="GPS (FR-CPM-016)">
+                            <field name="latitude"/>
+                            <field name="longitude"/>
+                        </group>
+                    </group>
+                    <separator string="Bangladesh administrative structure (BN-007 §4)"/>
+                    <group>
+                        <group>
+                            <field name="division"/>
+                            <field name="division_bn"/>
+                            <field name="district"/>
+                            <field name="district_bn"/>
+                        </group>
+                        <group>
+                            <field name="upazila"/>
+                            <field name="upazila_bn"/>
+                            <field name="union_or_ward"/>
+                            <field name="postcode"/>
+                        </group>
+                    </group>
+                    <separator string="Street &amp; house"/>
+                    <group>
+                        <group>
+                            <field name="street"/>
+                            <field name="house"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Menus (root holds 7 sections total — NVR-23) ======
+         Existing: Parties (5), Party Relations (50), Data Governance (90). -->
+    <menuitem id="menu_fix_party_identity" name="Identity &amp; Verification"
+              parent="menu_fix_party_root" sequence="20"/>
+    <menuitem id="menu_fix_party_otp" name="OTP Verification Log" parent="menu_fix_party_identity"
+              action="action_fix_otp_log" sequence="10"/>
+    <menuitem id="menu_fix_party_approvals" name="Registration Approvals" parent="menu_fix_party_identity"
+              action="action_fix_registration_approval" sequence="20"/>
+
+    <menuitem id="menu_fix_party_data_quality" name="Data Quality"
+              parent="menu_fix_party_root" sequence="30"/>
+    <menuitem id="menu_fix_party_duplicates" name="Duplicate Candidates" parent="menu_fix_party_data_quality"
+              action="action_fix_party_duplicate" sequence="10"/>
+    <menuitem id="menu_fix_party_merges" name="Supervised Merges" parent="menu_fix_party_data_quality"
+              action="action_fix_party_merge" sequence="20"/>
+    <menuitem id="menu_fix_party_quality_scores" name="Quality Scores" parent="menu_fix_party_data_quality"
+              action="action_fix_party_quality" sequence="30"/>
+
+    <menuitem id="menu_fix_party_privacy" name="Consent &amp; Rights"
+              parent="menu_fix_party_root" sequence="40"/>
+    <menuitem id="menu_fix_transparency_notice" name="Transparency Notices" parent="menu_fix_party_privacy"
+              action="action_fix_transparency_notice" sequence="10"/>
+    <menuitem id="menu_fix_rights_request" name="Data-Subject Requests" parent="menu_fix_party_privacy"
+              action="action_fix_rights_request" sequence="20"/>
+
+    <menuitem id="menu_fix_party_commercial" name="Segments &amp; Credit"
+              parent="menu_fix_party_root" sequence="60"/>
+    <menuitem id="menu_fix_segment" name="Segments" parent="menu_fix_party_commercial"
+              action="action_fix_segment" sequence="10"/>
+
+</odoo>

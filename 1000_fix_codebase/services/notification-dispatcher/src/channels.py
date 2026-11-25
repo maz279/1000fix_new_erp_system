@@ -18,6 +18,7 @@ Hard rules baked into every adapter:
 INT-011 (redundant SMS) is implemented as automatic secondary gateway failover
 on primary route failure (Wave-2 CD-M02-06 / Milestone R03-M03).
 """
+
 from __future__ import annotations
 
 import json
@@ -42,9 +43,35 @@ class SendRefused(RuntimeError):
 @dataclass(frozen=True)
 class DeliveryResult:
     channel: str
-    status: str          # "delivered" | "failed" | "dry-run" | "not-implemented"
+    status: str  # "delivered" | "failed" | "dry-run" | "not-implemented"
     provider_id: str = ""
     detail: str = ""
+
+
+class _NeverFollowRedirects(urllib.request.HTTPRedirectHandler):
+    """Hard rule 2: a gateway redirect is a policy violation. Declining it
+    surfaces the 3xx as an HTTPError (a failed send) instead of following it
+    to a destination the SSRF guard never validated."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# urllib.request.urlopen()'s default opener FOLLOWS redirects; every gateway
+# call goes through this opener instead.
+_OPENER = urllib.request.build_opener(_NeverFollowRedirects)
+
+
+def _gateway_reply(raw: bytes) -> dict:
+    """The provider fields of a 2xx gateway reply. The gateway has already
+    accepted the message, so a body that is not a JSON object only means "no
+    provider id" — it must not turn a completed send into an exception (a
+    re-delivery of the event would double-send)."""
+    try:
+        reply = json.loads(raw or b"{}")
+    except ValueError:  # JSONDecodeError and UnicodeDecodeError alike
+        return {}
+    return reply if isinstance(reply, dict) else {}
 
 
 def _host_is_rejected_in_production(host: str) -> str | None:
@@ -56,6 +83,7 @@ def _host_is_rejected_in_production(host: str) -> str | None:
     reason, or None when the host is acceptable."""
     import ipaddress
     import socket
+
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
@@ -66,8 +94,14 @@ def _host_is_rejected_in_production(host: str) -> str | None:
             ip = ipaddress.ip_address(addr.split("%")[0])
         except ValueError:
             continue
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
             return f"host {host!r} resolves to non-public address {ip}"
     return None
 
@@ -103,7 +137,9 @@ def _validate_outbound_url(url: str, env: str) -> str:
     credential_keys = {"token", "apikey", "api_key", "access_token", "signature", "secret"}
     query_keys = {k.lower() for k, _ in urllib.parse.parse_qsl(parsed.query)}
     if query_keys & credential_keys:
-        raise SendRefused(f"{env}: credential-like query parameter refused ({sorted(query_keys & credential_keys)})")
+        raise SendRefused(
+            f"{env}: credential-like query parameter refused ({sorted(query_keys & credential_keys)})"
+        )
     return url
 
 
@@ -132,28 +168,40 @@ class BaseChannel:
         raise NotImplementedError
 
     def _post(self, payload: dict) -> dict:
-        assert self.url, "unconfigured channel must not reach _post"
+        if not self.url:
+            raise RuntimeError("unconfigured channel must not reach _post")
         url = _validate_outbound_url(self.url, self.url_env)
         data = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.token:
-            token_env_name = self.token_env
-            headers["Authorization"] = f"Bearer {os.environ.get(token_env_name, '')}"
-        # No redirect handler is installed on purpose: a gateway redirect is a
-        # policy violation, not something to follow silently.
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310 - scheme/host validated above
-            return json.loads(response.read() or b"{}")
+            # The stripped value read in __init__ (the one checked above): a
+            # trailing newline from a mounted secret must not reach the header.
+            headers["Authorization"] = f"Bearer {self.token}"
+        # _OPENER declines redirects: a gateway redirect is a policy
+        # violation, not something to follow silently.
+        request = urllib.request.Request(url, data=data, headers=headers, method="POST")  # noqa: S310 - URL checked by _validate_outbound_url()
+        with _OPENER.open(request, timeout=10) as response:  # scheme/host validated above
+            return _gateway_reply(response.read())
+
+    def _deliver(self, payload: dict) -> DeliveryResult:
+        """One gateway POST. A transport failure is a "failed" result so the
+        dispatcher's retry-once + fallback ladder (NT-001 §4) runs, exactly as
+        the SMS adapter does — never an exception that aborts the event."""
+        try:
+            result = self._post(payload)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return DeliveryResult(self.channel, "failed", detail=f"gateway error: {exc}")
+        return DeliveryResult(self.channel, "delivered", provider_id=str(result.get("id", "")))
 
 
 class SMSChannel(BaseChannel):
     """INT-010 (primary) & INT-011 (redundant secondary) — masking/non-masking route per BD-01/BD-02."""
 
     channel = "sms"
-    url_env = "FIX_SMS_GATEWAY_URL"                 # INT-010 primary aggregator endpoint
-    token_env = "FIX_SMS_GATEWAY_TOKEN"             # primary aggregator credential (env only)
-    redundant_url_env = "FIX_SMS_REDUNDANT_GATEWAY_URL"     # INT-011 secondary aggregator endpoint
-    redundant_token_env = "FIX_SMS_REDUNDANT_GATEWAY_TOKEN" # secondary credential
+    url_env = "FIX_SMS_GATEWAY_URL"  # INT-010 primary aggregator endpoint
+    token_env = "FIX_SMS_GATEWAY_TOKEN"  # primary aggregator credential (env only)  # noqa: S105 - env-var NAME, not a secret value
+    redundant_url_env = "FIX_SMS_REDUNDANT_GATEWAY_URL"  # INT-011 secondary aggregator endpoint
+    redundant_token_env = "FIX_SMS_REDUNDANT_GATEWAY_TOKEN"  # secondary credential  # noqa: S105 - env-var NAME, not a secret value
 
     def __init__(self) -> None:
         super().__init__()
@@ -170,9 +218,9 @@ class SMSChannel(BaseChannel):
         headers = {"Content-Type": "application/json"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        request = urllib.request.Request(validated_url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(request, timeout=10) as response:
-            return json.loads(response.read() or b"{}")
+        request = urllib.request.Request(validated_url, data=data, headers=headers, method="POST")  # noqa: S310 - URL checked by _validate_outbound_url()
+        with _OPENER.open(request, timeout=10) as response:  # URL checked above, no redirects
+            return _gateway_reply(response.read())
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
         # Policy guards run BEFORE the dry-run or send branches
@@ -193,12 +241,23 @@ class SMSChannel(BaseChannel):
         # Dedicated INT-011 test mode: force redundant route
         if os.environ.get("FIX_SMS_REDUNDANT_ONLY", "") == "1":
             if not self.redundant_configured:
-                return DeliveryResult("sms", "dry-run", detail="INT-011 redundant SMS dry-run (secondary gateway unconfigured)")
+                return DeliveryResult(
+                    "sms",
+                    "dry-run",
+                    detail="INT-011 redundant SMS dry-run (secondary gateway unconfigured)",
+                )
             try:
                 res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
-                return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="dispatched via INT-011 redundant secondary gateway")
+                return DeliveryResult(
+                    "sms",
+                    "delivered",
+                    provider_id=str(res.get("id", "")),
+                    detail="dispatched via INT-011 redundant secondary gateway",
+                )
             except (urllib.error.URLError, TimeoutError, OSError) as e:
-                return DeliveryResult("sms", "failed", detail=f"INT-011 redundant gateway error: {e}")
+                return DeliveryResult(
+                    "sms", "failed", detail=f"INT-011 redundant gateway error: {e}"
+                )
 
         # Normal route: attempt INT-010 primary first
         if self.configured:
@@ -210,16 +269,32 @@ class SMSChannel(BaseChannel):
                 if self.redundant_configured:
                     try:
                         res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
-                        return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="INT-011 failover after primary error")
+                        return DeliveryResult(
+                            "sms",
+                            "delivered",
+                            provider_id=str(res.get("id", "")),
+                            detail="INT-011 failover after primary error",
+                        )
                     except (urllib.error.URLError, TimeoutError, OSError) as sec_err:
-                        return DeliveryResult("sms", "failed", detail=f"primary and redundant gateways failed: {sec_err}")
-                return DeliveryResult("sms", "failed", detail=f"primary gateway failed: {primary_err}")
+                        return DeliveryResult(
+                            "sms",
+                            "failed",
+                            detail=f"primary and redundant gateways failed: {sec_err}",
+                        )
+                return DeliveryResult(
+                    "sms", "failed", detail=f"primary gateway failed: {primary_err}"
+                )
 
         # If primary is unconfigured, check if redundant is configured
         if self.redundant_configured:
             try:
                 res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
-                return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="INT-011 redundant secondary dispatch")
+                return DeliveryResult(
+                    "sms",
+                    "delivered",
+                    provider_id=str(res.get("id", "")),
+                    detail="INT-011 redundant secondary dispatch",
+                )
             except (urllib.error.URLError, TimeoutError, OSError) as e:
                 return DeliveryResult("sms", "failed", detail=f"redundant gateway error: {e}")
 
@@ -231,27 +306,33 @@ class WhatsAppChannel(BaseChannel):
 
     channel = "whatsapp"
     url_env = "FIX_WHATSAPP_API_URL"
-    token_env = "FIX_WHATSAPP_API_TOKEN"
+    token_env = "FIX_WHATSAPP_API_TOKEN"  # noqa: S105 - env-var NAME, not a secret value
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
         if not self.configured:
             return DeliveryResult("whatsapp", "dry-run", detail="WhatsApp API unconfigured")
-        result = self._post({"to": recipient, "type": "text", "text": {"body": rendered}})
-        return DeliveryResult("whatsapp", "delivered", provider_id=str(result.get("id", "")))
+        return self._deliver({"to": recipient, "type": "text", "text": {"body": rendered}})
 
 
 class EmailChannel(BaseChannel):
     """INT-013 — in every non-production environment this routes to Mailpit (EP-11)."""
 
     channel = "email"
-    url_env = "FIX_EMAIL_API_URL"       # compose: http://mailpit:8025/api/v1/send
-    token_env = "FIX_EMAIL_API_TOKEN"
+    url_env = "FIX_EMAIL_API_URL"  # compose: http://mailpit:8025/api/v1/send
+    token_env = "FIX_EMAIL_API_TOKEN"  # noqa: S105 - env-var NAME, not a secret value
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
         if not self.configured:
-            return DeliveryResult("email", "dry-run", detail="email API unconfigured (EP-11 Mailpit in compose)")
-        result = self._post({"to": [recipient], "subject": rendered.splitlines()[0][:120], "text": rendered})
-        return DeliveryResult("email", "delivered", provider_id=str(result.get("id", "")))
+            return DeliveryResult(
+                "email", "dry-run", detail="email API unconfigured (EP-11 Mailpit in compose)"
+            )
+        return self._deliver(
+            {
+                "to": [recipient],
+                "subject": (rendered.splitlines() or [""])[0][:120],
+                "text": rendered,
+            }
+        )
 
 
 class PushChannel(BaseChannel):
@@ -259,13 +340,12 @@ class PushChannel(BaseChannel):
 
     channel = "push"
     url_env = "FIX_NOVU_API_URL"
-    token_env = "FIX_NOVU_API_TOKEN"
+    token_env = "FIX_NOVU_API_TOKEN"  # noqa: S105 - env-var NAME, not a secret value
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
         if not self.configured:
             return DeliveryResult("push", "dry-run", detail="Novu unconfigured")
-        result = self._post({"subscriberId": recipient, "message": rendered})
-        return DeliveryResult("push", "delivered", provider_id=str(result.get("id", "")))
+        return self._deliver({"subscriberId": recipient, "message": rendered})
 
 
 class InAppChannel(BaseChannel):
@@ -274,10 +354,12 @@ class InAppChannel(BaseChannel):
 
     channel = "in_app"
     url_env = "FIX_INAPP_API_URL"
-    token_env = "FIX_INAPP_API_TOKEN"
+    token_env = "FIX_INAPP_API_TOKEN"  # noqa: S105 - env-var NAME, not a secret value
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
-        return DeliveryResult("in_app", "dry-run", detail="in-app renders into the P01 inbox via the outbox")
+        return DeliveryResult(
+            "in_app", "dry-run", detail="in-app renders into the P01 inbox via the outbox"
+        )
 
 
 class AlertChannel(BaseChannel):
@@ -285,15 +367,23 @@ class AlertChannel(BaseChannel):
 
     channel = "alert"
     url_env = "FIX_ALERT_WEBHOOK_URL"
-    token_env = "FIX_ALERT_WEBHOOK_TOKEN"
+    token_env = "FIX_ALERT_WEBHOOK_TOKEN"  # noqa: S105 - env-var NAME, not a secret value
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
         if not self.configured:
             return DeliveryResult("alert", "dry-run", detail="alert webhook unconfigured")
-        result = self._post({"text": rendered})
-        return DeliveryResult("alert", "delivered", provider_id=str(result.get("id", "")))
+        return self._deliver({"text": rendered})
 
 
 def build_channels() -> dict[str, BaseChannel]:
-    return {cls.channel: cls() for cls in
-            (SMSChannel, WhatsAppChannel, EmailChannel, PushChannel, InAppChannel, AlertChannel)}
+    return {
+        cls.channel: cls()
+        for cls in (
+            SMSChannel,
+            WhatsAppChannel,
+            EmailChannel,
+            PushChannel,
+            InAppChannel,
+            AlertChannel,
+        )
+    }

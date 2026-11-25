@@ -1,13 +1,13 @@
 # tests/test_field_service_core.py — Unit Tests for cd_field_service (CD-M02-01)
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-import pytest
 
-from odoo.exceptions import UserError
+import pytest
 from odoo.addons.cd_field_service.models.fix_field_order import FixFieldOrder
 from odoo.addons.cd_field_service.models.fix_field_route import FixFieldRoute
-from odoo.addons.cd_field_service.models.fix_field_decline_log import FixFieldDeclineLog
 from odoo.addons.cd_field_service.models.fix_technician_location import FixTechnicianLocation
+from odoo.exceptions import UserError
 
 
 class TestFieldServiceCore:
@@ -23,11 +23,13 @@ class TestFieldServiceCore:
         """Test circular geofence boundary detection."""
         mock_fence = MagicMock()
         mock_fence.geofence_type = "circle"
-        mock_fence.geometry_json = json.dumps({
-            "lat": 23.7937,
-            "lng": 90.4066,
-            "radius_m": 500,
-        })
+        mock_fence.geometry_json = json.dumps(
+            {
+                "lat": 23.7937,
+                "lng": 90.4066,
+                "radius_m": 500,
+            }
+        )
 
         mock_order = MagicMock(spec=FixFieldOrder)
         mock_order.geofence_id = mock_fence
@@ -43,14 +45,16 @@ class TestFieldServiceCore:
         """Test polygon geofence ray-casting boundary detection."""
         mock_fence = MagicMock()
         mock_fence.geofence_type = "polygon"
-        mock_fence.geometry_json = json.dumps({
-            "points": [
-                [23.7900, 90.4000],
-                [23.8000, 90.4000],
-                [23.8000, 90.4100],
-                [23.7900, 90.4100],
-            ]
-        })
+        mock_fence.geometry_json = json.dumps(
+            {
+                "points": [
+                    [23.7900, 90.4000],
+                    [23.8000, 90.4000],
+                    [23.8000, 90.4100],
+                    [23.7900, 90.4100],
+                ]
+            }
+        )
 
         mock_order = MagicMock(spec=FixFieldOrder)
         mock_order.geofence_id = mock_fence
@@ -67,17 +71,26 @@ class TestFieldServiceCore:
         mock_order.state = "draft"
         mock_order.technician_id = MagicMock(id=101, name="Rahim Ahmed")
         mock_order.env = MagicMock()
-        mock_order._emit_field_event = MagicMock()
         mock_order.__iter__.return_value = [mock_order]
+        # A02 audit B2: events are literal publish() calls (patched below)
+        mock_order._fix_parts_unresolved = MagicMock(return_value=[])
+        # transitions write through the guard (A02 audit M02-1); completion
+        # evidence is checked by _fix_completion_evidence_missing (M02-2)
+        mock_order._guarded = MagicMock()
+        mock_order._guarded.return_value.write.side_effect = lambda vals: [
+            setattr(mock_order, k, v) for k, v in vals.items()
+        ]
+        mock_order._fix_completion_evidence_missing.return_value = []
 
         # 1. Request dispatch
         FixFieldOrder.action_request_dispatch(mock_order)
         assert mock_order.state == "pending_dispatch"
 
         # 2. Dispatch
+        pub = patch("odoo.addons.cd_field_service.models.fix_field_order.publish").start()
         FixFieldOrder.action_dispatch(mock_order)
         assert mock_order.state == "dispatched"
-        mock_order._emit_field_event.assert_called_with("field.order.dispatched", pytest.approx(mock_order._emit_field_event.call_args[0][1]))
+        assert pub.call_args[0][1:4] == ("field.order.dispatched", "fix.field.order", mock_order.id)
 
         # 3. Accept
         FixFieldOrder.action_accept(mock_order)
@@ -96,9 +109,11 @@ class TestFieldServiceCore:
         FixFieldOrder.action_start_work(mock_order)
         assert mock_order.state == "in_progress"
 
-        # 7. Complete
+        # 7. Complete: the M01 hand-back event is published (A02 audit B2)
         FixFieldOrder.action_complete(mock_order)
         assert mock_order.state == "completed"
+        assert pub.call_args[0][1] == "field.order.completed"
+        patch.stopall()
 
     def test_field_order_decline_flow(self):
         """Test technician decline action records decline log and emits domain event."""
@@ -110,24 +125,34 @@ class TestFieldServiceCore:
         mock_order.technician_id = prev_tech
         mock_order.company_id = MagicMock(id=1)
         mock_order.operating_unit_id = MagicMock(id=2)
-        mock_order._emit_field_event = MagicMock()
         mock_order.__iter__.return_value = [mock_order]
 
         mock_decline_log = MagicMock()
         mock_order.env = {"fix.field.decline.log": mock_decline_log}
+        mock_order._fields = {
+            "decline_reason": SimpleNamespace(selection=[("distance", "D"), ("other", "O")])
+        }
+        mock_order._guarded = MagicMock()
 
-        FixFieldOrder.action_decline(mock_order, reason="distance", notes="Out of coverage zone")
-        mock_order.write.assert_called_once_with({
+        with patch("odoo.addons.cd_field_service.models.fix_field_order.publish") as pub:
+            FixFieldOrder.action_decline(
+                mock_order, reason="distance", notes="Out of coverage zone"
+            )
+        written = mock_order._guarded.return_value.write.call_args[0][0]
+        mock_order._guarded.return_value.write.assert_called_once()
+        assert written["dispatch_requested_at"]  # back in the queue (A02 ERP M02-F21)
+        assert {k: v for k, v in written.items() if k != "dispatch_requested_at"} == {
             "state": "declined",
             "decline_reason": "distance",
             "decline_notes": "Out of coverage zone",
             "technician_id": False,
-        })
-        mock_decline_log.create.assert_called_once()
-        mock_order._emit_field_event.assert_called_once()
-        event_args = mock_order._emit_field_event.call_args[0]
-        assert event_args[0] == "field.order.declined"
-        assert event_args[1]["reason"] == "distance"
+            "van_location_id": False,
+        }
+        mock_decline_log.sudo.return_value.create.assert_called_once()
+        pub.assert_called_once()
+        event_args = pub.call_args[0]
+        assert event_args[1:4] == ("field.order.declined", "fix.field.order", 55)
+        assert event_args[4]["reason"] == "distance"
 
     def test_field_order_invalid_transitions(self):
         """Verify illegal state transitions raise UserError."""
@@ -150,23 +175,62 @@ class TestFieldServiceCore:
             FixFieldOrder.action_cancel(mock_order)
 
     def test_route_optimization_and_improvement_calculation(self):
-        """Test route optimization computes travel-time reduction percentage >= 15%."""
-        mock_route = MagicMock()
-        mock_route.field_order_ids = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
-        mock_route.__iter__.return_value = [mock_route]
-        mock_route.message_post = MagicMock()
+        """Honest optimiser: computed over a real distance matrix, the recorded
+        improvement is a consequence of the sequence, not a constant (R01 re-audit)."""
+        # A crossing layout the 2-opt pass must untangle: depot -> NE -> SW -> SE -> NW
+        coords = [(23.860, 90.400), (23.760, 90.390), (23.850, 90.380), (23.770, 90.395)]
+        stops = [
+            SimpleNamespace(id=i + 1, name="FO/%d" % (i + 1), latitude=la, longitude=lo)
+            for i, (la, lo) in enumerate(coords)
+        ]
+        written, posts = {}, []
 
-        FixFieldRoute.action_optimize_route(mock_route)
-        mock_route.write.assert_called_once()
-        written = mock_route.write.call_args[0][0]
+        rec = SimpleNamespace(
+            field_order_ids=stops,
+            # A02 ERP audit M02-F11: the route's own depot (Tejgaon here)
+            _fix_depot_point=lambda: (23.7776, 90.3959),
+            _guarded=lambda: SimpleNamespace(write=lambda vals: written.update(vals)),
+            message_post=lambda body: posts.append(body),
+        )
+
+        FixFieldRoute.action_optimize_route([rec])
         assert written["route_state"] == "optimized"
-        assert written["baseline_duration_hours"] > written["total_duration_hours"]
+        assert written["total_distance_km"] > 0
+        assert written["baseline_duration_hours"] >= written["total_duration_hours"]
+        assert any("engine:" in body for body in posts)
+        # the optimised visiting order is kept (A02 ERP audit M02-F11)
+        assert sorted(json.loads(written["stop_sequence_json"])) == [1, 2, 3, 4]
+        assert written["stop_plan"].startswith("1. FO/")
 
-        # Compute improvement percentage
-        mock_route.baseline_duration_hours = written["baseline_duration_hours"]
-        mock_route.total_duration_hours = written["total_duration_hours"]
-        FixFieldRoute._compute_improvement(mock_route)
-        assert mock_route.improvement_pct >= 15.0, f"Expected >= 15%, got {mock_route.improvement_pct}%"
+        # An order without coordinates must be refused, not distance-invented
+        blind = SimpleNamespace(
+            field_order_ids=[*stops[:2], SimpleNamespace(latitude=0.0, longitude=0.0)]
+        )
+        with pytest.raises(UserError, match="lack GPS coordinates"):
+            FixFieldRoute.action_optimize_route([blind])
+
+    def test_route_helpers_haversine_and_2opt(self):
+        """Pure helpers: haversine sanity + 2-opt improves a crossing tour."""
+        from addons.domain.a_service_delivery.cd_field_service.models.fix_field_route import (
+            haversine_km,
+            optimise_sequence,
+            trip_km,
+        )
+
+        # Dhaka (Tejgaon) -> Gazipur is roughly 25-30 km great-circle
+        d = haversine_km(23.7776, 90.3959, 23.9999, 90.4200)
+        assert 24.0 < d < 32.0, f"unexpected Dhaka-Gazipur distance {d:.1f} km"
+
+        pts = [(23.7776, 90.3959), (23.860, 90.400), (23.760, 90.390), (23.850, 90.380)]
+        matrix = [[0.0] * 4 for _ in range(4)]
+        for i in range(4):
+            for j in range(4):
+                matrix[i][j] = haversine_km(*pts[i], *pts[j])
+        base = trip_km(matrix, [0, 1, 2, 3])
+        opt_seq = optimise_sequence(matrix)
+        opt = trip_km(matrix, opt_seq)
+        assert opt <= base + 1e-9
+        assert opt_seq[0] == 0, "tour must start at the depot"
 
     def test_technician_location_distance_helper(self):
         """Test distance helper in FixTechnicianLocation."""
@@ -175,7 +239,7 @@ class TestFieldServiceCore:
 
     def test_technician_location_record_ping_unthrottled(self):
         """Test initial location ping records cleanly and publishes outbox event."""
-        from datetime import datetime
+
         mock_loc_model = MagicMock(spec=FixTechnicianLocation)
         mock_tech = MagicMock()
         mock_tech.exists.return_value = True
@@ -192,17 +256,25 @@ class TestFieldServiceCore:
         created_ping = MagicMock(id=999)
         mock_loc_model.create.return_value = created_ping
 
-        res = FixTechnicianLocation.record_ping(mock_loc_model, technician_id=10, lat=23.75, lon=90.38)
+        res = FixTechnicianLocation.record_ping(
+            mock_loc_model, technician_id=10, lat=23.75, lon=90.38
+        )
         assert res == created_ping
         mock_loc_model.create.assert_called_once()
         create_args = mock_loc_model.create.call_args[0][0]
         assert create_args["is_throttled"] is False
-        mock_outbox.create_event.assert_called_once()
-        assert mock_outbox.create_event.call_args[1]["event_type"] == "technician.location.ping"
+        # FF-28: published through fix_events -> fix.event.outbox.emit(event_type, ...)
+        mock_outbox.emit.assert_called_once()
+        assert mock_outbox.emit.call_args[0][:3] == (
+            "technician.location.ping",
+            "fix.technician.location",
+            999,
+        )
 
     def test_technician_location_record_ping_throttled_nfr056(self):
         """Test ping within 30s and <100m is throttled per NFR-056 and suppresses event publication."""
         from datetime import datetime, timedelta
+
         mock_loc_model = MagicMock(spec=FixTechnicianLocation)
         mock_tech = MagicMock()
         mock_tech.exists.return_value = True
@@ -228,9 +300,11 @@ class TestFieldServiceCore:
         mock_loc_model.create.return_value = created_ping
 
         # Second ping: 5s later, moved ~10m (23.75005, 90.38005)
-        res = FixTechnicianLocation.record_ping(mock_loc_model, technician_id=10, lat=23.75005, lon=90.38005)
+        FixTechnicianLocation.record_ping(
+            mock_loc_model, technician_id=10, lat=23.75005, lon=90.38005
+        )
         mock_loc_model.create.assert_called_once()
         create_args = mock_loc_model.create.call_args[0][0]
         assert create_args["is_throttled"] is True
         # Throttled ping does NOT emit to outbox
-        mock_outbox.create_event.assert_not_called()
+        mock_outbox.emit.assert_not_called()

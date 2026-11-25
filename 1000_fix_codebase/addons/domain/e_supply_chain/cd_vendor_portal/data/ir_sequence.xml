@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_supplier" model="ir.sequence">
+            <field name="name">Supplier</field>
+            <field name="code">fix.supplier</field>
+            <field name="prefix">SUP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_document" model="ir.sequence">
+            <field name="name">Supplier Document</field>
+            <field name="code">fix.supplier.document</field>
+            <field name="prefix">SDOC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_qualification" model="ir.sequence">
+            <field name="name">Supplier Qualification</field>
+            <field name="code">fix.supplier.qualification</field>
+            <field name="prefix">SQUAL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_activation" model="ir.sequence">
+            <field name="name">Supplier Activation</field>
+            <field name="code">fix.supplier.activation</field>
+            <field name="prefix">SACT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_requalification" model="ir.sequence">
+            <field name="name">Supplier Re-Qualification</field>
+            <field name="code">fix.supplier.requalification</field>
+            <field name="prefix">SREQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_scorecard" model="ir.sequence">
+            <field name="name">Supplier Scorecard</field>
+            <field name="code">fix.supplier.performance</field>
+            <field name="prefix">SPERF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_car" model="ir.sequence">
+            <field name="name">Corrective Action Request</field>
+            <field name="code">fix.supplier.car</field>
+            <field name="prefix">SCAR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_review" model="ir.sequence">
+            <field name="name">Supplier Review</field>
+            <field name="code">fix.supplier.review</field>
+            <field name="prefix">SRVW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_risk" model="ir.sequence">
+            <field name="name">Supplier Risk Assessment</field>
+            <field name="code">fix.supplier.risk</field>
+            <field name="prefix">SRISK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_screening" model="ir.sequence">
+            <field name="name">Supplier Screening</field>
+            <field name="code">fix.supplier.screening</field>
+            <field name="prefix">SSCRN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- A06 S7: supplier bank-detail change proposals. -->
+        <record id="seq_fix_supplier_bank_change" model="ir.sequence">
+            <field name="name">Supplier Bank-Detail Change</field>
+            <field name="code">fix.supplier.bank.change</field>
+            <field name="prefix">SBANK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_segment_review" model="ir.sequence">
+            <field name="name">Supplier Segment Review</field>
+            <field name="code">fix.supplier.segment.review</field>
+            <field name="prefix">SSEG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_agreement" model="ir.sequence">
+            <field name="name">Supplier Agreement</field>
+            <field name="code">fix.supplier.agreement</field>
+            <field name="prefix">SAGR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_price_list" model="ir.sequence">
+            <field name="name">Agreed Supplier Price</field>
+            <field name="code">fix.supplier.price.list</field>
+            <field name="prefix">SPRC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_supplier_price_change" model="ir.sequence">
+            <field name="name">Supplier Price Change</field>
+            <field name="code">fix.supplier.price.change</field>
+            <field name="prefix">SPCH/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "consignment.pickup_dispatched",
+  "description": "Event emitted when logistics courier is assigned for pick-and-drop collection (Journey 3)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "consignment.pickup_dispatched"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_consignment"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "consignment_id",
+        "courier_partner",
+        "tracking_number",
+        "dispatched_at"
+      ],
+      "properties": {
+        "consignment_id": {
+          "type": "integer"
+        },
+        "courier_partner": {
+          "type": "string"
+        },
+        "tracking_number": {
+          "type": "string"
+        },
+        "pickup_address": {
+          "type": "string"
+        },
+        "dispatched_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

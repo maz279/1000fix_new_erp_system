@@ -1,0 +1,87 @@
+{
+  "gate": "G7",
+  "milestone": "R08-M05",
+  "task": "R08-M05-T03",
+  "standard": "PE-007 / AR-012 (Disaster Recovery & High Availability)",
+  "drill_executed_at": "2026-10-22T11:31:34.993704+00:00",
+  "verdict": "INCOMPLETE",
+  "metrics": {
+    "rpo_target_seconds": 0.0,
+    "rpo_measured_seconds": null,
+    "rto_target_seconds": 60.0,
+    "rto_measured_seconds": null,
+    "data_loss_records": null,
+    "replication_lag_ms": null,
+    "branches_verified_online": null,
+    "note": "None = not measured: no failover was executed by this run"
+  },
+  "drill_scenario": "Sudden Primary DB & Marketplace Gateway Crash with Multi-Division Zone Partition",
+  "summary": {
+    "checks_total": 10,
+    "checks_passed": 5,
+    "checks_failed": 0,
+    "checks_unmeasured": 5
+  },
+  "checks": [
+    {
+      "id": "primary_replication_config",
+      "name": "Primary PostgreSQL WAL streaming + archiving configured",
+      "status": "PASS",
+      "detail": "postgres-prod: wal_level=replica, max_wal_senders=10, archive_mode=on, synchronous_standby_names=unset (asynchronous: RPO > 0 on primary loss)"
+    },
+    {
+      "id": "dr_standby_config",
+      "name": "DR warm standby declared as a streaming replica",
+      "status": "PASS",
+      "detail": "postgres-dr: primary_conninfo set, standby bootstrap declared, healthcheck asserts recovery mode"
+    },
+    {
+      "id": "kafka_kraft_quorum_config",
+      "name": "Kafka KRaft quorum survives one broker loss",
+      "status": "PASS",
+      "detail": "3 brokers, 3 KRaft controllers, 3 quorum voters; replication factor and min ISR tolerate one broker loss"
+    },
+    {
+      "id": "kafka_healthchecks",
+      "name": "Kafka broker healthchecks can report an unhealthy broker",
+      "status": "PASS",
+      "detail": "3 broker healthchecks propagate failure"
+    },
+    {
+      "id": "runbook_present",
+      "name": "RB-52 DR runbook present",
+      "status": "PASS",
+      "detail": "RB-52-dr-disaster-recovery-and-cutover.md present"
+    },
+    {
+      "id": "rpo",
+      "name": "RPO = 0 s (zero data loss at failover)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "rto",
+      "name": "RTO < 60 s (standby promotion + re-route)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "marketplace_state",
+      "name": "Multi-tenant marketplace & settlement state preserved across failover",
+      "status": "UNMEASURED",
+      "detail": "requires a failover with ledger / INT-007 payout checksums compared before and after; not exercised"
+    },
+    {
+      "id": "branch_offline_continuity",
+      "name": "53-branch offline cache continuity & sync-queue recovery",
+      "status": "UNMEASURED",
+      "detail": "requires branch edge clients connected during a failover; not reachable from a workstation"
+    },
+    {
+      "id": "post_failover_operations",
+      "name": "Service intake & settlement payout on promoted infrastructure",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    }
+  ]
+}

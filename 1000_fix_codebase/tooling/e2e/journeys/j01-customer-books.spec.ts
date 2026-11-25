@@ -1,24 +1,30 @@
 // J01 — Customer books on-site repair (P01 → payment) · 8 steps.
+// Re-authored 2026-11-25 for the rebuilt customer portal: sign-in comes FIRST
+// (every record surface is auth-gated), then /booking renders the form.
 // Route mapping (planned → actual surface, honest):
 //   /auth/otp → OTP endpoints in P01 origin · #/record/M01-order → the
 //   order created through the real API, verified in P01 tracking ·
-//   P03 dispatch/QC → live workspace screens · /invoices → /estimates
-//   (P01's money surface; no /invoices route exists).
+//   P03 dispatch/QC → live workspace screens · /estimates and /invoices are
+//   both real P01 money surfaces now.
 import { test, expect } from "@playwright/test";
 import { PORTALS, rpc, otpLogin, openWorkspace, openScreenViaTellMe, loginOdoo } from "./helpers";
 
 test("J01 customer books on-site repair end-to-end", async ({ page }) => {
   const phone = "01711223344";
 
-  await test.step("1 P01: portal opens, booking form renders, Bengali-first", async () => {
-    await page.goto(`${PORTALS.customer}/booking`);
-    await expect(page.locator("main")).toContainText(/বুকিং|Booking/i);
-    await expect(page.locator("html")).toHaveAttribute("lang", "bn");
-  });
-
-  await test.step("2 M33: OTP identity verified, session established", async () => {
+  await test.step("1 M33: OTP identity verified, session established", async () => {
+    // The rebuilt portal gates every record surface behind sign-in, so the
+    // identity comes FIRST (the pre-rebuild journey opened /booking cold and
+    // now lands on the login split).
+    await page.goto(`${PORTALS.customer}/`, { waitUntil: "domcontentloaded" });
     const user = await otpLogin(page, phone);
     expect(user.partner_id).toBeTruthy();
+  });
+
+  await test.step("2 P01: booking form renders for the signed-in customer, Bengali-first", async () => {
+    await page.goto(`${PORTALS.customer}/booking`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText(/নতুন সার্ভিস বুকিং|New Service Booking/i);
+    await expect(page.locator("html")).toHaveAttribute("lang", "bn");
   });
 
   let modelId: number | undefined;
@@ -81,7 +87,9 @@ test("J01 customer books on-site repair end-to-end", async ({ page }) => {
   });
 
   await test.step("8 M20: estimates surface (P01 money view) renders", async () => {
-    await page.goto(`${PORTALS.customer}/estimates`);
-    await expect(page.locator("main")).toBeVisible();
+    await page.goto(`${PORTALS.customer}/estimates`, { waitUntil: "domcontentloaded" });
+    // The rebuilt pages render into the shell body, not a <main> element.
+    await expect(page.locator("body")).toContainText(/অনুমান|Estimates/i);
+    await expect(page).toHaveURL(/\/estimates/);
   });
 });

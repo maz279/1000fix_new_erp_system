@@ -9,6 +9,7 @@ check.
 The real client contract lives in libs/py/fix_residency (the ONLY client of
 the production residency service, CD-M29-nn). This stub speaks that contract.
 """
+
 import hashlib
 import json
 import os
@@ -47,6 +48,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 req = json.loads(self.rfile.read(length) or b"{}")
             except json.JSONDecodeError:
+                req = None
+            if not isinstance(req, dict):  # unparseable, or JSON that is not an object
                 self._json(400, {"error": "invalid json"})
                 return
             key = str(req.get("key", ""))
@@ -58,16 +61,21 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/get":
                 self._json(200, {"key": key, "value": synthetic_value(key), "kind": "synthetic"})
             else:  # erase
-                self._json(200, {"erased": True, "key": key, "tombstone": synthetic_value("tombstone:" + key)})
+                self._json(
+                    200,
+                    {"erased": True, "key": key, "tombstone": synthetic_value("tombstone:" + key)},
+                )
             return
         self._json(404, {"error": "not found"})
 
-    def log_message(self, fmt: str, *args) -> None:  # noqa: A003 - stdlib signature
+    def log_message(self, fmt: str, *args) -> None:
         print(f"residency-stub: {fmt % args}")
 
 
 if __name__ == "__main__":
-    host = os.environ.get("RESIDENCY_HOST", "0.0.0.0")
+    # Container-only stub: compose publishes it as 127.0.0.1:8100 on the host and does
+    # not set RESIDENCY_HOST, so the in-container bind must be all-interfaces.
+    host = os.environ.get("RESIDENCY_HOST", "0.0.0.0")  # noqa: S104 - container-internal bind, host port is loopback-only
     server = HTTPServer((host, 8100), Handler)
     print(f"residency-stub: listening on {host}:8100 (SYNTHETIC VALUES ONLY)")
     server.serve_forever()

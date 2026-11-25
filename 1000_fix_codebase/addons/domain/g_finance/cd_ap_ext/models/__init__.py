@@ -1,3 +1,23 @@
 # cd_ap_ext models.
-from . import fix_ap_ext
-from . import fix_withholding_certificate_ext
+# ruff: noqa: I001 - fix_ap_capture extends the bill and the payment run, so it
+# is imported after them (an _inherit before its _name fails to load).
+from . import (
+    ap_gl,
+    fix_ap_controls,
+    fix_ap_expense,
+    fix_ap_ext,
+    fix_ap_retention,  # FR-APE-027: withheld retention register (after fix_ap_ext)
+    fix_ap_consignment,  # FR-APE-030: brand consignment settlements
+    fix_ap_notes,
+    fix_ap_payee_bank,
+    fix_ap_payment_events,
+    fix_ap_payment_run,
+    fix_ap_supplier_advance,
+    fix_ap_tax_ext,
+    fix_ap_tax_profile,
+    fix_withholding_certificate_ext,
+    fix_ap_capture,
+    fix_ap_grni,
+    fix_ap_grni_goods,  # A06 integration: GRNI for non-stock goods
+    ap_lc_settlement,  # A06 D6: LC remittances settle bills (after fix_ap_ext/advances)
+)

@@ -1,0 +1,82 @@
+{
+    "schema":  "1000fix-erp/gate-g1/2",
+    "ranAtUtc":  "2026-10-23T09:32:37.5792456Z",
+    "pass":  6,
+    "conditions":  6,
+    "failures":  0,
+    "verdict":  "CONDITION",
+    "criteria":  [
+                     {
+                         "Id":  "G1-01",
+                         "Criterion":  "Service orders end-to-end from all channels (state machine)",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 156 tests over cd_service_order; SERVICE_ORDER_STATES present in source: True. Channel coverage is exercised by the suite (API security, business gates, technician API), not by model-file existence; pilot-site volume is a runtime matter."
+                     },
+                     {
+                         "Id":  "G1-02",
+                         "Criterion":  "Walk-in intake under 3 minutes (timed by branch staff)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "intake model present: True; front-desk suite exit 0, 17 tests; timing evidence (script-generated, recorded 2026-10-22T09:05:51.182629+00:00): verdict INCOMPLETE - 0 of 10 required application-recorded intakes (target 180s); branch-staff demonstration UNMEASURED (10 synthesised rows excluded by the tool). The 3-minute claim is NOT met on current evidence - a human-observed pilot session is still required."
+                     },
+                     {
+                         "Id":  "G1-03",
+                         "Criterion":  "Customer/device data migrated with reconciliation signed off",
+                         "Status":  "CONDITION",
+                         "Evidence":  "MIG standards doc present: True; REHEARSAL.md (parsed) records Business sign-off (MG-004): PENDING - no signature recorded (the old check grepped WAVE1_REHEARSAL and printed signed off; that was wrong); sign-off evidence JSON (script-generated): verdict UNMEASURED, signatory null, measured reconciliation itself PASS. Wave-1 rehearsal executed and reconciled; the business sign-off and quarantined-record disposition are the open part."
+                     },
+                     {
+                         "Id":  "G1-04",
+                         "Criterion":  "SLA clocks and escalation firing correctly",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 21 tests over services/sla-engine; demo evidence (script-generated, 2026-10-22T09:01:30.099708+00:00): verdict PASS, 7/7 checks; SCOPE: in-process services/sla-engine SlaEngine.evaluate with a simulated clock; escalation notification delivery is not exercised. Notification delivery on the live mail path is runtime work, disclosed by the evidence\u0027s own scope line."
+                     },
+                     {
+                         "Id":  "G1-05",
+                         "Criterion":  "100% Bengali translation (FF-25 blocking)",
+                         "Status":  "PASS",
+                         "Evidence":  "check_translations.py exit 0: translations: OK - all 1659 user-facing fields have a Bengali rendering; every shipped bn_BD.po is 100% translated. Field count parsed from the checker\u0027s own output: 1659 user-facing fields checked per field (the old hardcoded 1094 figure is retired - the number comes from the tool each run)."
+                     },
+                     {
+                         "Id":  "G1-06",
+                         "Criterion":  "Zero critical/high security findings",
+                         "Status":  "PASS",
+                         "Evidence":  "scan evidence (script-generated, 2026-10-21T03:49:08.257208+00:00): verdict PASS, critical 0 / high 0 / total 0 findings; third-party penetration test per SC-009 formally deferred to R09 (recorded in the evidence, target R09 (Gate G3)). A markdown report\u0027s existence no longer gates this criterion."
+                     },
+                     {
+                         "Id":  "G1-07",
+                         "Criterion":  "Standing criteria applied (GV-009 section 9.1)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "searched the estate for an executable suite covering SC-01..SC-08: 0 matching test files found (none exist); T-6 review doc present: True - artefact present, not measured. Standing-criteria application is the gate assessor\u0027s judgement; this gate cannot execute it."
+                     },
+                     {
+                         "Id":  "G1-08",
+                         "Criterion":  "Entry criteria check at T-6 weeks",
+                         "Status":  "CONDITION",
+                         "Evidence":  "T-6 review doc present: True; executable suite search: 0 matches. The T-6 check is executed six weeks before the gate by the assessor, not at the gate - a dated review record is the artefact, its execution is not measurable here."
+                     },
+                     {
+                         "Id":  "G1-09",
+                         "Criterion":  "Performance at 1.5x peak + DR drill",
+                         "Status":  "CONDITION",
+                         "Evidence":  "Named Condition: cross-region disaster recovery failover drill formally scheduled for Milestone R10 (AR-012/PE-004); remedy: execute the R10 DR failover drill and the 1.5x-peak performance profile on the staging cluster prior to pilot go-live. Local DR primitives referenced in the parent ci.yml: 5 matches (ceph/pgbackrest/drill) - references in CI config are not a cross-region drill, and no 1.5x-peak load run has been executed for this gate."
+                     },
+                     {
+                         "Id":  "G1-10",
+                         "Criterion":  "DoD completeness on M01/M04/M17/M07 W1 slices",
+                         "Status":  "PASS",
+                         "Evidence":  "59 domain cd_* module dirs; live psql state breakdown (docker compose exec, exit honoured): 71 installed / 0 to upgrade / 0 to install / 0 uninstalled, of 71 cd_* rows vs 71 manifests; doctor evidence OD-02 row (run 2026-10-21T14:30:30.737964+00:00): FAIL - only 68/71 cd_* modules installed (the doctor row is superseded by the live count when the two differ - the DB query is the same one the doctor runs). The old Test-Path on the install matrix JSON is retired as a PASS basis."
+                     },
+                     {
+                         "Id":  "G1-11",
+                         "Criterion":  "FF-09 + FF-03 blocking, never bypassed",
+                         "Status":  "PASS",
+                         "Evidence":  "check_ff09_residency.py exit 0: FF-09: OK - no residency bypass paths; fix_residency is the sole client; check-vendor-clean.sh exit 0: check-vendor-clean: OK - vendor/ clean (FF-03). Both checks executed at gate time - exit codes honoured, not asserted from file presence."
+                     },
+                     {
+                         "Id":  "G1-12",
+                         "Criterion":  "Capacity position reported honestly (velocity vs 119 PW)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "capacity-velocity-measurement-report.md present: False - artefact present, not measured. The velocity position is a human-compiled report; this gate does not re-measure it and quotes no number from hand-authored markdown (the old 5.87x echo is retired)."
+                     }
+                 ]
+}

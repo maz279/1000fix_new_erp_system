@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — shared A4 portrait paperformat for the transactional
+  document suite + the 1000FiX brand rule on the standard external layout.
+
+  The letterhead itself (logo, company block, BIN, footer) comes from
+  res.company configuration (data/res_company_brand.xml) — the top-ERP
+  "one branded base layout" pattern: configure once, every document
+  (native AND suite) inherits it.
+-->
+<odoo>
+
+    <record id="paperformat_1000fix_a4" model="report.paperformat">
+        <field name="name">1000FiX Document A4</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <!-- room for the full letterhead block (logo + address row + tagline):
+             the standard layout stacks logo/tagline row, company address row and
+             the Tax ID line — 58mm keeps that block clear of the page body -->
+        <field name="margin_top">58</field>
+        <field name="header_spacing">12</field>
+        <!-- room for the contact footer + pagination -->
+        <field name="margin_bottom">28</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <!-- The 1000FiX brand rule under the letterhead header is applied in CSS
+         (doc_suite.css: .header), NOT by a QWeb inherit: the standard layout
+         renders its header class through t-attf-class, which no xpath can
+         match at parse time. CSS reaches every external-layout document —
+         native and suite — with zero view-inheritance risk. -->
+
+</odoo>

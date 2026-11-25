@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M51 section 5, BRU-TAX-09/-10 (AUT-TAX-07, AUT-TAX-09): deadline and
+  certificate-window reminders. They create to-dos only: nothing is posted,
+  filed, deposited or issued.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_statutory_deadline_reminders" model="ir.cron">
+            <field name="name">M51: statutory deadline reminders</field>
+            <field name="model_id" ref="model_fix_statutory_due_rule"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_deadline_reminders()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_certificate_window_reminders" model="ir.cron">
+            <field name="name">M51: withholding certificate window reminders</field>
+            <field name="model_id" ref="model_fix_withholding_line"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_certificate_window()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

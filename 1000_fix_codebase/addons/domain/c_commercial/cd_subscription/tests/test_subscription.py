@@ -1,30 +1,35 @@
 # cd_subscription tests — M39 + M53 W4 (P07-M03).
-from datetime import date, timedelta
-from decimal import Decimal
-from pathlib import Path
 import sys
 import unittest
+from datetime import date
+from decimal import Decimal
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_subscription.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_subscription.py").read_text(
+    encoding="utf-8"
+)
 
 # Insert models for pure rev_rec_engine testing
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
-import rev_rec_engine  # noqa: E402
-from rev_rec_engine import (  # noqa: E402
-    compute_straight_line_recognition,
-    compute_cancellation_refund,
+from rev_rec_engine import (
     RevRecError,
+    compute_cancellation_refund,
+    compute_straight_line_recognition,
 )
 
 
 class TestConsolidatedInvoicing(unittest.TestCase):
     def test_consolidated_flag(self):
         """T02: one invoice, many jobs, many sites — the flag defaults ON."""
-        self.assertIn('consolidated = fields.Boolean(\n        default=True', SOURCE)
+        self.assertIn("consolidated = fields.Boolean(\n        default=True", SOURCE)
 
-    def test_consolidated_skips_standalone_invoice(self):
-        body = SOURCE[SOURCE.index("def action_generate_charge"):SOURCE.index("def action_trigger_dunning")]
-        self.assertIn("if not sub.consolidated", body)
+    def test_every_cycle_is_one_charge_with_its_invoice(self):
+        """A08 M53: one fix.subscription.charge (and one invoice) per cycle;
+        consolidation happens in M20's period bill."""
+        body = SOURCE[
+            SOURCE.index("def action_generate_charge") : SOURCE.index("def action_trigger_dunning")
+        ]
+        self.assertIn("charge._create_invoice()", body)
 
     def test_one_schedule_per_source(self):
         self.assertIn("source_schedule_unique", SOURCE)
@@ -35,8 +40,11 @@ class TestCycleCharges(unittest.TestCase):
         self.assertIn('{"monthly": 30, "quarterly": 91, "annual": 365}', SOURCE)
 
     def test_charge_only_when_active(self):
-        body = SOURCE[SOURCE.index("def action_generate_charge"):SOURCE.index("def action_trigger_dunning")]
-        self.assertIn('state != "active"', body)
+        body = SOURCE[
+            SOURCE.index("def action_generate_charge") : SOURCE.index("def action_trigger_dunning")
+        ]
+        # A04 ERP M39-F15: active and past-due bill; held / paused / closed do not
+        self.assertIn("sub.state not in BILLABLE_STATES", body)
 
     def test_charge_publishes(self):
         self.assertIn('"subscription.charged"', SOURCE)
@@ -44,19 +52,20 @@ class TestCycleCharges(unittest.TestCase):
 
 class TestRevenueRecognition(unittest.TestCase):
     def test_straight_line_formula(self):
-        body = SOURCE[SOURCE.index("def action_recognize_period"):]
+        body = SOURCE[SOURCE.index("def action_recognize_period") :]
         self.assertIn("elapsed / term_days", body)
 
     def test_cumulative_idempotent(self):
         """Recognition is cumulative: only the delta posts, and only when
         positive — re-running a period recognizes nothing new."""
-        body = SOURCE[SOURCE.index("def action_recognize_period"):]
+        body = SOURCE[SOURCE.index("def action_recognize_period") :]
         self.assertIn("if delta <= 0", body)
         self.assertIn("continue", body)
 
     def test_completion_boundary(self):
-        body = SOURCE[SOURCE.index("def action_recognize_period"):]
-        self.assertIn("state = \"complete\"", body)
+        body = SOURCE[SOURCE.index("def action_recognize_period") :]
+        # A08: the state moves through the guard (written by the transition)
+        self.assertIn('_guarded().write({"state": "complete"})', body)
 
     def test_fee_over_term_not_point_of_sale(self):
         """BRU-LOY-12's shape: fee revenue over the period, never at sale."""
@@ -68,7 +77,8 @@ class TestInterfaceBreak(unittest.TestCase):
         """AR-006 pair 12: commission CALCULATION is M53's via the L5
         engine; no M12/marketplace module reach-in (imports or env refs)."""
         import re
-        imports = re.findall(r'^from .*|^import .*', SOURCE, re.M)
+
+        imports = re.findall(r"^from .*|^import .*", SOURCE, re.M)
         for line in imports:
             self.assertNotIn("marketplace", line.lower())
             self.assertNotIn("m12", line.lower())
@@ -86,13 +96,15 @@ class TestConsolidated400DeviceDemo(unittest.TestCase):
         device_lines = []
         for i in range(1, 401):
             branch = branches[i % len(branches)]
-            device_lines.append({
-                "device_id": 1000 + i,
-                "serial_number": f"SN-POS-{i:05d}",
-                "branch_name": branch,
-                "description": f"POS Terminal #{i:04d} Monthly Maintenance & SLA at {branch}",
-                "amount": 250.00,
-            })
+            device_lines.append(
+                {
+                    "device_id": 1000 + i,
+                    "serial_number": f"SN-POS-{i:05d}",
+                    "branch_name": branch,
+                    "description": f"POS Terminal #{i:04d} Monthly Maintenance & SLA at {branch}",
+                    "amount": 250.00,
+                }
+            )
 
         self.assertEqual(len(device_lines), 400)
 
@@ -127,7 +139,7 @@ class TestDunningAndRefunds(unittest.TestCase):
         """Verifies reminder, final notice, and service hold escalation ladder."""
         self.assertIn("def action_trigger_dunning", SOURCE)
         self.assertIn("subscription.dunning_escalated", SOURCE)
-        self.assertIn('sub.write({"state": "hold"', SOURCE)
+        self.assertIn('sub._guarded().write({"state": "hold"', SOURCE)
         self.assertIn("def action_reinstate", SOURCE)
 
     def test_refund_approval_threshold(self):
@@ -142,7 +154,7 @@ class TestRevRecEngine100PercentCoverage(unittest.TestCase):
     def test_straight_line_normal_halfway(self):
         start = date(2026, 1, 1)
         end = date(2026, 12, 31)  # 364 days
-        as_of = date(2026, 7, 2)   # halfway (182 days)
+        as_of = date(2026, 7, 2)  # halfway (182 days)
         res = compute_straight_line_recognition(
             total_amount=Decimal("12000.00"),
             start_date=start,
@@ -205,18 +217,28 @@ class TestRevRecEngine100PercentCoverage(unittest.TestCase):
     def test_straight_line_invalid_parameters(self):
         # Non-positive total
         with self.assertRaises(RevRecError):
-            compute_straight_line_recognition(0, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15))
+            compute_straight_line_recognition(
+                0, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15)
+            )
         with self.assertRaises(RevRecError):
-            compute_straight_line_recognition(-100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15))
+            compute_straight_line_recognition(
+                -100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15)
+            )
         # End <= Start
         with self.assertRaises(RevRecError):
-            compute_straight_line_recognition(100, date(2026, 2, 1), date(2026, 1, 1), date(2026, 1, 15))
+            compute_straight_line_recognition(
+                100, date(2026, 2, 1), date(2026, 1, 1), date(2026, 1, 15)
+            )
         # Negative recognized
         with self.assertRaises(RevRecError):
-            compute_straight_line_recognition(100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), -10)
+            compute_straight_line_recognition(
+                100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), -10
+            )
         # Recognized exceeds total
         with self.assertRaises(RevRecError):
-            compute_straight_line_recognition(100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), 150)
+            compute_straight_line_recognition(
+                100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), 150
+            )
 
     def test_cancellation_refund_under_threshold(self):
         start = date(2026, 1, 1)
@@ -255,9 +277,13 @@ class TestRevRecEngine100PercentCoverage(unittest.TestCase):
         with self.assertRaises(RevRecError):
             compute_cancellation_refund(100, date(2026, 2, 1), date(2026, 1, 1), date(2026, 1, 15))
         with self.assertRaises(RevRecError):
-            compute_cancellation_refund(100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), -5)
+            compute_cancellation_refund(
+                100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), -5
+            )
         with self.assertRaises(RevRecError):
-            compute_cancellation_refund(100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), 105)
+            compute_cancellation_refund(
+                100, date(2026, 1, 1), date(2026, 2, 1), date(2026, 1, 15), 105
+            )
 
     def test_cancellation_refund_on_or_before_start(self):
         start = date(2026, 1, 1)

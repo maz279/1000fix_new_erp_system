@@ -1,0 +1,74 @@
+{
+  "test": "R10-M04-T03: Disaster Recovery Warm Standby Rehearsal & Cutover Drill",
+  "timestamp": "2026-10-22T11:31:35.737177+00:00",
+  "runbook": "docs/runbooks/RB-52-dr-disaster-recovery-and-cutover.md",
+  "target_rpo_minutes": 15,
+  "actual_rpo_seconds": null,
+  "target_rto_hours": 2,
+  "actual_rto_seconds": null,
+  "rpo_compliant": null,
+  "rto_compliant": null,
+  "summary": {
+    "checks_total": 9,
+    "checks_passed": 3,
+    "checks_failed": 0,
+    "checks_unmeasured": 6
+  },
+  "checks": [
+    {
+      "id": "runbook_present",
+      "name": "RB-52 DR & cutover runbook present",
+      "status": "PASS",
+      "detail": "RB-52-dr-disaster-recovery-and-cutover.md present"
+    },
+    {
+      "id": "primary_replication_config",
+      "name": "Primary PostgreSQL WAL streaming + archiving configured",
+      "status": "PASS",
+      "detail": "postgres-prod: wal_level=replica, max_wal_senders=10, archive_mode=on, synchronous_standby_names=unset (asynchronous: RPO > 0 on primary loss)"
+    },
+    {
+      "id": "dr_standby_config",
+      "name": "DR warm standby declared as a streaming replica",
+      "status": "PASS",
+      "detail": "postgres-dr: primary_conninfo set, standby bootstrap declared, healthcheck asserts recovery mode"
+    },
+    {
+      "id": "replication_lag_rpo",
+      "name": "Replication lag within RPO <= 15 min (RB-52 step 2)",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    },
+    {
+      "id": "primary_fencing",
+      "name": "Primary fenced, split-brain prevented (RB-52 step 3)",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    },
+    {
+      "id": "standby_promotion",
+      "name": "Standby promoted to read-write (RB-52 step 4)",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    },
+    {
+      "id": "ingress_reroute",
+      "name": "Kong / edge re-routed to the DR backend (RB-52 step 5)",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    },
+    {
+      "id": "post_cutover_write",
+      "name": "Synthetic work order written on the promoted standby (RB-52 step 6)",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    },
+    {
+      "id": "rto",
+      "name": "End-to-end failover within RTO <= 2 h",
+      "status": "UNMEASURED",
+      "detail": "requires the prod + dr compose profiles running and an operator-executed RB-52 cutover; this tool never fences, stops or promotes a database"
+    }
+  ],
+  "status": "INCOMPLETE"
+}

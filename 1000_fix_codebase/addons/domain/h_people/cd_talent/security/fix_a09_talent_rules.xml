@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 workflow audit, round 2 (M58-F7, BRU-TAO-07).
+
+     * A Hiring Manager reaches only the requisitions that name them, and
+       those requisitions' candidates, interview rounds, onboarding plans and
+       tasks. Recruitment and the M58 deciders (res.users
+       fix_talent_reads_all) work on all of them.
+     * A panelist reads and writes only their own evaluation, and writes it
+       only until it is submitted. Nobody else reads an evaluation of a round
+       until EVERY panelist of that round has submitted.
+
+     GLOBAL rules, because these models also carry the generated
+     company / operating-unit rules, and group rules combine with OR: a group
+     rule could not narrow them. -->
+<odoo>
+    <record id="rule_job_requisition_scope" model="ir.rule">
+        <field name="name">fix.job.requisition: own requisitions unless a talent role</field>
+        <field name="model_id" ref="model_fix_job_requisition"/>
+        <field name="domain_force">['|', ('hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_scope" model="ir.rule">
+        <field name="name">fix.candidate: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate"/>
+        <field name="domain_force">['|', ('requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_talent_interview_scope" model="ir.rule">
+        <field name="name">fix.talent.interview: own requisitions' rounds unless a talent role</field>
+        <field name="model_id" ref="model_fix_talent_interview"/>
+        <field name="domain_force">['|', ('requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_onboarding_plan_scope" model="ir.rule">
+        <field name="name">fix.onboarding.plan: own requisitions' plans, or your own, unless a talent role</field>
+        <field name="model_id" ref="model_fix_onboarding_plan"/>
+        <field name="domain_force">['|', '|', ('requisition_id.hiring_manager_id', '=', user.id), ('employee_id.user_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- M58-F17: the hiring manager who runs the 30/60/90 conversations
+         reaches the first-90 reviews of their own requisitions' plans and the
+         reviews they conduct; the model had no access row for them at all -->
+    <record id="rule_talent_first90_scope" model="ir.rule">
+        <field name="name">fix.talent.first90: own requisitions' plans, or your reviews, unless a talent role</field>
+        <field name="model_id" ref="model_fix_talent_first90"/>
+        <field name="domain_force">['|', '|', ('plan_id.requisition_id.hiring_manager_id', '=', user.id), ('reviewer_id.user_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+    </record>
+
+    <!-- BRU-TAO-07: private until the whole panel has submitted -->
+    <record id="rule_talent_evaluation_read" model="ir.rule">
+        <field name="name">fix.talent.evaluation: own, or the whole submitted panel</field>
+        <field name="model_id" ref="model_fix_talent_evaluation"/>
+        <field name="domain_force">['|', ('panelist_user_id', '=', user.id), '&amp;', ('interview_id.panel_complete', '=', True), '|', ('requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_talent_evaluation_write" model="ir.rule">
+        <field name="name">fix.talent.evaluation: the panelist's own draft only (write)</field>
+        <field name="model_id" ref="model_fix_talent_evaluation"/>
+        <field name="domain_force">[('panelist_user_id', '=', user.id), ('state', '=', 'draft')]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_talent_evaluation_company" model="ir.rule">
+        <field name="name">fix.talent.evaluation: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_evaluation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- onboarding tasks: the owner, the hiring manager, Recruitment -->
+    <record id="rule_onboarding_task_read" model="ir.rule">
+        <field name="name">fix.onboarding.task: owner, hiring manager or a talent role (read)</field>
+        <field name="model_id" ref="model_fix_onboarding_task"/>
+        <field name="domain_force">['|', '|', ('owner_id', '=', user.id), ('plan_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_onboarding_task_write" model="ir.rule">
+        <field name="name">fix.onboarding.task: owner or a talent role (write)</field>
+        <field name="model_id" ref="model_fix_onboarding_task"/>
+        <field name="domain_force">['|', ('owner_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_onboarding_task_company" model="ir.rule">
+        <field name="name">fix.onboarding.task: allowed companies</field>
+        <field name="model_id" ref="model_fix_onboarding_task"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_headcount_budget_company" model="ir.rule">
+        <field name="name">fix.headcount.budget: allowed companies</field>
+        <field name="model_id" ref="model_fix_headcount_budget"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- M58 capture audit (2026-11-17): induction sessions are read by their
+         conductor, the new hire, the hiring manager and the talent roles, and
+         recorded only by their conductor (or Recruitment). -->
+    <record id="rule_onboarding_induction_read" model="ir.rule">
+        <field name="name">fix.onboarding.induction: conductor, new hire, hiring manager or a talent role (read)</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
+        <field name="domain_force">['|', '|', '|', ('conductor_id', '=', user.id), ('plan_id.employee_id.user_id', '=', user.id), ('plan_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_onboarding_induction_write" model="ir.rule">
+        <field name="name">fix.onboarding.induction: conductor or a talent role (write)</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
+        <field name="domain_force">['|', ('conductor_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <!-- a hiring manager reads the postings of their own requisitions only -->
+    <record id="rule_job_posting_scope" model="ir.rule">
+        <field name="name">fix.job.posting: own requisitions' postings unless a talent role</field>
+        <field name="model_id" ref="model_fix_job_posting"/>
+        <field name="domain_force">['|', ('requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_candidate_document_scope" model="ir.rule">
+        <field name="name">fix.candidate.document: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_document"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_education_scope" model="ir.rule">
+        <field name="name">fix.candidate.education: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_education"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_experience_scope" model="ir.rule">
+        <field name="name">fix.candidate.experience: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_experience"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_training_scope" model="ir.rule">
+        <field name="name">fix.candidate.training: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_training"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_language_scope" model="ir.rule">
+        <field name="name">fix.candidate.language: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_language"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_skill_scope" model="ir.rule">
+        <field name="name">fix.candidate.skill: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_skill"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_reference_scope" model="ir.rule">
+        <field name="name">fix.candidate.reference: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_reference"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <record id="rule_candidate_family_scope" model="ir.rule">
+        <field name="name">fix.candidate.family: own requisitions' candidates unless a talent role</field>
+        <field name="model_id" ref="model_fix_candidate_family"/>
+        <field name="domain_force">['|', ('candidate_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+</odoo>

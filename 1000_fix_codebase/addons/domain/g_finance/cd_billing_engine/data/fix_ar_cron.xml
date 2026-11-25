@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — M20 automations (CD-M20-02).
+     Hourly event intake + generation keeps FR-ARB-002 (invoice within 1h of
+     closure) honest; the daily dunning run advances the NT-006 ladder. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_ar_event_intake" model="ir.cron">
+            <field name="name">AR: billable-event intake (service_order.closed)</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_intake()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A08 M20-F4 (CD-M20-04): the estate's other revenue streams. Due
+             subscription cycles and contract periods, and approved warranty
+             claims, become queue rows here; the row is the candidate, the
+             manual "Generate now" / process cron raises the invoice through
+             the source module's own path. -->
+        <record id="ir_cron_ar_event_intake_streams" model="ir.cron">
+            <field name="name">AR: billable-event intake (subscription, contract, claim streams)</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_intake_streams()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_event_process" model="ir.cron">
+            <field name="name">AR: generate invoices for due billable events</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_process_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_dunning" model="ir.cron">
+            <field name="name">AR: dunning ladder run (NT-006)</field>
+            <field name="model_id" ref="model_fix_dunning"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_run_dunning()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A08 M20-F5 (AUT-ARB-10): a reminder the provider refused is
+             retried, never silently dropped. The retry acts on the same
+             evidence row and is capped by
+             cd_billing_engine.dunning_retry_max (default 3). -->
+        <record id="ir_cron_ar_dunning_retry" model="ir.cron">
+            <field name="name">AR: retry failed dunning reminders (AUT-ARB-10)</field>
+            <field name="model_id" ref="model_fix_ar_dunning_action"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_failed()</field>
+            <field name="interval_number">2</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-ARB-22 / AUT-ARB-20: flags receipts unapplied past
+             cd_billing_engine.unapplied_escalation_days (default 7). Moves no money. -->
+        <record id="ir_cron_ar_unapplied_escalation" model="ir.cron">
+            <field name="name">AR: escalate unapplied receipts (BRU-ARB-22)</field>
+            <field name="model_id" ref="model_fix_ar_receipt"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_escalate_unapplied()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

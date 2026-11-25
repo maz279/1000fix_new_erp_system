@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_competency_assessment" model="ir.sequence">
+            <field name="name">Competency Assessment</field>
+            <field name="code">fix.competency.assessment</field>
+            <field name="prefix">ASMT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_training_session" model="ir.sequence">
+            <field name="name">Training Session</field>
+            <field name="code">fix.training.session</field>
+            <field name="prefix">TRS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ojt_record" model="ir.sequence">
+            <field name="name">OJT Record</field>
+            <field name="code">fix.ojt.record</field>
+            <field name="prefix">OJT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_audit_evidence" model="ir.sequence">
+            <field name="name">Audit Evidence</field>
+            <field name="code">fix.audit.evidence</field>
+            <field name="prefix">AUD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_training_need" model="ir.sequence">
+            <field name="name">Training Need</field>
+            <field name="code">fix.training.need</field>
+            <field name="prefix">TNR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_mentoring" model="ir.sequence">
+            <field name="name">Mentoring</field>
+            <field name="code">fix.mentoring</field>
+            <field name="prefix">MEN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_training_effectiveness" model="ir.sequence">
+            <field name="name">Training Effectiveness Evaluation</field>
+            <field name="code">fix.training.effectiveness</field>
+            <field name="prefix">TEV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

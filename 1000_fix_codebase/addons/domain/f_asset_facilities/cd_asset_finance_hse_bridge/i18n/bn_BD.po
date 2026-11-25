@@ -1,0 +1,177 @@
+# Bengali (Bangladesh) translation for cd_asset_finance_hse_bridge.
+# Field labels (FF-25 / DoD-08, AS-12).
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__source_amount
+msgid "Amount in the Source Register"
+msgstr "উৎস রেজিস্টারে লিপিবদ্ধ অঙ্ক"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__amount
+msgid "Amount to Capitalise"
+msgstr "মূলধনীকরণযোগ্য অঙ্ক"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__category_id
+msgid "Asset Category"
+msgstr "সম্পদের শ্রেণি"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__basis
+msgid "Basis"
+msgstr "ভিত্তি"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__match_invoice_id
+msgid "Bill to Match"
+msgstr "মেলানোর জন্য বিল"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__branch_id
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__operating_unit_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__amount
+msgid "Cost"
+msgstr "খরচ"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__operating_unit_id
+msgid "Cost Centre (OU)"
+msgstr "কস্ট সেন্টার (OU)"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__cost_date
+msgid "Cost Date"
+msgstr "খরচের তারিখ"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__custodian_id
+msgid "Custodian"
+msgstr "রক্ষক"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__decided_by_id
+msgid "Decided By"
+msgstr "সিদ্ধান্তদাতা"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__decided_on
+msgid "Decided On"
+msgstr "সিদ্ধান্তের তারিখ"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__decision_note
+msgid "Decision Note"
+msgstr "সিদ্ধান্ত নোট"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__disposal_kind
+msgid "Disposal Type"
+msgstr "নিষ্পত্তির ধরন"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__disposal_id
+msgid "Draft Disposal"
+msgstr "খসড়া নিষ্পত্তি"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__event_json
+msgid "Event"
+msgstr "ইভেন্ট"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__fixed_asset_id
+msgid "M49 Asset"
+msgstr "M49 সম্পদ"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__role_xmlid
+msgid "Resolved By (Role)"
+msgstr "সমাধানকারী (ভূমিকা)"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__site_id
+msgid "Site"
+msgstr "সাইট"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__source_label
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__source_ref
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__source_ref
+msgid "Source Document"
+msgstr "উৎস দলিল"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_finance_request__source_ref
+msgid "Source Item"
+msgstr "উৎস আইটেম"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__vehicle_id
+msgid "Vehicle"
+msgstr "যানবাহন"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__vendor_id
+msgid "Vendor"
+msgstr "সরবরাহকারী"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__vendor_invoice_id
+msgid "Vendor Bill (M52)"
+msgstr "সরবরাহকারীর বিল (M52)"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_asset_cost_entry__invoice_ref
+msgid "Vendor Invoice Ref"
+msgstr "সরবরাহকারীর ইনভয়েস রেফারেন্স"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__message
+msgid "What Is Needed"
+msgstr "যা প্রয়োজন"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__employee_id
+msgid "Worker Involved"
+msgstr "সংশ্লিষ্ট কর্মী"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__role_label
+msgid "Deciding Role"
+msgstr "সিদ্ধান্তকারী ভূমিকা"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_hse_hazard__site_incident_id
+msgid "Site Incident (M47)"
+msgstr "সাইট ঘটনা (M47)"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields.selection,name:cd_asset_finance_hse_bridge.selection__fix_asset_cost_entry__cost_type__site_utility
+msgid "Site Utility Bill (M47)"
+msgstr "সাইটের ইউটিলিটি বিল (M47)"
+
+#. module: cd_asset_finance_hse_bridge
+#: model:ir.model.fields.selection,name:cd_asset_finance_hse_bridge.selection__fix_asset_cost_entry__cost_type__lease_rent
+msgid "Lease Rent (M47)"
+msgstr "লিজের ভাড়া (M47)"

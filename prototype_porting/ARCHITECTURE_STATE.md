@@ -439,4 +439,3 @@ test.describe('WCAG 2.2 AA Automated Gatekeeper', () => {
     *   Outer Stroke: 2px solid Service-Teal (`--primary #0E7A6E`).
     *   Contrast Ratio against adjacent background: $\ge 3:1$ under both light and dark themes.
     *   Trigger: strictly scoped to `:focus-visible` to prevent distracting outlines during pointer navigation.
-

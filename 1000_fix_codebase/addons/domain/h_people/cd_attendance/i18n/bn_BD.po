@@ -3,63 +3,425 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Attendance Record"
-msgstr "উপস্থিতি রেকর্ড"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__approval_state
+msgid "Approval"
+msgstr "অনুমোদন"
 
-msgid "Shift Template"
-msgstr "শিফট টেমপ্লেট"
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
 
-msgid "Roster Slot"
-msgstr "রোস্টার স্লট"
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__approval_state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
 
-msgid "Attendance Lock"
-msgstr "উপস্থিতি লক"
-
-msgid "Biometric Device"
-msgstr "বায়োমেট্রিক ডিভাইস"
-
-msgid "Mobile (Geofenced)"
-msgstr "মোবাইল (জিওফেন্স)"
-
-msgid "Manual"
-msgstr "ম্যানুয়াল"
-
-msgid "Device Reference"
-msgstr "ডিভাইস রেফারেন্স"
-
-msgid "Latitude (P02 geofence)"
-msgstr "অক্ষাংশ (P02 জিওফেন্স)"
-
-msgid "Longitude (P02 geofence)"
-msgstr "দ্রাঘিমাংশ (P02 জিওফেন্স)"
-
-msgid "Check Out"
-msgstr "চেক আউট"
-
-msgid "Lock Period"
-msgstr "পিরিয়ড লক করুন"
-
-msgid "Re-open"
-msgstr "পুনরায় খুলুন"
-
-msgid "Locked"
-msgstr "লক করা"
-
-msgid "Re-opened"
-msgstr "পুনরায় খোলা"
-
-msgid "Shift"
-msgstr "শিফট"
-
-msgid "Branch"
-msgstr "শাখা"
-
+#. module: cd_attendance
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance
 msgid "Attendance"
 msgstr "উপস্থিতি"
 
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_lock
+msgid "Attendance Lock"
+msgstr "উপস্থিতি লক"
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_attendance_lock
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance_lock
+msgid "Attendance Locks"
+msgstr "উপস্থিতি লকসমূহ"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_record
+msgid "Attendance Record"
+msgstr "উপস্থিতি রেকর্ড"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__biometric
+msgid "Biometric Device"
+msgstr "বায়োমেট্রিক ডিভাইস"
+
+#. module: cd_attendance
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_biometric_device
+msgid "Biometric Devices"
+msgstr "বায়োমেট্রিক ডিভাইসসমূহ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__branch_id
+msgid "Branch / Facility"
+msgstr "শাখা / সুবিধা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_out
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Check Out"
+msgstr "চেক আউট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__statutory_notes
+msgid "Compliance Notes"
+msgstr "কমপ্লায়েন্স নোট"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__compliant
+msgid "Compliant"
+msgstr "কমপ্লায়েন্ট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__phone
+msgid "Contact Number"
+msgstr "যোগাযোগ নম্বর"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__daily_limit_exceeded
+msgid "Daily Limit Exceeded (>10h)"
+msgstr "দৈনিক সীমা অতিক্রান্ত (>১০ ঘণ্টা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__approved_at
+msgid "Decided At"
+msgstr "সিদ্ধান্তের সময়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__approved_by
+msgid "Decided By"
+msgstr "সিদ্ধান্তগ্রহণকারী"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__device_id
+msgid "Device Identifier"
+msgstr "ডিভাইস শনাক্তকারী"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__model_type
+msgid "Device Model"
+msgstr "ডিভাইস মডেল"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__name
+msgid "Device Name"
+msgstr "ডিভাইসের নাম"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__device_ref
+msgid "Device Reference"
+msgstr "ডিভাইস রেফারেন্স"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_biometric_device_form
+msgid "Device Specification"
+msgstr "ডিভাইসের বিবরণী"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__approval_reason
+msgid "Flag Reason"
+msgstr "চিহ্নিতকরণের কারণ"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Geofence & Approval (M55 AUT-WFM-02)"
+msgstr "জিওফেন্স ও অনুমোদন (M55 AUT-WFM-02)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geofence_result
+msgid "Geofence Result"
+msgstr "জিওফেন্স ফলাফল"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__accuracy_m
+msgid "GPS Accuracy (m)"
+msgstr "জিপিএস নির্ভুলতা (মিটার)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__inside
+msgid "Inside Own-Zone Geofence"
+msgstr "নিজ জোনের জিওফেন্সের ভেতরে"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__ip_address
+msgid "IP Address / Hostname"
+msgstr "IP ঠিকানা / হোস্টনেম"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__week_start
+msgid "ISO Week Start"
+msgstr "আইএসও সপ্তাহের শুরু"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__last_sync_at
+msgid "Last Ingest Sync"
+msgstr "সর্বশেষ ডেটা সিঙ্ক"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_lat
+msgid "Latitude (P02 geofence)"
+msgstr "অক্ষাংশ (P02 জিওফেন্স)"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Lock Period"
+msgstr "পিরিয়ড লক করুন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__locked
+msgid "Locked"
+msgstr "লক করা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_long
+msgid "Longitude (P02 geofence)"
+msgstr "দ্রাঘিমাংশ (P02 জিওফেন্স)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__low_accuracy
+msgid "Low GPS Accuracy"
+msgstr "জিপিএস নির্ভুলতা কম"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__manual
+msgid "Manual"
+msgstr "ম্যানুয়াল"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__mobile
+msgid "Mobile (Geofenced)"
+msgstr "মোবাইল (জিওফেন্স)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__mobile_offline
+msgid "Mobile (Offline Journal)"
+msgstr "মোবাইল (অফলাইন জার্নাল)"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_biometric_device_form
+msgid "Network & Location"
+msgstr "নেটওয়ার্ক ও অবস্থান"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__no_zone
+msgid "No Dispatch Zone"
+msgstr "কোনো ডিসপ্যাচ জোন নেই"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__approval_state__not_required
+msgid "Not Required"
+msgstr "প্রয়োজন নেই"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__hr_attendance_id
+msgid "Odoo Attendance Sync"
+msgstr "Odoo উপস্থিতি সিঙ্ক"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_biometric_device__status__offline
+msgid "Offline"
+msgstr "অফলাইন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_biometric_device__status__online
+msgid "Online"
+msgstr "অনলাইন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__outside
+msgid "Outside Own-Zone Geofence"
+msgstr "নিজ জোনের জিওফেন্সের বাইরে"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__approval_state__pending
+msgid "Pending Approval"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__location_desc
+msgid "Physical Location"
+msgstr "প্রকৃত অবস্থান"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Punch Details"
+msgstr "পাঞ্চের বিবরণ"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Re-open"
+msgstr "পুনরায় খুলুন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__unlocked
+msgid "Re-opened"
+msgstr "পুনরায় খোলা"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__approval_state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__rest_interval_violation
+msgid "Rest Interval Violation (<11h)"
+msgstr "বিশ্রাম বিরতি লঙ্ঘন (<১১ ঘণ্টা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__rest_day_hours
+msgid "Rest-Day Worked Hours"
+msgstr "সাপ্তাহিক ছুটির দিনে কাজের ঘণ্টা"
+
+#. module: cd_attendance
 msgid "Roster"
 msgstr "রোস্টার"
 
-msgid "Attendance Locks"
-msgstr "উপস্থিতি লকসমূহ"
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_roster
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_roster
+msgid "Roster Planning"
+msgstr "রোস্টার পরিকল্পনা"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_roster_slot
+msgid "Roster Slot"
+msgstr "রোস্টার স্লট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__shift_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__shift_id
+msgid "Shift"
+msgstr "শিফট"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_shift_template
+msgid "Shift Template"
+msgstr "শিফট টেমপ্লেট"
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_shift_template
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_shift_template
+msgid "Shift Templates"
+msgstr "শিফট টেমপ্লেটসমূহ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__allowance
+msgid "Standby Allowance"
+msgstr "স্ট্যান্ডবাই ভাতা"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_biometric_device__status__syncing
+msgid "Syncing"
+msgstr "সিঙ্ক চলছে"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__tentative
+msgid "Tentative (sighting-dependent)"
+msgstr "সাময়িক (চাঁদ দেখার উপর নির্ভরশীল)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__weekly_limit_exceeded
+msgid "Weekly Limit Exceeded (>60h)"
+msgstr "সাপ্তাহিক সীমা অতিক্রান্ত (>৬০ ঘণ্টা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_limit_exceeded
+msgid "Weekly OT Cap Exceeded"
+msgstr "সাপ্তাহিক ওভারটাইম সীমা অতিক্রান্ত"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_hours
+msgid "Weekly Overtime Hours"
+msgstr "সাপ্তাহিক অতিরিক্ত কর্মঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__is_rest_day
+msgid "Weekly Rest Day Call-In"
+msgstr "সাপ্তাহিক ছুটির দিনে কাজে ডাকা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_worked_hours
+msgid "Weekly Worked Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Working-Time & Compliance (BLA 2006)"
+msgstr "কর্মসময় ও কমপ্লায়েন্স (BLA ২০০৬)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__no_geofence
+msgid "Zone Without Geofence"
+msgstr "জিওফেন্সবিহীন জোন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__active
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__company
+msgid "Company Day"
+msgstr "কোম্পানি দিবস"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__name_bn
+msgid "Holiday (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__moon
+msgid "Moon-Dependent (subject to sighting)"
+msgstr "চাঁদ দেখার উপর নির্ভরশীল"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__public
+msgid "Public Holiday"
+msgstr "সরকারি ছুটি"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__religious
+msgid "Religious"
+msgstr "ধর্মীয়"

@@ -10,14 +10,54 @@
 # determination synchronously; NOTHING calls M20 back — the register is
 # populated by CONSUMING invoice.created events (T04), so M51 can rebuild
 # the VAT register from the event stream without M20's cooperation.
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
-
+#
+# A08 workflow audit (2026-11-04):
+#   M51-2  an accountant edited the VAT of an issued Mushak 6.3 (3,000 -> 0,
+#          the 9.1 followed), typed register rows with BIN 0000000000000 and
+#          flagged rows "posted" with no GL entry. The register is now written
+#          only by the issuing services below (billing engine, native invoice
+#          posting, the invoice.created consumer); an issued row is never
+#          edited — a correction is a Mushak 6.7 / 6.8 note row; `posted`
+#          needs the posted GL entry.
+#   M51-5  sales VAT came from a constant (15%) whatever the master said;
+#          fix.vat.treatment was read by nothing. _fix_determine_tax() reads
+#          the effective-dated master and the tariff treatment.
+#   M51-9  posted native account.move sales invoices never reached the
+#          register: _fix_register_from_invoice(move) registers them, and the
+#          9.1 preparation sweeps the period's posted invoices through it.
+import re
 from decimal import Decimal
+from typing import Any
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from . import tax_logic
+from . import return_logic, tax_logic
+
+BIN_RE = re.compile(r"^\d{13}$")
+FINANCE_GROUPS = (
+    "account.group_account_invoice",
+    "account.group_account_user",
+    "account.group_account_manager",
+)
+NATIVE_MUSHAK_SEQUENCE = "cd_tax_engine_bd.mushak_native"
+
+
+def normalize_bin(value) -> str:
+    """The BIN as the register stores it: its 13 digits only. NBR prints the
+    number grouped (`001821833-0401`) and company master data keeps that
+    form; read raw it is 14 characters, which the 13-character register
+    fields cut to `001821833-040` and every Mushak 6.3 was refused."""
+    return re.sub(r"\D", "", str(value or ""))
+
+
+def valid_bin(value) -> bool:
+    """A real 13-digit BIN: digits only, never all one digit (0000000000000
+    is the placeholder the seed rows carried, not a registration)."""
+    value = (value or "").strip()
+    return bool(BIN_RE.match(value)) and len(set(value)) > 1
 
 
 class FixVatTreatment(models.Model):
@@ -25,43 +65,364 @@ class FixVatTreatment(models.Model):
 
     Data source: M30's country pack (fix.country.pack), NOT M65 (T06 —
     closes the +5-wave dependency violation). Rows here are the cached
-    projection the pack publishes."""
+    projection the pack publishes. A08 M51-5/M51-6: the determination reads
+    the ACTIVE row of a code; a change is a proposal a second manager
+    activates (fix.tax.master.approval.mixin)."""
 
     _name = "fix.vat.treatment"
     _description = "VAT Treatment"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
-    # Odoo 19 dropped the legacy constraint tuple list;
-    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'VAT treatment code must be unique')
+    _inherit = ["fix.tax.master.approval.mixin", "mail.thread", "mail.activity.mixin"]
 
-    code = fields.Char(string="Tariff Code", required=True)
+    code = fields.Char(string="Tariff Code", required=True, index=True)
     name = fields.Char(string="Treatment", required=True)
     treatment_type = fields.Selection(
         [(t, t) for t in tax_logic.VALID_TREATMENTS],
-        string="Treatment", required=True, default="standard_15")
-    rate = fields.Float(string="Rate (%)", default=15.0,
-                        help="AS-10 does not apply to rates — a percentage, not money")
+        string="Treatment Type",
+        required=True,
+        default="standard_15",
+    )
+    rate = fields.Float(
+        string="Rate (%)",
+        default=15.0,
+        help="Reduced treatments: the scheduled rate. A standard treatment carries the "
+        "standard rate in force in the Tax Rate Master, which is what the determination uses.",
+    )
     truncated_base = fields.Float(
         string="Truncated Fixed Base",
-        help="For truncated treatments: the fixed VAT base amount per period")
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+        help="For truncated treatments: the fixed VAT base amount per period",
+    )
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     active = fields.Boolean(default=True)
 
+    def _fix_master_key_domain(self):
+        return [("company_id", "=", self.company_id.id), ("code", "=", self.code)]
+
+    @api.constrains("code", "company_id", "state")
+    def _check_code_unique(self):
+        for row in self.filtered(lambda r: r.state == "active"):
+            if self.search_count(
+                [*row._fix_master_key_domain(), ("state", "=", "active"), ("id", "!=", row.id)]
+            ):
+                raise ValidationError("VAT treatment code %s already has an active row" % row.code)
+
     @api.constrains("treatment_type", "rate", "truncated_base")
-    def _check_treatment(self):
+    def _check_treatment(self) -> None:
+        Rate = self.env["fix.tax.rate"]
         for row in self:
             rate = Decimal(str(row.rate))
-            if row.treatment_type == "standard_15" and rate != tax_logic.STANDARD_RATE:
-                raise ValidationError("standard_15 must carry the 15% rate")
+            rates = Rate._fix_vat_rates(fields.Date.context_today(row), row.company_id)
+            if row.treatment_type == "standard_15" and rate != rates.standard:
+                raise ValidationError(
+                    "A standard treatment carries the standard rate in force (%s%%)"
+                    % rates.standard
+                )
+            # the determination refuses an unscheduled reduced rate — the
+            # tariff row must not be able to hold one either
+            if row.treatment_type == "reduced" and rate not in rates.reduced:
+                raise ValidationError(
+                    "reduced rate %g%% is not a scheduled rate in the Tax Rate Master (%s)"
+                    % (row.rate, " / ".join("%g" % r for r in sorted(rates.reduced)) or "none")
+                )
             if row.treatment_type in ("zero_rated", "exempt", "truncated") and rate != 0:
                 raise ValidationError(f"{row.treatment_type} carries no ad-valorem rate")
             if row.treatment_type == "truncated" and row.truncated_base <= 0:
                 raise ValidationError("truncated treatments need a positive fixed base")
 
+    @api.model
+    def _fix_treatment_for(self, code, company):
+        if not code:
+            return self.browse()
+        return self.sudo().search(
+            [
+                ("code", "=", code),
+                ("state", "=", "active"),
+                ("active", "=", True),
+                ("company_id", "=", company.id),
+            ],
+            limit=1,
+        )
+
+    @api.model
+    def _fix_determine_tax(self, lines, on_date=None, company=None):
+        """THE sales VAT determination (A08 M51-5): the effective-dated Tax
+        Rate Master gives the standard and reduced rates in force on the
+        supply date, and an active tariff row (by HS code, else product code)
+        gives a line its treatment. M20 (billing), subscriptions and rentals
+        call this instead of tax_logic.determine_tax(lines)."""
+        company = company or self.env.company
+        on_date = on_date or fields.Date.context_today(self)
+        rates = self.env["fix.tax.rate"]._fix_vat_rates(on_date, company)
+        determined = []
+        for line in lines:
+            if not line.treatment:
+                row = self._fix_treatment_for(line.hs_code, company) or self._fix_treatment_for(
+                    line.product_code, company
+                )
+                if row:
+                    line = tax_logic.TaxLine(
+                        product_code=line.product_code,
+                        qty=line.qty,
+                        unit_price=line.unit_price,
+                        discount=line.discount,
+                        hs_code=line.hs_code,
+                        treatment=row.treatment_type,
+                        rate_override=(
+                            Decimal(str(row.rate)) if row.treatment_type == "reduced" else None
+                        ),
+                    )
+            determined.append(line)
+        return tax_logic.determine_tax(determined, rates)
+
+
+class FixMushakCorrection(models.Model):
+    """A governed correction of the VAT register (A08 M51-1/-2, BRU-TAX-11): an
+    issued row is never edited. An accountant asks, a different Accounting
+    Administrator decides, and the decision either classifies a row whose
+    amounts fit the treatment (the row carries no treatment, so its Mushak 9.1
+    line cannot be read from it) or issues the Mushak 6.7 / 6.8 note. A period
+    whose return is filed is closed to both: the note goes in an open period."""
+
+    _name = "fix.mushak.correction"
+    _description = "VAT Register Correction"
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
+    _order = "id desc"
+    _rec_name = "reason"
+
+    register_id = fields.Many2one(
+        "fix.mushak.register",
+        string="Register Row",
+        required=True,
+        index=True,
+        ondelete="restrict",
+        domain="[('row_type', '=', 'invoice')]",
+    )
+    company_id = fields.Many2one(related="register_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(
+        related="register_id.operating_unit_id", store=True, index=True
+    )
+    currency_id = fields.Many2one(related="register_id.currency_id")
+    current_line = fields.Char(related="register_id.vat_line", string="9.1 Line Now")
+    correction_type = fields.Selection(
+        [
+            ("classify", "Classify the Row"),
+            ("credit_note", "Mushak 6.7 Credit Note"),
+            ("debit_note", "Mushak 6.8 Debit Note"),
+        ],
+        required=True,
+        default="classify",
+        tracking=True,
+    )
+    treatment = fields.Selection(
+        [
+            ("standard_15", "Standard Rate"),
+            ("reduced", "Reduced Rate"),
+            ("zero_rated", "Zero-Rated"),
+            ("exempt", "Exempt"),
+            ("truncated", "Truncated Base"),
+        ],
+        help="Classification: the treatment of the row. Note: required when the original "
+        "row has none, so the note has a 9.1 line of its own.",
+    )
+    reduced_rate = fields.Float(
+        string="Scheduled Reduced Rate (%)", digits=(6, 3), help="Reduced treatment only"
+    )
+    taxable_amount = fields.Monetary(
+        string="Note Taxable Value", currency_field="currency_id", help="Notes: enter positive"
+    )
+    vat_amount = fields.Monetary(
+        string="Note VAT", currency_field="currency_id", help="Notes: enter positive"
+    )
+    note_date = fields.Date(string="Note Date", default=fields.Date.context_today)
+    reason = fields.Char(required=True, tracking=True)
+    state = fields.Selection(
+        [("draft", "Requested"), ("approved", "Approved & Applied"), ("rejected", "Rejected")],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+    requested_by_id = fields.Many2one(
+        "res.users", default=lambda self: self.env.user, readonly=True, copy=False
+    )
+    decided_by_id = fields.Many2one("res.users", string="Decided By", readonly=True, copy=False)
+    decided_at = fields.Datetime(string="Decided On", readonly=True, copy=False)
+    rejection_reason = fields.Char(readonly=True, copy=False)
+    note_id = fields.Many2one(
+        "fix.mushak.register", string="Note Issued", readonly=True, copy=False, ondelete="restrict"
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "requested_by_id",
+            "decided_by_id",
+            "decided_at",
+            "rejection_reason",
+            "note_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(c.state != "draft" for c in self):
+            locked |= {n for n, f in self._fields.items() if f.store}
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            moving = {k for k in vals if not k.startswith(("message_", "activity_"))}
+            if moving and any(c.state != "draft" for c in self):
+                raise UserError("A decided register correction is a record of what was decided.")
+        return super().write(vals)
+
+    @api.constrains("correction_type", "treatment", "taxable_amount", "vat_amount", "register_id")
+    def _check_request(self):
+        for req in self:
+            if req.register_id.row_type != "invoice":
+                raise ValidationError("A correction is made against an issued Mushak 6.3.")
+            if req.correction_type == "classify":
+                if not req.treatment:
+                    raise ValidationError("Name the treatment the row is classified under.")
+            elif req.taxable_amount <= 0 and req.vat_amount <= 0:
+                raise ValidationError("A note carries positive amounts: its form gives the sign.")
+
+    def _fix_refuse_filed_period(self, day):
+        self.ensure_one()
+        period = day.strftime("%Y-%m")
+        filed = (
+            self.env["fix.vat.return"]
+            .sudo()
+            .search_count(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("period", "=", period),
+                    ("state", "=", "filed"),
+                ]
+            )
+        )
+        if filed:
+            raise UserError(
+                "The Mushak 9.1 for %s is filed: that period's register is closed "
+                "(BRU-TAX-11). Issue the correcting note in an open period." % period
+            )
+
+    def _fix_treatment_text(self, row):
+        """(the '<number>: <treatment> @ <rate>%' line the Mushak 9.1 reads, the
+        rate), the rate being the one in force on the row's date."""
+        self.ensure_one()
+        rates = self.env["fix.tax.rate"]._fix_vat_rates(row.invoice_date, row.company_id)
+        rate = Decimal("0")
+        if self.treatment == "standard_15":
+            rate = Decimal(str(rates.standard))
+        elif self.treatment == "reduced":
+            rate = Decimal(str(self.reduced_rate or 0))
+            if rate not in {Decimal(str(r)) for r in rates.reduced}:
+                raise UserError(
+                    "%g%% is not a scheduled reduced rate in the Tax Rate Master on %s."
+                    % (self.reduced_rate, row.invoice_date)
+                )
+        text = "%s: %s @ %s%%" % (row.mushak_no, self.treatment, format(rate.normalize(), "f"))
+        return text, rate
+
+    def _fix_apply(self):
+        """Classify the row, or issue the note (returned)."""
+        self.ensure_one()
+        row = self.register_id.sudo()
+        Register = self.env["fix.mushak.register"]
+        if self.correction_type == "classify":
+            if not (row.vat_line or "").startswith(return_logic.UNCLASSIFIED_PREFIX):
+                raise UserError(
+                    "Mushak %s already falls on the 9.1 line %s: a change is a Mushak 6.7 / 6.8 "
+                    "note, never a re-classification." % (row.mushak_no, row.vat_line)
+                )
+            self._fix_refuse_filed_period(row.invoice_date)
+            text, rate = self._fix_treatment_text(row)
+            expected = float(Decimal(str(row.taxable_amount)) * rate / 100)
+            if abs(expected - row.vat_amount) > 0.01:
+                raise UserError(
+                    "Mushak %s carries VAT %.2f on %.2f, which does not fit %s at %s%%: correct "
+                    "it with a Mushak 6.7 / 6.8 note."
+                    % (row.mushak_no, row.vat_amount, row.taxable_amount, self.treatment, rate)
+                )
+            row._guarded().write({"treatment_summary": text})
+            row.message_post(
+                body="Classified %s by %s, requested by %s: %s"
+                % (self.treatment, self.env.user.name, self.requested_by_id.name, self.reason)
+            )
+            return Register
+        on_date = self.note_date or fields.Date.context_today(self)
+        self._fix_refuse_filed_period(on_date)
+        summary = None
+        if not (row.treatment_summary or "").strip():
+            if not self.treatment:
+                raise UserError(
+                    "Mushak %s has no treatment: name the treatment of the note, so it has a "
+                    "Mushak 9.1 line of its own." % row.mushak_no
+                )
+            summary = self._fix_treatment_text(row)[0]
+        # M51-F4: the governed correction is the note issuer with no other
+        # poster — its note carries its own VAT leg (registered and posted as
+        # one atomic pair). M20's credit note and the counter refund keep the
+        # plain service contract: they post their own full reversal entry.
+        return Register._fix_issue_note(
+            row,
+            self.correction_type,
+            self.taxable_amount,
+            self.vat_amount,
+            self.reason,
+            on_date=on_date,
+            treatment_summary=summary,
+            post_vat_gl=True,
+        )
+
+    def _fix_require_decider(self, what):
+        if not self.env.su and not self.env.user.has_group("account.group_account_manager"):
+            raise UserError("%s needs the Accounting Administrator role." % what)
+        for req in self:
+            if not self.env.su and self.env.user in (req.requested_by_id | req.create_uid):
+                raise UserError(
+                    "Segregation of duties: you asked for this correction; a different Accounting "
+                    "Administrator decides it."
+                )
+
+    def action_approve(self):
+        self._fix_require_decider("Approving a VAT register correction")
+        for req in self:
+            if req.state != "draft":
+                raise UserError("Only a requested correction is approved.")
+            note = req._fix_apply()
+            req._guarded().write(
+                {
+                    "state": "approved",
+                    "decided_by_id": self.env.uid,
+                    "decided_at": fields.Datetime.now(),
+                    "note_id": note.id or False,
+                }
+            )
+        return True
+
+    def action_reject(self, reason=None):
+        self._fix_require_decider("Rejecting a VAT register correction")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("State why the correction is rejected.")
+        for req in self:
+            if req.state != "draft":
+                raise UserError("Only a requested correction is rejected.")
+            req._guarded().write(
+                {
+                    "state": "rejected",
+                    "decided_by_id": self.env.uid,
+                    "decided_at": fields.Datetime.now(),
+                    "rejection_reason": why,
+                }
+            )
+        return True
+
 
 class FixMushakRegister(models.Model):
-    """The VAT register — one row per Mushak 6.3 issued (T04).
+    """The VAT register — one row per Mushak 6.3 issued (T04), plus the
+    Mushak 6.7 (credit) and 6.8 (debit) note rows that correct it.
 
     POPULATED BY CONSUMING invoice.created — never by calling M20 back
     (AR-006 section 4.1 pair 7). The register write is ATOMIC with the GL
@@ -69,93 +430,589 @@ class FixMushakRegister(models.Model):
 
     _name = "fix.mushak.register"
     _description = "Mushak 6.3 VAT Register"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
+    _rec_name = "mushak_no"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _mushak_no_company_unique = models.Constraint('UNIQUE (mushak_no, company_id)', 'Mushak number already used in this company')
+    _mushak_no_company_unique = models.Constraint(
+        "UNIQUE (mushak_no, company_id)", "Mushak number already used in this company"
+    )
+    _source_move_unique = models.Constraint(
+        "UNIQUE (source_move_id)", "This invoice is already in the Mushak register"
+    )
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
-    mushak_no = fields.Char(string="Mushak 6.3 No.", required=True, index=True,
-                            copy=False, readonly=True)
-    invoice_ref = fields.Char(string="Invoice Reference", required=True, index=True,
-                              help="The invoice.created event's source reference")
+    row_type = fields.Selection(
+        [
+            ("invoice", "Mushak 6.3 (tax invoice)"),
+            ("credit_note", "Mushak 6.7 (credit note)"),
+            ("debit_note", "Mushak 6.8 (debit note)"),
+        ],
+        string="Form",
+        required=True,
+        default="invoice",
+        index=True,
+    )
+    original_id = fields.Many2one(
+        "fix.mushak.register",
+        string="Original Mushak 6.3",
+        index=True,
+        ondelete="restrict",
+        help="The issued 6.3 a credit / debit note corrects",
+    )
+    reason = fields.Char(string="Note Reason")
+    mushak_no = fields.Char(
+        string="Mushak 6.3 No.", required=True, index=True, copy=False, readonly=True
+    )
+    invoice_ref = fields.Char(
+        string="Invoice Reference",
+        required=True,
+        index=True,
+        help="The invoice.created event's source reference",
+    )
     invoice_date = fields.Date(string="Invoice Date", required=True)
     # Supplier identity (statutory content of the form)
     supplier_name = fields.Char(required=True)
-    supplier_bin = fields.Char(string="Supplier BIN", required=True, size=13,
-                               help="Business Identification Number — 13 digits")
+    supplier_bin = fields.Char(
+        string="Supplier BIN",
+        required=True,
+        size=13,
+        help="Business Identification Number — 13 digits",
+    )
     customer_name = fields.Char(required=True)
-    customer_bin = fields.Char(string="Customer BIN", size=13,
-                               help="Buyer BIN where the buyer is registered")
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    taxable_amount = fields.Monetary(string="Taxable Value", currency_field="currency_id",
-                                     required=True)
+    customer_bin = fields.Char(
+        string="Customer BIN", size=13, help="Buyer BIN where the buyer is registered"
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    taxable_amount = fields.Monetary(
+        string="Taxable Value", currency_field="currency_id", required=True
+    )
     vat_amount = fields.Monetary(string="VAT", currency_field="currency_id", required=True)
-    total_payable = fields.Monetary(string="Total Payable", currency_field="currency_id",
-                                    required=True)
-    treatment_summary = fields.Text(readonly=True,
-                                    help="Per-line treatments, from the determination")
-    source_event_id = fields.Char(string="Source Event", index=True, readonly=True,
-                                  help="invoice.created event_id — replay key")
-    posted = fields.Boolean(default=False, readonly=True,
-                            help="True once the GL posting committed (atomic pair)")
+    total_payable = fields.Monetary(
+        string="Total Payable", currency_field="currency_id", required=True
+    )
+    treatment_summary = fields.Text(
+        readonly=True, help="Per-line treatments, from the determination"
+    )
+    source_event_id = fields.Char(
+        string="Source Event",
+        index=True,
+        readonly=True,
+        help="invoice.created event_id — replay key",
+    )
+    source_move_id = fields.Many2one(
+        "account.move",
+        string="Source Invoice (native)",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="restrict",
+        help="The posted account.move sales invoice / credit note this row registers",
+    )
+    move_id = fields.Many2one(
+        "account.move",
+        string="GL Entry",
+        readonly=True,
+        copy=False,
+        help="The posted journal entry of the supply (the `posted` flag needs it)",
+    )
+    posted = fields.Boolean(
+        default=False, readonly=True, help="True once the GL posting committed (atomic pair)"
+    )
+    vat_line = fields.Char(
+        string="9.1 Line",
+        compute="_compute_vat_line",
+        store=True,
+        index=True,
+        help="The Mushak 9.1 line this row falls on, read as the return reads it. "
+        "'unclassified...' blocks filing: classify it on VAT Register Corrections.",
+    )
+    rate_flagged = fields.Boolean(
+        string="Rate Unconfirmed",
+        compute="_compute_rate_flagged",
+        help="The VAT rate of this row is not signed off by the adviser and the CFO yet.",
+    )
 
-    @api.constrains("supplier_bin", "customer_bin")
-    def _check_bins(self):
-        import re
+    @api.depends("taxable_amount", "vat_amount", "treatment_summary")
+    def _compute_vat_line(self):
         for row in self:
-            if not re.fullmatch(r"\d{13}", row.supplier_bin or ""):
-                raise ValidationError("Supplier BIN must be exactly 13 digits")
-            if row.customer_bin and not re.fullmatch(r"\d{13}", row.customer_bin or ""):
-                raise ValidationError("Customer BIN must be 13 digits when present")
+            row.vat_line = return_logic.classify_register_row(
+                row.taxable_amount, row.vat_amount, row.treatment_summary or ""
+            )
+
+    def _compute_rate_flagged(self):
+        Rate = self.env["fix.tax.rate"].sudo()
+        seen = {}
+        for row in self:
+            line = row.vat_line or ""
+            if line == "standard_15":
+                code = "standard"
+            elif line.startswith("reduced_"):
+                code = line.replace(".", "_")
+            else:
+                row.rate_flagged = False
+                continue
+            key = (code, row.invoice_date, row.company_id.id)
+            if key not in seen:
+                found = Rate._company_first(
+                    [
+                        ("tax_kind", "=", "vat"),
+                        ("code", "=", code),
+                        *Rate._window_domain(row.invoice_date),
+                    ],
+                    row.company_id,
+                )
+                seen[key] = bool(found) and found.signoff_state != "signed"
+            row.rate_flagged = seen[key]
+
+    # ---------------------------------------------------------------- guard --
+    def _fix_guarded_fields(self) -> set:
+        # every stored business field: an issued row is evidence
+        return super()._fix_guarded_fields() | {
+            n
+            for n, f in self._fields.items()
+            if f.store
+            and f.type not in ("one2many", "many2many")
+            and not n.startswith(("message_", "activity_"))
+            and n not in ("id", "create_uid", "create_date", "write_uid", "write_date")
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError(
+                "Mushak register rows are issued by the invoicing services (the billing "
+                "engine, a posted sales invoice, the invoice.created consumer), never typed. "
+                "A correction is a Mushak 6.7 / 6.8 note against the issued row."
+            )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get("posted") and not vals.get("move_id"):
+            # T08 / A08 M51-2: `posted` means the GL entry exists — even for
+            # trusted code. The billing engine's posting is found from its invoice.
+            for row in self:
+                move = row._fix_resolve_gl_move()
+                if not move:
+                    raise UserError(
+                        "Mushak %s cannot be marked posted: no posted GL entry carries its "
+                        "supply." % row.mushak_no
+                    )
+                super(FixMushakRegister, row).write(dict(vals, move_id=move.id))
+            return True
+        return super().write(vals)
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_never(self):
+        if not self.env.su:
+            raise UserError("An issued Mushak register row is never deleted.")
+
+    # ---------------------------------------------------------- constraints --
+    @api.constrains("supplier_bin", "customer_bin")
+    def _check_bins(self) -> None:
+        for row in self:
+            if not valid_bin(row.supplier_bin):
+                raise ValidationError(
+                    "Supplier BIN must be a real 13-digit BIN (not %r)" % (row.supplier_bin or "")
+                )
+            if row.customer_bin and not valid_bin(row.customer_bin):
+                raise ValidationError("Customer BIN must be a real 13-digit BIN when present")
+
+    @api.constrains("row_type", "taxable_amount", "vat_amount", "original_id")
+    def _check_note(self):
+        for row in self:
+            if row.row_type == "credit_note":
+                if row.taxable_amount > 0.005 or row.vat_amount > 0.005:
+                    raise ValidationError("A Mushak 6.7 credit note carries negative amounts")
+            elif row.taxable_amount < -0.005 or row.vat_amount < -0.005:
+                raise ValidationError("A Mushak 6.3 / 6.8 row carries non-negative amounts")
+            if row.row_type == "invoice" and row.original_id:
+                raise ValidationError("A Mushak 6.3 corrects nothing")
+            if row.original_id and row.original_id.row_type != "invoice":
+                raise ValidationError("A note corrects an issued Mushak 6.3, not another note")
+
+    # ---------------------------------------------------------- services ----
+    @api.model
+    def _fix_issue_register_row(self, vals):
+        """The ONE way the issuing services write a register row (billing
+        engine, subscriptions, rentals): validated like any row, written as
+        the system. Returns the row in the caller's environment."""
+        row = self.sudo().create(dict(vals))
+        return self.browse(row.id)
 
     @api.model
-    def consume_invoice_created(self, event: dict) -> "FixMushakRegister":
+    def _fix_issue_note(
+        self,
+        original,
+        kind,
+        taxable,
+        vat,
+        reason,
+        ref=None,
+        on_date=None,
+        treatment_summary=None,
+        post_vat_gl=False,
+    ):
+        """A Mushak 6.7 (kind 'credit_note', amounts reduce) or 6.8 ('debit_note')
+        against an issued 6.3 — the only correction of a register row. The
+        supplier on the note is this company: an original carrying a placeholder
+        BIN is corrected under the company's real one (never typed).
+
+        Service contract (M20 / the counter sale call this without
+        ``post_vat_gl``): the register row alone. THOSE callers post their own
+        full reversal entry (Dr revenue + Dr VAT / Cr AR) in the same flow, so
+        the GL side of the note's VAT exists without this module's help.
+
+        ``post_vat_gl=True`` (M51-F4, T-08 — the governed correction service
+        passes it, inside the note's own second-person gate): the note's VAT
+        effect posts through post_tax_move in the SAME transaction as the
+        register row — a 6.7 DEBITS VAT output against the counter-account, a
+        6.8 mirrors it — so the register and the GL move as one atomic pair and
+        the 9.1 sub-ledger reconciliation clears (IRB-09). There is no separate
+        action that could post a note's GL, or skip it."""
+        if kind not in ("credit_note", "debit_note"):
+            raise UserError("A register correction is a credit (6.7) or debit (6.8) note")
+        if not (reason or "").strip():
+            raise UserError("State why the Mushak 6.3 is corrected")
+        original = original.sudo()
+        if original.row_type != "invoice":
+            raise UserError("A note corrects an issued Mushak 6.3")
+        sign = -1 if kind == "credit_note" else 1
+        taxable, vat = sign * abs(taxable or 0.0), sign * abs(vat or 0.0)
+        company = original.company_id
+        on_date = on_date or fields.Date.context_today(self)
+        supplier_bin = original.supplier_bin
+        if not valid_bin(supplier_bin):
+            supplier_bin = self._fix_company_bin(company)
+        mushak_no = self._fix_next_native_mushak_no(company, on_date)
+        move = self.env["account.move"]
+        if post_vat_gl and abs(vat) >= 0.005:
+            move = self._fix_post_note_vat(company, original, kind, abs(vat), on_date, mushak_no)
+        return self._fix_issue_register_row(
+            {
+                "company_id": company.id,
+                "operating_unit_id": original.operating_unit_id.id,
+                "row_type": kind,
+                "original_id": original.id,
+                "reason": reason.strip(),
+                "mushak_no": mushak_no,
+                "invoice_ref": ref or "%s/%s" % (kind.upper(), original.mushak_no),
+                "invoice_date": on_date,
+                "supplier_name": original.supplier_name,
+                "supplier_bin": supplier_bin,
+                "customer_name": original.customer_name,
+                "customer_bin": original.customer_bin or False,
+                "currency_id": original.currency_id.id,
+                "taxable_amount": taxable,
+                "vat_amount": vat,
+                "total_payable": taxable + vat,
+                "treatment_summary": treatment_summary or original.treatment_summary or "",
+                "move_id": move.id or False,
+                "posted": bool(move),
+            }
+        )
+
+    @api.model
+    def _fix_post_note_vat(self, company, original, kind, amount, on_date, mushak_no):
+        """M51-F4: the note's VAT leg on the VAT output account the sub-ledger
+        reconciliation reads (the same role the AR/AP postings use), against the
+        configured counter-account — fail-closed: a missing account or journal
+        refuses the NOTE (nothing is issued, nothing is posted).
+
+        6.7 credit note:  Dr VAT output / Cr counter  (output VAT falls)
+        6.8 debit note:   Dr counter    / Cr VAT output (output VAT rises)
+        """
+        from .fix_tax_compliance import post_tax_move
+        from .fix_tax_master import tax_account
+
+        vat_output = tax_account(self.env, company, "vat_output")
+        counter = tax_account(self.env, company, "note_counter")
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", company.id), ("type", "=", "general")], limit=1
+        )
+        if not journal:
+            raise UserError(
+                "No general journal in %s to post the VAT leg of a Mushak 6.7 / 6.8 "
+                "note (T-08: the note and its GL entry are one atomic pair — the "
+                "note is not issued without it). Nothing was posted." % company.name
+            )
+        label = "Mushak %s %s correcting %s: VAT %.2f" % (
+            "6.7 credit note" if kind == "credit_note" else "6.8 debit note",
+            mushak_no,
+            original.mushak_no,
+            amount,
+        )
+        lines = (
+            [
+                (vat_output, label, amount, 0.0, False),
+                (counter, label, 0.0, amount, False),
+            ]
+            if kind == "credit_note"
+            else [
+                (counter, label, amount, 0.0, False),
+                (vat_output, label, 0.0, amount, False),
+            ]
+        )
+        return post_tax_move(
+            self.env, company, journal, on_date, label, lines, original.operating_unit_id
+        )
+
+    @api.model
+    def _fix_next_native_mushak_no(self, company, on_date=None):
+        """The company's Mushak serial: the billing engine's per-company
+        fiscal-year sequence when M20 is installed, else this module's."""
+        on_date = on_date or fields.Date.context_today(self)
+        if "fix.ar.invoice" in self.env and hasattr(self.env["fix.ar.invoice"], "_next_mushak_no"):
+            return self.env["fix.ar.invoice"].sudo()._next_mushak_no(company, on_date)
+        number = self.env["ir.sequence"].sudo().next_by_code(NATIVE_MUSHAK_SEQUENCE, on_date)
+        if not number:
+            raise UserError("The Mushak numbering sequence is missing — upgrade cd_tax_engine_bd.")
+        return number
+
+    @api.model
+    def _fix_company_bin(self, company):
+        bin_no = normalize_bin(company.vat)
+        if not valid_bin(bin_no):
+            raise UserError(
+                "Company %s has no valid 13-digit BIN — a Mushak 6.3 cannot be issued "
+                "without the supplier BIN" % company.name
+            )
+        return bin_no
+
+    @api.model
+    def _fix_treatment_summary(self, move):
+        """Per-line '<code>: <treatment> @ <rate>%' from the invoice's taxes,
+        read against the master; a line whose rate identifies no treatment is
+        left out, so the 9.1 flags the row as unclassified (never guessed)."""
+        rates = self.env["fix.tax.rate"]._fix_vat_rates(
+            move.invoice_date or move.date, move.company_id
+        )
+        out = []
+        for line in move.invoice_line_ids.filtered(lambda ln: ln.display_type == "product"):
+            pct = sum(t.amount for t in line.tax_ids if t.amount_type == "percent")
+            code = line.product_id.default_code or "LINE%s" % line.id
+            if Decimal(str(pct)) == rates.standard:
+                out.append("%s: standard_15 @ %g%%" % (code, pct))
+            elif Decimal(str(pct)) in rates.reduced:
+                out.append("%s: reduced @ %g%%" % (code, pct))
+            elif Decimal(str(pct)) == tax_logic.ZERO:
+                # A 0% line (export / exempt) is never dropped: dropping it
+                # left the row summarised as pure standard_15, silently
+                # declaring the 0% value on the 15% line of the Mushak 9.1.
+                # The kind is not derivable from the tax amount alone, so the
+                # row is flagged for classification instead of guessed.
+                out.append("%s: zero_or_exempt @ 0%%" % code)
+        return "\n".join(out)
+
+    @api.model
+    def _fix_register_from_invoice(self, move):
+        """CONTRACT (B5 -> B4, A08 M51-9): register a POSTED native sales
+        invoice (out_invoice -> Mushak 6.3) or credit note (out_refund ->
+        Mushak 6.7) in the VAT register. Idempotent per move. Returns the row."""
+        move.ensure_one()
+        move = move.sudo()
+        if move.move_type not in ("out_invoice", "out_refund"):
+            raise UserError("%s is not a sales invoice or credit note" % move.display_name)
+        if move.state != "posted":
+            raise UserError("%s is not posted — only a posted invoice is registered" % move.name)
+        existing = self.sudo().search([("source_move_id", "=", move.id)], limit=1)
+        if existing:
+            return self.browse(existing.id)
+        company = move.company_id
+        partner = move.partner_id.commercial_partner_id
+        # M51-F12 / X-1: the buyer's BIN is NORMALISED before the acceptance
+        # test, exactly as _fix_company_bin does for the supplier. Space-
+        # stripping alone dropped a BIN kept as NBR prints it (`001821833-0401`
+        # — the format the company's own master data carries), so the Mushak
+        # 6.3 printed without the buyer BIN Rule 40(1) requires for registered
+        # buyers. valid_bin stays the acceptance test: a genuinely invalid BIN
+        # is still dropped (the register field is optional), never a refusal
+        # of the registration itself.
+        customer_bin = normalize_bin(partner.vat)
+        refund = move.move_type == "out_refund"
+        original = self.browse()
+        if refund and move.reversed_entry_id:
+            original = self.sudo().search(
+                [("source_move_id", "=", move.reversed_entry_id.id), ("row_type", "=", "invoice")],
+                limit=1,
+            )
+        ou = move["operating_unit_id"] if "operating_unit_id" in move._fields else False
+        ou = ou or self.env["operating.unit"].sudo().search(
+            [("company_id", "=", company.id)], limit=1
+        )
+        if not ou:
+            raise UserError("Company %s has no operating unit for its register" % company.name)
+        on_date = move.invoice_date or move.date
+        return self._fix_issue_register_row(
+            {
+                "company_id": company.id,
+                "operating_unit_id": ou.id,
+                "row_type": "credit_note" if refund else "invoice",
+                "original_id": original.id or False,
+                "reason": ("Credit note %s" % move.name) if refund else False,
+                "mushak_no": self._fix_next_native_mushak_no(company, on_date),
+                "invoice_ref": move.name,
+                "invoice_date": on_date,
+                "supplier_name": company.name,
+                "supplier_bin": self._fix_company_bin(company),
+                "customer_name": partner.name or move.partner_id.display_name or "-",
+                "customer_bin": customer_bin if valid_bin(customer_bin) else False,
+                "currency_id": company.currency_id.id,
+                "taxable_amount": move.amount_untaxed_signed,
+                "vat_amount": move.amount_tax_signed,
+                "total_payable": move.amount_total_signed,
+                "treatment_summary": self._fix_treatment_summary(move),
+                "source_move_id": move.id,
+                "move_id": move.id,
+                "posted": True,
+            }
+        )
+
+    @api.model
+    def _fix_register_period_invoices(self, company, date_from, date_before):
+        """Register every posted native sales invoice / credit note of the
+        period not yet in the register (the 9.1 preparation calls this)."""
+        moves = (
+            self.env["account.move"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("move_type", "in", ("out_invoice", "out_refund")),
+                    ("state", "=", "posted"),
+                    ("invoice_date", ">=", date_from),
+                    ("invoice_date", "<", date_before),
+                ],
+                order="invoice_date, id",
+            )
+        )
+        done = set(
+            self.sudo().search([("source_move_id", "in", moves.ids)]).mapped("source_move_id").ids
+        )
+        rows = self.browse()
+        for move in moves.filtered(lambda m: m.id not in done):
+            rows |= self._fix_register_from_invoice(move)
+        return rows
+
+    def _fix_resolve_gl_move(self):
+        """The posted GL entry of the row's supply: its own, the native
+        invoice, or the billing engine's posting of the AR invoice."""
+        self.ensure_one()
+        row = self.sudo()
+        for move in (row.move_id, row.source_move_id):
+            if move and move.state == "posted":
+                return move
+        if "fix.ar.invoice" in self.env:
+            Invoice = self.env["fix.ar.invoice"].sudo()
+            if "mushak_id" in Invoice._fields and "posted_move_id" in Invoice._fields:
+                inv = Invoice.search([("mushak_id", "=", row.id)], limit=1)
+                if inv.posted_move_id and inv.posted_move_id.state == "posted":
+                    return inv.posted_move_id
+        return self.env["account.move"]
+
+    def _fix_mark_posted(self, move):
+        """T08: the GL posting of the supply committed — mark the row posted
+        and publish its registration. The move must be posted."""
+        for row in self:
+            if not move or move.state != "posted":
+                raise UserError("Mushak %s: the GL entry is not posted" % row.mushak_no)
+            row.sudo().write({"posted": True, "move_id": move.id})
+            publish(
+                self.env,
+                "mushak.registered",
+                "fix.mushak.register",
+                row.id,
+                {
+                    "mushak_no": row.mushak_no,
+                    "vat_amount": row.vat_amount,
+                    "invoice_date": str(row.invoice_date),
+                },
+            )
+        return True
+
+    def action_mark_posted(self) -> None:
+        """Mark a row posted ONLY when its supply's posted GL entry is found
+        (A08 M51-2/M04: no flag without a ledger consequence)."""
+        if not self.env.su and not any(self.env.user.has_group(g) for g in FINANCE_GROUPS):
+            raise UserError("Marking a Mushak row posted needs a finance role.")
+        for row in self:
+            move = row._fix_resolve_gl_move()
+            if not move:
+                raise UserError(
+                    "Mushak %s has no posted GL entry: it is marked posted by the invoice "
+                    "posting itself, never by hand." % row.mushak_no
+                )
+            row._fix_mark_posted(move)
+
+    @api.model
+    def consume_invoice_created(self, event: dict[str, Any]) -> "FixMushakRegister":
         """T04 consumer: create the register row from an invoice.created
         event. Idempotent on source_event_id (DI-05) — a replayed event
-        updates nothing."""
+        updates nothing. The relay runs it as the system."""
+        Register = self.sudo()
         payload = event.get("payload", {})
-        existing = self.search([("source_event_id", "=", event.get("event_id"))])
+        event_id = event.get("event_id")
+        if not event_id:
+            # searching source_event_id = False would match every row the
+            # billing engine wrote directly and silently drop the event
+            raise ValidationError("invoice.created event without event_id cannot be consumed")
+        existing = Register.search([("source_event_id", "=", event_id)])
         if existing:
             return existing
-        return self.create({
-            "mushak_no": payload["mushak_no"],
-            "invoice_ref": payload["invoice_ref"],
-            "invoice_date": payload["invoice_date"],
-            "supplier_name": payload["supplier_name"],
-            "supplier_bin": payload["supplier_bin"],
-            "customer_name": payload["customer_name"],
-            "customer_bin": payload.get("customer_bin", ""),
-            "taxable_amount": payload["taxable_amount"],
-            "vat_amount": payload["vat_amount"],
-            "total_payable": payload["total_payable"],
-            "treatment_summary": payload.get("treatment_summary", ""),
-            "source_event_id": event.get("event_id"),
-            "operating_unit_id": payload.get("operating_unit_id"),
-        })
+        # The billing engine writes the row in the SAME transaction as the
+        # event (T08); a rebuild/replay meets that row by its Mushak number.
+        # Adopt it instead of colliding with the (mushak_no, company) key.
+        same_number = Register.search(
+            [("mushak_no", "=", payload["mushak_no"]), ("company_id", "=", self.env.company.id)],
+            limit=1,
+        )
+        if same_number:
+            if not same_number.source_event_id:
+                same_number.source_event_id = event_id
+            return same_number
+        # M51-F12: the payload's buyer BIN is normalised before the register
+        # constraint sees it, so a replay of an event published before the
+        # billing engine started normalising (raw `001821833-0401`) still
+        # lands its 13 digits instead of dying on _check_bins.
+        buyer_bin = normalize_bin(payload.get("customer_bin"))
+        return Register.create(
+            {
+                "mushak_no": payload["mushak_no"],
+                "invoice_ref": payload["invoice_ref"],
+                "invoice_date": payload["invoice_date"],
+                "supplier_name": payload["supplier_name"],
+                "supplier_bin": payload["supplier_bin"],
+                "customer_name": payload["customer_name"],
+                "customer_bin": buyer_bin if valid_bin(buyer_bin) else False,
+                "taxable_amount": payload["taxable_amount"],
+                "vat_amount": payload["vat_amount"],
+                "total_payable": payload["total_payable"],
+                "treatment_summary": payload.get("treatment_summary", ""),
+                "source_event_id": event_id,
+                "operating_unit_id": payload.get("operating_unit_id"),
+            }
+        )
 
-    def action_mark_posted(self):
-        """T08: called in the SAME transaction as the GL posting by the
-        billing engine — invoice-to-GL atomic with the register write."""
-        self.write({"posted": True})
-        for row in self:
-            publish(self.env, "mushak.registered", "fix.mushak.register", row.id, {
-                "mushak_no": row.mushak_no,
-                "vat_amount": row.vat_amount,
-                "invoice_date": str(row.invoice_date),
-            })
-
-    def action_rebuild_from_events(self, from_timestamp: str | None = None):
+    def action_rebuild_from_events(self, from_timestamp: str | None = None) -> int:
         """T04 proof: the register rebuilds from the event stream alone —
-        without M20's cooperation. Consumes replayed invoice.created."""
+        without M20's cooperation. Consumes replayed invoice.created. An
+        engine operation for accounting managers, not a workspace button."""
+        if not self.env.su and not self.env.user.has_group("account.group_account_manager"):
+            raise UserError(
+                "Rebuilding the Mushak register needs the Accounting Administrator role."
+            )
         from libs.py.fix_events import replay_from_timestamp
+
         count = 0
-        for event in replay_from_timestamp(self.env, from_timestamp or "1970-01-01",
-                                           event_type="invoice.created"):
+        for event in replay_from_timestamp(
+            self.env, from_timestamp or "1970-01-01", event_type="invoice.created"
+        ):
             self.consume_invoice_created(event)
             count += 1
         return count

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M07 standard pipeline and its stage-entry gates (BRU-CRM-03, T-02).
+
+  A03 audit G-M07-11: the rules existed in crm_lead_ext.py but the only
+  pipeline had stages_json NULL, so no stage was gated. This pipeline is also
+  the fallback for a lead with no pipeline of its own, so the gates apply to
+  every deal. Stage names are Odoo crm's default stages. Won is not gated by
+  confirmation because its hard gates (verified contract, approved estimate,
+  no credit hold) already apply on every path to Won.
+
+  noupdate: once shipped, the gate configuration is the business's to edit
+  in M07 Pipeline Configuration; an upgrade does not overwrite it.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="pipeline_standard" model="fix.pipeline">
+            <field name="code">M07-STD</field>
+            <field name="name">Standard Sales Pipeline</field>
+            <field name="revenue_stream">corporate_repair</field>
+            <field name="default_probability">10</field>
+            <field name="stages_json">[
+  {"stage": "New", "criteria": "Lead captured with a source and a reachable contact", "requires_confirmation": false, "probability": 10},
+  {"stage": "Qualified", "criteria": "Need, budget, decision-maker and timeline confirmed, and the account matched to its M33 party (BRU-CRM-02)", "requires_confirmation": true, "probability": 30},
+  {"stage": "Proposition", "criteria": "Scope agreed with the customer and the estimate raised on this opportunity (M36)", "requires_confirmation": true, "probability": 60},
+  {"stage": "Won", "criteria": "Verified contract / PO and an approved estimate (enforced by the Won gate)", "requires_confirmation": false, "probability": 100}
+]</field>
+        </record>
+    </data>
+</odoo>

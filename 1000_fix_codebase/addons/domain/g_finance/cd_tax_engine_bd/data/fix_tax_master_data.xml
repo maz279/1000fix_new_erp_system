@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M51 statutory MASTER DATA (CD-M51-01) - seeded defaults, editable.
+  Rows carry no company: they are the statutory defaults for every company;
+  a company-specific row overrides them.
+  Basis: audit_analysis/A08_FINANCE_RESEARCH.md (FY2025-26; PwC tax summaries
+  reviewed Jul 2026 plus secondary sources). Rows marked verify_with_adviser
+  could not be confirmed against a primary NBR text: the company's VAT/tax
+  adviser must confirm or correct them (Finance Act 2026 withholding changes
+  were not readable at research time). noupdate: an adviser's correction is
+  never overwritten by a module upgrade.
+-->
+<odoo noupdate="1">
+
+    <!-- ===================== TDS (ITA 2023) ===================== -->
+    <record id="tax_rate_tds_service_general" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">service_general</field>
+        <field name="name">Services not specified elsewhere</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="rate">10</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC WHT summary (FY2025-26): other services 10%. Check the Finance Act 2026.</field>
+    </record>
+    <record id="tax_rate_tds_supply_of_goods" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">supply_of_goods</field>
+        <field name="name">Supply of goods - items not listed in the annexure</field>
+        <field name="section">ITA 2023 s.89</field>
+        <field name="rate">5</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: s.89 annexure, items not listed 5% (base excludes VAT). One source reports a 3/5/7% slab system instead - conflict.</field>
+    </record>
+    <record id="tax_rate_tds_service_contractor" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">service_contractor</field>
+        <field name="name">Contract execution - manufacturing / construction / engineering</field>
+        <field name="section">ITA 2023 s.89</field>
+        <field name="rate">5</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: manufacturing/construction/engineering 5%. The previous engine default was 7.5%.</field>
+    </record>
+    <record id="tax_rate_tds_professional_company" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">professional_fees</field>
+        <field name="name">Advisory / consultancy - company payee</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="payee_type">company</field>
+        <field name="rate">7.5</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: advisory/consultancy 7.5% (company) / 15% (individual).</field>
+    </record>
+    <record id="tax_rate_tds_professional_individual" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">professional_fees</field>
+        <field name="name">Advisory / consultancy - individual payee</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="payee_type">individual</field>
+        <field name="rate">15</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: advisory/consultancy 15% for individuals.</field>
+    </record>
+    <record id="tax_rate_tds_professional_any" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">professional_fees</field>
+        <field name="name">Advisory / consultancy - payee type unknown (individual rate)</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="payee_type">any</field>
+        <field name="rate">15</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Conservative fallback when the vendor tax profile does not state the payee type.</field>
+    </record>
+    <record id="tax_rate_tds_technical_company" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">technical_services</field>
+        <field name="name">Technical services - company payee</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="payee_type">company</field>
+        <field name="rate">10</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: technical services 10% (company) / 15% (individual).</field>
+    </record>
+    <record id="tax_rate_tds_technical_any" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">technical_services</field>
+        <field name="name">Technical services - individual / unknown payee</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="payee_type">any</field>
+        <field name="rate">15</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: technical services 15% for individuals.</field>
+    </record>
+    <record id="tax_rate_tds_repair_platform" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">repair_platform</field>
+        <field name="name">Sharing-economy platform services (incl. repair)</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="rate">2</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: sharing-economy platform services including repair 2%.</field>
+    </record>
+    <record id="tax_rate_tds_courier_training_event" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">courier_training_event</field>
+        <field name="name">Catering, event, courier and training services (gross)</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="rate">2</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: catering, event, courier and training 2% of gross.</field>
+    </record>
+    <record id="tax_rate_tds_manpower_gross" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">manpower_gross</field>
+        <field name="name">Cleaning, security and manpower (on gross)</field>
+        <field name="section">ITA 2023 s.90</field>
+        <field name="rate">1</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: 10% on commission or 1% on gross.</field>
+    </record>
+    <record id="tax_rate_tds_commission" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">commission</field>
+        <field name="name">Commission, discount and fees</field>
+        <field name="section">ITA 2023 s.94</field>
+        <field name="rate">10</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC rate; section number from secondary sources.</field>
+    </record>
+    <record id="tax_rate_tds_rent_commercial" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">rent_commercial</field>
+        <field name="name">House property, premises and warehouse rent</field>
+        <field name="section">ITA 2023 s.109</field>
+        <field name="rate">10</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC 10% (raised from 5% in FY2025-26 per secondary sources). The previous engine default was 15%.</field>
+    </record>
+    <record id="tax_rate_tds_transport" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">tds</field>
+        <field name="code">transport</field>
+        <field name="name">Transport / carriage</field>
+        <field name="section">ITA 2023 (section to confirm)</field>
+        <field name="rate">3</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Carried over from the previous engine default (3%). Neither the section nor the rate was found in the research - the adviser must confirm.</field>
+    </record>
+
+    <!-- ===================== VDS (VAT at source) ===================== -->
+    <record id="tax_rate_vds_rent" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vds</field>
+        <field name="code">S074.00</field>
+        <field name="name">Rent of premises (VDS)</field>
+        <field name="section">VAT &amp; SD Act 2012 VDS - service code S074.00</field>
+        <field name="rate">15</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source: rent service S074.00, VDS 15%. VDS rates for other service codes (2-15%) must be added from the current schedule by the adviser.</field>
+    </record>
+
+    <!-- ===================== VAT ===================== -->
+    <record id="tax_rate_vat_standard" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">standard</field>
+        <field name="name">Standard VAT rate</field>
+        <field name="section">VAT &amp; SD Act 2012</field>
+        <field name="rate">15</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="verify_with_adviser" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC (reviewed 31 Jul 2026): standard rate 15%.</field>
+    </record>
+    <record id="tax_rate_vat_turnover" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">turnover_tax</field>
+        <field name="name">Turnover tax (enlisted suppliers, BDT 3m-5m)</field>
+        <field name="section">VAT &amp; SD Act 2012 - enlistment</field>
+        <field name="rate">4</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: 4% for BDT 3m-5m turnover. FY2026-27 introduced a simplified fixed-amount turnover tax for small retailers.</field>
+    </record>
+    <!-- A08 M51-5: the reduced VAT rates the determination accepts were an
+         in-code set (5 / 7.5 / 10). They are master rows now, read by
+         fix.tax.rate._fix_vat_rates; flagged for the adviser. -->
+    <record id="tax_rate_vat_reduced_5" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_5</field>
+        <field name="name">Reduced VAT rate 5%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">5</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source: reduced rates 5 / 7.5 / 10% on scheduled supplies. Verify the scheduled supplies with the adviser.</field>
+    </record>
+    <record id="tax_rate_vat_reduced_7_5" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_7_5</field>
+        <field name="name">Reduced VAT rate 7.5%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">7.5</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source, see reduced_5.</field>
+    </record>
+    <record id="tax_rate_vat_reduced_10" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_10</field>
+        <field name="name">Reduced VAT rate 10%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">10</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source, see reduced_5.</field>
+    </record>
+
+    <!-- ===================== Statutory parameters ===================== -->
+    <record id="tax_param_non_filer" model="fix.tax.parameter">
+        <field name="company_id" eval="False"/>
+        <field name="key">non_filer_multiplier</field>
+        <field name="value">1.5</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: withholding increases by 50% when the payee shows no proof of return submission (PSR). Which sections it applies to: confirm with the adviser.</field>
+    </record>
+    <record id="tax_param_mushak610" model="fix.tax.parameter">
+        <field name="company_id" eval="False"/>
+        <field name="key">mushak610_threshold</field>
+        <field name="value">200000</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary: Rule 42 - invoices above BDT 200,000 reported on Mushak 6.10.</field>
+    </record>
+    <record id="tax_param_input_window" model="fix.tax.parameter">
+        <field name="company_id" eval="False"/>
+        <field name="key">input_credit_window_periods</field>
+        <field name="value">4</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Domain knowledge (not confirmed online): input tax is claimed in the invoice period or the following four tax periods.</field>
+    </record>
+    <record id="tax_param_rtgs_min" model="fix.tax.parameter">
+        <field name="company_id" eval="False"/>
+        <field name="key">rtgs_min_amount</field>
+        <field name="value">100000</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Bangladesh Bank: BD-RTGS customer BDT transfers of BDT 100,000 and above (hours revised 5 Oct 2025).</field>
+    </record>
+
+    <!-- ===================== Statutory calendar rules ===================== -->
+    <record id="due_rule_vat_91" model="fix.statutory.due.rule">
+        <field name="company_id" eval="False"/>
+        <field name="obligation">vat_91_return</field>
+        <field name="name">Mushak 9.1 return and VAT payment</field>
+        <field name="frequency">monthly</field>
+        <field name="due_day">15</field>
+        <field name="month_offset">1</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">15th of the following month - widely reported (secondary).</field>
+    </record>
+    <record id="due_rule_tds_deposit" model="fix.statutory.due.rule">
+        <field name="company_id" eval="False"/>
+        <field name="obligation">tds_deposit</field>
+        <field name="name">Deposit of income tax withheld (TDS)</field>
+        <field name="frequency">monthly</field>
+        <field name="due_day">14</field>
+        <field name="month_offset">1</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Deposit timing under the Withholding Tax Rules 2024 is unverified; seeded as two weeks after month end - confirm with the adviser.</field>
+    </record>
+    <record id="due_rule_vds_deposit" model="fix.statutory.due.rule">
+        <field name="company_id" eval="False"/>
+        <field name="obligation">vds_deposit</field>
+        <field name="name">Deposit of VAT deducted at source (VDS)</field>
+        <field name="frequency">monthly</field>
+        <field name="due_day">7</field>
+        <field name="month_offset">1</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Sources conflict ("within 15 working days" vs "by the 7th of the next period"); the earlier date is seeded - confirm with the adviser.</field>
+    </record>
+    <record id="due_rule_wht_return" model="fix.statutory.due.rule">
+        <field name="company_id" eval="False"/>
+        <field name="obligation">wht_return</field>
+        <field name="name">Quarterly withholding tax return</field>
+        <field name="frequency">quarterly</field>
+        <field name="due_day">25</field>
+        <field name="month_offset">1</field>
+        <field name="verify_with_adviser" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">PwC: quarterly, due on the 25th of the month after quarter end.</field>
+    </record>
+    <record id="due_rule_company_itr" model="fix.statutory.due.rule">
+        <field name="company_id" eval="False"/>
+        <field name="obligation">company_itr</field>
+        <field name="name">Company income tax return</field>
+        <field name="frequency">annual</field>
+        <field name="due_day">15</field>
+        <field name="month_offset">7</field>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Seeded as the 15th day of the seventh month after the 30 June income-year end - confirm with the adviser.</field>
+    </record>
+
+</odoo>

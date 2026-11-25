@@ -7,84 +7,277 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__handover_method
+msgid "Acknowledgement Method"
+msgstr "প্রাপ্তি স্বীকারের পদ্ধতি"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__shift_type__afternoon
+msgid "Afternoon"
+msgstr "বিকাল"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__branch_id
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_token_queue__branch_id
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__branch_id
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__called
+msgid "Called"
+msgstr "ডাকা হয়েছে"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__cash_advances
 msgid "Cash Advances"
 msgstr "নগদ অগ্রিম"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__cash_payments
 msgid "Cash Payments"
 msgstr "নগদ পেমেন্ট"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__cash_refunds
 msgid "Cash Refunds"
 msgstr "নগদ ফেরত"
 
+#. module: cd_front_desk
+#: model:ir.actions.act_window,name:cd_front_desk.action_fix_cash_shift
+#: model:ir.ui.menu,name:cd_front_desk.menu_fix_cash_shift
 msgid "Cash Shifts"
 msgstr "ক্যাশ শিফট"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__closing_counted
 msgid "Closing Counted"
 msgstr "অন্তিম গণনা"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__completed
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_token_queue__counter_number
 msgid "Counter #"
 msgstr "কাউন্টার নম্বর"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__state__counting
+msgid "Counting"
+msgstr "গণনা চলছে"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_token_queue__customer_id
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_walkin_intake_form
 msgid "Customer & Device"
 msgstr "গ্রাহক ও ডিভাইস"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__customer_statement
 msgid "Customer Statement (verbatim)"
 msgstr "গ্রাহকের বক্তব্য (হুবহু)"
 
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_walkin_intake_form
 msgid "Customer Statement (verbatim) — what the customer said, unedited"
 msgstr "গ্রাহকের বক্তব্য (হুবহু) — গ্রাহক যা বলেছেন, পরিবর্তন ছাড়াই"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__device_id
 msgid "Device"
 msgstr "ডিভাইস"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__service_type__drop_off
+msgid "Device Drop-off"
+msgstr "ডিভাইস জমা"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__service_type__pick_up
+msgid "Device Pick-up"
+msgstr "ডিভাইস সংগ্রহ"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__handover_method__signature
+msgid "Digital Signature"
+msgstr "ডিজিটাল স্বাক্ষর"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__state__discrepancy
+msgid "Discrepancy"
+msgstr "অসঙ্গতি"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__service_type__enquiry
+msgid "Enquiry"
+msgstr "জিজ্ঞাসা"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__shift_type__evening
+msgid "Evening"
+msgstr "সন্ধ্যা"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__expected_closing
 msgid "Expected Closing"
 msgstr "প্রত্যাশিত অন্তিম পরিমাণ"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__shift_type__full_day
+msgid "Full Day"
+msgstr "পূর্ণ দিবস"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__state__handover_pending
+msgid "Handover Pending"
+msgstr "হস্তান্তর অপেক্ষমাণ"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__shift_type__morning
+msgid "Morning"
+msgstr "সকাল"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__no_show
+msgid "No Show"
+msgstr "অনুপস্থিত"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__opening_float
 msgid "Opening Float"
 msgstr "শুরুর নগদ (ওপেনিং ফ্লোট)"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__service_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__handover_method__otp
+msgid "OTP Confirmation"
+msgstr "OTP নিশ্চিতকরণ"
+
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__service_type__payment
+msgid "Payment"
+msgstr "পেমেন্ট"
+
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_walkin_intake_form
 msgid "Queue"
 msgstr "কিউ"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_cash_shift__state__reconciled
+msgid "Reconciled"
+msgstr "সমন্বয়কৃত"
+
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_cash_shift_form
 msgid "Reconciliation"
 msgstr "হিসাব মিলানো"
 
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_walkin_intake_form
 msgid "Reported Fault"
-msgstr "জানানো ত্রুটি"
+msgstr "রিপোর্টকৃত ত্রুটি"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__device_serial_input
 msgid "S/N or IMEI (Input)"
 msgstr "সিরিয়াল নম্বর বা IMEI (ইনপুট)"
 
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_walkin_intake_form
 msgid "Scan or type S/N / IMEI"
 msgstr "সিরিয়াল নম্বর / IMEI স্ক্যান বা লিখুন"
 
+#. module: cd_front_desk
+#: model:ir.ui.menu,name:cd_front_desk.menu_ws_front_desk
 msgid "Service Intake"
 msgstr "সার্ভিস ইনটেক"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_token_queue__service_order_id
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__serving
+msgid "Serving"
+msgstr "সেবা চলছে"
+
+#. module: cd_front_desk
+#: model_terms:ir.ui.view,arch_db:cd_front_desk.view_fix_cash_shift_form
 msgid "Shift"
 msgstr "শিফট"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__operator_id
 msgid "Shift Operator"
 msgstr "শিফট পরিচালক"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_walkin_intake__handover_method__witness
+msgid "Staff Witness"
+msgstr "কর্মী সাক্ষী"
+
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_walkin_intake__token_id
 msgid "Token"
 msgstr "টোকেন"
 
+#. module: cd_front_desk
+#: model:ir.actions.act_window,name:cd_front_desk.action_fix_token_queue
+#: model:ir.model,name:cd_front_desk.model_fix_token_queue
+#: model:ir.ui.menu,name:cd_front_desk.menu_fix_token_queue
 msgid "Token Queue"
 msgstr "টোকেন কিউ"
 
+#. module: cd_front_desk
+#: model:ir.model.fields,field_description:cd_front_desk.field_fix_cash_shift__variance
 msgid "Variance"
 msgstr "ব্যবধান"
 
+#. module: cd_front_desk
+#: model:ir.model.fields.selection,name:cd_front_desk.selection__fix_token_queue__state__waiting
+msgid "Waiting"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_front_desk
+#: model:ir.actions.act_window,name:cd_front_desk.action_fix_walkin_intake
+#: model:ir.model,name:cd_front_desk.model_fix_walkin_intake
+#: model:ir.ui.menu,name:cd_front_desk.menu_fix_walkin_intake
 msgid "Walk-in Intake"
 msgstr "ওয়াক-ইন ইনটেক"

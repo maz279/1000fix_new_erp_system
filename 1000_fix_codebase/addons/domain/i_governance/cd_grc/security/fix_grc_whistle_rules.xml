@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 W1 (2026-11-04): whistle-report confidentiality record rules.
+
+     The generated company isolation (fix_isolation_rules.xml) stays: it is
+     global and ANDs with these. These GROUP rules decide WHO inside the
+     company sees a report at all (they OR within the groups a user holds):
+
+     - Whistle Investigator sees only the reports assigned to them.
+     - Whistleblowing Intake sees every report (it filed them).
+
+     A plain internal user matches neither rule and — with the read ACL
+     restricted to these two groups — cannot read a report at all. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="rule_fix_grc_whistle_investigator_assigned" model="ir.rule">
+            <field name="name">fix.grc.whistle: investigators see only their assigned reports</field>
+            <field name="model_id" ref="model_fix_grc_whistle"/>
+            <field name="groups" eval="[(4, ref('group_grc_whistle_investigator'))]"/>
+            <field name="domain_force">[('investigator_id.user_id', '=', user.id)]</field>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="rule_fix_grc_whistle_intake_all" model="ir.rule">
+            <field name="name">fix.grc.whistle: intake sees every report it filed</field>
+            <field name="model_id" ref="model_fix_grc_whistle"/>
+            <field name="groups" eval="[(4, ref('group_grc_whistle_intake'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

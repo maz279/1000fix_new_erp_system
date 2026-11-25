@@ -7,54 +7,192 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__active
+msgid "Active"
+msgstr "সক্রিয়"
 
+#. module: cd_contract_core
+#: model:ir.ui.menu,name:cd_contract_core.menu_fix_contract
 msgid "All Contracts"
 msgstr "সকল চুক্তি"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__amc
+msgid "AMC (Annual Maintenance)"
+msgstr "AMC (বার্ষিক রক্ষণাবেক্ষণ)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__escalation_pct
 msgid "Annual Escalation (%)"
 msgstr "বার্ষিক বৃদ্ধি (%)"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__annual_value
 msgid "Annual Value"
 msgstr "বার্ষিক মূল্য"
 
+#. module: cd_contract_core
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Commercial"
 msgstr "বাণিজ্যিক"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__code
 msgid "Contract No."
 msgstr "চুক্তি নং"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__sla_policy_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Contract SLAs"
 msgstr "চুক্তি SLA"
 
+#. module: cd_contract_core
+#: model:ir.actions.act_window,name:cd_contract_core.action_fix_contract
+#: model:ir.ui.menu,name:cd_contract_core.menu_ws_contract
 msgid "Contracts"
 msgstr "চুক্তিসমূহ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__covered_device_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Covered Assets"
 msgstr "আচ্ছাদিত সম্পদ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__dispatched
+msgid "Dispatched"
+msgstr "প্রেরিত"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__esignature_envelope_id
 msgid "E-Signature"
 msgstr "ই-সিগনেচার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__entitlement_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Entitlements"
 msgstr "এনটাইটেলমেন্ট"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__expiring
+msgid "Expiring Soon"
+msgstr "শীঘ্রই মেয়াদোত্তীর্ণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__hours
+msgid "Labour Hours"
+msgstr "শ্রম ঘণ্টা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__loaners
+msgid "Loaner Devices"
+msgstr "ধার দেওয়া ডিভাইস"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__managed
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__marketplace
+msgid "Marketplace Agreement"
+msgstr "মার্কেটপ্লেস চুক্তি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__oca_contract_id
+msgid "OCA Contract Reference"
+msgstr "OCA চুক্তি রেফারেন্স"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__pending_signature
+msgid "Pending Signature"
+msgstr "স্বাক্ষরের অপেক্ষায়"
+
+#. module: cd_contract_core
+#: model:ir.actions.act_window,name:cd_contract_core.action_fix_pm_visit
+#: model:ir.ui.menu,name:cd_contract_core.menu_fix_pm_visit
 msgid "PM Schedule"
 msgstr "পিএম সময়সূচি"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__visits
+msgid "Preventive Visits"
+msgstr "প্রতিরোধমূলক ভিজিট"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__family
 msgid "Product Family"
 msgstr "পণ্য পরিবার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__ramc
+msgid "RAMC (Repair & Maintenance)"
+msgstr "RAMC (মেরামত ও রক্ষণাবেক্ষণ)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__rental
+msgid "Rental"
+msgstr "ভাড়া"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__incidents
+msgid "Repair Incidents"
+msgstr "মেরামতের ঘটনাসমূহ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__scheduled
+msgid "Scheduled"
+msgstr "নির্ধারিত"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__skipped
+msgid "Skipped"
+msgstr "বাদ দেওয়া হয়েছে"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__device_id
 msgid "Specific Asset"
 msgstr "নির্দিষ্ট সম্পদ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_contract_core
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Terms"
 msgstr "শর্তাবলী"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__name
 msgid "Title"
 msgstr "শিরোনাম"

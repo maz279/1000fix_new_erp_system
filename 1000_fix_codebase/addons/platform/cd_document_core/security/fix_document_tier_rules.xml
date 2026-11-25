@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 deep audit (2026-11-22, A2-F03): the confidentiality tier read gate.
+
+  The gate itself lives in models/res_users_tiers.py as a QUERY-TIME domain
+  appended in fix.document._search — NOT as an ir.rule: Odoo caches rule
+  domains per user (ir.rule._compute_domain is ormcached on env.uid), so a
+  tier granted by a role assignment stayed invisible until a cache clear.
+  This file only RETIRES the rule an earlier build of this fix installed.
+-->
+<odoo>
+    <delete model="ir.rule" search="[('name', 'like', 'fix.document: confidentiality tier%')]"/>
+</odoo>

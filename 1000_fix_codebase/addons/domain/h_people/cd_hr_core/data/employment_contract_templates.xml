@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- M24 Document Templates for Bangladesh Labour Act Employment Contracts (+52% Category H Density) -->
+        <record id="template_contract_permanent" model="fix.document.template">
+            <field name="code">CONTRACT_PERM_BD</field>
+            <field name="name">Permanent Employment Contract (Labour Rules 2015 Form 6)</field>
+            <field name="name_bn">স্থায়ী নিয়োগ চুক্তিপত্র (বাংলাদেশ শ্রম বিধিমালা ২০১৫ ফরম ৬)</field>
+            <field name="document_type">contract</field>
+            <field name="bilingual" eval="True"/>
+            <field name="requires_approval" eval="True"/>
+            <field name="report_ref">cd_hr_core.report_employment_contract</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="template_contract_probation" model="fix.document.template">
+            <field name="code">CONTRACT_PROB_BD</field>
+            <field name="name">Probationary Appointment Letter (Labour Rules 2021 r.25)</field>
+            <field name="name_bn">শিক্ষানবিস নিয়োগপত্র (বাংলাদেশ শ্রম বিধিমালা ২০২১ বিধি ২৫)</field>
+            <field name="document_type">contract</field>
+            <field name="bilingual" eval="True"/>
+            <field name="requires_approval" eval="True"/>
+            <field name="report_ref">cd_hr_core.report_employment_contract</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="template_contract_fixed_term" model="fix.document.template">
+            <field name="code">CONTRACT_FIXED_BD</field>
+            <field name="name">Fixed-Term Specialist Employment Agreement</field>
+            <field name="name_bn">নির্দিষ্ট মেয়াদী কারিগরি বিশেষজ্ঞ চুক্তিপত্র</field>
+            <field name="document_type">contract</field>
+            <field name="bilingual" eval="True"/>
+            <field name="requires_approval" eval="True"/>
+            <field name="report_ref">cd_hr_core.report_employment_contract</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo>

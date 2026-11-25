@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A06 M16-7 / M15-9: goods rejected at the M16 inspection go to M15
+     quarantine at the receiving location (idempotent: one quarantine per
+     inspection, keyed on the inspection id). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_inspection_rejected_quarantine" model="fix.event.consumer">
+            <field name="name">M15: rejected PO goods go to quarantine</field>
+            <field name="event_type">inspection.rejected</field>
+            <field name="model">fix.stock.quarantine</field>
+            <field name="method">consume_inspection_rejected</field>
+            <field name="module">cd_inventory</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "payroll.period_closed",
+  "description": "Event emitted when attendance locks and monthly payroll is calculated (Journey 13)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "payroll.period_closed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_payroll_bd"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "period_id",
+        "total_headcount",
+        "total_gross_bdt",
+        "total_net_bdt",
+        "closed_at"
+      ],
+      "properties": {
+        "period_id": {
+          "type": "string"
+        },
+        "total_headcount": {
+          "type": "integer"
+        },
+        "total_gross_bdt": {
+          "type": "number"
+        },
+        "total_net_bdt": {
+          "type": "number"
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

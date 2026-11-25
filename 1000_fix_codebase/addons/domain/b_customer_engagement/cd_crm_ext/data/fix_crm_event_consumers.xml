@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M07's in-Odoo event consumers (A03 audit R8).
+
+  journey.lead_requested is published by a M35 journey's "publish event" step
+  (cd_campaign fix_journey_runtime.py); it had a producer and no consumer, so
+  a journey could never hand a contact to sales.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_journey_lead_requested" model="fix.event.consumer">
+            <field name="name">M07: raise a CRM lead a marketing journey asked for</field>
+            <field name="event_type">journey.lead_requested</field>
+            <field name="model">crm.lead</field>
+            <field name="method">consume_journey_lead_requested</field>
+            <field name="module">cd_crm_ext</field>
+        </record>
+    </data>
+</odoo>

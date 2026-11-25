@@ -18,6 +18,7 @@ Fallback ladder per NT-001 §4:
 - email bounce       → flag address + SMS fallback
 - all channels fail  → operational task (never silent drop) — delivery.py
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,7 +28,9 @@ INTERNAL_AUDIENCES = frozenset(
     {"technician", "branch", "on_call", "employee", "manager", "approver", "warranty_officer"}
 )
 
-CUSTOMER_AUDIENCES = frozenset({"customer", "corporate_admin", "seller", "rider", "vendor", "audience_any"})
+CUSTOMER_AUDIENCES = frozenset(
+    {"customer", "corporate_admin", "seller", "rider", "vendor", "audience_any"}
+)
 
 # The act-now events (CH-04): push first, SMS fallback.
 ACT_NOW_EVENTS = frozenset(
@@ -36,11 +39,11 @@ ACT_NOW_EVENTS = frozenset(
 
 # Channel fallback ladder, in order, per NT-001 §4.
 FALLBACK_LADDER = {
-    "sms": ["email", "in_app"],      # after its one retry
-    "push": ["sms", "email"],        # CH-04: push → SMS
-    "email": ["sms"],                # bounce → flag + SMS
-    "in_app": [],                    # reference channel — no fallback, it retries itself
-    "alert": ["email"],              # on-call alert → email page
+    "sms": ["email", "in_app"],  # after its one retry
+    "push": ["sms", "email"],  # CH-04: push → SMS
+    "email": ["sms"],  # bounce → flag + SMS
+    "in_app": [],  # reference channel — no fallback, it retries itself
+    "alert": ["email"],  # on-call alert → email page
 }
 
 
@@ -52,7 +55,7 @@ class RoutingError(RuntimeError):
 class Routing:
     event: str
     audience: str
-    channels: tuple[str, ...]      # primary first
+    channels: tuple[str, ...]  # primary first
     consent_class: str
     templates: tuple[str, ...]
     wave: str
@@ -60,7 +63,11 @@ class Routing:
 
 class Router:
     def __init__(self, registry: dict, active_wave: str = "W1") -> None:
-        self.matrix = registry["event_matrix"]
+        # Only object rows are events: the registry also carries documentation
+        # keys (e.g. "comment") that must never resolve — or count — as one.
+        self.matrix = {
+            event: row for event, row in registry["event_matrix"].items() if isinstance(row, dict)
+        }
         self.active_wave = active_wave
         self._wave_rank = {"W1": 1, "W2": 2, "W3": 3, "W4": 4, "W5": 5}
 
@@ -81,7 +88,9 @@ class Router:
             # people still receive their own channels (technicians get push
             # via NT-016, branches get in-app via NT-018).
             if "alert" in channels and audience not in INTERNAL_AUDIENCES:
-                raise RoutingError(f"{event}/{audience}: alert channel routed to a non-internal audience (CH-06)")
+                raise RoutingError(
+                    f"{event}/{audience}: alert channel routed to a non-internal audience (CH-06)"
+                )
             # CH-04 — act-now events lead with push.
             if event in ACT_NOW_EVENTS and "push" in channels and channels[0] != "push":
                 channels = ["push"] + [c for c in channels if c != "push"]

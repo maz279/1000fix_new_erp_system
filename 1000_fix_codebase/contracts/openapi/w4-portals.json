@@ -45,7 +45,7 @@
     },
     "/corporate/service-requests": {
       "post": {
-        "summary": "P04: service requests at scale",
+        "summary": "P04: service requests at scale (one device or a bulk device_ids batch)",
         "requestBody": {
           "required": true,
           "content": {
@@ -65,6 +65,50 @@
           }
         },
         "operationId": "createCorporateServiceRequest"
+      }
+    },
+    "/corporate/contracts": {
+      "post": {
+        "summary": "P04: contracts and attached SLA policies for the signed-in commercial partner (M08)",
+        "responses": {
+          "200": {
+            "description": "Contract list with coverage, renewal horizon and SLA targets"
+          }
+        },
+        "operationId": "listCorporateContracts"
+      }
+    },
+    "/corporate/tenders": {
+      "post": {
+        "summary": "P04: tenders where the account is the procuring client + issued quotations (M36)",
+        "responses": {
+          "200": {
+            "description": "Tender and quotation lists (internal bid preparation excluded)"
+          }
+        },
+        "operationId": "listCorporateTenders"
+      }
+    },
+    "/corporate/profile": {
+      "post": {
+        "summary": "P04: the corporate account master data, contacts and account manager",
+        "responses": {
+          "200": {
+            "description": "Company profile scoped to the session's commercial partner"
+          }
+        },
+        "operationId": "getCorporateProfile"
+      }
+    },
+    "/corporate/reports/summary": {
+      "post": {
+        "summary": "P04: six-month spend, request volume, estate distribution and AR aging",
+        "responses": {
+          "200": {
+            "description": "Backend-aggregated report (BN-007 formatted amounts)"
+          }
+        },
+        "operationId": "getCorporateReportSummary"
       }
     },
     "/brand/claims": {
@@ -166,6 +210,28 @@
         "operationId": "handoffToAgent"
       }
     },
+    "/contact/telephony/webhook": {
+      "post": {
+        "summary": "P10 / INT-015: Inbound call event & speech transcript webhook (Hotline 16743)",
+        "responses": {
+          "200": {
+            "description": "Call captured"
+          }
+        },
+        "operationId": "handleTelephonyWebhook"
+      }
+    },
+    "/contact/chat/message": {
+      "post": {
+        "summary": "P10 / INT-018: Omnichannel chat message intake (WhatsApp, Web Chat, In-App)",
+        "responses": {
+          "200": {
+            "description": "Turn recorded and AI evaluated"
+          }
+        },
+        "operationId": "handleChatMessage"
+      }
+    },
     "/analytics/dashboards": {
       "get": {
         "summary": "P06: embedded dashboard registry (R5)",
@@ -186,6 +252,72 @@
           }
         },
         "operationId": "getKpis"
+      }
+    },
+    "/analytics/kpis/register": {
+      "get": {
+        "summary": "P06: the 95-KPI registry and BM-002 reconciliation (M25 / R05-M04-T03)",
+        "responses": {
+          "200": {
+            "description": "95 KPI Register and BM-002 reconciliation"
+          }
+        },
+        "operationId": "getKpiRegister"
+      }
+    },
+    "/analytics/governance/catalogue": {
+      "get": {
+        "summary": "P06 / R09-M02-T01: Estate-wide data catalogue (1,335 owned entities, 12 domains, DA-002/DA-003)",
+        "responses": {
+          "200": {
+            "description": "Data catalogue summary"
+          }
+        },
+        "operationId": "getGovernanceCatalogue"
+      }
+    },
+    "/analytics/governance/lineage": {
+      "get": {
+        "summary": "P06 / R09-M02-T02: Warehouse source-to-target feed lineage (DA-003 §6 / DA-007)",
+        "responses": {
+          "200": {
+            "description": "Lineage audit"
+          }
+        },
+        "operationId": "getGovernanceLineage"
+      }
+    },
+    "/analytics/governance/dq": {
+      "get": {
+        "summary": "P06 / R09-M02-T03: Data quality monitoring rules, thresholds, and alert dispatch (DA-008)",
+        "responses": {
+          "200": {
+            "description": "Data quality monitoring evidence"
+          }
+        },
+        "operationId": "getGovernanceDataQuality"
+      }
+    },
+    "/analytics/governance/residency": {
+      "get": {
+        "summary": "P06 / R09-M02-T04: NFR-086c residency classification compliance scan across warehouse",
+        "responses": {
+          "200": {
+            "description": "NFR-086c residency compliance scan"
+          }
+        },
+        "operationId": "getGovernanceResidency"
+      }
+    },
+    "/analytics/stt/dashboard": {
+      "get": {
+        "summary": "P06 / R09-M03-T04: Speech-to-Text productionisation, WER tracking and model drift monitoring",
+        "responses": {
+          "200": {
+            "description": "Bengali STT accuracy metrics, WER distribution, drift status, and PDPA compliance"
+          }
+        },
+        "operationId": "getSTTDashboardMetrics"
       }
     },
     "/customer/devices": {
@@ -246,6 +378,17 @@
           }
         },
         "operationId": "customerEstimates"
+      }
+    },
+    "/customer/invoices": {
+      "post": {
+        "summary": "P01: the customer's issued invoices — total, paid and balance per invoice (partner-scoped, EA-05)",
+        "responses": {
+          "200": {
+            "description": "Invoice list with backend-formatted BDT strings"
+          }
+        },
+        "operationId": "customerInvoices"
       }
     },
     "/customer/consent": {

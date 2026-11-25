@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M10 scheduled jobs: tier requalification once a retention window closes.
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_loyalty_requalify" model="ir.cron">
+            <field name="name">M10: recalculate tiers whose retention window expired</field>
+            <field name="model_id" ref="model_fix_loyalty_account"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_requalify_tiers()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

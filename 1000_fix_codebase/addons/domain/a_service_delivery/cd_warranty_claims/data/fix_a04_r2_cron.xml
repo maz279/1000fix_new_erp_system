@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP round 2 (21 Nov 2026) M09-F12 / AUT-WTY-10: an OEM receivable the
+     brand approved and has not paid is chased by age (cd_warranty_claims.chase_days,
+     default 30,60,90): a to-do for the claims officer, finance from level 2. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_warranty_claim_chase" model="ir.cron">
+            <field name="name">Warranty: chase unpaid OEM claim receivables by age</field>
+            <field name="model_id" ref="model_fix_warranty_claim"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_chase_oem_receivables()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

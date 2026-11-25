@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M35 capture audit (2026-11-14): spec section 13 restricts attribution model
+  configuration to the marketing and finance leads. Until this group existed
+  every internal user could change every M35 record, and the new attribution
+  model register would have been the same. Who holds it on a live estate is
+  the owner's decision (R-23 Marketing Manager per the spec); the development
+  admin is a member so the workspace keeps working.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="group_marketing_manager" model="res.groups">
+            <field name="name">Marketing Manager (M35)</field>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Puts attribution models in force (a new version never restates a closed campaign).</field>
+        </record>
+        <!--
+          Capture audit pass 2 (2026-11-19): BRU-MKT-05 is an approved-override
+          rule. A campaign whose projected demand exceeds operational capacity
+          is blocked until the Operations Director (R05 in the spec) overrides
+          the check. Who holds this on a live estate is the owner's decision.
+        -->
+        <record id="group_capacity_override" model="res.groups">
+            <field name="name">Capacity Override (Operations Director, M35)</field>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Lets a campaign launch beyond projected operational capacity, with a recorded reason.</field>
+        </record>
+    </data>
+</odoo>

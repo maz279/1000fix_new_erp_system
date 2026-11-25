@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 ERP audit pass 2 (20 Nov 2026) M06-02: every Data Recovery Operator
+  read and edited every customer's case. An operator now sees the cases he is
+  named on (technician, Z4 custodian, the receiver of a pending hand-off, the
+  current custodian who last confirmed a hand-off or a media move) and the
+  intake queue of cases nobody is named on yet.
+
+  How the rules combine (A02 pass 2 review, 21 Nov):
+  - the scope rules below are GLOBAL, so they are ANDed with every other
+    rule; their own domain opens every case to a Data Lab Manager and to the
+    administrator (base.group_system);
+  - the group rules of fix_isolation_rules.xml (company, and the operating
+    unit for base.group_user) are ORed with the "*_lab_manager_all" group
+    rules below. So an OPERATOR sees his scope within his companies and
+    operating units, while a LAB MANAGER (or the administrator) sees every
+    case of his companies, across operating units.
+  - what hangs off a case (media, attempts, quotations, ledger, evaluations,
+    inventory lines, Z4 access rows, retention holds, purge certificates)
+    follows its case.
+-->
+<odoo>
+    <!-- fix.data.recovery.case -->
+    <record id="rule_fix_data_recovery_case_operator_scope" model="ir.rule">
+        <field name="name">fix.data.recovery.case: operators see the cases of their cases</field>
+        <field name="model_id" ref="model_fix_data_recovery_case"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('assigned_technician_id', '=', user.id), ('z4_custodian_id', '=', user.id), ('custody_request_to_id', '=', user.id), ('current_custodian_id', '=', user.id), '&amp;', ('assigned_technician_id', '=', False), ('z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_recovery_case_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.recovery.case: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_recovery_case"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.media.unit -->
+    <record id="rule_fix_data_media_unit_operator_scope" model="ir.rule">
+        <field name="name">fix.data.media.unit: operators see the media of their cases</field>
+        <field name="model_id" ref="model_fix_data_media_unit"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), ('pending_receiver_id', '=', user.id), ('seal_break_witness_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_media_unit_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.media.unit: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_media_unit"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.recovery.attempt -->
+    <record id="rule_fix_data_recovery_attempt_operator_scope" model="ir.rule">
+        <field name="name">fix.data.recovery.attempt: operators see the attempts of their cases</field>
+        <field name="model_id" ref="model_fix_data_recovery_attempt"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_recovery_attempt_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.recovery.attempt: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_recovery_attempt"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.quote -->
+    <record id="rule_fix_data_quote_operator_scope" model="ir.rule">
+        <field name="name">fix.data.quote: operators see the quotations of their cases</field>
+        <field name="model_id" ref="model_fix_data_quote"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_quote_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.quote: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_quote"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.custody.event -->
+    <record id="rule_fix_data_custody_event_operator_scope" model="ir.rule">
+        <field name="name">fix.data.custody.event: operators see the ledger of their cases</field>
+        <field name="model_id" ref="model_fix_data_custody_event"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_custody_event_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.custody.event: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_custody_event"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.evaluation -->
+    <record id="rule_fix_data_evaluation_operator_scope" model="ir.rule">
+        <field name="name">fix.data.evaluation: operators see the evaluations of their cases</field>
+        <field name="model_id" ref="model_fix_data_evaluation"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_evaluation_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.evaluation: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_evaluation"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.recovered.inventory -->
+    <record id="rule_fix_data_recovered_inventory_operator_scope" model="ir.rule">
+        <field name="name">fix.data.recovered.inventory: operators see the inventory lines of their cases</field>
+        <field name="model_id" ref="model_fix_data_recovered_inventory"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_recovered_inventory_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.recovered.inventory: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_recovered_inventory"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.z4.access.audit -->
+    <record id="rule_fix_z4_access_audit_operator_scope" model="ir.rule">
+        <field name="name">fix.z4.access.audit: operators see the Z4 access rows of their cases</field>
+        <field name="model_id" ref="model_fix_z4_access_audit"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_z4_access_audit_lab_manager_all" model="ir.rule">
+        <field name="name">fix.z4.access.audit: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_z4_access_audit"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.retention.hold -->
+    <record id="rule_fix_data_retention_hold_operator_scope" model="ir.rule">
+        <field name="name">fix.data.retention.hold: operators see the retention holds of their cases</field>
+        <field name="model_id" ref="model_fix_data_retention_hold"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system')) else ['|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_retention_hold_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.retention.hold: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_retention_hold"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- fix.data.wipe.certificate -->
+    <record id="rule_fix_data_wipe_certificate_operator_scope" model="ir.rule">
+        <field name="name">fix.data.wipe.certificate: operators see the purge certificates of their cases</field>
+        <field name="model_id" ref="model_fix_data_wipe_certificate"/>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_data_case.group_data_lab_manager') or user.has_group('base.group_system') or user.has_group('cd_data_case.group_wipe_verifier')) else ['|', ('case_id', '=', False), '|', '|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), ('case_id.current_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+    </record>
+    <record id="rule_fix_data_wipe_certificate_lab_manager_all" model="ir.rule">
+        <field name="name">fix.data.wipe.certificate: lab managers and the administrator see all</field>
+        <field name="model_id" ref="model_fix_data_wipe_certificate"/>
+        <field name="groups" eval="[(6, 0, [ref('group_data_lab_manager'), ref('base.group_system')])]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+
+    <!-- the new models: company isolation like their siblings -->
+    <record id="rule_fix_data_case_read_log_company" model="ir.rule">
+        <field name="name">fix.data.case.read.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_case_read_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

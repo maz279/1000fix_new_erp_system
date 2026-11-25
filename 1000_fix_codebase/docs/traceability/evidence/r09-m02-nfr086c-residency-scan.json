@@ -1,0 +1,38 @@
+{
+  "milestone": "R09-M02",
+  "task": "R09-M02-T04",
+  "standard": "NFR-086c Residency Compliance",
+  "audit_timestamp": "2026-10-22T14:45:47.031223+00:00",
+  "scanned_files_count": 11,
+  "scanned_files": [
+    "dim_branch.sql",
+    "dim_customer.sql",
+    "dim_date.sql",
+    "dim_device.sql",
+    "dim_technician.sql",
+    "fact_conversations.sql",
+    "fact_invoices.sql",
+    "fact_nps.sql",
+    "fact_service_orders.sql",
+    "fact_warranty_claims.sql",
+    "warehouse_sync.py"
+  ],
+  "forbidden_tokens_checked": [
+    "nid",
+    "national_id",
+    "passport",
+    "passport_no",
+    "biometric",
+    "fingerprint",
+    "raw_phone",
+    "raw_email",
+    "bank_account_no",
+    "beftn_routing",
+    "tax_identification_number_tin"
+  ],
+  "violations_count": 0,
+  "violations": [],
+  "unscanned_targets": [],
+  "status": "PASS",
+  "audit_finding": "0 residency-classified (S3) hits. Warehouse satisfies NFR-086c completely."
+}

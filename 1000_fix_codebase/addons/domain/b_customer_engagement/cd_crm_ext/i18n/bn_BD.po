@@ -7,17 +7,62 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__campaign
+msgid "Campaign"
+msgstr "প্রচারণা"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__converted_service_order_id
 msgid "Converted Service Order"
 msgstr "রূপান্তরিত সার্ভিস অর্ডার"
 
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__hotline
+msgid "Hotline 16743"
+msgstr "হটলাইন 16743"
+
+#. module: cd_crm_ext
+#: model:ir.ui.menu,name:cd_crm_ext.menu_fix_crm
+msgid "Leads"
+msgstr "লিডসমূহ"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__linked_partner_id
 msgid "Linked Party"
 msgstr "সংযুক্ত পার্টি"
 
+#. module: cd_crm_ext
+#: model_terms:ir.ui.view,arch_db:cd_crm_ext.crm_lead_view_form_fix
+msgid "Party Kernel (M33)"
+msgstr "পার্টি কার্নেল (M33)"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__party_role_id
 msgid "Party Role (Customer)"
 msgstr "পার্টি ভূমিকা (গ্রাহক)"
 
-msgid "Leads"
-msgstr "লিড"
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__portal
+msgid "Portal P01"
+msgstr "পোর্টাল P01"
 
-msgid "Party Kernel (M33)"
-msgstr "পার্টি কার্নেল (M33)"
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__referral
+msgid "Referral"
+msgstr "রেফারেল"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__social
+msgid "Social Media"
+msgstr "সোশ্যাল মিডিয়া"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__walk_in
+msgid "Walk-in"
+msgstr "ওয়াক-ইন"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__website
+msgid "Website"
+msgstr "ওয়েবসাইট"

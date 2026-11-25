@@ -1,7 +1,30 @@
-# cd_party_master — M33 the party kernel (P03-M05)
-from . import fix_party_role
-from . import fix_party_hierarchy
-from . import fix_identity_document
-from . import fix_consent
-from . import fix_dedup_rule
-from . import res_partner
+# ruff: noqa: I001
+# cd_party_master models — the party kernel and its M33 surfaces.
+# S8 duplicate-detection jobs (layer (c) of the three-layer model).
+from . import (
+    fix_bd_address_ext,
+    fix_consent,
+    fix_consent_service,
+    fix_dedup_job,
+    fix_dedup_rule,
+    fix_identity_document,
+    fix_otp_log,
+    fix_party_duplicate,
+    fix_party_hierarchy,
+    fix_party_import,
+    fix_party_import_line,
+    fix_party_merge,
+    fix_party_quality,
+    fix_party_repoint_log,
+    fix_party_role,
+    fix_processing_record,
+    fix_registration_approval,
+    fix_rights_request,
+    fix_segment,
+    fix_transparency_notice,
+    res_partner,
+)
+
+# M33 capture pass 2 extends res.partner, fix.otp.log and fix.consent: it must
+# load after them, so it is imported on its own, last.
+from . import fix_party_capture2

@@ -1,16 +1,22 @@
 // PP7-M01 shared journey helpers — live stack only, no mocks.
 import { Page, expect } from "@playwright/test";
 
+// E2E_UAT=1 targets the single-host synthetic UAT stack
+// (infra/compose/docker-compose.uat.full.yml, ports 3400-3407 / Odoo 8073);
+// the default is the developer stack (3000-3007 / Odoo 8090).
+const UAT = process.env.E2E_UAT === "1";
+const base = (dev: number, uat: number) => `http://127.0.0.1:${UAT ? uat : dev}`;
+
 export const PORTALS = {
-  customer: "http://127.0.0.1:3010",
-  corporate: "http://127.0.0.1:3001",
-  analytics: "http://127.0.0.1:3012",
-  seller: "http://127.0.0.1:3013",
-  brand: "http://127.0.0.1:3014",
-  agentConsole: "http://127.0.0.1:3015",
-  partner: "http://127.0.0.1:3016",
-  vendor: "http://127.0.0.1:3017",
-  odoo: "http://127.0.0.1:8069",
+  customer: base(3000, 3400),
+  corporate: base(3001, 3401),
+  analytics: base(3002, 3402),
+  seller: base(3003, 3403),
+  brand: base(3004, 3404),
+  agentConsole: base(3005, 3405),
+  partner: base(3006, 3406),
+  vendor: base(3007, 3407),
+  odoo: base(8090, 8073),
 };
 
 /** JSON-RPC call in the page's own origin (session cookies ride along). */
@@ -50,6 +56,13 @@ export async function openWorkspace(page: Page) {
  * when a specific screen name is still unwired (the honest empty state).
  */
 export async function openScreenViaTellMe(page: Page, term: string) {
+  try {
+    const modal = page.locator(".modal.show, .o_technical_modal, .modal.d-block");
+    if (await modal.count() > 0) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+    }
+  } catch {}
   await page.click(".fx-tellme");
   await page.waitForSelector(".tellme-palette input", { timeout: 15000 });
   await page.fill(".tellme-palette input", term);
@@ -94,11 +107,19 @@ export async function expectGridHonest(page: Page) {
   expect(has.rows).toBeGreaterThan(0);
 }
 
-/** P01 OTP login per the customer portal contract (dev OTP 123456). */
+/**
+ * P01 OTP login per the customer portal contract. The OTP is random per send;
+ * the synthetic local stack (Odoo started with FIX_ENV=local, DE-11) echoes it
+ * back as `dev_code` — no other environment does.
+ */
 export async function otpLogin(page: Page, phone: string) {
   const sent = await rpc(page, "/api/odoo/customer/auth/otp/send", { phone });
   expect(sent.result?.sent).toBeTruthy();
-  const verified = await rpc(page, "/api/odoo/customer/auth/otp/verify", { phone, otp: "123456" });
+  expect(sent.result?.dev_code, "Odoo must run with FIX_ENV=local for the OTP echo").toBeTruthy();
+  const verified = await rpc(page, "/api/odoo/customer/auth/otp/verify", {
+    phone,
+    otp: sent.result.dev_code,
+  });
   expect(verified.result?.verified).toBeTruthy();
   return verified.result.user;
 }

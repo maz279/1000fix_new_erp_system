@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  E2E3 flow 4: a storefront order or return whose posting could not run (an
+  account that does not resolve, a store nobody named) is left pending, never
+  blocked. This job posts it once the cause is fixed. It posts nothing twice.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_storefront_posting_retry" model="ir.cron">
+            <field name="name">M38: post pending storefront orders and returns to the books</field>
+            <field name="model_id" ref="cd_storefront.model_fix_storefront_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_storefront_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

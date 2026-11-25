@@ -3,8 +3,8 @@
 **Gate Identifier:** Gate G3 (Financial Control Go-Live)  
 **Milestone:** R04-M05 (Observability Wiring, Journey Automation, and G3)  
 **Roadmap Reference:** P06-M10 (MS-05, Month 13)  
-**Verification Harness:** `tooling/gate/verify_gate_g3.py` and `tooling/gate/verify-gate-g3.ps1`  
-**Verdict:** **PASSED (GREEN-on-artefacts, 0 FAILs across all 12 criteria)**
+**Verification Harness:** `tooling/gate/verify-gate-g3.ps1` (the Python copy is archived; it ignored exit codes)  
+**Verdict (corrected 2026-10-22):** **CONDITION — 5 PASS / 7 CONDITION / 0 FAIL** on executed artefact checks. The original PASSED verdict came from a verifier that printed literal PASS regardless of test results; canonical statuses are in `tooling/gate/evidence/gate-g3-latest.json`, and the per-criterion table below is retained for history only.
 
 ---
 

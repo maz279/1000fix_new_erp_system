@@ -9,6 +9,7 @@ Validates all 4 Flutter apps' structure without a Dart SDK:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -84,8 +85,10 @@ def main() -> int:
             # Check for Bengali text (Unicode block 0980-09FF)
             bn_chars = re.findall(r"[\u0980-\u09FF]", code)
             if len(bn_chars) < 10:
-                v.append(f"{dirname}: Bengali-first UI required (DE-17) — "
-                         f"only {len(bn_chars)} Bengali chars found")
+                v.append(
+                    f"{dirname}: Bengali-first UI required (DE-17) — "
+                    f"only {len(bn_chars)} Bengali chars found"
+                )
 
         # The app title
         if spec["title"].split(" ")[0] not in code and spec["title"] not in code:
@@ -98,9 +101,11 @@ def main() -> int:
         return 1
 
     total_screens = sum(len(s["screens"]) for s in APPS.values())
-    print(f"dart-apps: OK — 4 apps, {total_screens} screens, all consuming "
-          "fix_ui tokens + fix_offline engine (FL-03), CFM-01 clean, "
-          f"customer app Bengali-first (DE-17)")
+    print(
+        f"dart-apps: OK — 4 apps, {total_screens} screens, all consuming "
+        "fix_ui tokens + fix_offline engine (FL-03), CFM-01 clean, "
+        f"customer app Bengali-first (DE-17)"
+    )
     return 0
 
 

@@ -1,0 +1,484 @@
+{
+  "milestone": "R11-M02",
+  "task": "R11-M02-T04",
+  "title": "8-Class Legacy Archive Integrity & Restorability Verification Register",
+  "execution_timestamp": "2026-10-22T10:21:50Z",
+  "governing_standards": [
+    "DA-006",
+    "ISO 15489-1:2016",
+    "RL-006 DCM-22..DCM-26"
+  ],
+  "measurement_policy": "GV-009: every status is measured in this run; what cannot be observed from this workstation is UNMEASURED with its reason",
+  "archive_store": "Z7-S3-ARCHIVE",
+  "archive_store_mounted": false,
+  "archive_store_reason": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)",
+  "total_archive_classes": 8,
+  "total_archive_classes_present": 0,
+  "total_archive_classes_tested": 0,
+  "total_archive_classes_restorable": 0,
+  "total_measured_archive_bytes": null,
+  "formatted_total_archive_volume": null,
+  "restorability_success_rate": null,
+  "retention_clock_policy": "DA-006 / DCM-18: computed from the trigger event only",
+  "verdict": "INCOMPLETE",
+  "overall_status": "INCOMPLETE",
+  "archive_classes": [
+    {
+      "archive_class_id": "ARCH-CL-01",
+      "archive_class_name": "Database Dumps (MySQL & MS SQL)",
+      "covered_sources": [
+        "SRC-01",
+        "SRC-02"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/databases/tracker_dumps_20261021.tar.gz.enc",
+      "archive_format": "tar.gz + AES-256",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "tbl_service_repair_orders",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-04 (Service Orders)",
+        "retention_period_years": 5,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Lead Data Steward (Mohammad Ali)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-02",
+      "archive_class_name": "Branch Service Order Spreadsheets (excluding retained / purged sources)",
+      "covered_sources": [
+        "SRC-03",
+        "SRC-04",
+        "SRC-05",
+        "SRC-06",
+        "SRC-07",
+        "SRC-08",
+        "SRC-09",
+        "SRC-10",
+        "SRC-11",
+        "SRC-12",
+        "SRC-13",
+        "SRC-14",
+        "SRC-15",
+        "SRC-16",
+        "SRC-17",
+        "SRC-18",
+        "SRC-19",
+        "SRC-24",
+        "SRC-25",
+        "SRC-26"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/spreadsheets/branch_order_sheets_bundle.zip",
+      "archive_format": "zip (Normalized XLSX/CSV)",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "dhanmondi_2024_service_log.xlsx",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-04 (Service Orders)",
+        "retention_period_years": 5,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Branch Operations Lead (Tariqul Islam)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-03",
+      "archive_class_name": "Accounting History & Cash Books",
+      "covered_sources": [
+        "SRC-27",
+        "SRC-28",
+        "SRC-29",
+        "SRC-30"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/finance/tally_and_cashbooks_20261021.xml.gz",
+      "archive_format": "xml.gz + AES-256",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "tally_company_a_journal_vouchers.xml",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-01 (Statutory General Ledger)",
+        "retention_period_years": 7,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Financial Controller (Mustafizur Rahman)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-04",
+      "archive_class_name": "HR & Historic Payroll Records",
+      "covered_sources": [
+        "SRC-32",
+        "SRC-33",
+        "SRC-34"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/hr/payroll_historic_2025_2026.tar.gz.gpg",
+      "archive_format": "tar.gz + GPG",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "payroll_salary_sheet_fy25_26.xlsx",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-03 (Payroll & Statutory TDS)",
+        "retention_period_years": 7,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Head of HR (Nasreen Sultana)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-05",
+      "archive_class_name": "WordPress CMS & Technical Media",
+      "covered_sources": [
+        "SRC-35",
+        "SRC-36"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/cms/wordpress_content_and_media.tar.zst",
+      "archive_format": "tar.zst",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "wp_posts_and_manuals_metadata.json",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "DC-14 (Web & Digital Assets)",
+        "retention_period_years": 3,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Marketing & Content Head (Shumona Akter)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-06",
+      "archive_class_name": "Inventory SKU & Spare Parts Crosswalks",
+      "covered_sources": [
+        "SRC-37",
+        "SRC-38",
+        "SRC-39",
+        "SRC-40"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/inventory/parts_catalog_and_crosswalks.csv.gz",
+      "archive_format": "csv.gz",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "parts_master_sku_catalog.csv",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-08 (Inventory & Asset History)",
+        "retention_period_years": 5,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Warehouse Operations Lead (Mahbub Alam)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-07",
+      "archive_class_name": "Contact Histories & Warranty Registrations",
+      "covered_sources": [
+        "SRC-42",
+        "SRC-43"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/contacts/warranty_registrations_partitioned.parquet",
+      "archive_format": "parquet.snappy",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "warranty_card_registrations_2020_2026.parquet",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-06 (Customer Warranty Records)",
+        "retention_period_years": 5,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "Warranty Operations Lead (Imtiaz Ahmed)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    },
+    {
+      "archive_class_id": "ARCH-CL-08",
+      "archive_class_name": "Scanned RMA & Environmental Disposal Evidence",
+      "covered_sources": [
+        "SRC-45",
+        "SRC-46",
+        "SRC-47",
+        "SRC-48"
+      ],
+      "storage_path": "Z7-S3-ARCHIVE/evidence_scans/rma_and_disposal_certs.zip",
+      "archive_format": "pdf_manifest.zip",
+      "measured_size_bytes": null,
+      "formatted_size": null,
+      "sha256_checksum": null,
+      "fixity_record_checksum": null,
+      "restorability_drill": {
+        "sample_object_expected": "disposal_doe_clearance_certificates.pdf",
+        "drill_executed": false,
+        "records_read_and_verified": null,
+        "data_integrity_check": "UNMEASURED",
+        "human_sample_read_status": "UNMEASURED"
+      },
+      "retention_governance": {
+        "governing_standard": "DA-006 / LG-009",
+        "retention_class": "RC-18 (Regulatory & Environmental Certs)",
+        "retention_period_years": 5,
+        "retention_trigger_event": "PRODUCTION_CUTOVER_AND_DECOMMISSION",
+        "trigger_date": null,
+        "statutory_disposal_date": null,
+        "retention_clock_status": "UNMEASURED"
+      },
+      "custodian_role": "E-Waste Compliance Officer (Tareq Hasan)",
+      "checks": {
+        "archive_present": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "checksum": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "machine_restore_drill": {
+          "status": "UNMEASURED",
+          "detail": "the Z7-S3-ARCHIVE archive store is not mounted on this workstation (pass --archive-root or set R11_ARCHIVE_ROOT)"
+        },
+        "human_sample_read": {
+          "status": "UNMEASURED",
+          "detail": "DCM-25: D3 is reached when a person reads a sample; a person's read cannot be observed by this tool"
+        },
+        "retention_clock": {
+          "status": "UNMEASURED",
+          "detail": "DCM-18: the retention clock runs from the decommission trigger event; that event is not observable here, so no trigger or disposal date is recorded"
+        }
+      },
+      "verification_status": "INCOMPLETE"
+    }
+  ]
+}

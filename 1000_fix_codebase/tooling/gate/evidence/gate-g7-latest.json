@@ -1,0 +1,70 @@
+{
+    "schema":  "1000fix-erp/gate-g7/2",
+    "ranAtUtc":  "2026-10-22T13:59:23.2443005Z",
+    "pass":  3,
+    "conditions":  6,
+    "failures":  1,
+    "verdict":  "RED",
+    "criteria":  [
+                     {
+                         "Id":  "G7-1",
+                         "Criterion":  "T-6 entry: fitness clean",
+                         "Status":  "PASS",
+                         "Evidence":  "0 failures (fitness-20261022T134317Z.json)"
+                     },
+                     {
+                         "Id":  "G7-2",
+                         "Criterion":  "Sellers onboarded and transacting",
+                         "Status":  "CONDITION",
+                         "Evidence":  "marketplace suite exit 0, 166 tests (seller party-role, KYC gate, commission.earned event, tenant isolation negatives); pilot onboarding tool measured 50 sellers live - in the PE-002 sandbox DB (fix_dev), not production; transacting (real transaction volume) is unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G7-3",
+                         "Criterion":  "Payout accuracy (M53 settlement)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "settlement suite exit 0, 65 tests incl. the commission-\u003eTDS-\u003enet-\u003epayout e2e with SoD approval gate and rail read-back; payout accuracy over production payout volume is unmeasured (open external) - test green is not a 100% accuracy measurement"
+                     },
+                     {
+                         "Id":  "G7-4",
+                         "Criterion":  "Journey 7 automated",
+                         "Status":  "CONDITION",
+                         "Evidence":  "marketplace suite exit 0 incl. journey-7 state machine (order-\u003equote-\u003eselection-\u003ejob-\u003ereview-\u003ecommission-\u003epaid asserted in test_journey_seven_states); L6 spec j08-marketplace-seller.spec.ts present=True; L6 EXECUTION requires the CI runner (open external) - a state-machine unit test is not a journey run"
+                     },
+                     {
+                         "Id":  "G7-5",
+                         "Criterion":  "Portals delivered",
+                         "Status":  "CONDITION",
+                         "Evidence":  "manifest parse exit 0: 4 of 4 portal manifests parse to a named dict (problems: none); operational delivery across the 12-portal estate is unmeasured (production runtime, open external)"
+                     },
+                     {
+                         "Id":  "G7-6",
+                         "Criterion":  "Cross-tenant isolation",
+                         "Status":  "CONDITION",
+                         "Evidence":  "scale loadtest verdict=PASS (synthetic sellers=2000, cross-tenant leaks=0, p95=1.62ms) - its leak probe is empty by construction and bypasses Odoo record rules, so the PASS is UNPROVEN; external-surface pen-test verdict=PASS (0 findings recorded) - the tool fails open on transport errors, so the PASS is UNPROVEN; pilot cohort verdict=PASS (sellers live=50, sandbox DB); permission negative suite verdict=PASS (executed test file: exit=0, 74 run / 0 failed); a real isolation measurement through the Odoo runtime is in progress separately"
+                     },
+                     {
+                         "Id":  "G7-7",
+                         "Criterion":  "All 51+ branches live",
+                         "Status":  "FAIL",
+                         "Evidence":  "branch rollout verdict=FAIL; service centres live=UNMEASURED of 53 registered (criterion: \u003e= 51); RB-51 runbook present=True"
+                     },
+                     {
+                         "Id":  "G7-8",
+                         "Criterion":  "Commission GL reconciliation",
+                         "Status":  "PASS",
+                         "Evidence":  "settlement suite exit 0, 65 tests incl. action_post_to_gl ORM tests (FF-91 single-source + contra-posting reversibility) and reconcile_payout_run count/amount balance assertions with zero aged breaks; period-end tie-out against the live Odoo ledger is operational follow-up, not measured here"
+                     },
+                     {
+                         "Id":  "G7-9",
+                         "Criterion":  "Gate profile (PE-004 \u0026 PE-007)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "PE-004 1.5x-peak profile verdict=INCOMPLETE [docs/traceability/evidence/g7-pe004-performance-evidence.json]; PE-007 DR drill verdict=INCOMPLETE, RPO=UNMEASURED, RTO=UNMEASURED, data loss records=UNMEASURED, 5 PASS / 0 FAIL / 5 UNMEASURED of 10 checks [docs/traceability/evidence/g7-pe007-dr-drill-evidence.json]; Steering sign-off pending (human execution, open) - the signed report on file is hand-authored with no generator and is not machine evidence"
+                     },
+                     {
+                         "Id":  "G7-10",
+                         "Criterion":  "All modules shipped",
+                         "Status":  "PASS",
+                         "Evidence":  "71 manifests; FF-23: tests-present: OK - 71 modules, all have tests/"
+                     }
+                 ]
+}

@@ -1,31 +1,421 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_settlement_ext views (P10). -->
+<!-- cd_settlement_ext views — Milestone R08-M02: Settlement, INT-007 Payout Rail & Statements. -->
 <odoo>
+    <!-- ================================================================= -->
+    <!-- 1. COMMISSION LEDGER                                              -->
+    <!-- ================================================================= -->
     <record id="view_fix_commission_ledger_list" model="ir.ui.view">
         <field name="name">fix.commission.ledger.list</field>
         <field name="model">fix.commission.ledger</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list string="Commission Ledger" decoration-muted="state == 'paid'" decoration-info="state == 'accrued'" decoration-success="state == 'earned'">
+                <field name="name"/>
+                <field name="seller_partner_id"/>
+                <field name="source_ref"/>
+                <field name="gross_amount" widget="monetary"/>
+                <field name="commission_rate" widget="percentage"/>
+                <field name="commission_amount" widget="monetary"/>
+                <field name="tds_amount" widget="monetary"/>
+                <field name="net_payable" widget="monetary"/>
+                <field name="rail"/>
+                <field name="payment_id"/>
+                <field name="state" widget="badge"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_commission_ledger_form" model="ir.ui.view">
+        <field name="name">fix.commission.ledger.form</field>
+        <field name="model">fix.commission.ledger</field>
+        <field name="arch" type="xml">
+            <form string="Commission Ledger Entry">
+                <header>
+                    <button name="action_post_to_gl" string="Post Accrual to GL (FF-91)" type="object" class="btn-primary" invisible="state != 'earned'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="earned,accrued,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Counterparty &amp; Operations">
+                            <field name="seller_partner_id"/>
+                            <field name="source_ref"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
+                        </group>
+                        <group string="Financial Breakdown (FF-91 / MS-01)">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="gross_amount" widget="monetary"/>
+                            <field name="commission_rate" widget="percentage"/>
+                            <field name="commission_amount" widget="monetary"/>
+                            <field name="tds_amount" widget="monetary"/>
+                            <field name="net_payable" widget="monetary"/>
+                        </group>
+                    </group>
+                    <group string="Reconciliation Keys (IN-007 §5.1 / LP-02)">
+                        <group>
+                            <field name="payment_id"/>
+                            <field name="rail"/>
+                        </group>
+                        <group>
+                            <field name="rail_transaction_id"/>
+                            <field name="merchant_invoice_number"/>
+                            <field name="gl_move_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_commission_ledger" model="ir.actions.act_window">
         <field name="name">Commission Ledger</field>
         <field name="res_model">fix.commission.ledger</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Consumes commission.earned events from Marketplace orders and posts platform revenues.
+            </p>
+        </field>
     </record>
+
+    <!-- ================================================================= -->
+    <!-- 2. PAYOUT RUN                                                     -->
+    <!-- ================================================================= -->
     <record id="view_fix_payout_run_list" model="ir.ui.view">
         <field name="name">fix.payout.run.list</field>
         <field name="model">fix.payout.run</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list string="Payout Runs" decoration-success="state == 'executed'" decoration-warning="state == 'executing'" decoration-info="state == 'approved'">
+                <field name="name"/>
+                <field name="period"/>
+                <field name="seller_count"/>
+                <field name="total_gross" widget="monetary"/>
+                <field name="total_tds" widget="monetary"/>
+                <field name="total_payable" widget="monetary"/>
+                <field name="rail_type"/>
+                <field name="rail_status" widget="badge"/>
+                <field name="sod_verified" widget="boolean_toggle"/>
+                <field name="state" widget="badge"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_payout_run_form" model="ir.ui.view">
+        <field name="name">fix.payout.run.form</field>
+        <field name="model">fix.payout.run</field>
+        <field name="arch" type="xml">
+            <form string="Payout Run">
+                <header>
+                    <!-- A08 F2: prepare (frozen, routed to M63) -> approved from the
+                         Accounting Administrator's inbox -> released to treasury as M50
+                         payment instructions -> executed on the bank statement. -->
+                    <!-- kept as the anchor of inheriting views; approval is decided from the M63 inbox -->
+                    <button name="action_approve" string="Approve" type="object" invisible="1"/>
+                    <button name="action_prepare" string="Prepare &amp; Request Approval" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_request_payments" string="Release to Treasury (M50)" type="object" class="btn-success" invisible="state != 'approved'"/>
+                    <button name="action_query_status" string="Refresh Payment Status" type="object" class="btn-secondary" invisible="state != 'executing'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state not in ('draft', 'prepared', 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,prepared,approved,executing,executed"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-success" role="status" invisible="not sod_verified">
+                        <strong>Segregation of Duties Verified:</strong> Preparer (<field name="prepared_by_id" readonly="1" options="{'no_open': True}"/>) and Approver (<field name="approved_by_id" readonly="1" options="{'no_open': True}"/>) are distinct authorised personnel.
+                    </div>
+                    <div class="alert alert-warning" role="status" invisible="rail_status != 'unknown'">
+                        <strong>Payment Under Confirmation:</strong> Gateway timed out. Record in 'unknown' state per IN-007-D-01. Read-back status query required (FF-85).
+                    </div>
+                    <div class="alert alert-warning" role="status" invisible="state != 'file_generated' and rail_status != 'pending_bank_confirmation'">
+                        <strong>Not yet paid:</strong> no bank confirmation has been received. Upload the BEFTN file / check the bank, then enter the bank's settlement reference and press "Confirm Bank Settlement".
+                    </div>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                        <h4 class="text-muted"><field name="period" placeholder="e.g. 2026-10"/></h4>
+                    </div>
+                    <group>
+                        <group string="Segregation of Duties (SoD Gate)">
+                            <field name="prepared_by_id"/>
+                            <field name="approved_by_id"/>
+                            <field name="approved_date"/>
+                            <field name="sod_verified"/>
+                        </group>
+                        <group string="INT-007 Payout Rail Status">
+                            <field name="rail_type"/>
+                            <field name="rail_status"/>
+                            <field name="rail_batch_id"/>
+                            <field name="idempotency_key"/>
+                            <field name="bank_confirmation_ref" readonly="state not in ('executing', 'file_generated')"/>
+                            <field name="bank_confirmed_by_id" invisible="not bank_confirmed_by_id"/>
+                            <field name="bank_confirmed_at" invisible="not bank_confirmed_at"/>
+                            <field name="beftn_filename" invisible="1"/>
+                            <field name="beftn_file" filename="beftn_filename" invisible="not beftn_file"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Batch Aggregation &amp; GL Controls">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="seller_count"/>
+                            <field name="gl_move_id"/>
+                        </group>
+                        <group string="Statutory &amp; Disbursed Totals">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_gross" widget="monetary"/>
+                            <field name="total_tds" widget="monetary"/>
+                            <field name="total_payable" widget="monetary" class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Commissions Included" name="commissions">
+                            <field name="commission_ids" readonly="state in ('executing', 'file_generated', 'executed')">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="seller_partner_id"/>
+                                    <field name="gross_amount"/>
+                                    <field name="commission_amount"/>
+                                    <field name="tds_amount"/>
+                                    <field name="net_payable"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Bilingual Seller Statements" name="statements">
+                            <field name="statement_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="seller_partner_id"/>
+                                    <field name="period"/>
+                                    <field name="gross_gmv"/>
+                                    <field name="tds_withheld"/>
+                                    <field name="net_payable"/>
+                                    <field name="withholding_cert_ref"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Reconciliation Runs" name="reconciliations">
+                            <field name="reconciliation_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="rail_name"/>
+                                    <field name="count_matched" widget="boolean_toggle"/>
+                                    <field name="amount_matched" widget="boolean_toggle"/>
+                                    <field name="unmatched_count"/>
+                                    <field name="aged_unmatched_count"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_payout_run" model="ir.actions.act_window">
-        <field name="name">Payout Run</field>
+        <field name="name">Payout Runs</field>
         <field name="res_model">fix.payout.run</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_commission_ledger" name="Commission Ledger" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_commission_ledger" sequence="300"/>
-    <menuitem id="menu_fix_payout_run" name="Payout Run" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_payout_run" sequence="310"/>
+    <!-- ================================================================= -->
+    <!-- 3. SELLER STATEMENTS (Bilingual / ITA 2023 §52)                  -->
+    <!-- ================================================================= -->
+    <record id="view_fix_seller_statement_list" model="ir.ui.view">
+        <field name="name">fix.seller.statement.list</field>
+        <field name="model">fix.seller.statement</field>
+        <field name="arch" type="xml">
+            <list string="Seller Settlement Statements" decoration-success="state == 'settled'" decoration-info="state == 'issued'">
+                <field name="name"/>
+                <field name="seller_partner_id"/>
+                <field name="period"/>
+                <field name="date_issued"/>
+                <field name="gross_gmv" widget="monetary"/>
+                <field name="commission_amount" widget="monetary"/>
+                <field name="tds_withheld" widget="monetary"/>
+                <field name="net_payable" widget="monetary"/>
+                <field name="withholding_cert_ref"/>
+                <field name="state" widget="badge"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_seller_statement_form" model="ir.ui.view">
+        <field name="name">fix.seller.statement.form</field>
+        <field name="model">fix.seller.statement</field>
+        <field name="arch" type="xml">
+            <form string="Seller Settlement Statement">
+                <header>
+                    <button name="action_issue_statement" string="Issue Statement / প্রদান করুন" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_settle_statement" string="Mark Settled / নিষ্পত্তি করুন" type="object" class="btn-secondary" invisible="state != 'issued'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,issued,settled"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="status">
+                        <strong>Statutory Certification / সংবিধিবদ্ধ প্রত্যয়ন:</strong>
+                        <field name="statutory_note" readonly="1"/>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Recipient / প্রাপক">
+                            <field name="seller_partner_id"/>
+                            <field name="period"/>
+                            <field name="date_issued"/>
+                            <field name="withholding_cert_ref"/>
+                            <field name="payout_run_id"/>
+                        </group>
+                        <group string="Statement Figures / বিবরণী অর্থ">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="gross_gmv" widget="monetary"/>
+                            <field name="commission_amount" widget="monetary"/>
+                            <field name="tds_withheld" widget="monetary"/>
+                            <field name="platform_fee" widget="monetary"/>
+                            <field name="net_payable" widget="monetary" class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_seller_statement" model="ir.actions.act_window">
+        <field name="name">Seller Statements</field>
+        <field name="res_model">fix.seller.statement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================================================================= -->
+    <!-- 4. PAYOUT RECONCILIATION                                          -->
+    <!-- ================================================================= -->
+    <record id="view_fix_payout_reconciliation_list" model="ir.ui.view">
+        <field name="name">fix.payout.reconciliation.list</field>
+        <field name="model">fix.payout.reconciliation</field>
+        <field name="arch" type="xml">
+            <list string="Payout Reconciliations" decoration-success="state == 'balanced'" decoration-danger="state == 'break_detected'" decoration-warning="state == 'investigating'">
+                <field name="name"/>
+                <field name="payout_run_id"/>
+                <field name="rail_name"/>
+                <field name="reconciliation_date"/>
+                <field name="system_count"/>
+                <field name="rail_count"/>
+                <field name="count_matched" widget="boolean_toggle"/>
+                <field name="system_amount" widget="monetary"/>
+                <field name="rail_amount" widget="monetary"/>
+                <field name="amount_matched" widget="boolean_toggle"/>
+                <field name="unmatched_count"/>
+                <field name="aged_unmatched_count"/>
+                <field name="state" widget="badge"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_payout_reconciliation_form" model="ir.ui.view">
+        <field name="name">fix.payout.reconciliation.form</field>
+        <field name="model">fix.payout.reconciliation</field>
+        <field name="arch" type="xml">
+            <form string="Payout Reconciliation">
+                <header>
+                    <button name="action_run_reconciliation" string="Execute Reconciliation Run" type="object" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,balanced,break_detected,investigating,resolved"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Reconciliation Scope">
+                            <field name="payout_run_id"/>
+                            <field name="rail_name"/>
+                            <field name="reconciliation_date"/>
+                        </group>
+                        <group string="Discrepancy &amp; Aging Summary (BR-01..BR-05)">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="unmatched_count"/>
+                            <field name="unmatched_amount" widget="monetary"/>
+                            <field name="aged_unmatched_count"/>
+                            <field name="aged_unmatched_amount" widget="monetary"/>
+                        </group>
+                    </group>
+                    <group string="Count &amp; Amount Separate Verification (FF-94)">
+                        <group string="Transaction Count">
+                            <field name="system_count"/>
+                            <field name="rail_count"/>
+                            <field name="count_matched"/>
+                        </group>
+                        <group string="Transaction Amount">
+                            <field name="system_amount" widget="monetary"/>
+                            <field name="rail_amount" widget="monetary"/>
+                            <field name="amount_matched"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Break Details" name="breaks">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="seller_partner_id"/>
+                                    <field name="system_amount"/>
+                                    <field name="rail_amount"/>
+                                    <field name="discrepancy"/>
+                                    <field name="record_date"/>
+                                    <field name="age_days"/>
+                                    <field name="is_aged"/>
+                                    <field name="status" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Audit Notes" name="notes">
+                            <field name="break_notes" placeholder="Stated human justification for breaks or resolution..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_payout_reconciliation" model="ir.actions.act_window">
+        <field name="name">Payout Reconciliation</field>
+        <field name="res_model">fix.payout.reconciliation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================================================================= -->
+    <!-- 5. MENUS                                                          -->
+    <!-- ================================================================= -->
+    <menuitem id="menu_fix_settlement_root" name="Settlement &amp; Payout" parent="cd_entity_config.menu_fix_operations_root" sequence="300"/>
+    <menuitem id="menu_fix_commission_ledger" name="Commission Ledger" parent="menu_fix_settlement_root" action="action_fix_commission_ledger" sequence="10"/>
+    <menuitem id="menu_fix_payout_run" name="Payout Runs" parent="menu_fix_settlement_root" action="action_fix_payout_run" sequence="20"/>
+    <menuitem id="menu_fix_seller_statement" name="Seller Statements (Bilingual)" parent="menu_fix_settlement_root" action="action_fix_seller_statement" sequence="30"/>
+    <menuitem id="menu_fix_payout_reconciliation" name="Payout Reconciliation" parent="menu_fix_settlement_root" action="action_fix_payout_reconciliation" sequence="40"/>
 </odoo>

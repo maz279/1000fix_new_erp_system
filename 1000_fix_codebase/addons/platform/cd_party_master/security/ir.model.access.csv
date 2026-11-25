@@ -4,3 +4,25 @@ access_fix_party_hierarchy,fix.party.hierarchy,model_fix_party_hierarchy,base.gr
 access_fix_identity_document,fix.identity.document,model_fix_identity_document,base.group_user,1,1,1,0
 access_fix_consent,fix.consent,model_fix_consent,base.group_user,1,1,1,0
 access_fix_dedup_rule,fix.dedup.rule,model_fix_dedup_rule,base.group_user,1,1,1,0
+access_fix_transparency_notice,fix.transparency.notice,model_fix_transparency_notice,base.group_user,1,1,1,0
+access_fix_otp_log,fix.otp.log,model_fix_otp_log,base.group_user,1,1,1,0
+access_fix_registration_approval,fix.registration.approval,model_fix_registration_approval,base.group_user,1,1,1,0
+access_fix_party_duplicate,fix.party.duplicate,model_fix_party_duplicate,base.group_user,1,1,1,0
+access_fix_party_merge,fix.party.merge,model_fix_party_merge,base.group_user,1,1,1,0
+access_fix_party_quality,fix.party.quality,model_fix_party_quality,base.group_user,1,1,1,0
+access_fix_rights_request,fix.rights.request,model_fix_rights_request,base.group_user,1,1,1,0
+access_fix_segment,fix.segment,model_fix_segment,base.group_user,1,1,1,0
+access_fix_segment_membership,fix.segment.membership,model_fix_segment_membership,base.group_user,1,1,1,0
+access_fix_bd_address_party,fix.bd.address party use,cd_entity_config.model_fix_bd_address,base.group_user,1,1,1,0
+access_fix_dedup_job,fix.dedup.job,model_fix_dedup_job,base.group_user,1,1,1,0
+access_fix_dedup_job_mgr,fix.dedup.job manager,model_fix_dedup_job,cd_entity_config.group_dofa_tier_2,1,1,1,1
+access_fix_party_repoint_log,fix.party.repoint.log,model_fix_party_repoint_log,base.group_user,1,0,0,0
+access_fix_party_import_batch,fix.party.import.batch,model_fix_party_import_batch,base.group_user,1,0,0,0
+access_fix_party_import_line,fix.party.import.line,model_fix_party_import_line,base.group_user,1,0,0,0
+access_fix_party_import_batch_loader,fix.party.import.batch loader,model_fix_party_import_batch,cd_party_master.group_party_registration_admin,1,1,1,1
+access_fix_party_import_line_loader,fix.party.import.line loader,model_fix_party_import_line,cd_party_master.group_party_registration_admin,1,1,1,1
+access_fix_processing_record,fix.processing.record,model_fix_processing_record,base.group_user,1,0,0,0
+access_fix_processing_record_dpo,fix.processing.record dpo,model_fix_processing_record,cd_party_master.group_party_dpo,1,0,1,0
+access_fix_contact_point,fix.contact.point,model_fix_contact_point,base.group_user,1,1,1,0
+access_fix_party_relationship,fix.party.relationship,model_fix_party_relationship,base.group_user,1,1,1,0
+access_fix_party_contact_role,fix.party.contact.role,model_fix_party_contact_role,base.group_user,1,1,1,0

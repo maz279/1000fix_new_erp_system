@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP pass 2 X5-09 (owner decision D25; FR-LOY-020, BRU-LOY-05,
+     AUT-LOY-04): points earned on a service order are taken back when its
+     M20 invoice is credited (in proportion) or cancelled (all that is left).
+     Idempotent per credit note / cancellation and account
+     (fix.loyalty.event.receipt). -->
+<odoo>
+    <data noupdate="1">
+        <record id="event_consumer_credit_note_issued" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: a credit note takes back the points its invoice earned</field>
+            <field name="event_type">credit_note.issued</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_credit_note_issued</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+        <record id="event_consumer_invoice_cancelled" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: a cancelled invoice takes back the points it earned</field>
+            <field name="event_type">invoice.cancelled</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_invoice_cancelled</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+    </data>
+</odoo>

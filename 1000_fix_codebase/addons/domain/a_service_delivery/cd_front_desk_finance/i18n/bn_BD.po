@@ -1,0 +1,110 @@
+# Bengali (Bangladesh) translation for cd_front_desk_finance.
+# Field labels (FF-25 / DoD-08, AS-12).
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__posting_state
+msgid "Books"
+msgstr "হিসাবভুক্তি"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__posting_note
+msgid "Posting Note"
+msgstr "পোস্টিং নোট"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__posting_attempted_at
+msgid "Last Posting Run"
+msgstr "সর্বশেষ পোস্টিং চেষ্টা"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__vat_taxable_amount
+msgid "Mushak 6.3 Taxable Value (BDT)"
+msgstr "মূসক ৬.৩ করযোগ্য মূল্য (টাকা)"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__vat_output_amount
+msgid "Mushak 6.3 VAT (BDT)"
+msgstr "মূসক ৬.৩ ভ্যাট (টাকা)"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__vat_treatment_summary
+msgid "VAT Treatment"
+msgstr "ভ্যাট প্রয়োগের ধরন"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__mushak_id
+msgid "Mushak 6.3"
+msgstr "মূসক ৬.৩"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__mushak_no
+msgid "Mushak 6.3 No."
+msgstr "মূসক ৬.৩ নম্বর"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__mushak_note_id
+msgid "Mushak 6.7 (Refund)"
+msgstr "মূসক ৬.৭ (ফেরত)"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__gl_move_id
+msgid "Sale GL Entry"
+msgstr "বিক্রয়ের খতিয়ান এন্ট্রি"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__gl_reversal_move_id
+msgid "Refund GL Entry"
+msgstr "ফেরতের খতিয়ান এন্ট্রি"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__revenue_account_id
+msgid "Revenue Account"
+msgstr "আয় হিসাব"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__payment_account_id
+msgid "Payment Account"
+msgstr "পরিশোধ হিসাব"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_state
+msgid "Stock"
+msgstr "মজুদ"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_location_id
+msgid "Issue From Location"
+msgstr "যে স্থান থেকে প্রদান"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_part_id
+msgid "Spare Part"
+msgstr "খুচরা যন্ত্রাংশ"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_ownership_class
+msgid "Issued From Class"
+msgstr "যে মালিকানা-শ্রেণি থেকে প্রদান"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_unit_cost
+msgid "Issue Unit Cost (BDT)"
+msgstr "প্রদানের একক খরচ (টাকা)"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_counter_sale__stock_lot_id
+msgid "Issued Serial"
+msgstr "প্রদত্ত সিরিয়াল"
+
+#. module: cd_front_desk_finance
+#: model:ir.model.fields,field_description:cd_front_desk_finance.field_fix_branch__counter_stock_location_id
+msgid "Counter Stock Location"
+msgstr "কাউন্টার মজুদের স্থান"

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Daily run of due recurring journal templates (FR-FIN-013/016).
+         Failures are isolated per template by _cron_generate_due_entries. -->
+    <record id="ir_cron_gl_template_run" model="ir.cron">
+        <field name="name">GL: Generate Due Journal Template Entries</field>
+        <field name="model_id" ref="model_fix_journal_template"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_generate_due_entries()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

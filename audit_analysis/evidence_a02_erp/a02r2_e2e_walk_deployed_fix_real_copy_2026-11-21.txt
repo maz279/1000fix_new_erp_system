@@ -1,0 +1,18 @@
+OK   M04 open the branch cash shift -> shift #17 open
+OK   M17 register the customer's device -> E2E Laptop 15 — S/N E2E-SN-0001
+OK   M04 walk-in intake with a BDT 300 cash diagnostic fee, hand-over -> order SO000946, fee receipt RCP/2026/00013 confirmed on 100108
+OK   M01 diagnose and estimate (part + labour), customer approves -> estimate approved total 3450.00, order approved, due 3150.00
+OK   M31 book into the workshop, repair, QC pass -> order Ready -> order ready
+OK   M04 counter takes the balance in cash (drawer + M20 receipt) -> due 3150.00, receipt RCP/2026/00014 confirmed Dr 100108, customer AR -3450.00
+OK   M01 hand-over: OTP, recipient, signed report -> delivered, tax invoice -> order delivered, invoice INV/2026/00001 paid total 3450.00 residual 0.00, warranty until 2027-02-19
+OK   M19 ledger after delivery -> drawer +3450.00, customer AR 0.00, revenue -3000.00, VAT -450.00
+OK   M01 close -> M27/M34 events -> order closed; events: service_order.approved, service_order.awaiting_approval, service_order.closed, service_order.created, service_order.delivered, service_order.diagnostic, service_order.estimate_pending, service_order.estimate_sent, service_order.in_repair, service_order.qc_pending, service_order.ready, service_order.warranty_issued
+OK   M04 count and close the drawer; M50 deposit dispatch -> shift closed expected 3450.00 counted 3450.00; deposit 3450.00; drawer net +0.00
+OK   S2 M01 order approved for a depot repair -> order SO000947 approved
+OK   S2 M31 book the job into a workshop -> job WSJ/2026/00074 at Central Workshop Tejgaon, state draft
+OK   S2 M31/M15 issue a stocked part to the job at its stock cost -> part APAC-MDD-1141142 line cost 1307.32 (bucket 1307.32), stock 14.0 -> 13.0, job parts_total 1307.32, job in_repair
+OK   S2 M31 QC on the bench -> job and order Ready -> job ready (labour cost 0.00, total cost 1307.32), order ready
+OK   S2 M04/M20 bKash at the counter, hand-over, invoice paid -> receipt RCP/2026/00015 Dr 100111; invoice INV/2026/00002 paid 3795.00 residual 0.00; warranty 90 days until 2027-02-19
+OK   S3 M01 on-site order -> M02 field order dispatched -> order SO000948, field order FO/2026/00100 dispatched to A B M Golam Mohiuddin
+OK   S3 M02 accept, travel, arrive on GPS (no fence: position recorded), work -> field order in_progress, arrival 23.7905, 90.3735
+OK   S3 M02 cash collected on site, technician declares, cashier accepts -> collected 1725.00; field completed / settled; order settled settled verified True; receipt RCP/2026/00016 Dr 100108; drawer field cash 1725.00

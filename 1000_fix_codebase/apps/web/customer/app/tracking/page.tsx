@@ -10,7 +10,7 @@ import { callOdoo } from "../../lib/api";
 import { useLanguage, Translations } from "../../components/language";
 import { useAuth } from "../../components/auth-modal";
 
-interface Booking { id: number; ref: string; state: string; device: string }
+interface Booking { id: number; ref: string; legacy_reference?: string | null; state: string; device: string }
 
 interface StageItem {
   id: string;
@@ -22,6 +22,7 @@ interface StageItem {
 interface Tracking {
   id: number;
   ref: string;
+  legacy_reference?: string | null;
   state: string;
   current_stage: number;
   stages: StageItem[];
@@ -70,6 +71,7 @@ function TrackingContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [orderId, setOrderId] = useState<number | null>(queryOrderId ? Number(queryOrderId) : null);
   const [activeRef, setActiveRef] = useState<string | null>(queryRef || null);
+  const [manualRef, setManualRef] = useState<string>("");
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,19 +102,20 @@ function TrackingContent() {
       refresh(null, queryRef);
     }
 
-    callOdoo<{ bookings: Booking[] }>("/customer/bookings")
-      .then((d) => {
-        const list = d.bookings || [];
-        setBookings(list);
-        if (!orderId && !queryRef && list.length > 0) {
-          setOrderId(list[0].id);
-        }
-      })
-      .catch((e: Error) => {
-        if (!queryRef) {
-          setError(e.message);
-        }
-      });
+    // Only attempt to fetch user bookings if authenticated
+    if (user) {
+      callOdoo<{ bookings: Booking[] }>("/customer/bookings")
+        .then((d) => {
+          const list = d.bookings || [];
+          setBookings(list);
+          if (!orderId && !queryRef && list.length > 0) {
+            setOrderId(list[0].id);
+          }
+        })
+        .catch(() => {
+          // Unauthenticated or guest visitor: non-blocking, manual lookup form remains available
+        });
+    }
   }, [user, queryRef, refresh, orderId]);
 
   // Deep-link query parameter synchronization
@@ -138,8 +141,8 @@ function TrackingContent() {
     return () => clearInterval(interval);
   }, [orderId, activeRef, refresh]);
 
-  if (error && bookings.length === 0 && !activeRef) {
-    return <LoadError what={t.loadErrorTitle(locale === "bn" ? "ট্র্যাকিং" : "Tracking")} message={error} />;
+  if (error && activeRef && !tracking) {
+    // Show error banner instead of full page takeover
   }
 
   const defaultStages: StageItem[] = [
@@ -157,6 +160,85 @@ function TrackingContent() {
     <main style={{ padding: 32, maxWidth: 840 }}>
       <SectionHead title={t.trackingTitle} note={t.trackingSubtitle} />
 
+      {/* Reference Direct Lookup including MIG-03 / FR-SRM-088 Legacy References */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (manualRef.trim()) {
+            setError(null);
+            setActiveRef(manualRef.trim());
+            setOrderId(null);
+            refresh(null, manualRef.trim());
+          }
+        }}
+        style={{
+          marginTop: 16,
+          padding: 16,
+          background: tokens["color.surface.primary"],
+          border: `1px solid ${tokens["color.border.default"]}`,
+          borderRadius: tokens["dimension.border.radius-sm"],
+        }}
+      >
+        <label
+          htmlFor="legacy-ref-input"
+          style={{
+            display: "block",
+            marginBottom: 6,
+            color: tokens["color.text.secondary"],
+            fontSize: tokens["typography.size.200"],
+            fontWeight: 500,
+          }}
+        >
+          {locale === "bn"
+            ? "অর্ডার বা পূর্ববর্তী রেফারেন্স নম্বর অনুসন্ধান (FR-SRM-088)"
+            : "Search by Order or Legacy Reference (FR-SRM-088 / MIG-03)"}
+        </label>
+        <div style={{ display: "flex", gap: 10 }}>
+          <input
+            id="legacy-ref-input"
+            type="text"
+            value={manualRef}
+            onChange={(e) => setManualRef(e.target.value)}
+            placeholder={locale === "bn" ? "যেমন: SO-2026-001 বা STN-2024-88412" : "e.g. SO-2026-001 or STN-2024-88412"}
+            style={inputStyle}
+            aria-label="Order or legacy reference lookup"
+          />
+          <button
+            type="submit"
+            id="legacy-search-submit-btn"
+            style={{
+              padding: "10px 20px",
+              background: tokens["color.primary.base"],
+              color: tokens["color.text.inverse"],
+              border: "none",
+              borderRadius: tokens["dimension.border.radius-sm"],
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {locale === "bn" ? "অনুসন্ধান" : "Search"}
+          </button>
+        </div>
+        {error && (
+          <div
+            id="tracking-lookup-error"
+            role="alert"
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              background: tokens["color.status.error-bg"],
+              color: tokens["color.status.error"],
+              border: `1px solid ${tokens["color.status.error-border"]}`,
+              borderRadius: tokens["dimension.border.radius-sm"],
+              fontSize: tokens["typography.size.200"],
+            }}
+          >
+            {error}
+          </div>
+        )}
+      </form>
+
       {/* Order Selector */}
       <div style={{ marginTop: 16 }}>
         <label
@@ -169,19 +251,22 @@ function TrackingContent() {
             fontWeight: 500,
           }}
         >
-          {locale === "bn" ? "সার্ভিস অর্ডার নির্বাচন করুন" : "Select Service Order"}
+          {locale === "bn" ? "অথবা আপনার বর্তমান অর্ডার থেকে নির্বাচন করুন" : "Or Select From Your Active Orders"}
         </label>
         <select
           id={selectId}
           value={orderId ?? ""}
-          onChange={(e) => setOrderId(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => {
+            setOrderId(e.target.value ? Number(e.target.value) : null);
+            setActiveRef(null);
+          }}
           style={inputStyle}
           aria-label={locale === "bn" ? "অর্ডার নির্বাচন" : "Order selection"}
         >
           <option value="">{t.trackingSelectPlaceholder}</option>
           {bookings.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.ref} — {b.device} ({b.state})
+              {b.ref} {b.legacy_reference ? `[Legacy: ${b.legacy_reference}]` : ""} — {b.device} ({b.state})
             </option>
           ))}
         </select>
@@ -316,6 +401,12 @@ function TrackingContent() {
           >
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <Stat label={t.trackingStatRef} value={tracking.ref} />
+              {tracking.legacy_reference && (
+                <Stat
+                  label={locale === "bn" ? "পূর্ববর্তী রেফারেন্স (MIG-03)" : "Legacy Reference (MIG-03)"}
+                  value={tracking.legacy_reference}
+                />
+              )}
               <Stat label={t.trackingDeviceDetails} value={tracking.device || "—"} />
               <Stat label={t.bookingBranchLabel} value={tracking.branch || "—"} />
               <Stat label={t.trackingServiceMode} value={tracking.service_type === "walk_in" ? t.bookingModeWalkIn : tracking.service_type === "collection" ? t.bookingModeCollection : t.bookingModeOnsite} />

@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mdm.quality_audited",
+  "description": "Published by cd_mdm_core through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "mdm.quality_audited"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_mdm_core"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "domain",
+        "audit_state",
+        "completeness_score",
+        "uniqueness_score",
+        "validity_score",
+        "overall_quality_score",
+        "records_audited"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "audit_state": {
+          "type": "string"
+        },
+        "completeness_score": {
+          "type": "number"
+        },
+        "uniqueness_score": {
+          "type": "number"
+        },
+        "validity_score": {
+          "type": "number"
+        },
+        "overall_quality_score": {
+          "type": "number"
+        },
+        "records_audited": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_mdm_core",
+  "x-publishers": [
+    "addons/platform/cd_mdm_core/models/fix_mdm_stewardship.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

@@ -1,0 +1,71 @@
+{
+  "milestone": "R10-M04",
+  "title": "The Real Environment Ladder and Operational Readiness",
+  "timestamp": "2026-10-22T11:31:36.057293+00:00",
+  "total_tasks": 6,
+  "tasks_passed": 2,
+  "tasks_incomplete": 3,
+  "tasks_failed": 1,
+  "status": "FAIL",
+  "tasks": [
+    {
+      "task": "R10-M04-T01",
+      "title": "12-Environment Ladder Provisioning & Data Rules Enforcement",
+      "environments_audited": 12,
+      "violations_count": 0,
+      "status": "PASS",
+      "passed": true,
+      "details": "12/12 environments audited; 0 data-rule violation(s)"
+    },
+    {
+      "task": "R10-M04-T02",
+      "title": "NFR-086c In-Stream Sovereign Masking on Clones",
+      "lines_processed": 8,
+      "nfr_086c_compliant": true,
+      "status": "PASS",
+      "passed": true,
+      "details": "8 lines processed, 0 residual PII line(s); evidence status PASS"
+    },
+    {
+      "task": "R10-M04-T03",
+      "title": "Disaster Recovery Warm Standby & Cutover Rehearsal (RB-52)",
+      "rpo_seconds": null,
+      "rto_seconds": null,
+      "runbook_present": true,
+      "status": "INCOMPLETE",
+      "passed": false,
+      "details": "evidence status INCOMPLETE; RPO unmeasured, RTO unmeasured; RB-52 runbook present"
+    },
+    {
+      "task": "R10-M04-T04",
+      "title": "Gate GP-12 Build-Once-Promote & Rollback Rehearsal Drill",
+      "immutable_digest": null,
+      "promotion_ladder_stages": 4,
+      "status": "INCOMPLETE",
+      "passed": false,
+      "details": "evidence status INCOMPLETE; digest not resolved; GP-12 not discharged"
+    },
+    {
+      "task": "R10-M04-T05",
+      "title": "Operator Manual & Knowledge Handover Sign-Off",
+      "operator_manual": "docs/operator/OPERATOR_MANUAL.md",
+      "handover_dossier": "docs/traceability/r10-m04-operator-handover.md",
+      "signoffs_count": 5,
+      "status": "INCOMPLETE",
+      "passed": false,
+      "details": "operator manual and handover dossier present=True; 5 sign-off(s) recorded as approved=True - human attestations, UNMEASURED by this run"
+    },
+    {
+      "task": "R10-M04-T06",
+      "title": "HA Platform Hardening, Vault Secrets (EP-06) & D-042",
+      "ha_drills_passed": 0,
+      "ha_drills_total": 4,
+      "secret_violations": 0,
+      "files_scanned": 4845,
+      "d042_ratified": true,
+      "status": "FAIL",
+      "passed": false,
+      "details": "HA drills: evidence status FAIL, 0/4 drill(s) PASS; secret scan: 0 violation(s) in 4845 files"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "gate": "G8",
+  "milestone": "R09-M05",
+  "task": "R09-M05-T03",
+  "standard": "PE-007 / AR-012 / DoD-15",
+  "drill_type": "Full-Estate Disaster Recovery & Sovereign Failover Drill",
+  "drill_executed_at": "2026-10-22T11:31:35.305213+00:00",
+  "verdict": "FAIL",
+  "targets": {
+    "rpo_max_allowed_seconds": 900.0,
+    "rto_max_allowed_seconds": 7200.0,
+    "data_loss_records_allowed": 0,
+    "sovereign_residency_target": "Bangladesh (Dhaka DC Z4)"
+  },
+  "measured_metrics": {
+    "rpo_measured_seconds": null,
+    "rpo_status": "UNMEASURED",
+    "rto_measured_seconds": null,
+    "rto_status": "UNMEASURED",
+    "data_loss_records": null,
+    "replication_lag_ms": null,
+    "branches_verified_online": null,
+    "portals_verified_healthy": null,
+    "sovereign_zone_promoted": null,
+    "note": "None = not measured: no failover was executed by this run"
+  },
+  "components_in_scope": [
+    "PostgreSQL primary (postgres-prod)",
+    "PostgreSQL DR standby (postgres-dr)",
+    "ClickHouse analytical warehouse (clickhouse)",
+    "TimescaleDB telemetry engine",
+    "Apache Kafka KRaft 3-node event bus (kafka-1..3)",
+    "53-branch edge service network (OU-01..OU-53)",
+    "Next.js customer & seller portals (P01..P12)",
+    "Sovereign standby cluster (Z4 Bangladesh residency)"
+  ],
+  "drill_scenario": "Catastrophic Primary Datacenter Outage with Automated Sovereign Standby Failover to Dhaka DC (Z4)",
+  "summary": {
+    "checks_total": 12,
+    "checks_passed": 6,
+    "checks_failed": 1,
+    "checks_unmeasured": 5
+  },
+  "checks": [
+    {
+      "id": "primary_replication_config",
+      "name": "Primary PostgreSQL WAL streaming + archiving configured",
+      "status": "PASS",
+      "detail": "postgres-prod: wal_level=replica, max_wal_senders=10, archive_mode=on, synchronous_standby_names=unset (asynchronous: RPO > 0 on primary loss)"
+    },
+    {
+      "id": "dr_standby_config",
+      "name": "DR warm standby declared as a streaming replica",
+      "status": "PASS",
+      "detail": "postgres-dr: primary_conninfo set, standby bootstrap declared, healthcheck asserts recovery mode"
+    },
+    {
+      "id": "kafka_kraft_quorum_config",
+      "name": "Kafka KRaft quorum survives one broker loss",
+      "status": "PASS",
+      "detail": "3 brokers, 3 KRaft controllers, 3 quorum voters; replication factor and min ISR tolerate one broker loss"
+    },
+    {
+      "id": "kafka_healthchecks",
+      "name": "Kafka broker healthchecks can report an unhealthy broker",
+      "status": "PASS",
+      "detail": "3 broker healthchecks propagate failure"
+    },
+    {
+      "id": "clickhouse_persistence",
+      "name": "ClickHouse warehouse data persisted on a volume",
+      "status": "PASS",
+      "detail": "clickhouse mounts /var/lib/clickhouse on a volume"
+    },
+    {
+      "id": "timescaledb_declared",
+      "name": "TimescaleDB telemetry engine declared in infra/compose",
+      "status": "FAIL",
+      "detail": "no service in 17 compose file(s) uses a TimescaleDB image (the telemetry hypertable DDL needs CREATE EXTENSION timescaledb)"
+    },
+    {
+      "id": "runbook_present",
+      "name": "RB-52 DR runbook present",
+      "status": "PASS",
+      "detail": "RB-52-dr-disaster-recovery-and-cutover.md present"
+    },
+    {
+      "id": "rpo",
+      "name": "RPO <= 900 s (data loss at failover)",
+      "status": "UNMEASURED",
+      "detail": "requires the production estate and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "rto",
+      "name": "RTO <= 7200 s (sovereign standby promotion)",
+      "status": "UNMEASURED",
+      "detail": "requires the production estate and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "integrity_audit",
+      "name": "Full-estate integrity audit (ledgers, escrow, serials, telemetry, ClickHouse views)",
+      "status": "UNMEASURED",
+      "detail": "requires checksums taken on the primary before and on the promoted standby after a failover; not exercised"
+    },
+    {
+      "id": "post_failover_portals",
+      "name": "Post-failover portal & JSON-RPC verification (P01..P12)",
+      "status": "UNMEASURED",
+      "detail": "requires the production estate and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "z4_residency",
+      "name": "Promoted standby resident in Bangladesh (Z4)",
+      "status": "UNMEASURED",
+      "detail": "requires the Dhaka DR site; data residency of a real host cannot be observed from a workstation"
+    }
+  ]
+}

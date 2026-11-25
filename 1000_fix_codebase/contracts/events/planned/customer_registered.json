@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "customer.registered",
+  "description": "Event emitted when a customer or business entity registers in the party master",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "customer.registered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_party_master"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "party_id",
+        "party_type",
+        "name",
+        "registered_at"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "integer"
+        },
+        "party_type": {
+          "type": "string",
+          "enum": [
+            "individual",
+            "corporate"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "registered_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

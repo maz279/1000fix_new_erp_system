@@ -16,7 +16,12 @@ let _client: ApiClient | null = null;
 function getClient(): ApiClient {
   if (!_client) {
     _client = new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000",
+      // Same-origin allow-listed bridge in the browser; FIX_API_BASE only for
+      // server-rendered callers when a deployment needs it.
+      baseUrl:
+        typeof window !== "undefined"
+          ? "/api/odoo"
+          : process.env.FIX_API_BASE || "http://127.0.0.1:8069",
       tokenGetter: () => {
         if (typeof window !== "undefined") {
           return window.sessionStorage.getItem("fix_token");

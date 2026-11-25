@@ -23,6 +23,10 @@ function Run-Py([string]$Script, [string[]]$PyArgs = @()) {
     # and, for tests, the vendored odoo package itself. Without this the odoo
     # targets died on "No module named 'libs/py'" (P07 verification finding).
     $env:PYTHONPATH = "$root;$(Join-Path $root 'vendor\odoo')$([System.IO.Path]::PathSeparator)$env:PYTHONPATH"
+    # Odoo's server clock is UTC by contract (odoo/__init__.py sets TZ=UTC +
+    # time.tzset, which Windows lacks): set it before the process starts so the
+    # C runtime reads UTC - otherwise local time is stored as if it were UTC.
+    $env:TZ = 'UTC'
     $py = Get-Command python -ErrorAction SilentlyContinue
     if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue; & $py.Source -3.12 (Join-Path $root $Script) @PyArgs }
     else { & $py.Source (Join-Path $root $Script) @PyArgs }

@@ -1,0 +1,91 @@
+{
+  "gate": "Gate G6: New Asset Businesses & EventBus Live (Month 26 / MS-08)",
+  "review_date_utc": "2026-10-19T06:00:00Z",
+  "status": "PASS",
+  "chairperson": "S. M. Farhan Chowdhury (Programme Content Lead & Steering Committee Representative)",
+  "panel_signoff": [
+    {
+      "role": "Programme Content Lead",
+      "name": "S. M. Farhan Chowdhury",
+      "verdict": "PASS",
+      "signoff_reference": "docs/governance/content-approval-g6-signoff.md"
+    },
+    {
+      "role": "Chief Technology Officer",
+      "name": "CTO / EAB Chair",
+      "verdict": "PASS",
+      "signoff_reference": "docs/decisions/D-037-kafka-event-bus-migration.md"
+    },
+    {
+      "role": "Head of Quality & Compliance",
+      "name": "Lead Auditor (ISO 9001 / BLA 2006)",
+      "verdict": "PASS",
+      "signoff_reference": "docs/decisions/D-040-m24-m60-grc-direction-ruling.md"
+    },
+    {
+      "role": "Principal Site Reliability Engineer",
+      "name": "Lead SRE / DR Architect",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/g6-pe007-dr-drill-evidence.json"
+    }
+  ],
+  "criteria_verification_matrix": {
+    "G6-1": {
+      "title": "T-6 entry: fitness clean",
+      "evidence": "27 fitness functions passing with 0 failures",
+      "outcome": "PASS"
+    },
+    "G6-2": {
+      "title": "Asset businesses transacting",
+      "evidence": "cd_rental_asset, cd_tradein, and cd_data_case operational",
+      "outcome": "PASS"
+    },
+    "G6-3": {
+      "title": "Event-bus migration (Kafka)",
+      "evidence": "3-node HA KRaft cluster, dual-write parity, consumer cutover, DLQ replay, D-037 ADR",
+      "outcome": "PASS"
+    },
+    "G6-4": {
+      "title": "Journeys 8, 9, 11 automated",
+      "evidence": "rental.closed, tradein.paid, data_case.purged automated over EventBus",
+      "outcome": "PASS"
+    },
+    "G6-5": {
+      "title": "D-025 upgrade slot executed",
+      "evidence": "D-025/D-038 ADRs, 0 forks, OCA v20 matrix, TR-07 Bengali conjunct rendering",
+      "outcome": "PASS"
+    },
+    "G6-6": {
+      "title": "M06 residency conformance",
+      "evidence": "Z4 Bangladesh resident routing and air-gapped custody purge",
+      "outcome": "PASS"
+    },
+    "G6-7": {
+      "title": "Content approvals",
+      "evidence": "Lead appointed (AP-01), 32 Class A/B files approved, 16 KB-* and 24 TR-* loaded",
+      "outcome": "PASS"
+    },
+    "G6-8": {
+      "title": "ML model governance",
+      "evidence": "ml-gateway registry, drift detection, dispatch scoring, demand forecast (11/11 tests green)",
+      "outcome": "PASS"
+    },
+    "G6-9": {
+      "title": "Gate profile (PE-004 / PE-007)",
+      "evidence": "1.5x peak performance profile clean, DR failover RPO=0s, RTO=38.5s",
+      "outcome": "PASS"
+    },
+    "G6-10": {
+      "title": "All modules shipped",
+      "evidence": "100% first-party modules shipped with zero unmigrated forks",
+      "outcome": "PASS"
+    }
+  },
+  "summary": {
+    "total_criteria": 10,
+    "passed": 10,
+    "conditional": 0,
+    "failed": 0,
+    "gate_decision": "UNANIMOUS APPROVAL FOR COMMERCIAL GO-LIVE"
+  }
+}

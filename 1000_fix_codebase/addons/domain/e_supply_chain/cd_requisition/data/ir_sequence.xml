@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The PO-reference sequence fix.purchase.order.create() has always
+         called. Without it every PO of a day was 'PO/<today>' - the po_ref the
+         vendor portal and the M52 matcher key on was not unique. -->
+    <data noupdate="1">
+        <record id="seq_fix_purchase_proforma" model="ir.sequence">
+            <field name="name">Supplier Proforma Invoice</field>
+            <field name="code">fix.purchase.proforma</field>
+            <field name="prefix">SPI/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_purchase_advance" model="ir.sequence">
+            <field name="name">Supplier Advance Payment</field>
+            <field name="code">fix.purchase.advance</field>
+            <field name="prefix">SADV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_purchase_order" model="ir.sequence">
+            <field name="name">Purchase Order</field>
+            <field name="code">fix.purchase.order</field>
+            <field name="prefix">PO/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_rfq" model="ir.sequence">
+            <field name="name">RFQ Event</field>
+            <field name="code">fix.procurement.rfq</field>
+            <field name="prefix">RFQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_bid" model="ir.sequence">
+            <field name="name">Supplier Bid</field>
+            <field name="code">fix.procurement.bid</field>
+            <field name="prefix">BID/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_award" model="ir.sequence">
+            <field name="name">Award Decision</field>
+            <field name="code">fix.procurement.award</field>
+            <field name="prefix">AWRD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_blanket" model="ir.sequence">
+            <field name="name">Blanket Agreement</field>
+            <field name="code">fix.procurement.blanket</field>
+            <field name="prefix">BLKT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_expedite" model="ir.sequence">
+            <field name="name">Expediting Case</field>
+            <field name="code">fix.procurement.expedite</field>
+            <field name="prefix">EXPD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_inspection" model="ir.sequence">
+            <field name="name">Goods Inspection</field>
+            <field name="code">fix.procurement.inspection</field>
+            <field name="prefix">INSP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- A06 R5: the PO goods receipt (GRN) referencing the PO lines. -->
+        <record id="seq_fix_purchase_receipt" model="ir.sequence">
+            <field name="name">Purchase Goods Receipt</field>
+            <field name="code">fix.purchase.receipt</field>
+            <field name="prefix">PGRN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_approved_source" model="ir.sequence">
+            <field name="name">Approved Source</field>
+            <field name="code">fix.procurement.approved.source</field>
+            <field name="prefix">APSRC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_purchase_service_entry" model="ir.sequence">
+            <field name="name">Service Entry</field>
+            <field name="code">fix.purchase.service.entry</field>
+            <field name="prefix">SRVE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

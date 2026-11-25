@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_hse_incident" model="ir.sequence">
+            <field name="name">HSE Incident</field>
+            <field name="code">fix.hse.incident</field>
+            <field name="prefix">HSE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- BLR 2015 r.73: the Form 28 accident register is a serially
+             numbered register, so every entry carries its own serial. -->
+        <record id="seq_fix_statutory_accident_register" model="ir.sequence">
+            <field name="name">Form 28 Accident Register Entry</field>
+            <field name="code">fix.statutory.accident.register</field>
+            <field name="prefix">F28/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_loneworker" model="ir.sequence">
+            <field name="name">Lone-Worker Check-In</field>
+            <field name="code">fix.hse.loneworker</field>
+            <field name="prefix">LW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_roadcheck" model="ir.sequence">
+            <field name="name">Road Safety Check</field>
+            <field name="code">fix.hse.roadcheck</field>
+            <field name="prefix">RCK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_drill" model="ir.sequence">
+            <field name="name">Emergency Drill</field>
+            <field name="code">fix.hse.drill</field>
+            <field name="prefix">DRL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_health" model="ir.sequence">
+            <field name="name">Occupational Health Record</field>
+            <field name="code">fix.hse.health</field>
+            <field name="prefix">OH/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

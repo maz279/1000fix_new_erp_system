@@ -10,7 +10,7 @@
    "volume": "250 K+/mo",
    "volume_bn": "প্রতি মাসে ২,৫০,০০০+ সেবা",
    "url": "/",
-   "port": 3010,
+   "port": 3000,
    "is_live": true,
    "is_mobile": false,
    "tech": "Next.js 16.3 + PWA",
@@ -62,8 +62,8 @@
    "users_bn": "ফিল্ড ও ওয়ার্কশপ টেকনিশিয়ান",
    "volume": "200–400",
    "volume_bn": "২০০–৪০০ জন সক্রিয় টেকনিশিয়ান",
-   "url": "http://127.0.0.1:3010/technician",
-   "port": 3010,
+   "url": "http://127.0.0.1:3000/technician",
+   "port": 3000,
    "is_live": true,
    "is_mobile": true,
    "tech": "Flutter Mobile + Next.js PWA",
@@ -83,22 +83,22 @@
     {
      "label_en": "Technician PWA",
      "label_bn": "টেকনিশিয়ান PWA",
-     "url": "/technician"
+     "url": "http://127.0.0.1:3000/technician"
     },
     {
      "label_en": "Day Queue",
      "label_bn": "দৈনিক কিউ",
-     "url": "/technician"
+     "url": "http://127.0.0.1:3000/technician"
     },
     {
      "label_en": "Geofenced Clock-In",
      "label_bn": "জিওফেন্স হাজিরা",
-     "url": "/technician"
+     "url": "http://127.0.0.1:3000/technician"
     },
     {
      "label_en": "Van Stock Scan",
      "label_bn": "ভ্যান স্টক স্ক্যান",
-     "url": "/technician"
+     "url": "http://127.0.0.1:3000/technician"
     },
     {
      "label_en": "Field Dispatch Board",

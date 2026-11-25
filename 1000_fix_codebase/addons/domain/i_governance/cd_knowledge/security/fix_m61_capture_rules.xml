@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M61 capture audit (2026-11-18): a technician sees their own offline set;
+     Knowledge Publishers (the technical library owner) see and maintain all. -->
+<odoo>
+    <record id="rule_fix_knowledge_offline_set_own" model="ir.rule">
+        <field name="name">fix.knowledge.offline.set: own set</field>
+        <field name="model_id" ref="model_fix_knowledge_offline_set"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_knowledge_offline_set_publisher" model="ir.rule">
+        <field name="name">fix.knowledge.offline.set: publishers see all</field>
+        <field name="model_id" ref="model_fix_knowledge_offline_set"/>
+        <field name="groups" eval="[(4, ref('cd_knowledge.group_knowledge_publisher'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

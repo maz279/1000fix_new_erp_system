@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "supplier.agreement_activated",
+  "description": "Published by cd_vendor_portal through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "supplier.agreement_activated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_vendor_portal"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "agreement",
+        "supplier_id",
+        "type",
+        "term_to"
+      ],
+      "properties": {
+        "agreement": {
+          "type": "string"
+        },
+        "supplier_id": {
+          "type": "integer"
+        },
+        "type": {
+          "type": "string"
+        },
+        "term_to": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_vendor_portal",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_vendor_portal/models/fix_supplier_terms.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

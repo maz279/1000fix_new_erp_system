@@ -15,19 +15,34 @@ Owns:
 - fix.refurb.grade (refurbishment grades for M14)
 - fix.brand (brand master — 17+ brand partners)
 - fix.device.model (device model master referenced by M17)
+- fix.srt.baseline (governed standard-repair-time register, BRU-CAT-11)
+- fix.part.crossref (part cross-references and approved alternates)
+- fix.catalogue.publication (versioned channel projections)
+- fix.service.mode.duration, fix.model.compatibility, fix.catalogue.attribute.set,
+  fix.subscription.plan.def (M37 capture audit, third pass)
+- fix.charge.code (non-stock service & charge codes) and the commercial
+  document line standard (fix.commercial.line.mixin)
 
 AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Catalogue",
-    "depends": ["base", "mail", "product", "cd_entity_config", "cd_rbac_ext",
-                 "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "data/fix_refurb_grades.xml",
-             "data/fix_brand_data.xml",
-             "views/fix_catalogue_views.xml",
-             "views/fix_catalogue_workspace_views.xml"],
+    "depends": ["base", "mail", "product", "cd_entity_config", "cd_rbac_ext", "cd_event_outbox"],
+    "data": [
+        # A04 audit (2026-11-04): the catalogue roles, before the ACLs naming them
+        "security/cd_catalogue_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "security/fix_catalogue_usage_rules.xml",
+        "data/fix_refurb_grades.xml",
+        "data/fix_brand_data.xml",
+        "data/ir_cron.xml",
+        "data/fix_charge_code_data.xml",
+        "views/fix_catalogue_views.xml",
+        "views/fix_catalogue_workspace_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M37-01",

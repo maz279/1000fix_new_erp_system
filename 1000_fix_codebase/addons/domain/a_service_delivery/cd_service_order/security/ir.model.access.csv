@@ -9,3 +9,14 @@ access_fix_qc_item,fix.qc.item,model_fix_qc_item,base.group_user,1,1,1,1
 access_fix_sla_policy,fix.sla.policy,model_fix_sla_policy,base.group_user,1,1,1,0
 access_fix_diagnostic_node,fix.diagnostic.node,model_fix_diagnostic_node,base.group_user,1,1,1,0
 access_fix_service_order_fault,fix.service.order.fault,model_fix_service_order_fault,base.group_user,1,1,1,1
+access_fix_fault_code,fix.fault.code,model_fix_fault_code,base.group_user,1,1,1,0
+access_fix_sla_item,fix.sla.item,model_fix_sla_item,base.group_user,1,1,1,1
+access_fix_sla_kpi_instance,fix.sla.kpi.instance,model_fix_sla_kpi_instance,base.group_user,1,1,1,0
+access_fix_so_approval,fix.so.approval,model_fix_so_approval,base.group_user,1,1,1,0
+access_fix_so_part_exemption,fix.so.part.exemption,model_fix_so_part_exemption,base.group_user,1,1,1,0
+access_fix_fault_brand_map,fix.fault.brand.map,model_fix_fault_brand_map,base.group_user,1,1,1,1
+access_fix_escalation_rule_user,fix.escalation.rule user,model_fix_escalation_rule,base.group_user,1,0,0,0
+access_fix_escalation_rule_supervisor,fix.escalation.rule supervisor,model_fix_escalation_rule,cd_service_order.group_so_supervisor,1,1,1,1
+access_fix_escalation_event_user,fix.escalation.event,model_fix_escalation_event,base.group_user,1,1,0,0
+access_fix_fault_symptom,fix.fault.symptom,model_fix_fault_symptom,base.group_user,1,1,1,0
+access_fix_fault_root_cause,fix.fault.root.cause,model_fix_fault_root_cause,base.group_user,1,1,1,1

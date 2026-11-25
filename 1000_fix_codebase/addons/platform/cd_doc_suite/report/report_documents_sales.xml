@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — SALES documents (QWeb, A4 portrait, web.external_layout letterhead).
+
+  - Quotation            fix.quotation        (cd_quotation)
+  - Repair Estimate      fix.estimate         (cd_service_order/cd_quotation)
+  - Service Order copy   fix.service.order    (cd_service_order)
+  - Delivery Challan     fix.service.order    (handover document, 90-day policy
+                                               wording carried over from the
+                                               legacy TFSL/SI/RT-006 invoice)
+  - Tender Price Schedule fix.tender       (cd_quotation; BPPA e-PG2-3A/3B)
+
+  Template rules (repo conventions): labels translatable via bn_BD.po later;
+  identifiers stay ASCII; amounts via monetary widget with doc.currency_id;
+  wording via the amount_in_words_en computed field (models/fix_doc_words.py).
+-->
+<odoo>
+
+    <!-- ============================ QUOTATION ============================ -->
+    <record id="action_report_quotation" model="ir.actions.report">
+        <field name="name">Quotation</field>
+        <field name="model">fix.quotation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_quotation</field>
+        <field name="report_file">cd_doc_suite.report_quotation</field>
+        <field name="print_report_name">'Quotation %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_quotation"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_advance_request" model="ir.actions.report">
+        <field name="name">Advance Payment Request</field>
+        <field name="model">fix.quotation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_advance_request</field>
+        <field name="report_file">cd_doc_suite.report_advance_request</field>
+        <field name="print_report_name">'Advance Request %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_quotation"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- Quote-to-cash P2 (13 Nov 2026): what the customer pays before work
+         starts, how, and what is already received. Not a tax invoice. -->
+    <template id="report_advance_request">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="cd_doc_suite.report_advance_request_document" t-lang="doc.document_lang or doc.customer_id.lang or 'en_US'"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_advance_request_document">
+                <t t-set="doc" t-value="doc.with_context(lang=doc.document_lang or doc.customer_id.lang or 'en_US')"/>
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+                        <div class="cds-title-band">
+                            <h1>ADVANCE PAYMENT REQUEST</h1>
+                            <div class="cds-title-sub">
+                                Against quotation <b t-esc="doc.name"/> v<b t-esc="doc.version or 1"/>
+                                <t t-if="doc.customer_po_ref"> · Your PO <b t-esc="doc.customer_po_ref"/></t>
+                            </div>
+                        </div>
+                        <table class="cds-parties">
+                            <tr><td>
+                                <div class="cds-party-label">Requested From</div>
+                                <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                <div t-field="doc.customer_id" t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
+                            </td></tr>
+                        </table>
+                        <table class="cds-totals">
+                            <tr><td class="cds-tot-label">Quotation Total (incl. VAT)</td><td class="cds-tot-value"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr><td class="cds-tot-label">Advance Required (<t t-esc="'%g' % (doc.advance_pct or 0)"/>%)</td><td class="cds-tot-value"><span t-field="doc.advance_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.advance_received"><td class="cds-tot-label">Already Received</td><td class="cds-tot-value"><span t-field="doc.advance_received" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr class="cds-grand"><td class="cds-tot-label">Please Pay Now</td><td class="cds-tot-value"><span t-field="doc.advance_outstanding" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+                        <div class="cds-notes">
+                            <b>How to pay</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li t-foreach="doc.payment_method_ids" t-as="m"><t t-esc="m.name"/><t t-if="m.note">: <t t-esc="m.note"/></t></li>
+                            </ul>
+                            <p style="margin-top:6px;">Quote <b t-esc="doc.name"/> as the payment reference. This request is not a tax invoice: VAT is charged on the invoice the advance is applied to.</p>
+                        </div>
+                    </div>
+                </t>
+    </template>
+
+    <!-- Quote-to-cash P3 (13 Nov 2026): printed in the quotation's document
+         language (English or Bangla, cd_doc_suite/i18n/bn_BD.po). -->
+    <template id="report_quotation">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="cd_doc_suite.report_quotation_document" t-lang="doc.document_lang or doc.customer_id.lang or 'en_US'"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_quotation_document">
+                <t t-set="doc" t-value="doc.with_context(lang=doc.document_lang or doc.customer_id.lang or 'en_US')"/>
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <!-- Commercial document standard (17 Nov 2026): shared head, lines and totals -->
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_head"/>
+
+                        <!-- Quote-to-cash P1 (12 Nov 2026): the quotation lists what it quotes. -->
+                        <t t-set="firm_lines" t-value="doc.line_ids.filtered(lambda l: not l.is_optional)"/>
+                        <t t-set="option_lines" t-value="doc.line_ids.filtered(lambda l: l.is_optional and not l.display_type)"/>
+                        <t t-if="firm_lines" t-call="cd_doc_suite.commercial_lines"/>
+
+                        <table class="cds-table" t-if="not firm_lines">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">SL</th>
+                                    <th>Description</th>
+                                    <th class="cds-num" style="width: 22%;">Amount (excl. VAT)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="cds-ctr">1</td>
+                                    <td>
+                                        <t t-esc="'Service quotation %s' % doc.name"/>
+                                        <t t-if="doc.estimate_id"><div style="font-size:8pt;color:#555;">Based on estimate <t t-esc="doc.estimate_id.display_name"/></div></t>
+                                    </td>
+                                    <td class="cds-num"><span t-field="doc.value" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="option_lines" style="margin-top:6px;">
+                            <thead>
+                                <tr>
+                                    <th class="cds-ctr" style="width: 4%;">SL</th>
+                                    <th style="width: 12%;">Item Code</th>
+                                    <th>Optional items (not included in the total)</th>
+                                    <th class="cds-num" style="width: 9%;">Qty</th>
+                                    <th class="cds-num" style="width: 18%;">Amount (excl. VAT)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="option_lines" t-as="line">
+                                    <td class="cds-ctr" t-esc="line_index + 1"/>
+                                    <td t-esc="line.item_code or ''"/>
+                                    <td t-esc="line.description"/>
+                                    <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
+                                    <td class="cds-num"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <t t-call="cd_doc_suite.commercial_footer"/>
+
+                        <div class="cds-notes">
+                            <b>Terms &amp; Conditions</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li t-if="doc.valid_until">This quotation is valid until <b t-field="doc.valid_until"/>.</li>
+                                <li>Prices are quoted in <t t-esc="doc.currency_id.name"/>. VAT is shown separately and is included in the Total Payable.</li>
+                                <li t-if="doc.acceptance_method">Acceptance method: <t t-esc="{'otp':'OTP verification','esign':'e-Signature','signed_form':'Signed acceptance form'}.get(doc.acceptance_method, doc.acceptance_method)"/>.</li>
+                                <li t-if="doc.payment_term_id">Payment terms: <b t-esc="doc.payment_term_id.name"/>.</li>
+                                <li t-if="doc.advance_pct">Advance: <t t-esc="'%g' % doc.advance_pct"/>% of the total payable (<span t-field="doc.advance_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>) with the order.</li>
+                                <li t-if="doc.payment_method_ids">Payment accepted by: <t t-esc="', '.join(doc.payment_method_ids.mapped('name'))"/>.</li>
+                                <li t-if="doc.delivery_terms">Delivery: <t t-esc="doc.delivery_terms"/></li>
+                                <li t-if="doc.warranty_terms">Warranty: <t t-esc="doc.warranty_terms"/></li>
+                                <li t-if="doc.customer_po_ref">Your purchase order: <t t-esc="doc.customer_po_ref"/><t t-if="doc.customer_po_date"> dated <span t-field="doc.customer_po_date"/></t>.</li>
+                                <li t-if="doc.billing_line_ids">Invoicing: <t t-esc="'; '.join(('%.4g' % b.pct) + '% ' + dict(b._fields['kind'].selection).get(b.kind, '').lower() + ((' (' + b.note + ')') if b.note else '') for b in doc.billing_line_ids)"/>.</li>
+                                <li t-if="doc.segment in ('corporate', 'gov_tender', 'private_tender') and (doc.expected_vds_amount or doc.tds_amount)">Withholding at source: VDS <span t-field="doc.expected_vds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/> (Mushak 6.6) and TDS <span t-field="doc.tds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/> (Income Tax Act 2023) may be deducted from the payment against your certificates; expected cash receipt <span t-field="doc.expected_net_receipt" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>.</li>
+                                <li>Work commences upon written acceptance and, where applicable, advance payment.</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Accepted By (Customer)<br/>Name, Signature &amp; Date</td>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Authorized Signature</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+    </template>
+
+    <!-- ========================= REPAIR ESTIMATE ========================= -->
+    <record id="action_report_estimate" model="ir.actions.report">
+        <field name="name">Repair Estimate</field>
+        <field name="model">fix.estimate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_estimate</field>
+        <field name="report_file">cd_doc_suite.report_estimate</field>
+        <field name="print_report_name">'Estimate %s' % (object.order_id.name or object.id)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_estimate"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_estimate">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <!-- Commercial document standard (17 Nov 2026) -->
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ==================== SERVICE ORDER (CUSTOMER COPY) ==================== -->
+    <record id="action_report_service_order" model="ir.actions.report">
+        <field name="name">Service Order (Customer Copy)</field>
+        <field name="model">fix.service.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_service_order</field>
+        <field name="report_file">cd_doc_suite.report_service_order</field>
+        <field name="print_report_name">'Service Order %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_service_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_service_order">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>SERVICE ORDER <span class="cds-chip" t-esc="doc.state and doc.state.upper()"/></h1>
+                            <div class="cds-title-sub">
+                                Order No. <b t-esc="doc.name"/>
+                                <t t-if="doc.branch_id"> · Branch <b t-esc="doc.branch_id.name"/></t>
+                                <t t-if="doc.promised_delivery_date"> · Promised <b t-field="doc.promised_delivery_date"/></t>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Customer</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-field="doc.customer_id"
+                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
+                                    <div t-if="doc.customer_phone">Contact: <b t-esc="doc.customer_phone"/></div>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Service Details</div>
+                                    <table class="cds-meta">
+                                        <tr><td class="cds-meta-label">Category</td><td t-esc="{'standard':'Standard','warranty':'Warranty','amc':'AMC','rework':'Rework','rental':'Rental','refurbishment':'Refurbishment','recycling':'Recycling','goodwill':'Goodwill'}.get(doc.order_category, doc.order_category or '')"/></tr>
+                                        <tr><td class="cds-meta-label">Channel</td><td t-esc="{'walk_in':'Walk-in','collection':'Collection','onsite':'On-site','mail_in':'Mail-in','corporate':'Corporate','web_portal':'Web Portal','mobile_app':'Mobile App','whatsapp':'WhatsApp'}.get(doc.service_type, doc.service_type or '')"/></tr>
+                                        <tr><td class="cds-meta-label">Priority</td><td t-esc="{'normal':'Normal','high':'High','urgent':'Urgent','emergency':'Emergency'}.get(doc.priority, doc.priority or '')"/></tr>
+                                        <tr t-if="doc.technician_id"><td class="cds-meta-label">Engineer</td><td t-esc="doc.technician_id.name"/></tr>
+                                        <tr t-if="doc.ready_at"><td class="cds-meta-label">Ready</td><td><span t-field="doc.ready_at"/></td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead><tr><th>Equipment &amp; Reported Fault</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <b>Device:</b> <t t-esc="doc.device_id.display_name or ''"/>
+                                        <t t-if="doc.device_serial"><br/><b>Serial / IMEI:</b> <t t-esc="doc.device_serial"/></t>
+                                        <t t-if="doc.fault_description"><br/><b>Reported fault:</b> <t t-esc="doc.fault_description"/></t>
+                                        <t t-if="doc.cosmetic_condition_notes"><br/><b>Cosmetic condition:</b> <t t-esc="doc.cosmetic_condition_notes"/></t>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-meta">
+                            <tr t-if="doc.estimate_ids">
+                                <td class="cds-meta-label">Estimates</td>
+                                <td><t t-esc="', '.join(e.display_name for e in doc.estimate_ids)"/></td>
+                            </tr>
+                            <tr t-if="doc.invoice_ref">
+                                <td class="cds-meta-label">Invoice Ref.</td><td t-esc="doc.invoice_ref"/></tr>
+                            <tr t-if="doc.service_warranty_days">
+                                <td class="cds-meta-label">Service Warranty</td><td><t t-esc="doc.service_warranty_days"/> days <t t-if="doc.service_warranty_until">(until <span t-field="doc.service_warranty_until"/>)</t></td>
+                            </tr>
+                            <tr t-if="doc.amount_settled_bdt">
+                                <td class="cds-meta-label">Amount Settled</td><td><span t-field="doc.amount_settled_bdt" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                            </tr>
+                        </table>
+
+                        <div class="cds-notes">
+                            <b>Customer Care Policy</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li>Please preserve this document — it is required for device handover.</li>
+                                <li>Uncollected products: if a product is not collected within <b>90 (ninety) days</b> of repair completion it is considered abandoned; 1000FiX may then dispose of, scrap or otherwise handle the item at its sole discretion and bears no further liability.</li>
+                                <li>Hotline <b>16743</b> · https://1000fix.com</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Customer Signature<br/>(device received for service)</td>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Authorized Signature &amp; Stamp</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ======================== DELIVERY CHALLAN ======================== -->
+    <record id="action_report_delivery_challan" model="ir.actions.report">
+        <field name="name">Delivery Challan / Handover</field>
+        <field name="model">fix.service.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_delivery_challan</field>
+        <field name="report_file">cd_doc_suite.report_delivery_challan</field>
+        <field name="print_report_name">'Delivery Challan %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_service_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_delivery_challan">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>DELIVERY CHALLAN / GATE PASS</h1>
+                            <div class="cds-title-sub">
+                                Challan No. <b t-esc="doc.name"/> ·
+                                Handover date <b><span t-if="doc.delivered_at" t-field="doc.delivered_at"/><t t-else="" t-esc="'(pending)'"/></b>
+                                <t t-if="doc.delivery_otp_verified"> · OTP verified</t>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Delivered To</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-field="doc.customer_id"
+                                         t-options='{"widget": "contact", "fields": ["address", "phone"], "no_marker": true}'/>
+                                    <t t-if="doc.recipient_name"><br/>Received by: <b t-esc="doc.recipient_name"/></t>
+                                    <t t-if="doc.recipient_nid_phone"> · NID/Phone: <t t-esc="doc.recipient_nid_phone"/></t>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">From</div>
+                                    <div class="cds-party-name" t-if="doc.branch_id" t-esc="doc.branch_id.name"/>
+                                    <div class="cds-title-sub">1000FiX Services Ltd. — Service Network</div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Item Handed Over</th><th class="cds-ctr" style="width: 14%;">Qty</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td class="cds-ctr">1</td>
+                                    <td>
+                                        <b t-esc="doc.device_id.display_name or 'Device'"/>
+                                        <t t-if="doc.device_serial"><br/>Serial / IMEI: <b t-esc="doc.device_serial"/></t>
+                                        <t t-if="doc.accessory_bag_barcode"><br/>Accessory bag: <t t-esc="doc.accessory_bag_barcode"/></t>
+                                    </td>
+                                    <td class="cds-ctr">1</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-meta">
+                            <tr><td class="cds-meta-label">Service Order</td><td t-esc="doc.name"/></tr>
+                            <tr t-if="doc.ready_at"><td class="cds-meta-label">Repair Ready At</td><td><span t-field="doc.ready_at"/></td></tr>
+                            <tr t-if="doc.delivered_at"><td class="cds-meta-label">Delivered At</td><td><span t-field="doc.delivered_at"/></td></tr>
+                            <tr t-if="doc.service_warranty_until"><td class="cds-meta-label">Warranty Until</td><td><span t-field="doc.service_warranty_until"/></td></tr>
+                            <tr t-if="doc.amount_settled_bdt"><td class="cds-meta-label">Amount Settled</td><td><span t-field="doc.amount_settled_bdt" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.delivery_cost_bdt"><td class="cds-meta-label">Delivery Charge</td><td><span t-field="doc.delivery_cost_bdt" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+
+                        <div class="cds-notes">
+                            <b>Unclaimed Product Policy</b><br/>
+                            If any product is not collected within <b>90 (ninety) days</b> from the date of repair completion, it will be
+                            considered abandoned. In such cases 1000FiX reserves the full right to dispose of, scrap, or otherwise handle
+                            the item at its sole discretion and shall bear no further responsibility or liability. This policy ensures
+                            smooth service operations, proper inventory management, and continued delivery of high-standard customer service.
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Received with good condition by<br/>(Signature, NID/Phone &amp; Date)</td>
+                                <td class="cds-sign-pad">Authorized Signature &amp; Company Stamp<br/>1000FiX Services Ltd.</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+
+    <!-- ========================= SERVICE REPORT ========================= -->
+    <!-- A02 pass 2 (M01-11): what was found and done on the device, the
+         quality check and the repair warranty - the report the customer signs
+         at handover. No prices, no VAT: the tax invoice is the Mushak 6.3. -->
+    <record id="action_report_service_report" model="ir.actions.report">
+        <field name="name">Service Report</field>
+        <field name="model">fix.service.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_service_report</field>
+        <field name="report_file">cd_doc_suite.report_service_report</field>
+        <field name="print_report_name">'Service Report %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_service_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_service_report">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+                        <t t-set="est" t-value="doc._fix_governing_estimate()"/>
+                        <t t-set="qc" t-value="doc._fix_release_checklist()"/>
+
+                        <div class="cds-title-band">
+                            <h1>SERVICE REPORT</h1>
+                            <div class="cds-title-sub">
+                                Order No. <b t-esc="doc.name"/>
+                                <t t-if="doc.branch_id"> · Branch <b t-esc="doc.branch_id.name"/></t>
+                                <t t-if="doc.sla_resolution_at"> · Repaired <b t-field="doc.sla_resolution_at"/></t>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Customer</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-if="doc.customer_phone">Contact: <b t-esc="doc.customer_phone"/></div>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Device</div>
+                                    <div class="cds-party-name" t-esc="doc.device_id.display_name or ''"/>
+                                    <div t-if="doc.device_serial">Serial / IMEI: <b t-esc="doc.device_serial"/></div>
+                                    <div t-if="doc.technician_id">Engineer: <b t-esc="doc.technician_id.name"/></div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead><tr><th>Reported Fault</th><th>Findings</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td t-esc="doc.fault_description or ''"/>
+                                    <td t-esc="doc.diagnostic_notes or ''"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="doc.fault_line_ids">
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Fault Code</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="doc.fault_line_ids" t-as="fl">
+                                    <td class="cds-ctr" t-esc="fl_index + 1"/>
+                                    <td t-esc="fl.fault_code or ''"/>
+                                    <td t-esc="fl.description or ''"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="est">
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Work Done / Parts Fitted</th><th class="cds-ctr" style="width: 14%;">Qty</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="est.line_ids" t-as="ln">
+                                    <td class="cds-ctr" t-esc="ln_index + 1"/>
+                                    <td t-esc="ln.description or ''"/>
+                                    <td class="cds-ctr" t-esc="ln.quantity"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-meta">
+                            <tr t-if="qc">
+                                <td class="cds-meta-label">Quality Check</td>
+                                <td><t t-esc="qc.state.upper()"/><t t-if="qc.checked_at"> on <span t-field="qc.checked_at"/></t></td>
+                            </tr>
+                            <tr t-if="doc.service_warranty_days">
+                                <td class="cds-meta-label">Repair Warranty</td>
+                                <td><t t-esc="doc.service_warranty_days"/> days <t t-if="doc.service_warranty_until">(until <span t-field="doc.service_warranty_until"/>)</t></td>
+                            </tr>
+                            <tr t-if="doc.delivered_at">
+                                <td class="cds-meta-label">Handed Over</td><td><span t-field="doc.delivered_at"/></td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Received the device in working order<br/>(Customer signature &amp; date)</td>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Engineer / QC signature</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+
+    <!-- ================= TENDER PRICE SCHEDULE (e-PG2-3A / 3B) ================= -->
+    <!-- Quote-to-cash, tender part (13 Nov 2026): the BOQ as the BPPA standard
+         tender documents lay out the price schedule. Prices INCLUDE VAT and
+         levies (the STD rule); goods (e-PG2-3A) and related services (3B)
+         are scheduled separately. -->
+    <record id="action_report_tender_price_schedule" model="ir.actions.report">
+        <field name="name">Tender Price Schedule (e-PG2-3A/3B)</field>
+        <field name="model">fix.tender</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_tender_price_schedule</field>
+        <field name="report_file">cd_doc_suite.report_tender_price_schedule</field>
+        <field name="print_report_name">'Price Schedule %s' % (object.reference or object.name)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_tender"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_tender_price_schedule">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>PRICE SCHEDULE <span class="cds-chip" t-esc="{'draft':'DRAFT','no_bid':'NO BID','submitted':'SUBMITTED','won':'AWARDED','lost':'LOST','cancelled':'CANCELLED'}.get(doc.state, doc.state)"/></h1>
+                            <div class="cds-title-sub">
+                                Tender <b t-esc="doc.name"/>
+                                <t t-if="doc.reference"> · Tender ID <b t-esc="doc.reference"/></t>
+                                <t t-if="doc.egp_package_no"> · Package No. <b t-esc="doc.egp_package_no"/></t>
+                                · Submission deadline <b t-field="doc.due_date"/>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Procuring Entity</div>
+                                    <div class="cds-party-name" t-esc="doc.procuring_entity or doc.client_id.name or doc.client_name"/>
+                                    <div t-if="doc.client_name and doc.client_name != (doc.procuring_entity or doc.client_id.name)" t-esc="doc.client_name"/>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Tender</div>
+                                    <table class="cds-meta">
+                                        <tr><td class="cds-meta-label">Type</td><td t-esc="dict(doc._fields['tender_type'].selection).get(doc.tender_type, '')"/></tr>
+                                        <tr t-if="doc.bid_validity_days"><td class="cds-meta-label">Validity</td><td t-esc="'%d days' % doc.bid_validity_days"/></tr>
+                                        <tr t-if="doc.quotation_id"><td class="cds-meta-label">Priced on</td><td t-esc="doc.quotation_id.name"/></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <t t-foreach="[('goods', 'Form e-PG2-3A: Price Schedule for Goods'), ('related_service', 'Form e-PG2-3B: Price Schedule for Related Services')]" t-as="kind">
+                            <t t-set="rows" t-value="doc.boq_line_ids.filtered(lambda l: l.line_kind == kind[0])"/>
+                            <t t-if="rows">
+                                <div style="font-weight:bold;margin:8px 0 4px 0;" t-esc="kind[1]"/>
+                                <table class="cds-table" style="font-size:8pt;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:6%;">Item No.</th>
+                                            <th>Description</th>
+                                            <th style="width:9%;">Country of Origin</th>
+                                            <th style="width:6%;">Unit</th>
+                                            <th class="cds-num" style="width:7%;">Qty</th>
+                                            <th class="cds-num" style="width:12%;">Unit Price (incl. VAT)</th>
+                                            <th class="cds-num" style="width:13%;">Total Price (incl. VAT)</th>
+                                            <th style="width:10%;">Point of Delivery</th>
+                                            <th style="width:12%;">Delivery Period (required / offered)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="rows" t-as="line">
+                                            <td class="cds-ctr" t-esc="line.item_no"/>
+                                            <td t-esc="line.description"/>
+                                            <td t-esc="line.country_of_origin or ''"/>
+                                            <td t-esc="line.unit or ''"/>
+                                            <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
+                                            <td class="cds-num"><span t-field="line.unit_price_incl_vat" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                            <td class="cds-num"><span t-field="line.total_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                            <td t-esc="line.point_of_delivery or ''"/>
+                                            <td t-esc="'%s / %s' % (line.delivery_period_required or '-', line.delivery_period_offered or '-')"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <table class="cds-totals">
+                                    <tr><td class="cds-tot-label" t-esc="'Subtotal, %s' % ('goods' if kind[0] == 'goods' else 'related services')"/><td class="cds-tot-value"><span t-esc="sum(rows.mapped('total_price'))" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                                </table>
+                            </t>
+                        </t>
+
+                        <table class="cds-totals">
+                            <tr class="cds-grand"><td class="cds-tot-label">Total Tender Price (incl. VAT)</td><td class="cds-tot-value"><span t-field="doc.boq_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+
+                        <div class="cds-notes">
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li>Unit and total prices include VAT and all applicable levies, as the standard tender documents require.</li>
+                                <li t-if="doc.bid_validity_days">This tender is valid for <t t-esc="doc.bid_validity_days"/> days from the submission deadline.</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Authorized Signature, Name &amp; Date</td>
+                                <td class="cds-sign-pad">Seal</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_talent views (P09). -->
+<!-- cd_talent views (P09 / R07-M05). -->
 <odoo>
+    <!-- Job Requisition Views -->
     <record id="view_fix_job_requisition_list" model="ir.ui.view">
         <field name="name">fix.job.requisition.list</field>
         <field name="model">fix.job.requisition</field>
@@ -8,33 +9,209 @@
             <list>
                 <field name="name"/>
                 <field name="department_id"/>
+                <field name="position_id"/>
                 <field name="openings"/>
-                <field name="state"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_job_requisition_form" model="ir.ui.view">
+        <field name="name">fix.job.requisition.form</field>
+        <field name="model">fix.job.requisition</field>
+        <field name="arch" type="xml">
+            <form string="Job Requisition">
+                <header>
+                    <button name="action_request_approval" type="object" string="Request Approval" class="btn-primary" invisible="state != 'draft' or approval_state == 'pending'"/>
+                    <button name="action_close" type="object" string="Close" class="btn-secondary" invisible="state not in ('open', 'hired')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,open,hired,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. Senior Cleanroom Technician"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="department_id"/>
+                            <field name="position_id"/>
+                            <field name="openings"/>
+                            <field name="is_field_role"/>
+                            <field name="assessment_pass_mark"/>
+                        </group>
+                        <group>
+                            <field name="approval_state"/>
+                            <field name="approved_by_id"/>
+                            <field name="approved_on"/>
+                            <field name="hired_count"/>
+                            <field name="openings_left"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_job_requisition" model="ir.actions.act_window">
         <field name="name">Job Requisition</field>
         <field name="res_model">fix.job.requisition</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- Candidate Views -->
     <record id="view_fix_candidate_list" model="ir.ui.view">
         <field name="name">fix.candidate.list</field>
         <field name="model">fix.candidate</field>
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="email"/>
+                <field name="phone"/>
                 <field name="requisition_id"/>
-                <field name="state"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_candidate_form" model="ir.ui.view">
+        <field name="name">fix.candidate.form</field>
+        <field name="model">fix.candidate</field>
+        <field name="arch" type="xml">
+            <form string="Candidate">
+                <header>
+                    <button name="action_screen" type="object" string="Screen Candidate" class="btn-primary" invisible="state != 'applied'"/>
+                    <button name="action_interview" type="object" string="Interview" class="btn-primary" invisible="state != 'screening'"/>
+                    <button name="action_offer" type="object" string="Extend Offer" class="btn-primary" invisible="state != 'interview'"/>
+                    <button name="action_hire" type="object" string="Hire &amp; Start Onboarding" class="btn-success" invisible="state != 'offered'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="applied,screening,interview,offered,hired,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Candidate Full Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="email"/>
+                            <field name="phone"/>
+                            <field name="requisition_id"/>
+                            <field name="source"/>
+                            <field name="date_of_birth"/>
+                            <field name="nid_number"/>
+                        </group>
+                        <group>
+                            <field name="consent_given"/>
+                            <field name="consent_date"/>
+                            <field name="retention_until"/>
+                            <field name="employee_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_candidate" model="ir.actions.act_window">
         <field name="name">Candidate</field>
         <field name="res_model">fix.candidate</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Employee Onboarding Plan Views -->
+    <record id="view_fix_onboarding_plan_list" model="ir.ui.view">
+        <field name="name">fix.onboarding.plan.list</field>
+        <field name="model">fix.onboarding.plan</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="candidate_id"/>
+                <field name="position_id"/>
+                <field name="joined_date"/>
+                <field name="nid_verified" widget="boolean"/>
+                <field name="contract_signed" widget="boolean"/>
+                <field name="keycloak_provisioned" widget="boolean"/>
+                <field name="bank_details_captured" widget="boolean"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_onboarding_plan_form" model="ir.ui.view">
+        <field name="name">fix.onboarding.plan.form</field>
+        <field name="model">fix.onboarding.plan</field>
+        <field name="arch" type="xml">
+            <form string="Employee Onboarding Plan">
+                <header>
+                    <button name="action_start" type="object" string="Start Onboarding" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_complete" type="object" string="Complete Onboarding &amp; Emit Joiner Event" class="btn-success" invisible="state != 'in_progress'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,completed,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="candidate_id"/>
+                            <field name="requisition_id"/>
+                            <field name="employee_id"/>
+                            <field name="position_id"/>
+                        </group>
+                        <group>
+                            <field name="department_id"/>
+                            <field name="joined_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Statutory &amp; IT Onboarding Checklist" name="checklist">
+                            <group>
+                                <group string="Legal &amp; Statutory (BLA 2006)">
+                                    <field name="nid_verified"/>
+                                    <field name="signed_contract_file" filename="signed_contract_filename"/>
+                                    <field name="signed_contract_filename" invisible="1"/>
+                                    <field name="contract_signed"/>
+                                    <field name="contract_id"/>
+                                    <field name="bank_details_captured"/>
+                                </group>
+                                <group string="IT &amp; HSE Provisioning">
+                                    <field name="keycloak_provisioned"/>
+                                    <field name="it_assets_allocated"/>
+                                    <field name="safety_kit_issued"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_onboarding_plan" model="ir.actions.act_window">
+        <field name="name">Employee Onboarding Plan</field>
+        <field name="res_model">fix.onboarding.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fix_job_requisition" name="Job Requisition" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_job_requisition" sequence="200"/>
     <menuitem id="menu_fix_candidate" name="Candidate" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_candidate" sequence="210"/>
+    <menuitem id="menu_fix_onboarding_plan" name="Employee Onboarding" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_onboarding_plan" sequence="215"/>
 </odoo>

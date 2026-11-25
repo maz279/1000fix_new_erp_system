@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_demand_forecast" model="ir.sequence">
+            <field name="name">Demand Forecast</field>
+            <field name="code">fix.demand.forecast</field>
+            <field name="prefix">DFC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_policy" model="ir.sequence">
+            <field name="name">Demand Policy</field>
+            <field name="code">fix.demand.policy</field>
+            <field name="prefix">DPOL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_review" model="ir.sequence">
+            <field name="name">Demand Review Cycle</field>
+            <field name="code">fix.demand.review</field>
+            <field name="prefix">DRVW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_rebalance" model="ir.sequence">
+            <field name="name">Rebalance Proposal</field>
+            <field name="code">fix.demand.rebalance</field>
+            <field name="prefix">DRBL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_scenario" model="ir.sequence">
+            <field name="name">What-If Scenario</field>
+            <field name="code">fix.demand.scenario</field>
+            <field name="prefix">DSCN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_adjustment" model="ir.sequence">
+            <field name="name">Demand History Adjustment</field>
+            <field name="code">fix.demand.adjustment</field>
+            <field name="prefix">DADJ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_driver" model="ir.sequence">
+            <field name="name">Demand Driver</field>
+            <field name="code">fix.demand.driver</field>
+            <field name="prefix">DDRV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_service_target" model="ir.sequence">
+            <field name="name">Service-Level Target</field>
+            <field name="code">fix.demand.service.target</field>
+            <field name="prefix">DSLT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_lead_time" model="ir.sequence">
+            <field name="name">Lead-Time Model</field>
+            <field name="code">fix.demand.lead.time</field>
+            <field name="prefix">DLTM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_npi" model="ir.sequence">
+            <field name="name">New-Part Recommendation</field>
+            <field name="code">fix.demand.npi</field>
+            <field name="prefix">DNPI/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_eol" model="ir.sequence">
+            <field name="name">End-of-Life Plan</field>
+            <field name="code">fix.demand.eol</field>
+            <field name="prefix">DEOL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_van_par" model="ir.sequence">
+            <field name="name">Van Par Recommendation</field>
+            <field name="code">fix.demand.van.par</field>
+            <field name="prefix">DVPR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_network_policy" model="ir.sequence">
+            <field name="name">Network Stocking Policy</field>
+            <field name="code">fix.demand.network.policy</field>
+            <field name="prefix">DNET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

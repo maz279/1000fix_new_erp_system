@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04): run on every install and upgrade; both are
+     idempotent.
+     - the documents recorded before the evidence rule (none scanned) are
+       marked legacy, so they keep counting while
+       cd_vehicle_ext.legacy_documents_count_valid is on, and are queued for
+       their scan;
+     - the header fitness/insurance dates, typed columns before, are
+       recomputed from the document register. -->
+<odoo>
+    <function model="fix.vehicle.document" name="_fix_mark_legacy_documents"/>
+    <function model="fleet.vehicle" name="_fix_recompute_header_dates"/>
+</odoo>

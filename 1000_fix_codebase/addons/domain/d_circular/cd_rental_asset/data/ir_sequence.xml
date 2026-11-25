@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_rental_reservation" model="ir.sequence">
+            <field name="name">Rental Reservation</field>
+            <field name="code">fix.rental.reservation</field>
+            <field name="prefix">RENT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_deposit" model="ir.sequence">
+            <field name="name">Rental Deposit Movement</field>
+            <field name="code">fix.rental.deposit</field>
+            <field name="prefix">DEP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_condition" model="ir.sequence">
+            <field name="name">Rental Condition Report</field>
+            <field name="code">fix.rental.condition</field>
+            <field name="prefix">COND/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_turnaround" model="ir.sequence">
+            <field name="name">Rental Turnaround</field>
+            <field name="code">fix.rental.turnaround</field>
+            <field name="prefix">TURN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- M13 capture pass 2 (2026-11-19) -->
+        <record id="seq_fix_rental_extension" model="ir.sequence">
+            <field name="name">Rental Extension</field>
+            <field name="code">fix.rental.extension</field>
+            <field name="prefix">RNT-EXT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_loss" model="ir.sequence">
+            <field name="name">Rental Loss Case</field>
+            <field name="code">fix.rental.loss</field>
+            <field name="prefix">RNT-LOSS/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_swap" model="ir.sequence">
+            <field name="name">Rental Swap-Out</field>
+            <field name="code">fix.rental.swap</field>
+            <field name="prefix">RNT-SWAP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_redeployment" model="ir.sequence">
+            <field name="name">Rental Fleet Redeployment</field>
+            <field name="code">fix.rental.redeployment</field>
+            <field name="prefix">RNT-RDP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_exposure_override" model="ir.sequence">
+            <field name="name">Rental Exposure Override</field>
+            <field name="code">fix.rental.exposure.override</field>
+            <field name="prefix">RNT-OVR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

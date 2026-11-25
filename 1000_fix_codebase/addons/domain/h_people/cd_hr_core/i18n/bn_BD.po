@@ -3,108 +3,2753 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Employment Contract"
-msgstr "চাকরি চুক্তি"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__certificate_file
+msgid "Academic Certificate Scan"
+msgstr "শিক্ষাগত সনদের স্ক্যান"
 
-msgid "Employee"
-msgstr "কর্মী"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__acknowledged
+msgid "Acknowledged by Employee"
+msgstr "কর্মী কর্তৃক স্বীকৃত"
 
-msgid "Permanent"
-msgstr "স্থায়ী"
-
-msgid "Probation"
-msgstr "পরীক্ষামূলক"
-
-msgid "Fixed Term"
-msgstr "নির্দিষ্ট মেয়াদি"
-
-msgid "Part Time"
-msgstr "খণ্ডকালীন"
-
-msgid "Joining Date"
-msgstr "যোগদানের তারিখ"
-
-msgid "Basic Salary (Monthly)"
-msgstr "মূল বেতন (মাসিক)"
-
-msgid "Statutory Weekly Hours"
-msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
-
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
-
-msgid "Draft"
-msgstr "খসড়া"
-
-msgid "Active"
-msgstr "সক্রিয়"
-
-msgid "Expired"
-msgstr "মেয়াদোত্তীর্ণ"
-
-msgid "Terminated"
-msgstr "সমাপ্ত"
-
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
 msgid "Activate"
 msgstr "সক্রিয় করুন"
 
-msgid "Terminate"
-msgstr "সমাপ্ত করুন"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__active
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__active
+msgid "Active"
+msgstr "সক্রিয়"
 
-msgid "Leave Type"
-msgstr "ছুটির ধরন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__destination_joining_date
+msgid "Actual Station Joining Date"
+msgstr "প্রকৃত কর্মস্থলে যোগদানের তারিখ"
 
-msgid "Leave Request"
-msgstr "ছুটির আবেদন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__adhoc_allowance
+msgid "Ad-hoc / Interim Allowance"
+msgstr "অস্থায়ী / অন্তর্বর্তী ভাতা"
 
-msgid "Leave Name (Bengali)"
-msgstr "ছুটির নাম (বাংলা)"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__contract_addendum_file
+msgid "Amended Contract Addendum Scan"
+msgstr "সংশোধিত চুক্তির সংযোজনীর স্ক্যান"
 
-msgid "Approved"
-msgstr "অনুমোদিত"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__amendment_ref
+msgid "Amendment Reference"
+msgstr "সংশোধনী রেফারেন্স"
 
-msgid "Rejected"
-msgstr "প্রত্যাখ্যাত"
-
-msgid "Submitted"
-msgstr "জমা দেওয়া হয়েছে"
-
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_request_form
 msgid "Approve"
 msgstr "অনুমোদন"
 
-msgid "Organisation Position"
-msgstr "প্রাতিষ্ঠানিক পদ"
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Approve Legal Signoff"
+msgstr "আইনি অনুমোদন দিন"
 
-msgid "Reports To"
-msgstr "রিপোর্ট করেন"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__executive_approval__approved
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__tech_head_approval__approved
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
 
-msgid "Holders"
-msgstr "অধিকারী"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__approved
+msgid "Approved by Legal"
+msgstr "আইন বিভাগ কর্তৃক অনুমোদিত"
 
-msgid "Grade"
-msgstr "গ্রেড"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__asset_return_receipt_no
+msgid "Asset Return Receipt / Challan No"
+msgstr "সম্পদ ফেরত রসিদ / চালান নম্বর"
 
-msgid "Employee Code"
-msgstr "কর্মী কোড"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__asset_return_receipt_filename
+msgid "Asset Return Receipt Filename"
+msgstr "সম্পদ ফেরত রসিদ ফাইলের নাম"
 
-msgid "Position"
-msgstr "পদ"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__asset_return_receipt_file
+msgid "Asset Return Receipt Scan"
+msgstr "সম্পদ ফেরতের রসিদের স্ক্যান"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_repair_tier
+msgid "Assigned Technical Repair Tier"
+msgstr "নির্ধারিত কারিগরি মেরামত স্তর"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Basic Configuration"
+msgstr "মৌলিক কনফিগারেশন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__basic_monthly
+msgid "Basic Salary (Monthly)"
+msgstr "মূল বেতন (মাসিক)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__basic_increment_pct
+msgid "Basic Salary Increment Percentage"
+msgstr "মূল বেতন বৃদ্ধির হার (%)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__bga_license
+msgid "BGA Rework Machine Operator License"
+msgstr "বিজিএ রিওয়ার্ক মেশিন অপারেটর লাইসেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__board_university
+msgid "Board / University"
+msgstr "বোর্ড / বিশ্ববিদ্যালয়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__imprest_cash_settled
+msgid "Branch Imprest Cash / Float Fully Settled"
+msgstr "শাখার ইমপ্রেস্ট নগদ / ফ্লোট সম্পূর্ণ নিষ্পত্তিকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__storekeeper_cleared
+msgid "Branch Storekeeper Clearance Signed"
+msgstr "শাখা স্টোরকিপারের ছাড়পত্র স্বাক্ষরিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__reason
+msgid "Business Justification"
+msgstr "ব্যবসায়িক যুক্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__carry_forward_limit
+msgid "Carry Forward Limit (Days)"
+msgstr "পরবর্তী বছরে স্থানান্তরের সীমা (দিন)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__certificate_filename
+msgid "Certificate Filename"
+msgstr "সনদ ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__rejected
+msgid "Changes Required"
+msgstr "পরিবর্তন প্রয়োজন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__clearance_mrn_filename
+msgid "Clearance MRN Filename"
+msgstr "ছাড়পত্র এমআরএন ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__clearance_assets
+msgid "Company Assets Returned"
+msgstr "কোম্পানির সম্পদ ফেরত দেওয়া হয়েছে"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__temporary_stay_provided
+msgid "Company Transit Accommodation Provided"
+msgstr "কোম্পানির ট্রানজিট আবাসন প্রদানকৃত"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_employee_form_kpi_090
+msgid "Confirm Keycloak Deprovisioned"
+msgstr "কিক্লোক অ্যাকাউন্ট অপসারণ নিশ্চিত করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__contract_addendum_filename
+msgid "Contract Addendum Filename"
+msgstr "চুক্তি সংযোজনী ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__name
+msgid "Contract Ref"
+msgstr "চুক্তি রেফারেন্স"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Contract Reference"
+msgstr "চুক্তি রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__contract_count
 msgid "Contracts"
 msgstr "চুক্তিসমূহ"
 
-msgid "Identity Store Ref"
-msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__conveyance_allowance
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__conveyance_allowance
+msgid "Conveyance Allowance"
+msgstr "যাতায়াত ভাতা"
 
-msgid "People & Payroll"
-msgstr "জনবল ও বেতন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__current_basic
+msgid "Current Basic Salary"
+msgstr "বর্তমান মূল বেতন"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_operating_unit_id
+msgid "Current Branch / Hub"
+msgstr "বর্তমান শাখা / হাব"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_grade_band
+msgid "Current Corporate Grade Band"
+msgstr "বর্তমান করপোরেট গ্রেড ব্যান্ড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_department_id
+msgid "Current Department"
+msgstr "বর্তমান বিভাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_job_title
+msgid "Current Job Title"
+msgstr "বর্তমান পদের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__current_gross
+msgid "Current Monthly Gross Salary"
+msgstr "বর্তমান মাসিক গ্রস বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_position_id
+msgid "Current Position"
+msgstr "বর্তমান পদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_repair_tier
+msgid "Current Repair Tier"
+msgstr "বর্তমান মেরামত স্তর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__from_manager_id
+msgid "Current Reporting Manager"
+msgstr "বর্তমান রিপোর্টিং ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__nda_confirmed
+msgid "Customer Data Privacy Undertaking Confirmed"
+msgstr "গ্রাহক তথ্য গোপনীয়তার অঙ্গীকার নিশ্চিতকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__dearness_allowance
+msgid "Dearness Allowance"
+msgstr "মহার্ঘ ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__degree_title
+msgid "Degree Title"
+msgstr "ডিগ্রির নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__deprovisioned
+msgid "Deprovisioned"
+msgstr "অ্যাক্সেস প্রত্যাহারকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovision_confirmed_by
+msgid "Deprovisioning Confirmed By"
+msgstr "অ্যাকাউন্ট অপসারণ নিশ্চিতকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovision_hours
+msgid "Deprovisioning Time (Hours)"
+msgstr "অ্যাকাউন্ট অপসারণের সময় (ঘণ্টা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__deputation_allowance
+msgid "Deputation Allowance"
+msgstr "প্রেষণ ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__deputation_months
+msgid "Deputation Duration (Months)"
+msgstr "প্রেষণের সময়কাল (মাস)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__designation_held
+msgid "Designation Held"
+msgstr "অধিকৃত পদবি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_operating_unit_id
+msgid "Destination Branch / Hub"
+msgstr "গন্তব্য শাখা / হাব"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_grade_band
+msgid "Destination Corporate Grade Band"
+msgstr "গন্তব্য করপোরেট গ্রেড ব্যান্ড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_department_id
+msgid "Destination Department"
+msgstr "গন্তব্য বিভাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_job_title
+msgid "Destination Job Title"
+msgstr "গন্তব্য পদের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__destination_manager_date
+msgid "Destination Manager Concurrence Date"
+msgstr "গন্তব্য ব্যবস্থাপকের সম্মতির তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_position_id
+msgid "Destination Position"
+msgstr "গন্তব্য পদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__destination_manager_id
+msgid "Destination Receiving Manager"
+msgstr "গন্তব্যের গ্রহণকারী ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_manager_id
+msgid "Destination Reporting Manager"
+msgstr "গন্তব্য রিপোর্টিং ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__to_tax_location
+msgid "Destination Tax Jurisdiction"
+msgstr "গন্তব্য কর অধিক্ষেত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__target_workbench_id
+msgid "Destination Workbench Station ID"
+msgstr "গন্তব্য ওয়ার্কবেঞ্চ স্টেশন আইডি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__expiry_date
+msgid "Document Expiry Date"
+msgstr "দলিলের মেয়াদ শেষের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__reference
+msgid "Document Ref"
+msgstr "দলিলের সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__draft
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__state__draft
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__duration_years
+msgid "Duration (Years)"
+msgstr "সময়কাল (বছর)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__degree_level
+msgid "Education Level"
+msgstr "শিক্ষার স্তর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__effective_payroll_month
+msgid "Effective Payroll Month (YYYY-MM)"
+msgstr "কার্যকর বেতন মাস (YYYY-MM)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_dependant__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__employee_id
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__employee_code
+msgid "Employee Code"
+msgstr "কর্মী কোড"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_employment_contract
+msgid "Employment Contract"
+msgstr "চাকরি চুক্তি"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_employment_contract
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_contracts
 msgid "Employment Contracts"
 msgstr "চাকরি চুক্তিসমূহ"
 
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Employment Details"
+msgstr "চাকরির বিবরণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__end_date
+msgid "End Date"
+msgstr "শেষ তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__esd_certified
+msgid "ESD Safety Certified & Calibrated"
+msgstr "ইএসডি নিরাপত্তা সনদপ্রাপ্ত ও ক্যালিব্রেটেড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__executive_date
+msgid "Executive Signoff Date"
+msgstr "নির্বাহী অনুমোদনের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__experience_letter_file
+msgid "Experience / Release Letter Scan"
+msgstr "অভিজ্ঞতা / অবমুক্তি পত্রের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__experience_letter_filename
+msgid "Experience Letter Filename"
+msgstr "অভিজ্ঞতা পত্র ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__major_group
+msgid "Field / Major"
+msgstr "বিষয় / মূল বিষয়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__file_mimetype
+msgid "File MIME Type"
+msgstr "ফাইলের মাইম ধরন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__file_name
+msgid "File Name"
+msgstr "ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__file_size
+msgid "File Size (Bytes)"
+msgstr "ফাইলের আকার (বাইট)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__settlement_amount
+msgid "Final Settlement"
+msgstr "চূড়ান্ত নিষ্পত্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__finance_head_date
+msgid "Finance Clearance Date"
+msgstr "আর্থিক ছাড়পত্রের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__clearance_finance
+msgid "Finance Dues Cleared"
+msgstr "আর্থিক পাওনা পরিশোধিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__finance_head_id
+msgid "Financial Controller"
+msgstr "আর্থিক নিয়ন্ত্রক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__fixed_term
+msgid "Fixed Term"
+msgstr "নির্দিষ্ট মেয়াদি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__service_book_endorsement_file
+msgid "Form 7 Service Book Endorsement Scan"
+msgstr "ফরম ৭ সার্ভিস বইয়ের অনুমোদনের স্ক্যান"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Generate Contract (Form 6)"
+msgstr "চুক্তি তৈরি করুন (ফরম ৬)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__document_id
+msgid "Generated Contract Document"
+msgstr "তৈরিকৃত চুক্তির দলিল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__gpa_score
+msgid "GPA / Marks"
+msgstr "জিপিএ / নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__target_dispatch_zone
+msgid "GPS Field Dispatch Zone / Radius"
+msgstr "জিপিএস ফিল্ড ডিসপ্যাচ জোন / পরিধি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__grade
+msgid "Grade"
+msgstr "গ্রেড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__result_type
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__result_type
+msgid "Grading System"
+msgstr "গ্রেডিং পদ্ধতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__handover_challan_filename
+msgid "Handover Challan Filename"
+msgstr "হস্তান্তর চালান ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__employee_ids
+msgid "Holders"
+msgstr "অধিকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__house_rent
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__house_rent
+msgid "House Rent Allowance"
+msgstr "বাড়ি ভাড়া ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__shifting_vendor
+msgid "Household Goods Moving Vendor Name"
+msgstr "গৃহস্থালি সামগ্রী পরিবহন ভেন্ডরের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__hr_head_date
+msgid "HR Audit Date"
+msgstr "এইচআর নিরীক্ষার তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__clearance_hr
+msgid "HR Files Handed Over"
+msgstr "এইচআর নথি হস্তান্তরিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__hr_head_id
+msgid "HR Operations Lead"
+msgstr "এইচআর অপারেশন্স প্রধান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__identity_document_note
+msgid "Identity Store Ref"
+msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__industry_type
+msgid "Industry Sector"
+msgstr "শিল্প খাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__is_statutory
+msgid "Is Statutory"
+msgstr "সংবিধিবদ্ধ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_exit__clearance_it
+msgid "IT / Devices Returned"
+msgstr "আইটি / ডিভাইস ফেরত দেওয়া হয়েছে"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__joining_date
+msgid "Joining Date"
+msgstr "যোগদানের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__joining_report_filename
+msgid "Joining Report Filename"
+msgstr "যোগদান প্রতিবেদন ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovisioned_at
+msgid "Keycloak Deprovisioned At"
+msgstr "Keycloak অ্যাক্সেস প্রত্যাহারের সময়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__labour_act_section
+msgid "Labour Act Section"
+msgstr "শ্রম আইনের ধারা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__last_drawn_salary
+msgid "Last Drawn Salary (BDT)"
+msgstr "সর্বশেষ গৃহীত বেতন (টাকা)"
+
+#. module: cd_hr_core
 msgid "Leave"
 msgstr "ছুটি"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__name_bn
+msgid "Leave Name (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_request
+msgid "Leave Request"
+msgstr "ছুটির আবেদন"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_leave_request
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_leave
+msgid "Leave Requests"
+msgstr "ছুটির আবেদনসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_type
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__leave_type_id
+msgid "Leave Type"
+msgstr "ছুটির ধরন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_employee_form_kpi_090
+msgid "Leaver Deprovisioning (KPI-090)"
+msgstr "প্রস্থানকারীর অ্যাকাউন্ট অপসারণ (KPI-090)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__left_at
+msgid "Left At (Leaver Event)"
+msgstr "প্রস্থানের সময় (প্রস্থান ইভেন্ট)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__legal_citation
+msgid "Legal Citation"
+msgstr "আইনি উদ্ধৃতি"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Legal Citation (Statutory Floor)"
+msgstr "আইনি উদ্ধৃতি (সংবিধিবদ্ধ ন্যূনতম)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__signed_by_legal_counsel
+msgid "Legal Counsel Signoff"
+msgstr "আইন উপদেষ্টার অনুমোদন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_dependant__guardian_name
+msgid "Legal Guardian Name (if Minor)"
+msgstr "আইনানুগ অভিভাবকের নাম (অপ্রাপ্তবয়স্ক হলে)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__legal_signoff_state
+msgid "Legal Signoff"
+msgstr "আইনি অনুমোদন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Legal Signoff & Compliance"
+msgstr "আইনি অনুমোদন ও কমপ্লায়েন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__luggage_allowance
+msgid "Luggage & Packing Transport Allowance"
+msgstr "মালামাল ও প্যাকিং পরিবহন ভাতা"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "M24 Document & Form 6 Governance"
+msgstr "M24 দলিল ও ফরম ৬ গভর্নেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__template_id
+msgid "M24 Document Template"
+msgstr "M24 দলিল টেমপ্লেট"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "M24 Template Engine"
+msgstr "M24 টেমপ্লেট ইঞ্জিন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__executive_id
+msgid "Managing Director / Executive Head"
+msgstr "ব্যবস্থাপনা পরিচালক / নির্বাহী প্রধান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__clearance_mrn_no
+msgid "Material Return Note (MRN) Number"
+msgstr "মাল ফেরত নোট (এমআরএন) নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__medical_allowance
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__medical_allowance
+msgid "Medical Allowance"
+msgstr "চিকিৎসা ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__toolkit_returned
+msgid "Micro-soldering Tool Kit Returned / Handed Over"
+msgstr "মাইক্রো-সোল্ডারিং টুল কিট ফেরত / হস্তান্তরিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__movement_category
+msgid "Movement Category"
+msgstr "স্থানান্তরের শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__movement_nature
+msgid "Movement Nature"
+msgstr "স্থানান্তরের ধরন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_dependant__nid
+msgid "NID"
+msgstr "জাতীয় পরিচয়পত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_dependant__is_nominee
+msgid "Nominee"
+msgstr "মনোনীত ব্যক্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_dependant__nominee_pct
+msgid "Nominee Share %"
+msgstr "মনোনীত ব্যক্তির অংশ %"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__oem_brand_authorizations
+msgid "OEM Brand Authorizations (Apple, Samsung, Dell, HP)"
+msgstr "ওইএম ব্র্যান্ড অনুমোদন (অ্যাপল, স্যামসাং, ডেল, এইচপি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transfer_letter_file
+msgid "Official Transfer / Promotion Order Scan"
+msgstr "আনুষ্ঠানিক বদলি / পদোন্নতি আদেশের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__open_jobs_audited
+msgid "Open Customer Service Orders Audited"
+msgstr "চলমান গ্রাহক সার্ভিস অর্ডার নিরীক্ষিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__open_jobs_docket_file
+msgid "Open Job Card Reassignment Docket Scan"
+msgstr "চলমান জব কার্ড পুনর্বণ্টন ডকেটের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__open_jobs_docket_filename
+msgid "Open Jobs Docket Filename"
+msgstr "চলমান কাজের ডকেট ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__open_jobs_reassignment_ref
+msgid "Open Jobs Reassignment Docket Ref"
+msgstr "চলমান কাজ পুনর্বণ্টন ডকেটের সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__open_jobs_transferred_count
+msgid "Open RMA / Job Cards Transferred Count"
+msgstr "হস্তান্তরিত চলমান আরএমএ / জব কার্ডের সংখ্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_org_position
+msgid "Organisation Position"
+msgstr "প্রাতিষ্ঠানিক পদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__storekeeper_id
+msgid "Origin Branch Storekeeper"
+msgstr "উৎস শাখার স্টোরকিপার"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__origin_manager_date
+msgid "Origin Manager Recommendation Date"
+msgstr "উৎস ব্যবস্থাপকের সুপারিশের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__origin_manager_id
+msgid "Origin Recommending Manager"
+msgstr "উৎসের সুপারিশকারী ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__other_allowance
+msgid "Other Allowance"
+msgstr "অন্যান্য ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transit_leave_days
+msgid "Paid Transit Leave Days (BLA Rule 22)"
+msgstr "বেতনসহ ট্রানজিট ছুটির দিন (শ্রম বিধি ২২)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__part_time
+msgid "Part Time"
+msgstr "খণ্ডকালীন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__passing_year
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__passing_year
+msgid "Passing Year"
+msgstr "পাসের বছর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__pending
+msgid "Pending Deprovision"
+msgstr "অ্যাক্সেস প্রত্যাহারের অপেক্ষায়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__pending
+msgid "Pending Signoff"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_ws_people
+msgid "People & Payroll"
+msgstr "জনবল ও বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__permanent
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_nature__permanent
+msgid "Permanent"
+msgstr "স্থায়ী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__file_data
+msgid "Physical Scanned Document"
+msgstr "স্ক্যান করা মূল দলিল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__position_id
+msgid "Position"
+msgstr "পদ"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_positions
 msgid "Positions"
 msgstr "পদসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__company_name
+msgid "Previous Employer"
+msgstr "পূর্ববর্তী নিয়োগকর্তা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__probation
+msgid "Probation"
+msgstr "পরীক্ষামূলক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_basic
+msgid "Proposed Basic Salary"
+msgstr "প্রস্তাবিত মূল বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_conveyance
+msgid "Proposed Conveyance Allowance"
+msgstr "প্রস্তাবিত যাতায়াত ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_house_rent
+msgid "Proposed House Rent Allowance"
+msgstr "প্রস্তাবিত বাড়ি ভাড়া ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_medical
+msgid "Proposed Medical Allowance"
+msgstr "প্রস্তাবিত চিকিৎসা ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_gross
+msgid "Proposed Monthly Gross Salary"
+msgstr "প্রস্তাবিত মাসিক গ্রস বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__release_date
+msgid "Proposed Release Date"
+msgstr "প্রস্তাবিত অবমুক্তির তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__proposed_skill_allowance
+msgid "Proposed Technical Skill Allowance"
+msgstr "প্রস্তাবিত কারিগরি দক্ষতা ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__reference_status
+msgid "Reference Check"
+msgstr "সূত্র যাচাই"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__registration_no
+msgid "Registration Number"
+msgstr "নিবন্ধন নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__executive_approval__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__finance_head_approval__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__hr_head_approval__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__origin_manager_approval__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__tech_head_approval__rejected
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__rejection_reason
+msgid "Rejection or Audit Discrepancy Remarks"
+msgstr "প্রত্যাখ্যান বা নিরীক্ষা অসঙ্গতির মন্তব্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__parent_id
+msgid "Reports To"
+msgstr "রিপোর্ট করেন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__requisition_date
+msgid "Requisition Date"
+msgstr "আবেদনের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__initiator_user_id
+msgid "Requisition Initiated By"
+msgstr "আবেদন উত্থাপনকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__roll_number
+msgid "Roll Number"
+msgstr "রোল নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__institute_name
+msgid "School / College / Institute"
+msgstr "স্কুল / কলেজ / ইনস্টিটিউট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__reason_for_leaving
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_reason_leaving
+msgid "Separation Reason"
+msgstr "চাকরি অবসানের কারণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__service_book_endorsement_filename
+msgid "Service Book Filename"
+msgstr "সার্ভিস বই ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__clearance_mrn_file
+msgid "Spare Parts & Inventory Clearance MRN Scan"
+msgstr "যন্ত্রাংশ ও মজুদ ছাড়পত্র এমআরএন স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__start_date
+msgid "Start Date"
+msgstr "শুরুর তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__joining_report_file
+msgid "Station Joining Report Scan"
+msgstr "কর্মস্থলে যোগদান প্রতিবেদনের স্ক্যান"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Statutory Citations (DoD-17)"
+msgstr "সংবিধিবদ্ধ উদ্ধৃতি (DoD-17)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__statutory_density_score
+msgid "Statutory Density (%)"
+msgstr "সংবিধিবদ্ধ শর্তের ঘনত্ব (%)"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_leave_types
+msgid "Statutory Leave Types"
+msgstr "সংবিধিবদ্ধ ছুটির ধরন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Statutory Terms & Compensation"
+msgstr "সংবিধিবদ্ধ শর্তাবলী ও পারিশ্রমিক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__weekly_hours
+msgid "Statutory Weekly Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__submitted
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__supervisor_phone
+msgid "Supervisor Mobile"
+msgstr "সুপারভাইজারের মোবাইল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__supervisor_name
+msgid "Supervisor Name"
+msgstr "সুপারভাইজারের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__technical_assessment_score
+msgid "Technical Board Assessment Score (0-100)"
+msgstr "কারিগরি বোর্ড মূল্যায়ন নম্বর (০-১০০)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__tech_head_id
+msgid "Technical Evaluation Head"
+msgstr "কারিগরি মূল্যায়ন প্রধান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__technical_evaluator_id
+msgid "Technical Evaluator / Lead Architect"
+msgstr "কারিগরি মূল্যায়নকারী / প্রধান আর্কিটেক্ট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__tech_head_date
+msgid "Technical Signoff Date"
+msgstr "কারিগরি অনুমোদনের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__technical_allowance
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__technical_allowance
+msgid "Technical Skill / OEM Allowance"
+msgstr "কারিগরি দক্ষতা / ওইএম ভাতা"
+
+#. module: cd_hr_core
+msgid "Terminate"
+msgstr "সমাপ্ত করুন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Terminate & Deprovision"
+msgstr "সমাপ্ত করুন ও অ্যাক্সেস প্রত্যাহার করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__toolkit_custody_ref
+msgid "Tool Kit Custody Inventory Tag Ref"
+msgstr "টুল কিট জিম্মা মজুদ ট্যাগের সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__handover_challan_file
+msgid "Tool Kit Custody Return & Verification Challan"
+msgstr "টুল কিট জিম্মা ফেরত ও যাচাই চালান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__toolkit_challan_no
+msgid "Tool Kit Return Challan Number"
+msgstr "টুল কিট ফেরত চালান নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_experience__experience_years
+msgid "Total Duration (Years)"
+msgstr "মোট সময়কাল (বছর)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transfer_grant
+msgid "Transfer Grant / Disturbance Allowance"
+msgstr "বদলি অনুদান / অসুবিধা ভাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transfer_letter_filename
+msgid "Transfer Order Filename"
+msgstr "বদলি আদেশ ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transit_end_date
+msgid "Transit Leave End Date"
+msgstr "ট্রানজিট ছুটির শেষ তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__transit_start_date
+msgid "Transit Leave Start Date"
+msgstr "ট্রানজিট ছুটির শুরুর তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__spare_parts_variance_value
+msgid "Transit Spare Parts Discrepancy Value"
+msgstr "ট্রানজিট যন্ত্রাংশের অসঙ্গতির মূল্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__spare_parts_reconciled
+msgid "Transit Spare Parts Reconciled"
+msgstr "ট্রানজিট যন্ত্রাংশের মিলকরণ সম্পন্ন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_transfer__travel_allowance
+msgid "Travel Allowance TA/DA"
+msgstr "ভ্রমণ ভাতা টিএ/ডিএ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_education__is_verified
+msgid "Verification Status"
+msgstr "যাচাইয়ের অবস্থা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_hr_document__verified
+msgid "Verified by HR"
+msgstr "এইচআর কর্তৃক যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__verified_on
+msgid "Verified On"
+msgstr "যাচাইয়ের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__tin_cert
+msgid "12-digit e-TIN Certificate"
+msgstr "১২ অঙ্কের ই-টিআইএন সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_tin_file
+msgid "12-digit e-TIN Certificate Scan"
+msgstr "১২ অঙ্কের ই-টিআইএন সনদের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_tin_verified
+msgid "12-digit e-TIN Certificate Verified"
+msgstr "১২ অঙ্কের ই-টিআইএন সনদ যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__birth_reg_number
+msgid "17-Digit Birth Registration Number"
+msgstr "১৭ অঙ্কের জন্ম নিবন্ধন নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__a_pos
+msgid "A+ (Positive)"
+msgstr "এ+ (পজিটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__a_neg
+msgid "A- (Negative)"
+msgstr "এ- (নেগেটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__ab_pos
+msgid "AB+ (Positive)"
+msgstr "এবি+ (পজিটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__ab_neg
+msgid "AB- (Negative)"
+msgstr "এবি- (নেগেটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__exit_type__abandonment
+msgid "Abandonment"
+msgstr "কর্মস্থল ত্যাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_academic_filename
+msgid "Academic File Name"
+msgstr "শিক্ষাগত ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__institute_name
+msgid "Academic Institution Name"
+msgstr "শিক্ষা প্রতিষ্ঠানের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__education_line_ids
+msgid "Academic Qualifications"
+msgstr "শিক্ষাগত যোগ্যতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__roll_number
+msgid "Academic Roll Number"
+msgstr "শিক্ষাগত রোল নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__academic_verified
+msgid "Academic Verification Status"
+msgstr "শিক্ষাগত যাচাইয়ের অবস্থা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__after_sales_service
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__after_sales_service
+msgid "After-Sales Repair & Warranty"
+msgstr "বিক্রয়োত্তর মেরামত ও ওয়ারেন্টি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__applied
+msgid "Applied to Master"
+msgstr "মাস্টার রেকর্ডে প্রয়োগকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_appointment_filename
+msgid "Appointment File Name"
+msgstr "নিয়োগপত্র ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__appointment
+msgid "Appointment Letter"
+msgstr "নিয়োগপত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__toolkit_custody_ref
+msgid "Assigned Tool Kit Barcode Ref"
+msgstr "নির্ধারিত টুল কিট বারকোড সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__hr_head_approval__approved
+msgid "Audited & Verified"
+msgstr "নিরীক্ষিত ও যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__b_pos
+msgid "B+ (Positive)"
+msgstr "বি+ (পজিটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__b_neg
+msgid "B- (Negative)"
+msgstr "বি- (নেগেটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__routing_number
+msgid "BEFTN Routing Number"
+msgstr "বিইএফটিএন রাউটিং নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__bga_rework_capable
+msgid "BGA Rework Station Authorized Operator"
+msgstr "বিজিএ রিওয়ার্ক স্টেশনের অনুমোদিত অপারেটর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__driving_lic
+msgid "BRTA Driving License"
+msgstr "বিআরটিএ ড্রাইভিং লাইসেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__driving_license_no
+msgid "BRTA Driving License Number"
+msgstr "বিআরটিএ ড্রাইভিং লাইসেন্স নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__bachelors
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__bachelors
+msgid "Bachelor Degree / B.Sc Eng"
+msgstr "স্নাতক ডিগ্রি / বিএসসি ইঞ্জিনিয়ারিং"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_1
+msgid "Band 1 - Support Staff"
+msgstr "ব্যান্ড ১ - সহায়ক কর্মী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_2
+msgid "Band 2 - Technician L1"
+msgstr "ব্যান্ড ২ - টেকনিশিয়ান এল১"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_3
+msgid "Band 3 - Technician L2"
+msgstr "ব্যান্ড ৩ - টেকনিশিয়ান এল২"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_4
+msgid "Band 4 - Senior Tech L3"
+msgstr "ব্যান্ড ৪ - সিনিয়র টেকনিশিয়ান এল৩"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_5
+msgid "Band 5 - Master Tech L4 / Specialist"
+msgstr "ব্যান্ড ৫ - মাস্টার টেকনিশিয়ান এল৪ / বিশেষজ্ঞ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_6
+msgid "Band 6 - Supervisor / Manager"
+msgstr "ব্যান্ড ৬ - সুপারভাইজার / ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_7
+msgid "Band 7 - Head of Dept"
+msgstr "ব্যান্ড ৭ - বিভাগীয় প্রধান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__job_band__band_8
+msgid "Band 8 - Director / Executive"
+msgstr "ব্যান্ড ৮ - পরিচালক / নির্বাহী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__bank_account_number
+msgid "Bank Account Number"
+msgstr "ব্যাংক হিসাব নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__bank_branch_name
+msgid "Bank Branch"
+msgstr "ব্যাংক শাখা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__bank_name
+msgid "Bank Name"
+msgstr "ব্যাংকের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__barishal
+msgid "Barishal"
+msgstr "বরিশাল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__biometric_id
+msgid "Biometric Device ID"
+msgstr "বায়োমেট্রিক ডিভাইস আইডি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__birth_cert
+msgid "Birth Registration Certificate"
+msgstr "জন্ম নিবন্ধন সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__blood_group
+msgid "Blood Group"
+msgstr "রক্তের গ্রুপ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__blood_report
+msgid "Blood Group Lab Report"
+msgstr "রক্তের গ্রুপের ল্যাব রিপোর্ট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__registration_no
+msgid "Board Registration Number"
+msgstr "বোর্ড নিবন্ধন নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__work_location_type__branch_counter
+msgid "Branch Walk-in Counter"
+msgstr "শাখা ওয়াক-ইন কাউন্টার"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__brother
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__brother
+msgid "Brother"
+msgstr "ভাই"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__religion__buddhism
+msgid "Buddhism"
+msgstr "বৌদ্ধ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__result_type__cgpa_4
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__result_type__cgpa_4
+msgid "CGPA out of 4.0"
+msgstr "৪.০ এর মধ্যে সিজিপিএ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__state__cancelled
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__career_growth
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__career_growth
+msgid "Career Growth"
+msgstr "কর্মজীবনের অগ্রগতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__employment_type__casual
+msgid "Casual / Daily"
+msgstr "অস্থায়ী / দৈনিক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__work_location_type__central_workshop
+msgid "Central Workshop Lab"
+msgstr "কেন্দ্রীয় ওয়ার্কশপ ল্যাব"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__cert_expiry_date
+msgid "Certificate Expiry Date"
+msgstr "সনদের মেয়াদ শেষের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__cert_issue_date
+msgid "Certificate Issue Date"
+msgstr "সনদ ইস্যুর তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__chattogram
+msgid "Chattogram"
+msgstr "চট্টগ্রাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__chemical_allergies
+msgid "Chemical / Solvent Allergies"
+msgstr "রাসায়নিক / দ্রাবক অ্যালার্জি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_dependant__relation__child
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__nominee_relation__child
+msgid "Child"
+msgstr "সন্তান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__religion__christianity
+msgid "Christianity"
+msgstr "খ্রিস্টান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__state__cleared
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__finance_head_approval__approved
+msgid "Cleared"
+msgstr "ছাড়প্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__code_conduct
+msgid "Code of Conduct & Ethics"
+msgstr "আচরণবিধি ও নৈতিকতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__color_blindness
+msgid "Color Vision Test Status"
+msgstr "বর্ণদৃষ্টি পরীক্ষার অবস্থা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__compensation
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__compensation
+msgid "Compensation"
+msgstr "ক্ষতিপূরণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__destination_manager_approval__approved
+msgid "Concurred"
+msgstr "সম্মতিপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__nda
+msgid "Confidentiality Undertaking (NDA)"
+msgstr "গোপনীয়তা অঙ্গীকারনামা (এনডিএ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__consumer_electronics
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__consumer_electronics
+msgid "Consumer Electronics & TV"
+msgstr "ভোগ্য ইলেকট্রনিকস ও টেলিভিশন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__exit_type__contract_end
+msgid "Contract End"
+msgstr "চুক্তির সমাপ্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__employment_type__contractual
+msgid "Contractual Fixed-Term"
+msgstr "নির্দিষ্ট মেয়াদের চুক্তিভিত্তিক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__corporate_promotion
+msgid "Corporate / Management Promotion"
+msgstr "করপোরেট / ব্যবস্থাপনা পদোন্নতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__job_band
+msgid "Corporate Grade / Band"
+msgstr "করপোরেট গ্রেড / ব্যান্ড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__insurance_policy_no
+msgid "Corporate Group Insurance Policy No"
+msgstr "করপোরেট গ্রুপ বিমা পলিসি নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__customer_nda_signed
+msgid "Customer Data Confidentiality Undertaking Signed"
+msgstr "গ্রাহক তথ্য গোপনীয়তার অঙ্গীকারনামা স্বাক্ষরিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__mfs_provider__rocket
+msgid "DBBL Rocket"
+msgstr "ডিবিবিএল রকেট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__joining_date
+msgid "Date of Joining"
+msgstr "যোগদানের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__daughter
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__daughter
+msgid "Daughter"
+msgstr "কন্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_type__demotion
+msgid "Demotion"
+msgstr "পদাবনতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__dept_transfer
+msgid "Departmental Transfer"
+msgstr "বিভাগীয় বদলি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__dependant_ids
+msgid "Dependants & Nominees"
+msgstr "পোষ্য ও মনোনীত ব্যক্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__concurred
+msgid "Destination Concurred"
+msgstr "গন্তব্যের সম্মতিপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__dhaka
+msgid "Dhaka"
+msgstr "ঢাকা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__minimum_tax_location__dhaka_chattogram
+msgid "Dhaka & Chattogram City Corp (BDT 5,000)"
+msgstr "ঢাকা ও চট্টগ্রাম সিটি কর্পোরেশন (৫,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_tax_location__dhaka_chittagong
+msgid "Dhaka / Chittagong City Corporation (Min BDT 5,000)"
+msgstr "ঢাকা / চট্টগ্রাম সিটি কর্পোরেশন (ন্যূনতম ৫,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__diploma_engineering
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__diploma_engineering
+msgid "Diploma in Engineering (BTEB)"
+msgstr "ডিপ্লোমা ইন ইঞ্জিনিয়ারিং (বিটিইবি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__taxpayer_category__disabled_third_gender
+msgid "Disabled & Third Gender (BDT 500,000)"
+msgstr "প্রতিবন্ধী ও তৃতীয় লিঙ্গ (৫,০০,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__is_verified__discrepancy
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__academic_verified__discrepancy
+msgid "Discrepancy Flagged"
+msgstr "অসঙ্গতি চিহ্নিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__result_type__division
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__result_type__division
+msgid "Division"
+msgstr "বিভাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__doctorate
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__doctorate
+msgid "Doctorate / Ph.D"
+msgstr "ডক্টরেট / পিএইচডি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__document_ids
+msgid "Document Dossier"
+msgstr "দলিল নথি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__draft
+msgid "Draft Requisition"
+msgstr "খসড়া আবেদন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__driving_license_type
+msgid "Driving License Class"
+msgstr "ড্রাইভিং লাইসেন্সের শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__driving_license_exp
+msgid "Driving License Expiration Date"
+msgstr "ড্রাইভিং লাইসেন্সের মেয়াদ শেষের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__esd_certified
+msgid "ESD Safe Handling Certified"
+msgstr "ইএসডি নিরাপদ ব্যবস্থাপনায় সনদপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__board_university
+msgid "Education Board / University"
+msgstr "শিক্ষা বোর্ড / বিশ্ববিদ্যালয়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_phone_alt
+msgid "Emergency Alternative Phone"
+msgstr "জরুরি বিকল্প ফোন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_contact_address
+msgid "Emergency Contact Address"
+msgstr "জরুরি যোগাযোগের ঠিকানা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_contact_relation
+msgid "Emergency Contact Relation"
+msgstr "জরুরি যোগাযোগের সম্পর্ক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__id_card
+msgid "Employee ID Card (Form 11)"
+msgstr "কর্মী পরিচয়পত্র (ফরম ১১)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__employment_type
+msgid "Employment Nature"
+msgstr "চাকরির প্রকৃতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__end_of_contract
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__end_of_contract
+msgid "End of Contract"
+msgstr "চুক্তির অবসান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__ex
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__ex
+msgid "Executive - Head of Department / Director"
+msgstr "নির্বাহী - বিভাগীয় প্রধান / পরিচালক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__approved
+msgid "Executive Approved"
+msgstr "নির্বাহী কর্তৃক অনুমোদিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__psr_status__exempt
+msgid "Exempt"
+msgstr "অব্যাহতিপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__experience
+msgid "Experience Certificate"
+msgstr "অভিজ্ঞতার সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__father
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__father
+msgid "Father"
+msgstr "পিতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__taxpayer_category__female_senior
+msgid "Female & Senior Citizen 65+ (BDT 450,000)"
+msgstr "মহিলা ও ৬৫+ বছরের প্রবীণ নাগরিক (৪,৫০,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__work_location_type__field_mobile
+msgid "Field Mobile Dispatch"
+msgstr "ফিল্ড মোবাইল ডিসপ্যাচ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__major_group
+msgid "Field of Study / Major"
+msgstr "অধ্যয়নের বিষয় / মূল বিষয়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__finance_approved
+msgid "Finance Cleared"
+msgstr "আর্থিক ছাড়পত্রপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__result_type__first_class
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__result_type__first_class
+msgid "First Class"
+msgstr "প্রথম শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__medical_fitness__fit_duty
+msgid "Fit for Full Technical / Field Duty"
+msgstr "পূর্ণ কারিগরি / ফিল্ড দায়িত্বে সক্ষম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__medical_fitness__fit_restricted
+msgid "Fit with Work Restrictions"
+msgstr "কাজের শর্তসহ সক্ষম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__form7_endorsed_on
+msgid "Form 7 Last Endorsed Date"
+msgstr "ফরম ৭ সর্বশেষ অনুমোদনের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__form7_last_event_date
+msgid "Form 7 Last Event Date"
+msgstr "ফরম ৭ সর্বশেষ ঘটনার তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__service_book
+msgid "Form 7 Service Book"
+msgstr "ফরম ৭ সার্ভিস বই"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_service_book_file
+msgid "Form 7 Service Book Pages Scan"
+msgstr "ফরম ৭ সার্ভিস বইয়ের পৃষ্ঠার স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_service_book_scanned
+msgid "Form 7 Service Book Pages Scanned"
+msgstr "ফরম ৭ সার্ভিস বইয়ের পৃষ্ঠা স্ক্যানকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__form7_update_due_date
+msgid "Form 7 Update Due Date"
+msgstr "ফরম ৭ হালনাগাদের নির্ধারিত তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__form7_update_overdue
+msgid "Form 7 Update Overdue"
+msgstr "ফরম ৭ হালনাগাদ বিলম্বিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__joining_report
+msgid "Formal Joining Report"
+msgstr "আনুষ্ঠানিক যোগদান প্রতিবেদন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__result_type__gpa_5
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__result_type__gpa_5
+msgid "GPA out of 5.0"
+msgstr "৫.০ এর মধ্যে জিপিএ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__corporate
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__corporate
+msgid "General Corporate"
+msgstr "সাধারণ করপোরেট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__taxpayer_category__general
+msgid "General Taxpayer (BDT 400,000)"
+msgstr "সাধারণ করদাতা (৪,০০,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__hr_audited
+msgid "HR Compliance Audited"
+msgstr "এইচআর কমপ্লায়েন্স নিরীক্ষিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__hsc
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__hsc
+msgid "HSC / Alim / A-Level"
+msgstr "এইচএসসি / আলিম / এ-লেভেল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__hvac_appliances
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__hvac_appliances
+msgid "HVAC & Home Appliances"
+msgstr "এইচভিএসি ও গৃহস্থালি যন্ত্রপাতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__handover_cleared
+msgid "Handover Cleared"
+msgstr "হস্তান্তর ছাড়পত্রপ্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__work_location_type__head_office
+msgid "Head Office Corporate"
+msgstr "প্রধান কার্যালয় (করপোরেট)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__driving_license_type__heavy
+msgid "Heavy Commercial Vehicle"
+msgstr "ভারী বাণিজ্যিক যানবাহন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__higher_studies
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__higher_studies
+msgid "Higher Studies"
+msgstr "উচ্চশিক্ষা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_academic_file
+msgid "Highest Academic Certificate Scan"
+msgstr "সর্বোচ্চ শিক্ষাগত সনদের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__degree_title
+msgid "Highest Degree Title"
+msgstr "সর্বোচ্চ ডিগ্রির নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__degree_level
+msgid "Highest Education Level"
+msgstr "সর্বোচ্চ শিক্ষার স্তর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__religion__hinduism
+msgid "Hinduism"
+msgstr "হিন্দু"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__work_location_type__hybrid
+msgid "Hybrid"
+msgstr "হাইব্রিড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__it_hardware
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__it_hardware
+msgid "IT Hardware & Server Infrastructure"
+msgstr "আইটি হার্ডওয়্যার ও সার্ভার অবকাঠামো"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__branch_transfer
+msgid "Inter-Branch Transfer"
+msgstr "আন্তঃশাখা বদলি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__passport
+msgid "International Passport"
+msgstr "আন্তর্জাতিক পাসপোর্ট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__passport_number
+msgid "International Passport Number"
+msgstr "আন্তর্জাতিক পাসপোর্ট নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__religion__islam
+msgid "Islam"
+msgstr "ইসলাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_id
+msgid "Keycloak IdP UUID"
+msgstr "কীক্লোক আইডিপি ইউইউআইডি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__khulna
+msgid "Khulna"
+msgstr "খুলনা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_last_salary
+msgid "Last Drawn Gross Salary (BDT)"
+msgstr "সর্বশেষ গৃহীত গ্রস বেতন (টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__guardian_name
+msgid "Legal Guardian Name (if Nominee is Minor)"
+msgstr "আইনানুগ অভিভাবকের নাম (মনোনীত ব্যক্তি অপ্রাপ্তবয়স্ক হলে)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__l1
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__l1
+msgid "Level 1 - Junior Technician / Apprentice"
+msgstr "স্তর ১ - জুনিয়র টেকনিশিয়ান / শিক্ষানবিশ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__l2
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__l2
+msgid "Level 2 - Technician / Associate Specialist"
+msgstr "স্তর ২ - টেকনিশিয়ান / সহযোগী বিশেষজ্ঞ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__l3
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__l3
+msgid "Level 3 - Senior Technician / Lead Specialist"
+msgstr "স্তর ৩ - সিনিয়র টেকনিশিয়ান / প্রধান বিশেষজ্ঞ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__l4
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__l4
+msgid "Level 4 - Master Technician / Engineering Lead"
+msgstr "স্তর ৪ - মাস্টার টেকনিশিয়ান / ইঞ্জিনিয়ারিং প্রধান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__driving_license_type__light
+msgid "Light Motor Vehicle (Car/Van)"
+msgstr "হালকা মোটরযান (কার/ভ্যান)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__mfs_account_number
+msgid "MFS Account Number"
+msgstr "এমএফএস হিসাব নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__mfs_provider
+msgid "MFS Provider"
+msgstr "এমএফএস সেবাদাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__m1
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__m1
+msgid "Management 1 - Assistant Branch Manager / Team Lead"
+msgstr "ব্যবস্থাপনা ১ - সহকারী শাখা ব্যবস্থাপক / টিম লিড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_grade_band__m2
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_grade_band__m2
+msgid "Management 2 - Branch Manager / Senior Manager"
+msgstr "ব্যবস্থাপনা ২ - শাখা ব্যবস্থাপক / সিনিয়র ব্যবস্থাপক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__masters
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__masters
+msgid "Master Degree / M.Sc / MBA"
+msgstr "স্নাতকোত্তর ডিগ্রি / এমএসসি / এমবিএ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_medical_filename
+msgid "Medical File Name"
+msgstr "মেডিকেল ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__medical_fit
+msgid "Medical Fitness Certificate"
+msgstr "স্বাস্থ্য সক্ষমতার সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_medical_file
+msgid "Medical Fitness Certificate Scan"
+msgstr "স্বাস্থ্য সক্ষমতার সনদের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_medical_fit_certified
+msgid "Medical Fitness Certificate Signed"
+msgstr "স্বাস্থ্য সক্ষমতার সনদ স্বাক্ষরিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__medical_fitness
+msgid "Medical Fitness Verdict"
+msgstr "স্বাস্থ্য সক্ষমতার সিদ্ধান্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__minimum_tax_location
+msgid "Minimum Tax Area"
+msgstr "ন্যূনতম করের এলাকা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__basic_wage
+msgid "Monthly Basic Wage"
+msgstr "মাসিক মূল মজুরি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__wage
+msgid "Monthly Gross Salary"
+msgstr "মাসিক গ্রস বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__mother
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__mother
+msgid "Mother"
+msgstr "মাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__driving_license_type__motorcycle
+msgid "Motorcycle Only"
+msgstr "শুধুমাত্র মোটরসাইকেল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__mutual
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__mutual
+msgid "Mutual Separation"
+msgstr "পারস্পরিক সম্মতিতে অবসান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__mymensingh
+msgid "Mymensingh"
+msgstr "ময়মনসিংহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__tax_circle
+msgid "NBR Tax Circle"
+msgstr "এনবিআর কর সার্কেল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__tax_zone
+msgid "NBR Tax Zone"
+msgstr "এনবিআর কর অঞ্চল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nda_filename
+msgid "NDA File Name"
+msgstr "এনডিএ ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nid_filename
+msgid "NID File Name"
+msgstr "এনআইডি ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nid_verified
+msgid "NID Smart Card Verified"
+msgstr "এনআইডি স্মার্ট কার্ড যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__mfs_provider__nagad
+msgid "Nagad"
+msgstr "নগদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__nid_number
+msgid "National ID (NID / Smart Card)"
+msgstr "জাতীয় পরিচয়পত্র (এনআইডি / স্মার্ট কার্ড)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__nid_smart
+msgid "National ID (Smart Card)"
+msgstr "জাতীয় পরিচয়পত্র (স্মার্ট কার্ড)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nid_file
+msgid "National ID Smart Card Scan"
+msgstr "জাতীয় পরিচয়পত্র স্মার্ট কার্ডের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reference_status__negative_flag
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reference_status__negative_flag
+msgid "Negative Flag"
+msgstr "নেতিবাচক চিহ্ন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nominee_nid_filename
+msgid "Nominee File Name"
+msgstr "মনোনীত ব্যক্তির ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__nominee_nid
+msgid "Nominee NID & Photo"
+msgstr "মনোনীত ব্যক্তির এনআইডি ও ছবি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nominee_nid_file
+msgid "Nominee NID & Photo Scan"
+msgstr "মনোনীত ব্যক্তির এনআইডি ও ছবির স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__nominee_nid
+msgid "Nominee National ID / Birth Reg"
+msgstr "মনোনীত ব্যক্তির জাতীয় পরিচয়পত্র / জন্ম নিবন্ধন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__nominee_relation
+msgid "Nominee Relationship"
+msgstr "মনোনীত ব্যক্তির সম্পর্ক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__nominee_pct
+msgid "Nominee Share % (BLA s.19 & 131)"
+msgstr "মনোনীত ব্যক্তির অংশ % (শ্রম আইন ধারা ১৯ ও ১৩১)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__minimum_tax_location__non_city_corporation
+msgid "Non-City / District / Rural (BDT 3,000)"
+msgstr "সিটি কর্পোরেশনের বাইরে / জেলা / গ্রামীণ (৩,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_tax_location__non_city_corporation
+msgid "Non-City Corporation / District / Upazila (Min BDT 3,000)"
+msgstr "সিটি কর্পোরেশনের বাইরে / জেলা / উপজেলা (ন্যূনতম ৩,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__color_blindness__normal_pass
+msgid "Normal Trichromat (Passed Ishihara Test)"
+msgstr "স্বাভাবিক বর্ণদৃষ্টি (ইশিহারা পরীক্ষায় উত্তীর্ণ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__psr_status__not_submitted
+msgid "Not Submitted"
+msgstr "দাখিল করা হয়নি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__o_pos
+msgid "O+ (Positive)"
+msgstr "ও+ (পজিটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__blood_group__o_neg
+msgid "O- (Negative)"
+msgstr "ও- (নেগেটিভ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__oem_cert
+msgid "OEM Brand Accreditation"
+msgstr "ওইএম ব্র্যান্ড স্বীকৃতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__oem_brand_certs
+msgid "OEM Brand Accreditations"
+msgstr "ওইএম ব্র্যান্ড স্বীকৃতিসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_dependant__relation__other
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__other
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__other
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__nominee_relation__other
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__religion__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_tax_location__other_city_corporation
+msgid "Other City Corporation (Min BDT 4,000)"
+msgstr "অন্যান্য সিটি কর্পোরেশন (ন্যূনতম ৪,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__minimum_tax_location__other_city_corporation
+msgid "Other City Corporations (BDT 4,000)"
+msgstr "অন্যান্য সিটি কর্পোরেশন (৪,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__mfs_provider__other
+msgid "Other MFS"
+msgstr "অন্যান্য এমএফএস"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__overtime_eligible
+msgid "Overtime Eligible"
+msgstr "অতিরিক্ত কর্মঘণ্টার জন্য যোগ্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_police_pcc_filename
+msgid "PCC File Name"
+msgstr "পিসিসি ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__psr_tax_year
+msgid "PSR Assessment Year"
+msgstr "পিএসআর কর বছর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__psr_status
+msgid "PSR Compliance Status"
+msgstr "পিএসআর পরিপালনের অবস্থা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_psr_filename
+msgid "PSR File Name"
+msgstr "পিএসআর ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__psr_qr_payload
+msgid "PSR NBR Verification Reference"
+msgstr "পিএসআর এনবিআর যাচাই সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__psr_verified_on
+msgid "PSR Verified On"
+msgstr "পিএসআর যাচাইয়ের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_dependant__relation__parent
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__nominee_relation__parent
+msgid "Parent"
+msgstr "পিতা-মাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__has_disabled_child
+msgid "Parent of Disabled Child"
+msgstr "প্রতিবন্ধী সন্তানের পিতা-মাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__color_blindness__partial_deficiency
+msgid "Partial Color Deficiency"
+msgstr "আংশিক বর্ণান্ধতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__destination_manager_approval__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__executive_approval__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__finance_head_approval__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__hr_head_approval__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__origin_manager_approval__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__tech_head_approval__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__permanent_address
+msgid "Permanent Address"
+msgstr "স্থায়ী ঠিকানা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__confirmation_date
+msgid "Permanent Confirmation Date"
+msgstr "স্থায়ীকরণের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__employment_type__permanent
+msgid "Permanent Confirmed"
+msgstr "স্থায়ীকরণ নিশ্চিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__permanent_district
+msgid "Permanent District"
+msgstr "স্থায়ী জেলা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__permanent_division
+msgid "Permanent Division"
+msgstr "স্থায়ী বিভাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__medical_fitness__unfit_permanent
+msgid "Permanently Unfit"
+msgstr "স্থায়ীভাবে অক্ষম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__identification_mark
+msgid "Physical Identification Mark"
+msgstr "শারীরিক পরিচিতি চিহ্ন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__work_restrictions
+msgid "Physical Work Restrictions"
+msgstr "শারীরিক কাজের সীমাবদ্ধতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__police_pcc
+msgid "Police Clearance Certificate (PCC)"
+msgstr "পুলিশ ছাড়পত্র সনদ (পিসিসি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_police_pcc_cleared
+msgid "Police Clearance Certificate (PCC) Cleared"
+msgstr "পুলিশ ছাড়পত্র সনদ (পিসিসি) ছাড়প্রাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_police_pcc_file
+msgid "Police Clearance Certificate (PCC) Scan"
+msgstr "পুলিশ ছাড়পত্র সনদ (পিসিসি) স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__police_clearance_ref
+msgid "Police Clearance Ref (PCC)"
+msgstr "পুলিশ ছাড়পত্রের সূত্র (পিসিসি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__diploma_cert
+msgid "Polytechnic Diploma Certificate"
+msgstr "পলিটেকনিক ডিপ্লোমা সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__private_district
+msgid "Present District"
+msgstr "বর্তমান জেলা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_designation
+msgid "Previous Designation Held"
+msgstr "পূর্বে অধিকৃত পদবি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_company_name
+msgid "Previous Employer Name"
+msgstr "পূর্ববর্তী নিয়োগকর্তার নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_end_date
+msgid "Previous Employment End"
+msgstr "পূর্ববর্তী চাকরির সমাপ্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_start_date
+msgid "Previous Employment Start"
+msgstr "পূর্ববর্তী চাকরির শুরু"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_industry_type
+msgid "Previous Industry Sector"
+msgstr "পূর্ববর্তী শিল্প খাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_supervisor_name
+msgid "Previous Supervisor Name"
+msgstr "পূর্ববর্তী সুপারভাইজারের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__nominee_name
+msgid "Primary Statutory Nominee Name"
+msgstr "প্রধান বিধিবদ্ধ মনোনীত ব্যক্তির নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__certification_no
+msgid "Primary Technical Certificate No"
+msgstr "প্রধান কারিগরি সনদ নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__payslip_prior
+msgid "Prior Employer Payslips"
+msgstr "পূর্ববর্তী নিয়োগকর্তার বেতন স্লিপ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__probation_months
+msgid "Probation Duration (Months)"
+msgstr "শিক্ষানবিশকালের সময়কাল (মাস)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__employment_type__probationary
+msgid "Probationary"
+msgstr "শিক্ষানবিশকাল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_type__promotion
+msgid "Promotion"
+msgstr "পদোন্নতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_nature__probationary_promotion
+msgid "Promotion on Probation"
+msgstr "শিক্ষানবিশকালে পদোন্নতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__rajshahi
+msgid "Rajshahi"
+msgstr "রাজশাহী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__rangpur
+msgid "Rangpur"
+msgstr "রংপুর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__pf_member
+msgid "Recognized Provident Fund (RPF) Member"
+msgstr "স্বীকৃত প্রভিডেন্ট ফান্ড (আরপিএফ) সদস্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__origin_manager_approval__approved
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__recommended
+msgid "Recommended"
+msgstr "সুপারিশকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__color_blindness__red_green_blind
+msgid "Red-Green Color Blind (Restricted from Resistor Decoding)"
+msgstr "লাল-সবুজ বর্ণান্ধ (রেজিস্টর রং পাঠে নিষিদ্ধ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_reference_status
+msgid "Reference Check Signoff"
+msgstr "সূত্র যাচাইয়ের অনুমোদন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__ref_check
+msgid "Reference Check Summary"
+msgstr "সূত্র যাচাইয়ের সারসংক্ষেপ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__destination_manager_approval__rejected
+msgid "Refused"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__religion
+msgid "Religion"
+msgstr "ধর্ম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reason_for_leaving__relocation
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reason_leaving__relocation
+msgid "Relocation"
+msgstr "স্থান পরিবর্তন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__exit_type__resignation
+msgid "Resignation"
+msgstr "পদত্যাগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__exit_type__retirement
+msgid "Retirement"
+msgstr "অবসর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__demotion
+msgid "Role Realignment / Demotion"
+msgstr "পদ পুনর্বিন্যাস / পদাবনতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__ssc
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__ssc
+msgid "SSC / Dakhil / O-Level"
+msgstr "এসএসসি / দাখিল / ও-লেভেল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__ssc_cert
+msgid "SSC / Dakhil Certificate"
+msgstr "এসএসসি / দাখিল সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__result_type__second_class
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__result_type__second_class
+msgid "Second Class"
+msgstr "দ্বিতীয় শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_relation_sec
+msgid "Secondary Contact Relationship"
+msgstr "দ্বিতীয় যোগাযোগের সম্পর্ক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_contact_sec
+msgid "Secondary Emergency Contact Person"
+msgstr "দ্বিতীয় জরুরি যোগাযোগের ব্যক্তি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__emergency_phone_sec
+msgid "Secondary Emergency Phone"
+msgstr "দ্বিতীয় জরুরি ফোন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__gpa_score
+msgid "Secured GPA / Score"
+msgstr "অর্জিত জিপিএ / নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_service_book_filename
+msgid "Service Book File Name"
+msgstr "সার্ভিস বই ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__service_book_number
+msgid "Service Book Ref"
+msgstr "সার্ভিস বইয়ের সূত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__state__settled
+msgid "Settled"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_dependant__relation__sibling
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__nominee_relation__sibling
+msgid "Sibling"
+msgstr "ভাই-বোন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_appointment_file
+msgid "Signed Appointment Letter Scan"
+msgstr "স্বাক্ষরিত নিয়োগপত্রের স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_appointment_signed
+msgid "Signed Appointment Letter on File"
+msgstr "স্বাক্ষরিত নিয়োগপত্র নথিতে সংরক্ষিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nda_file
+msgid "Signed NDA & Code of Conduct Scan"
+msgstr "স্বাক্ষরিত এনডিএ ও আচরণবিধির স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_nda_signed
+msgid "Signed NDA & Code of Conduct on File"
+msgstr "স্বাক্ষরিত এনডিএ ও আচরণবিধি নথিতে সংরক্ষিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__sister
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__sister
+msgid "Sister"
+msgstr "বোন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__son
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__son
+msgid "Son"
+msgstr "পুত্র"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__driving_license_type__special
+msgid "Special Vehicle"
+msgstr "বিশেষ যানবাহন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_dependant__relation__spouse
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_contact_relation__spouse
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__emergency_relation_sec__spouse
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__nominee_relation__spouse
+msgid "Spouse"
+msgstr "স্বামী / স্ত্রী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__spouse_name
+msgid "Spouse Legal Name"
+msgstr "স্বামী / স্ত্রীর আইনানুগ নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__psr_status__submitted
+msgid "Submitted (Pending Verification)"
+msgstr "দাখিলকৃত (যাচাই অপেক্ষমাণ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_supervisor_phone
+msgid "Supervisor Contact Mobile"
+msgstr "সুপারভাইজারের মোবাইল নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__device_competencies
+msgid "Supported Device Specializations"
+msgstr "সমর্থিত ডিভাইস বিশেষায়ন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__permanent_division__sylhet
+msgid "Sylhet"
+msgstr "সিলেট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_tin_filename
+msgid "TIN File Name"
+msgstr "টিআইএন ফাইলের নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__psr_ack_number
+msgid "Tax Return Ack No (PSR)"
+msgstr "কর রিটার্ন প্রাপ্তি স্বীকার নম্বর (পিএসআর)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_psr_file
+msgid "Tax Return Acknowledgement (PSR) Scan"
+msgstr "কর রিটার্ন প্রাপ্তি স্বীকারের (পিএসআর) স্ক্যান"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__tax_psr
+msgid "Tax Return Submission Ack (PSR)"
+msgstr "কর রিটার্ন দাখিলের প্রাপ্তি স্বীকার (পিএসআর)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__doc_psr_verified
+msgid "Tax Return Submission Ack (PSR) Verified"
+msgstr "কর রিটার্ন দাখিলের প্রাপ্তি স্বীকার (পিএসআর) যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__taxpayer_category
+msgid "Taxpayer Slabs Category"
+msgstr "করদাতার স্ল্যাব শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__state__tech_evaluated
+msgid "Technical Evaluated"
+msgstr "কারিগরিভাবে মূল্যায়িত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__repair_tier
+msgid "Technical Repair Capability Tier"
+msgstr "কারিগরি মেরামত সক্ষমতার স্তর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__technical_promotion
+msgid "Technical Skill Promotion"
+msgstr "কারিগরি দক্ষতাভিত্তিক পদোন্নতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__vocational
+msgid "Technical Trade Certificate (NTVQ)"
+msgstr "কারিগরি ট্রেড সনদ (এনটিভিকিউ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__industry_type__telecom
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_industry_type__telecom
+msgid "Telecommunications"
+msgstr "টেলিযোগাযোগ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__medical_fitness__unfit_temporary
+msgid "Temporarily Unfit"
+msgstr "সাময়িকভাবে অক্ষম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_category__deputation
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_nature__temporary_deputation
+msgid "Temporary Deputation"
+msgstr "অস্থায়ী প্রেষণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_exit__exit_type__termination
+msgid "Termination"
+msgstr "চাকরিচ্যুতি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__vaccination
+msgid "Tetanus / Vaccination Card"
+msgstr "টিটেনাস / টিকা কার্ড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__tetanus_expiry_date
+msgid "Tetanus Booster Expiration Date"
+msgstr "টিটেনাস বুস্টারের মেয়াদ শেষের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__tetanus_vaccine_date
+msgid "Tetanus Toxoid (TT) Vaccination Date"
+msgstr "টিটেনাস টক্সয়েড (টিটি) টিকার তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_repair_tier__tier1_basic
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_repair_tier__tier1_basic
+msgid "Tier 1 - Basic Assembly & Modular Replacement"
+msgstr "স্তর ১ - মৌলিক সংযোজন ও মডিউল প্রতিস্থাপন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_repair_tier__tier2_component
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_repair_tier__tier2_component
+msgid "Tier 2 - Component Level & SMD Soldering"
+msgstr "স্তর ২ - কম্পোনেন্ট পর্যায় ও এসএমডি সোল্ডারিং"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_repair_tier__tier3_board
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_repair_tier__tier3_board
+msgid "Tier 3 - Multi-layer Logic Board Diagnosis"
+msgstr "স্তর ৩ - বহুস্তর লজিক বোর্ড নির্ণয়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__from_repair_tier__tier4_bga_micro
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__to_repair_tier__tier4_bga_micro
+msgid "Tier 4 - Advanced BGA Rework & Micro-soldering"
+msgstr "স্তর ৪ - উন্নত বিজিএ রিওয়ার্ক ও মাইক্রো-সোল্ডারিং"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__repair_tier__l1_modular
+msgid "Tier L1 - Modular Replacement (Screens, Batteries, Ports)"
+msgstr "স্তর এল১ - মডিউল প্রতিস্থাপন (স্ক্রিন, ব্যাটারি, পোর্ট)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__repair_tier__l2_subassembly
+msgid "Tier L2 - Sub-Assembly Diagnostics & Calibration"
+msgstr "স্তর এল২ - সাব-অ্যাসেম্বলি নির্ণয় ও ক্যালিব্রেশন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__repair_tier__l3_component
+msgid "Tier L3 - Component-Level SMT/BGA IC Repair"
+msgstr "স্তর এল৩ - কম্পোনেন্ট পর্যায়ে এসএমটি/বিজিএ আইসি মেরামত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__repair_tier__l4_schematic
+msgid "Tier L4 - Schematic Reverse-Engineering & Firmware Tracing"
+msgstr "স্তর এল৪ - স্কিম্যাটিক রিভার্স-ইঞ্জিনিয়ারিং ও ফার্মওয়্যার ট্রেসিং"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__prev_experience_years
+msgid "Total Prior Experience (Years)"
+msgstr "মোট পূর্ব অভিজ্ঞতা (বছর)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__employment_type__trainee_apprentice
+msgid "Trainee / Apprentice"
+msgstr "শিক্ষানবিশ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_transfer__movement_type__transfer
+msgid "Transfer"
+msgstr "বদলি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__mfs_provider__upay
+msgid "UCB Upay"
+msgstr "ইউসিবি উপায়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__degree_cert
+msgid "University Degree Certificate"
+msgstr "বিশ্ববিদ্যালয় ডিগ্রি সনদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reference_status__unreachable
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reference_status__unreachable
+msgid "Unreachable"
+msgstr "যোগাযোগ করা যায়নি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__color_blindness__untested
+msgid "Untested"
+msgstr "অপরীক্ষিত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__is_verified__pending
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__academic_verified__pending
+msgid "Verification Pending"
+msgstr "যাচাই অপেক্ষমাণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reference_status__verified_neutral
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reference_status__verified_neutral
+msgid "Verified Neutral"
+msgstr "নিরপেক্ষভাবে যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__is_verified__verified_online
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__academic_verified__verified_online
+msgid "Verified Online"
+msgstr "অনলাইনে যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__is_verified__verified_physical
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__academic_verified__verified_physical
+msgid "Verified Physical Certificate"
+msgstr "মূল সনদ সরেজমিনে যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_experience__reference_status__verified_positive
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__prev_reference_status__verified_positive
+msgid "Verified Positive"
+msgstr "ইতিবাচকভাবে যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__psr_status__verified
+msgid "Verified by HR / Tax"
+msgstr "এইচআর / কর বিভাগ কর্তৃক যাচাইকৃত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_education__degree_level__vocational_ntvq
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__degree_level__vocational_ntvq
+msgid "Vocational Trade (NTVQ)"
+msgstr "কারিগরি ট্রেড (এনটিভিকিউ)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_hr_document__doc_type__bank_cheque
+msgid "Void Bank Cheque Leaf"
+msgstr "বাতিল ব্যাংক চেক পাতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__taxpayer_category__freedom_fighter
+msgid "War-Wounded Freedom Fighter (BDT 525,000)"
+msgstr "যুদ্ধাহত মুক্তিযোদ্ধা (৫,২৫,০০০ টাকা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__experience_line_ids
+msgid "Work Experience"
+msgstr "কর্ম অভিজ্ঞতা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__work_location_type
+msgid "Workplace Category"
+msgstr "কর্মস্থলের শ্রেণি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__mfs_provider__bkash
+msgid "bKash"
+msgstr "বিকাশ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__tin_number
+msgid "e-TIN Number"
+msgstr "ই-টিআইএন নম্বর"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__father_name
+msgid "Father's Name"
+msgstr "পিতার নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__mother_name
+msgid "Mother's Name"
+msgstr "মাতার নাম"

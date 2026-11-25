@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M42 in-Odoo event consumers (A06 audit 2026-11-03, M16-12: po.issued,
+  po.acknowledged and goods.received had 0 consumers).
+
+  A goods receipt (quality, delivery) and a vendor acknowledgement
+  (responsiveness) refresh that vendor's draft scorecard for the month. OTD by
+  vendor needs no consumer: it is computed directly from the PO's stamped
+  vendor-confirmed / promised and received dates.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_goods_received_scorecard" model="fix.event.consumer">
+            <field name="name">M42: refresh the vendor scorecard on a goods receipt</field>
+            <field name="event_type">goods.received</field>
+            <field name="model">fix.supplier.performance</field>
+            <field name="method">consume_supplier_fact</field>
+            <field name="module">cd_vendor_portal</field>
+        </record>
+        <record id="consumer_po_acknowledged_scorecard" model="fix.event.consumer">
+            <field name="name">M42: refresh the vendor scorecard on a PO acknowledgement</field>
+            <field name="event_type">po.acknowledged</field>
+            <field name="model">fix.supplier.performance</field>
+            <field name="method">consume_supplier_fact</field>
+            <field name="module">cd_vendor_portal</field>
+        </record>
+    </data>
+</odoo>

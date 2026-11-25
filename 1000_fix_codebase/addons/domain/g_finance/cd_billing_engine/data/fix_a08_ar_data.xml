@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — A08 remediation (B4): the write-off request numbering and
+     the payment-link expiry job (M20-14: links past expires_at stayed "new"). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_ar_writeoff" model="ir.sequence">
+            <field name="name">AR Write-off</field>
+            <field name="code">fix.ar.writeoff</field>
+            <field name="prefix">WO/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="ir_cron_ar_payment_link_expiry" model="ir.cron">
+            <field name="name">AR: expire payment links past their expiry</field>
+            <field name="model_id" ref="model_fix_ar_payment_link"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- B1 -> B4: a returned customer cheque re-opens the invoice it paid -->
+        <record id="consumer_cheque_bounced_reopen_ar" model="fix.event.consumer">
+            <field name="name">M20: re-open the AR a returned customer cheque paid</field>
+            <field name="event_type">cheque.bounced</field>
+            <field name="model">fix.ar.receipt</field>
+            <field name="method">consume_cheque_bounced</field>
+            <field name="module">cd_billing_engine</field>
+        </record>
+    </data>
+</odoo>

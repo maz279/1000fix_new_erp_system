@@ -1,0 +1,28 @@
+{
+  "timestamp": "20261019T125228Z",
+  "milestone": "R08-M04",
+  "task": "R08-M04-T02",
+  "governance_rule": "IN-008",
+  "environment": "PE-002 Sandbox",
+  "duration_seconds": 13.03,
+  "overall_status": "PASS",
+  "results": {
+    "status": "PASS",
+    "total_queries": 10000,
+    "synthetic_sellers_count": 2000,
+    "authorized_reads_success": 2000,
+    "blocked_cross_tenant_reads": 8000,
+    "cross_tenant_leakage_count": 0,
+    "latency_metrics_ms": {
+      "avg": 0.99,
+      "p50": 0.88,
+      "p90": 1.41,
+      "p95": 1.62,
+      "p99": 2.07,
+      "max": 7.09,
+      "budget_p95_ms": 50.0,
+      "budget_passed": true
+    },
+    "isolation_verified": true
+  }
+}

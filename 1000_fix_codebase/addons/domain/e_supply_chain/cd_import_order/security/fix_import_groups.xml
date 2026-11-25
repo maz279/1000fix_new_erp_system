@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M44 Import, Trade Compliance & Landed Cost roles (A06 audit 2026-11-03,
+  M44-8 and S1).
+
+  The module defined no group at all: a plain internal user was the import
+  officer, the approver and the finance officer, and approved his own
+  proforma, LCA, HS ruling, LC and final landed cost.
+
+  - Import Officer: records orders, proformas, LCs and LCAs, amendments,
+    tariff rows and HS classifications, shipping documents, arrivals and
+    Bills of Entry; applies for and opens LCs; receives the consignment;
+    posts the landed-cost estimate.
+  - Import Approver: approves proformas, LCAs, HS rulings, tariff rows,
+    IRC suspension and reinstatement and the final landed cost, never on a
+    record they raised or changed; with a DOFA tier, decides LC opening and
+    amendment from the M63 inbox.
+  - Bill of Entry payment and LC payments: account.group_account_user.
+
+  The officer group carries the development admin so the workspace keeps
+  working; segregation of duties still applies to it. The approver group
+  ships EMPTY: who approves is a business appointment.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_import" model="res.groups.privilege">
+            <field name="name">Import &amp; Landed Cost</field>
+            <field name="description">Import officer and approver roles of the M44 import module.</field>
+            <field name="sequence">46</field>
+        </record>
+
+        <record id="group_fix_import_officer" model="res.groups">
+            <field name="name">Import Officer</field>
+            <field name="privilege_id" ref="privilege_fix_import"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Records import orders, proformas, LCs, LCAs, amendments, tariff rows, HS classifications, shipping documents, arrivals and Bills of Entry; applies for and opens LCs; receives the consignment into stock; posts the landed-cost estimate.</field>
+        </record>
+
+        <record id="group_fix_import_approver" model="res.groups">
+            <field name="name">Import Approver</field>
+            <field name="privilege_id" ref="privilege_fix_import"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves proformas, LCAs, HS rulings, tariff rows, IRC suspension and reinstatement and the final landed cost, never on a record they raised or changed; with a DOFA tier, decides LC opening and amendment from the M63 inbox.</field>
+        </record>
+
+    </data>
+</odoo>

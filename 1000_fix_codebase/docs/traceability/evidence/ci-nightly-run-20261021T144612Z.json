@@ -1,0 +1,73 @@
+{
+  "profile": "nightly",
+  "runner": "local-harness",
+  "runner_note": "Executed by tooling/ci/run-pipeline.py on a developer workstation \u2014 NOT a GitHub Actions runner. R01-M03-T03 requires an Actions run URL for the 'real runner' criterion; this record does not satisfy it.",
+  "timestamp": "2026-10-21T14:46:12.051887+00:00",
+  "total_duration_seconds": 307.04,
+  "budget_limit_seconds": 10800.0,
+  "budget_met": true,
+  "success": false,
+  "stages": [
+    {
+      "name": "nightly-journeys",
+      "description": "E2E critical business user journeys (17 spec files on disk; executed count measured from runner output)",
+      "status": "FAIL",
+      "duration_seconds": 223.17,
+      "exit_code": 1,
+      "measurements": {
+        "journeys_passed": 15,
+        "journeys_failed": 2,
+        "journeys_executed": 17,
+        "journey_spec_files_on_disk": 17
+      },
+      "output_summary": "1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\tooling\\e2e\\journeys\\j05-corporate-amc.spec.ts:18:3\n\n    Error Context: test-results\\j05-corporate-amc-J05-corp-c6248-act-to-consolidated-billing\\error-context.md\n\n  2 failed\n    journeys\\j04-brand-claim.spec.ts:5:5 \u203a J04 brand warranty claim to reimbursement \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    journeys\\j05-corporate-amc.spec.ts:5:5 \u203a J05 corporate AMC contract to consolidated billing \u2500\u2500\u2500\u2500\n  15 passed (3.7m)\n\u2009ELIFECYCLE\u2009 Test failed. See above for more details.\n"
+    },
+    {
+      "name": "nightly-visual-drive",
+      "description": "Route visual and responsive layout regression drive",
+      "status": "FAIL",
+      "duration_seconds": 44.28,
+      "exit_code": 1,
+      "measurements": {
+        "views_clean": 23,
+        "views_verified": 36
+      },
+      "output_summary": "rs:7 html:9181 hydrated:false csp:true\n  FAIL seller/settlements errs:7 html:9185 hydrated:false csp:true\n  FAIL brand/ NAV Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:3014/\n  FAIL brand/reconciliation NAV Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:3014/reconcili\n  FAIL partner/ errs:7 html:8448 hydrated:false csp:true\n  FAIL partner/referrals errs:7 html:8954 hydrated:false csp:true\n  FAIL partner/commissions errs:7 html:8958 hydrated:false csp:true\n"
+    },
+    {
+      "name": "nightly-headers-sweep",
+      "description": "Security and CSP response headers sweep",
+      "status": "FAIL",
+      "duration_seconds": 25.86,
+      "exit_code": 1,
+      "measurements": {
+        "headers_passed": 11,
+        "headers_failed": 13,
+        "headers_verified": 24
+      },
+      "output_summary": "nded with a status of 500 (Internal Server Error)\n    Refused to execute script from 'http://127.0.0.1:3016/_next/static/chunks/2d3hnj4qrtla_.js' because its MIME type ('text\nFAIL partner/commissions :: noErrors\n    Failed to load resource: the server responded with a status of 500 (Internal Server Error)\n    Refused to execute script from 'http://127.0.0.1:3016/_next/static/chunks/2d3hnj4qrtla_.js' because its MIME type ('text\nPASS vendor/ :: \nPASS vendor/invoices :: \n\nSWEEP: 11 pass / 13 fail\n"
+    },
+    {
+      "name": "nightly-de20-clean-doctor",
+      "description": "Doctor verification on this runner (DE-20 / P02-M10-T07)",
+      "status": "FAIL",
+      "duration_seconds": 13.73,
+      "exit_code": 1,
+      "measurements": {
+        "checks_total": 14,
+        "checks_passed": 10,
+        "checks_skipped": 2,
+        "checks_failed": 2,
+        "runner_context": "local-harness workstation (not a clean CI runner)"
+      },
+      "output_summary": "afety (DE-12/FF-09) - pattern scan activates with kernel tables (residency stub is synthetic-only); never bring production data\n[skip] 13  Debugger - debugpy attach activates with Phase-3 dev container\n[skip] 14  Hot reload - hot reload volume-mount activates with dev container\n\ndoctor: PASS 10  SKIP 2  FAIL 2  (of 14)\n[ ok ] doctor JSON saved to C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\doctor-de20-20261021T144558Z.json\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

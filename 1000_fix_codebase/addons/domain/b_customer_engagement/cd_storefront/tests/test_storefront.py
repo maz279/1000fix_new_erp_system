@@ -1,65 +1,97 @@
-"""cd_storefront tests - P10-M03 (CD-M38-02)."""
-import inspect
-import unittest
+"""cd_storefront tests - P10-M03 (CD-M38-02 / R08-M03).
 
-from odoo.addons.cd_storefront.models.fix_storefront import (
-    FixStorefrontCart, FixStorefrontCartLine, FixStorefrontReturn)
+A04 audit C13 (2026-11-04): these were source-text checks (the method's code
+contains "storefront.order_placed", the class mentions "refunded"...), which
+passed while every control they named could be bypassed by a write. They are
+now behaviour checks run as a plain internal user; the lifecycle controls
+themselves are proved in test_a04_c2_c13_storefront.py.
+"""
 
+import pytest
+from odoo.exceptions import AccessError, UserError, ValidationError
 
-class TestCart(unittest.TestCase):
-    def test_checkout_requires_items(self):
-        src = inspect.getsource(FixStorefrontCart.action_checkout)
-        self.assertIn("Cart is empty", src)
+from .test_a04_c2_c13_storefront import storefront_world
 
-    def test_order_event(self):
-        self.assertIn("storefront.order_placed",
-                      inspect.getsource(FixStorefrontCart))
-
-    def test_total_computed(self):
-        src = inspect.getsource(FixStorefrontCart._compute_total)
-        self.assertIn("line_ids", src)
-        self.assertIn("sum", src)
-
-    def test_cart_state_lifecycle(self):
-        src = inspect.getsource(FixStorefrontCart)
-        for s in ("open", "checkout", "ordered"):
-            self.assertIn(s, src)
-
-    def test_sequence_generated(self):
-        src = inspect.getsource(FixStorefrontCart.create)
-        self.assertIn("ir.sequence", src)
+REFUSED = (UserError, ValidationError, AccessError)
 
 
-class TestCartLine(unittest.TestCase):
-    def test_subtotal_computed(self):
-        src = inspect.getsource(FixStorefrontCartLine._compute_subtotal)
-        self.assertIn("quantity", src)
-        self.assertIn("unit_price", src)
+@pytest.fixture
+def clerk_env(odoo_env):
+    env = odoo_env
+    clerk = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "SF Unit Clerk",
+                "login": "sf.unit.clerk@a04.test",
+                # A04 ERP M38-F5: carts are captured by assisted sales staff
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            env.ref("base.group_user").id,
+                            env.ref("cd_storefront.group_fix_storefront_assisted_sales").id,
+                        ],
+                    )
+                ],
+            }
+        )
+    )
+    customer = env["res.partner"].create({"name": "SF Unit Customer", "city": "Dhaka"})
+    product = env["product.template"].create(
+        {"name": "SF Unit Cable", "list_price": 300.0, "sale_ok": True}
+    )
+    # A04 ERP M38-F1: the M11 card (260.87 + 15% VAT = BDT 300.00)
+    storefront_world(env, product, price=260.87)
+    return env, clerk, customer, product
 
-    def test_quantity_positive(self):
-        self.assertIn("positive",
-                      inspect.getsource(FixStorefrontCartLine._check_qty))
 
-    def test_monetary_fields(self):
-        import odoo.fields as f
-        self.assertIsInstance(FixStorefrontCartLine.unit_price, f.Monetary)
-        self.assertIsInstance(FixStorefrontCartLine.subtotal, f.Monetary)
-
-
-class TestReturns(unittest.TestCase):
-    def test_return_reasons(self):
-        src = inspect.getsource(FixStorefrontReturn)
-        for r in ("defective", "wrong_item", "not_as_described"):
-            self.assertIn(r, src)
-
-    def test_return_state_lifecycle(self):
-        src = inspect.getsource(FixStorefrontReturn)
-        for s in ("requested", "approved", "received", "refunded"):
-            self.assertIn(s, src)
-
-    def test_refund_amount_tracked(self):
-        self.assertTrue(hasattr(FixStorefrontReturn, "refund_amount"))
+def _cart(env, clerk, customer, product=None, qty=1):
+    cart = env["fix.storefront.cart"].with_user(clerk).create({"customer_id": customer.id})
+    if product:
+        env["fix.storefront.cart.line"].with_user(clerk).create(
+            {"cart_id": cart.id, "product_id": product.id, "quantity": qty}
+        )
+    return cart
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_checkout_requires_items(clerk_env):
+    env, clerk, customer, _product = clerk_env
+    cart = _cart(env, clerk, customer)
+    with pytest.raises(UserError, match="Cart is empty"):
+        cart.action_checkout()
+    assert cart.state == "open"
+
+
+def test_cart_total_and_line_subtotals_are_computed(clerk_env):
+    env, clerk, customer, product = clerk_env
+    cart = _cart(env, clerk, customer, product, qty=3)
+    assert cart.line_ids.subtotal == 900.0 and cart.total == 900.0
+    with pytest.raises(UserError, match="Quantity must be positive"), env.cr.savepoint():
+        cart.line_ids.with_user(clerk).write({"quantity": 0})
+
+
+def test_placing_an_order_publishes_it(clerk_env):
+    env, clerk, customer, product = clerk_env
+    order = _cart(env, clerk, customer, product).action_place_order(shipping_address="Road 2")
+    assert order.sudo().state == "pending_payment"
+    assert order.sudo().name.startswith("SF/")
+    assert env["fix.event.outbox"].search_count(
+        [("event_type", "=", "storefront.order_placed"), ("aggregate_id", "=", order.id)]
+    )
+
+
+def test_a_plain_user_runs_no_order_or_return_step(clerk_env):
+    env, clerk, customer, product = clerk_env
+    order = _cart(env, clerk, customer, product).action_place_order(shipping_address="Road 2")
+    for method in ("action_dispatch", "action_deliver", "action_cancel"):
+        with pytest.raises(REFUSED), env.cr.savepoint():
+            getattr(order.with_user(clerk), method)()
+    with pytest.raises(REFUSED), env.cr.savepoint():
+        order.with_user(clerk).action_confirm_payment(payment_ref="TYPED-1")
+    with pytest.raises(REFUSED), env.cr.savepoint():
+        env["fix.storefront.return"].with_user(clerk).create(
+            {"order_id": order.id, "customer_id": customer.id, "refund_amount": 1.0}
+        )

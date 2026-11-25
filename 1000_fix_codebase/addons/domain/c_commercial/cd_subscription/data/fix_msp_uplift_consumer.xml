@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription: an MSP fee change (M05) becomes the M39 subscription's
+     controlled price change (A02 ERP audit M05-F4 / O14; pass 2 M05-S05/S06),
+     and an offboarded MSP client's subscription churns (pass 2 M05-S07). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_msp_device_uplift" model="fix.event.consumer">
+            <field name="name">M39: bill an MSP device uplift</field>
+            <field name="event_type">msp.device_uplift</field>
+            <field name="model">fix.subscription.msp.uplift</field>
+            <field name="method">consume_msp_device_uplift</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_msp_commercial_terms_amended" model="fix.event.consumer">
+            <field name="name">M39: bill an MSP fee change (devices up or down, price)</field>
+            <field name="event_type">msp.commercial_terms_amended</field>
+            <field name="model">fix.subscription.msp.uplift</field>
+            <field name="method">consume_msp_commercial_terms_amended</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_msp_client_offboarded" model="fix.event.consumer">
+            <field name="name">M39: churn the subscription of an offboarded MSP client</field>
+            <field name="event_type">msp.client_offboarded</field>
+            <field name="model">fix.subscription.msp.uplift</field>
+            <field name="method">consume_msp_client_offboarded</field>
+            <field name="module">cd_subscription</field>
+        </record>
+    </data>
+</odoo>

@@ -7,96 +7,1006 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_statutory_filing_form
+msgid "2026-09 / 2026-Q1 / FY2027"
+msgstr "2026-09 / 2026-Q1 / FY2027"
 
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "2026-Q1 (Jul-Sep 2026)"
+msgstr "2026-Q1 (জুলাই-সেপ্টেম্বর ২০২৬)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__payment_mode__a_challan
+msgid "A-Challan (iBAS++)"
+msgstr "এ-চালান (আইবাস++)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__reference
+msgid "Acknowledgement / Reference"
+msgstr "প্রাপ্তিস্বীকার / সূত্র"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Acknowledgment No. issued by NBR"
+msgstr "NBR প্রদত্ত প্রাপ্তিস্বীকার নং"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
 msgid "Amounts"
 msgstr "পরিমাণসমূহ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__annual
+msgid "Annual"
+msgstr "বার্ষিক"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__any
+msgid "Any payee"
+msgstr "যেকোনো প্রাপক"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__bank_branch
+msgid "Bank & Branch Name"
+msgstr "ব্যাংক ও শাখার নাম"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__base_amount
+msgid "Base"
+msgstr "ভিত্তি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__base_amount
+msgid "Base Gross Amount"
+msgstr "মূল মোট পরিমাণ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__rtgs_min_amount
+msgid "BD-RTGS minimum transfer (BDT)"
+msgstr "BD-RTGS ন্যূনতম স্থানান্তর (BDT)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__attachment_id
+msgid "Bundle (ZIP)"
+msgstr "সংকলন (ZIP)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__pack_sha256
+msgid "Bundle SHA-256"
+msgstr "সংকলনের SHA-256"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__cancelled
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__state__cancelled
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__certificate_id
+msgid "Certificate"
+msgstr "সনদ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_withholding_certificate_form
+msgid "Certificate Info"
+msgstr "সনদের তথ্য"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__certified
+msgid "Certificate Issued"
+msgstr "সনদ প্রদত্ত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__certificate_no
+msgid "Certificate No"
+msgstr "সনদ নম্বর"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_id
+msgid "Challan"
+msgstr "চালান"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_date
+msgid "Challan Date"
+msgstr "চালানের তারিখ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__challan_date
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__challan_date
+msgid "Challan Deposit Date"
+msgstr "চালান জমার তারিখ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__challan_no
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_no
+msgid "Challan No"
+msgstr "চালান নং"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__challan_ids
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Challans"
+msgstr "চালানসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_input_vat_credit_form
+msgid "Check Eligibility"
+msgstr "যোগ্যতা যাচাই"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__tampered
+msgid "Checksum Mismatch"
+msgstr "চেকসাম অমিল"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__claim_period
+msgid "Claim Period"
+msgstr "দাবির মেয়াদ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__vat_return_id
+msgid "Claimed In"
+msgstr "যে রিটার্নে দাবি করা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__claimed
+msgid "Claimed in 9.1"
+msgstr "৯.১ এ দাবিকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_parameter__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__company_id
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__company
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__company_itr
+msgid "Company income tax return (annual)"
+msgstr "কোম্পানির আয়কর রিটার্ন (বার্ষিক)"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+msgid "Confirm Deposit & Post"
+msgstr "জমা নিশ্চিত ও পোস্ট"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__customer_bin
 msgid "Customer BIN"
 msgstr "ক্রেতার BIN"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__decrease
+msgid "Decreasing adjustment (credit note 6.7)"
+msgstr "হ্রাসকারী সমন্বয় (ক্রেডিট নোট ৬.৭)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__amount
+msgid "Deducted"
+msgstr "কর্তিত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_id
+msgid "Deductee"
+msgstr "কর্তিত ব্যক্তি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_bin
+msgid "Deductee BIN"
+msgstr "কর্তিত ব্যক্তির BIN"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_tin
+msgid "Deductee TIN"
+msgstr "কর্তিত ব্যক্তির TIN"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__withholding_line_id
+msgid "Deduction"
+msgstr "কর্তন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__withholding_line_ids
+msgid "Deductions Settled"
+msgstr "নিষ্পন্ন কর্তন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__challan_date
+msgid "Deposit Date"
+msgstr "জমার তারিখ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__amount
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__deposited
+msgid "Deposited"
+msgstr "জমাকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__deposited
+msgid "Deposited & Posted"
+msgstr "জমাকৃত ও পোস্টকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__name
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
 msgid "Determination"
 msgstr "নির্ধারণ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__state__draft
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__draft
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return__state__draft
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__state__draft
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__due_day
+msgid "Due Day of Month"
+msgstr "মাসের নির্ধারিত দিন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__payment_mode__e_payment
+msgid "e-Payment (RTGS)"
+msgstr "ই-পেমেন্ট (RTGS)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__economic_code
+msgid "Economic / Revenue Code"
+msgstr "অর্থনৈতিক / রাজস্ব কোড"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__eligible
+msgid "Eligible"
+msgstr "যোগ্য"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__attachment_ids
+msgid "Evidence Files"
+msgstr "প্রমাণ ফাইল"
+
+#. module: cd_tax_engine_bd
+msgid "File Return with NBR"
+msgstr "NBR-এ রিটার্ন দাখিল করুন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return__state__filed
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__state__filed
+msgid "Filed"
+msgstr "দাখিলকৃত"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Filing & NBR Status"
+msgstr "দাখিল ও NBR অবস্থা"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_withholding_certificate_form
+msgid "Financials & Challan"
+msgstr "আর্থিক তথ্য ও চালান"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_audit_pack_form
+msgid "Generate Pack"
+msgstr "প্যাক তৈরি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__state__generated
+msgid "Generated"
+msgstr "তৈরিকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__move_id
+msgid "GL Entry"
+msgstr "GL এন্ট্রি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__base_amount
+msgid "Gross Value"
+msgstr "মোট মূল্য (গ্রস)"
+
+#. module: cd_tax_engine_bd
 msgid "Group By"
 msgstr "গ্রুপ অনুযায়ী"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__increase
+msgid "Increasing adjustment (debit note 6.8)"
+msgstr "বৃদ্ধিকারী সমন্বয় (ডেবিট নোট ৬.৮)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__individual
+msgid "Individual"
+msgstr "ব্যক্তি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__ineligible
+msgid "Ineligible"
+msgstr "অযোগ্য"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__input_credit_ids
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Input Credits Claimed"
+msgstr "দাবিকৃত উপকরণ রেয়াত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__vat_amount
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__input_vat
 msgid "Input VAT"
 msgstr "ইনপুট ভ্যাট"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__input_credit_window_periods
+msgid "Input VAT claim window (tax periods after the invoice)"
+msgstr "উপকরণ VAT দাবির সময়সীমা (চালানের পরের কর মেয়াদ)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__signed_vat
+msgid "Input VAT Effect"
+msgstr "উপকরণ VAT প্রভাব"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__subledger_input_variance
+msgid "Input VAT Variance"
+msgstr "ইনপুট VAT তারতম্য"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__intact
+msgid "Intact"
+msgstr "অক্ষত"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
 msgid "Invoice"
 msgstr "চালান"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__invoice_date
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__invoice_date
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_search
 msgid "Invoice Date"
 msgstr "চালানের তারিখ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__invoice_ref
 msgid "Invoice Reference"
 msgstr "চালান রেফারেন্স"
 
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_withholding_line_form
+msgid "Issue Certificate"
+msgstr "সনদ প্রদান"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_withholding_certificate_form
+msgid "Issue Statutory Certificate"
+msgstr "সংবিধিবদ্ধ সনদ ইস্যু করুন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__state__issued
+msgid "Issued"
+msgstr "ইস্যুকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__109
+msgid "ITA 2023 s.109 - Rent"
+msgstr "আয়কর আইন ২০২৩ ধারা ১০৯ - ভাড়া"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__89
+msgid "ITA 2023 s.89 - Contractors / suppliers"
+msgstr "আয়কর আইন ২০২৩ ধারা ৮৯ - ঠিকাদার / সরবরাহকারী"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__90
+msgid "ITA 2023 s.90 - Services"
+msgstr "আয়কর আইন ২০২৩ ধারা ৯০ - সেবা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__94
+msgid "ITA 2023 s.94 - Commission"
+msgstr "আয়কর আইন ২০২৩ ধারা ৯৪ - কমিশন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__claim_deadline
+msgid "Last Claim Period"
+msgstr "দাবির শেষ মেয়াদ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__liability_total
+msgid "Liabilities Linked"
+msgstr "সংযুক্ত দায়"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+msgid "Link Open Deductions"
+msgstr "অজমাকৃত কর্তন সংযুক্ত করুন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__month_offset
+msgid "Months After Period End"
+msgstr "মেয়াদ শেষের পরের মাস"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__multiplier
+msgid "Multiplier"
+msgstr "গুণক"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__mushak610_threshold
+msgid "Mushak 6.10 high-value invoice threshold (BDT)"
+msgstr "মুশক ৬.১০ উচ্চমূল্য চালানের সীমা (BDT)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__mushak_no
 msgid "Mushak 6.3 No."
 msgstr "মুশক ৬.৩ নং"
 
+#. module: cd_tax_engine_bd
+#: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_mushak_register
 msgid "Mushak 6.3 Register"
 msgstr "মুশক ৬.৩ রেজিস্টার"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__certificate_type__mushak_6_6
+msgid "Mushak 6.6 (VAT Deduction at Source - VDS)"
+msgstr "Mushak 6.6 (উৎসে VAT কর্তন - VDS)"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Mushak 9.1 Lines by Treatment"
+msgstr "পদ্ধতি অনুযায়ী মুশক ৯.১ লাইন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__vat_91_return
+msgid "Mushak 9.1 monthly VAT return and payment"
+msgstr "মুশক ৯.১ মাসিক VAT রিটার্ন ও পরিশোধ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return__nbr_acknowledgment
+msgid "NBR Acknowledgment No"
+msgstr "NBR প্রাপ্তি স্বীকার নং"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__nbr_confirmation
 msgid "NBR Confirmation"
 msgstr "এনবিআর নিশ্চিতকরণ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__net_payable
 msgid "Net Payable"
 msgstr "নিট প্রদেয়"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__net_payable_after_vds
+msgid "Net Payable after VDS"
+msgstr "VDS এর পর নিট প্রদেয়"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_tree
 msgid "Nil"
 msgstr "শূন্য"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__non_filer
+msgid "Non-filer"
+msgstr "রিটার্ন অদাখিলকারী"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__non_filer_applies
+msgid "Non-filer Multiplier Applies"
+msgstr "অদাখিলকারী গুণক প্রযোজ্য"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__non_filer_multiplier
+msgid "Non-filer withholding multiplier (no proof of return)"
+msgstr "অদাখিলকারীর উৎসে কর গুণক (রিটার্নের প্রমাণ নেই)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__obligation
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__rule_id
+msgid "Obligation"
+msgstr "দায়বদ্ধতা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_parameter__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__other
+msgid "Other section"
+msgstr "অন্য ধারা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__output_vat
 msgid "Output VAT"
 msgstr "আউটপুট ভ্যাট"
 
-msgid "Parties"
-msgstr "পক্ষসমূহ"
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__subledger_output_variance
+msgid "Output VAT Variance"
+msgstr "আউটপুট VAT তারতম্য"
 
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
+msgid "Parties"
+msgstr "পার্টিসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__subledger_status__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__pending
+msgid "Pending Check"
+msgstr "যাচাই বাকি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__period_key
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__period
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__period
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__period
+msgid "Period"
+msgstr "মেয়াদ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Prepare from Deductions"
+msgstr "কর্তন থেকে প্রস্তুত"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Prepare from Registers"
+msgstr "রেজিস্টার থেকে প্রস্তুত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return__state__prepared
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__state__prepared
+msgid "Prepared"
+msgstr "প্রস্তুতকৃত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__invoice
+msgid "Purchase invoice (6.3)"
+msgstr "ক্রয় চালান (৬.৩)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__wht_return
+msgid "Quarterly withholding tax return"
+msgstr "ত্রৈমাসিক উৎসে কর রিটার্ন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__rate
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__rate
 msgid "Rate (%)"
 msgstr "হার (%)"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__rate_id
+msgid "Rate Row"
+msgstr "হারের সারি"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Reconcile Sub-Ledger"
+msgstr "উপ-খতিয়ান সমন্বয় করুন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__subledger_status__reconciled
+msgid "Reconciled"
+msgstr "সমন্বয়কৃত"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Record NBR Filing"
+msgstr "NBR দাখিল নথিভুক্ত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__roll_to_working_day
+msgid "Roll to Next Working Day"
+msgstr "পরবর্তী কর্মদিবসে সরান"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__52
+msgid "Sec 52 - Supply of Goods / Execution of Contract"
+msgstr "ধারা ৫২ - পণ্য সরবরাহ / চুক্তি সম্পাদন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__52aa
+msgid "Sec 52AA - Specified Services"
+msgstr "ধারা ৫২কক - নির্দিষ্ট সেবা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__53a
+msgid "Sec 53A - House Rent"
+msgstr "ধারা ৫৩ক - বাড়িভাড়া"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__53f
+msgid "Sec 53F - Commission / Agency"
+msgstr "ধারা ৫৩চ - কমিশন / এজেন্সি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__56
+msgid "Sec 56 - Payment to Non-Residents"
+msgstr "ধারা ৫৬ - অনিবাসীদের পরিশোধ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__section
+msgid "Section / Service Code"
+msgstr "ধারা / সেবা কোড"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__certificate_type__section_52_income_tax
+msgid "Section 52 / Income Tax Withholding"
+msgstr "ধারা ৫২ / উৎসে আয়কর কর্তন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__source_note
+msgid "Source / Note"
+msgstr "উৎস / নোট"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__source_ref
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__source_ref
+msgid "Source Document"
+msgstr "উৎস দলিল"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__source_event_id
 msgid "Source Event"
 msgstr "উৎস ইভেন্ট"
 
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_rate_form
+msgid "Source of the rate (SRO, Finance Act, adviser memo)"
+msgstr "হারের উৎস (SRO, অর্থ আইন, উপদেষ্টার নোট)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__rate
+msgid "Statutory Rate (%)"
+msgstr "বিধিবদ্ধ হার (%)"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Statutory Return Amounts"
+msgstr "সংবিধিবদ্ধ রিটার্নের পরিমাণ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__section
+msgid "Statutory Section"
+msgstr "বিধিবদ্ধ ধারা"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Sub-Ledger Reconciliation (GL 210100 & 110500)"
+msgstr "উপ-খতিয়ান সমন্বয় (GL 210100 ও 110500)"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Submit to NBR (INT-038)"
+msgstr "NBR-এ জমা দিন (INT-038)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__partner_id
+msgid "Supplier"
+msgstr "সরবরাহকারী"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_name
+msgid "Supplier / Deductee Name"
+msgstr "সরবরাহকারী / কর্তিত করদাতার নাম"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_address
+msgid "Supplier Address"
+msgstr "সরবরাহকারীর ঠিকানা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_bin
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__supplier_bin
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_bin
 msgid "Supplier BIN"
 msgstr "সরবরাহকারী BIN"
 
-msgid "TDS Return"
-msgstr "টিডিএস রিটার্ন"
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_mushak_no
+msgid "Supplier Mushak 6.3 No"
+msgstr "সরবরাহকারীর মুশক ৬.৩ নং"
 
-msgid "TDS Returns"
-msgstr "টিডিএস রিটার্নসমূহ"
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_tin
+msgid "Supplier TIN"
+msgstr "সরবরাহকারীর TIN"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_enlisted
+msgid "Supplier Turnover-Tax Enlisted"
+msgstr "সরবরাহকারী টার্নওভার কর তালিকাভুক্ত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__code
 msgid "Tariff Code"
 msgstr "ট্যারিফ কোড"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__tax_kind
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__tax_kind
+msgid "Tax"
+msgstr "কর"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__rate_percent
+msgid "Tax / VAT Rate (%)"
+msgstr "কর / VAT হার (%)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__section_code
+msgid "Tax Law Section"
+msgstr "কর আইনের ধারা"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_journal_posting_log__source__tax_subledger
+msgid "Tax Sub-ledger (M51)"
+msgstr "কর উপ-খতিয়ান (M51)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__taxable_amount
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__taxable_amount
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__total_taxable
 msgid "Taxable Value"
 msgstr "করযোগ্য মূল্য"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__tds
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__tax_kind__tds
+msgid "TDS"
+msgstr "TDS"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__tds
+msgid "TDS (income tax at source)"
+msgstr "TDS (উৎসে আয়কর)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__tds_deposit
+msgid "TDS deposit (income tax withheld)"
+msgstr "TDS জমা (কর্তিত আয়কর)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return__line_ids
+msgid "TDS Detail Lines"
+msgstr "TDS বিস্তারিত লাইনসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__rate_percent
+msgid "TDS Rate (%)"
+msgstr "TDS হার (%)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__tds_return_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__fix_tds_return_id
+msgid "TDS Return"
+msgstr "টিডিএস রিটার্ন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_tds_return
+msgid "TDS Returns"
+msgstr "টিডিএস রিটার্নসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__total_payable
 msgid "Total Payable"
 msgstr "মোট প্রদেয়"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return__total_withheld
 msgid "Total Withheld"
 msgstr "মোট কর্তন"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__challan_no
+msgid "Treasury Challan / A-Challan No"
+msgstr "ট্রেজারি চালান / এ-চালান নং"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__challan_no
+msgid "Treasury Challan No"
+msgstr "ট্রেজারি চালান নং"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__name
 msgid "Treatment"
 msgstr "শ্রেণি নির্ধারণ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__treatment_type
+msgid "Treatment Type"
+msgstr "শ্রেণি নির্ধারণের ধরন"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__truncated_base
 msgid "Truncated Fixed Base"
 msgstr "ট্রাংকেটেড নির্দিষ্ট ভিত্তি"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__unchecked
+msgid "Unchecked"
+msgstr "যাচাই হয়নি"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_search
 msgid "Unposted"
 msgstr "অ-পোস্টকৃত"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__date_from
+msgid "Valid From"
+msgstr "বৈধতার শুরু"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__date_to
+msgid "Valid To"
+msgstr "বৈধতার শেষ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__subledger_status__variance_detected
+msgid "Variance Detected"
+msgstr "তারতম্য শনাক্ত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__vat_amount
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__vat
 msgid "VAT"
 msgstr "ভ্যাট"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__vat
+msgid "VAT (Mushak 9.1)"
+msgstr "VAT (মুশক ৯.১)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__vat_return_id
+msgid "VAT Return (9.1)"
+msgstr "VAT রিটার্ন (৯.১)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_vat_return
 msgid "VAT Returns"
 msgstr "ভ্যাট রিটার্নসমূহ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_vat_treatment
 msgid "VAT Treatments"
 msgstr "ভ্যাট শ্রেণিসমূহ"
 
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__vds
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__tax_kind__vds
+msgid "VDS"
+msgstr "VDS"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__vds
+msgid "VDS (VAT at source)"
+msgstr "VDS (উৎসে VAT)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__vds_claim_move_id
+msgid "VDS Claim Entry"
+msgstr "VDS দাবির এন্ট্রি"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__vds_received_credit
+msgid "VDS Credit (6.6 received)"
+msgstr "VDS রেয়াত (প্রাপ্ত ৬.৬)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__vds_deposit
+msgid "VDS deposit (VAT withheld)"
+msgstr "VDS জমা (কর্তিত VAT)"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__vendor_name
+msgid "Vendor / Deductee Name"
+msgstr "ভেন্ডর / কর্তিত করদাতার নাম"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__vendor_bin
+msgid "Vendor BIN"
+msgstr "ভেন্ডর BIN"
+
+#. module: cd_tax_engine_bd
 msgid "Vendor Invoice"
 msgstr "ভেন্ডর চালান"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__vendor_tin
+msgid "Vendor TIN / e-TIN"
+msgstr "ভেন্ডর TIN / e-TIN"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_audit_pack_form
+msgid "Verify Checksums"
+msgstr "চেকসাম যাচাই"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__verify_with_adviser
+msgid "Verify with Adviser"
+msgstr "উপদেষ্টার সাথে যাচাই"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__withheld
+msgid "Withheld"
+msgstr "কর্তিত"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__withheld_amount
+msgid "Withheld Amount"
+msgstr "কর্তিত পরিমাণ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__tds_amount
+msgid "Withheld Tax Amount"
+msgstr "কর্তিত করের পরিমাণ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Withholding Breakdown Lines"
+msgstr "উৎসে কর্তনের বিভাজন লাইনসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_withholding_certificate
+msgid "Withholding Certificates"
+msgstr "উৎসে কর কর্তন প্রত্যয়নপত্রসমূহ"
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "YYYY-MM"
+msgstr "YYYY-MM"

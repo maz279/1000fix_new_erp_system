@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The 80 mm thermal receipt (owner request 18 Nov 2026), beside the A4 print,
+  for the tax invoice / cash memo, the local proforma, the quotation and the
+  estimate. Same payload as the A4 body (models/fix_doc_print.py), laid out
+  for a 72 mm printable roll: SL + code + description, then qty x price and
+  the amount; totals, amount in words, short notes, printed-at.
+  The page height follows the content (models/fix_receipt_report.py).
+-->
+<odoo>
+
+    <record id="paperformat_1000fix_receipt_80" model="report.paperformat">
+        <field name="name">1000FiX Thermal Receipt 80 mm</field>
+        <field name="format">custom</field>
+        <field name="page_width">80</field>
+        <field name="page_height">297</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">3</field>
+        <field name="margin_bottom">3</field>
+        <field name="margin_left">3</field>
+        <field name="margin_right">3</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <!-- the computed roll length reaches wkhtmltopdf on the <html> tag -->
+    <template id="report_layout_page_height" inherit_id="web.report_layout">
+        <xpath expr="//html" position="attributes">
+            <attribute name="t-att-data-report-page-height">data_report_page_height</attribute>
+        </xpath>
+    </template>
+
+    <template id="receipt_80_style">
+        <style>
+            .rcpt { font-family: "Noto Sans Bengali", "Nirmala UI", Arial, sans-serif; font-size: 8.4pt; color: #000; width: 100%; line-height: 1.3; }
+            .rcpt-c { text-align: center; }
+            .rcpt-co { font-size: 11pt; font-weight: 800; letter-spacing: 0.3px; }
+            .rcpt-small { font-size: 7.4pt; }
+            .rcpt-title { font-size: 10pt; font-weight: 800; margin-top: 3px; }
+            .rcpt-tag { display: inline-block; border: 1px solid #000; padding: 0 4px; font-size: 7.6pt; font-weight: 700; margin-top: 2px; }
+            .rcpt-rule { border-top: 1px dashed #000; margin: 4px 0; }
+            .rcpt-rule2 { border-top: 2px solid #000; margin: 4px 0; }
+            table.rcpt-t { width: 100%; border-collapse: collapse; }
+            table.rcpt-t td { padding: 0.5px 0; vertical-align: top; }
+            td.rcpt-r { text-align: right; white-space: nowrap; }
+            td.rcpt-lbl { width: 40%; }
+            .rcpt-desc { font-weight: 600; }
+            .rcpt-sub { font-size: 7.2pt; }
+            tr.rcpt-grand td { font-size: 10.5pt; font-weight: 800; border-top: 1px solid #000; border-bottom: 3px double #000; padding: 2px 0; }
+            tr.rcpt-due td { font-weight: 700; }
+            .rcpt-section { font-weight: 700; text-decoration: underline; margin-top: 2px; }
+            .rcpt-wm { font-weight: 800; text-align: center; border: 1px solid #000; margin: 2px 0; }
+        </style>
+    </template>
+
+    <template id="receipt_80_body">
+        <div class="rcpt">
+            <div class="rcpt-c rcpt-co" t-esc="p['company']['name']"/>
+            <div class="rcpt-c rcpt-small" t-if="p['company'].get('address')" t-esc="p['company']['address']"/>
+            <div class="rcpt-c rcpt-small">ISO 9001:2015 Certified · Hotline 16743 · 1000fix.com</div>
+            <div class="rcpt-c rcpt-small" t-if="p['company'].get('bin')">BIN: <b t-esc="p['company']['bin']"/></div>
+            <div class="rcpt-rule2"/>
+            <div class="rcpt-c rcpt-title"><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="p['title']"/></t></div>
+            <div class="rcpt-c">
+                <span class="rcpt-tag" t-if="p.get('mushak')">MUSHAK - 6.3</span>
+                <span class="rcpt-tag" t-if="p.get('chip')" t-esc="p['chip']"/>
+            </div>
+            <div class="rcpt-wm" t-if="p.get('watermark') == 'PROFORMA'">PROFORMA — NOT A TAX INVOICE</div>
+            <div class="rcpt-rule"/>
+            <table class="rcpt-t">
+                <tr t-foreach="p['meta']" t-as="m"><td class="rcpt-lbl"><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="m[0]"/></t></td><td class="rcpt-r" t-esc="m[1]"/></tr>
+            </table>
+            <div class="rcpt-rule"/>
+            <div><b>Customer:</b> <t t-esc="p['bill_to']['name']"/><t t-if="p['bill_to'].get('code')"> [<t t-esc="p['bill_to']['code']"/>]</t></div>
+            <div class="rcpt-small" t-if="p['bill_to'].get('category')">Category: <t t-esc="p['bill_to']['category']"/></div>
+            <div class="rcpt-small" t-if="p['bill_to'].get('phone')">Phone: <t t-esc="p['bill_to']['phone']"/></div>
+            <div class="rcpt-small" t-if="p['bill_to'].get('bin')">Buyer BIN: <t t-esc="p['bill_to']['bin']"/></div>
+            <div class="rcpt-small" t-if="p.get('service_item')">Item: <t t-esc="p['service_item']"/></div>
+            <div class="rcpt-rule"/>
+            <table class="rcpt-t">
+                <tr><td class="rcpt-sub"><b>SL · Code · Description</b></td><td class="rcpt-r rcpt-sub"><b>Amount</b></td></tr>
+                <tr><td class="rcpt-sub">Qty × Unit Price (− Disc)</td><td class="rcpt-r rcpt-sub"><t t-if="p.get('vat_columns')">VAT</t></td></tr>
+            </table>
+            <div class="rcpt-rule"/>
+            <t t-foreach="p['lines']" t-as="ln">
+                <div t-if="'sl' not in ln" t-att-class="'rcpt-section' if ln.get('section') else 'rcpt-sub'" t-esc="ln.get('text')"/>
+                <table t-else="" class="rcpt-t">
+                    <tr>
+                        <td class="rcpt-desc"><t t-esc="ln['sl']"/>. <t t-if="ln['code']">[<t t-esc="ln['code']"/>] </t><t t-esc="ln['description']"/></td>
+                        <td class="rcpt-r"><b t-esc="ln['amount']"/></td>
+                    </tr>
+                    <tr>
+                        <td class="rcpt-sub">
+                            <t t-esc="ln['qty']"/> <t t-esc="ln['uom']"/> × <t t-esc="ln['price']"/>
+                            <t t-if="ln.get('disc')"> − <t t-esc="ln['disc']"/></t>
+                            <t t-if="ln.get('serial')"><br/>S/N: <t t-esc="ln['serial']"/></t>
+                        </td>
+                        <td class="rcpt-r rcpt-sub"><t t-if="p.get('vat_columns') and ln.get('vat')"><t t-esc="ln['vat_rate']"/> <t t-esc="ln['vat']"/></t></td>
+                    </tr>
+                </table>
+            </t>
+            <div class="rcpt-rule"/>
+            <table class="rcpt-t">
+                <tr t-foreach="p['totals']" t-as="tt" t-att-class="'rcpt-grand' if tt[2] == 'grand' else ('rcpt-due' if tt[2] == 'due' else '')">
+                    <td><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="tt[0]"/></t><t t-if="len(tt) &gt; 3 and tt[3]"> (<t t-esc="tt[3]"/>)</t></td><td class="rcpt-r" t-esc="tt[1]"/>
+                </tr>
+            </table>
+            <div class="rcpt-small" t-if="p.get('words')" style="margin-top: 3px;"><b>In words:</b> <t t-esc="p['words']"/></div>
+            <div class="rcpt-rule"/>
+            <div class="rcpt-small" t-foreach="(p.get('notes') or [])[:3]" t-as="note" t-esc="note"/>
+            <div class="rcpt-small" t-if="p.get('policy')" style="margin-top: 2px;" t-esc="p['policy']"/>
+            <div class="rcpt-rule"/>
+            <div class="rcpt-c" style="margin-top: 2px;"><b>Thank you for choosing 1000FiX</b></div>
+            <div class="rcpt-c rcpt-small">Printed <t t-esc="p.get('printed_at')"/> by <t t-esc="p.get('printed_by')"/></div>
+            <div class="rcpt-c rcpt-small">Computer-generated · keep this receipt for warranty</div>
+        </div>
+    </template>
+
+    <template id="receipt_80_document">
+        <t t-set="data_report_page_height" t-value="docs._fix_receipt_page_height()"/>
+        <!-- web.basic_layout: html container + the report "article" wrapper
+             with no letterhead, so the body is encoded like every report -->
+        <t t-set="o" t-value="docs[:1]"/>
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page" t-att-style="'' if doc_last else 'page-break-after: always;'">
+                    <t t-call="cd_doc_suite.receipt_80_style"/>
+                    <t t-set="p" t-value="doc._fix_receipt_payload()"/>
+                    <t t-call="cd_doc_suite.receipt_80_body"/>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- one report per document (a report name resolves to one model) -->
+    <template id="report_invoice_receipt"><t t-call="cd_doc_suite.receipt_80_document"/></template>
+    <template id="report_sales_proforma_receipt"><t t-call="cd_doc_suite.receipt_80_document"/></template>
+    <template id="report_quotation_receipt"><t t-call="cd_doc_suite.receipt_80_document"/></template>
+    <template id="report_estimate_receipt"><t t-call="cd_doc_suite.receipt_80_document"/></template>
+
+    <record id="action_report_invoice_receipt" model="ir.actions.report">
+        <field name="name">Receipt 80 mm (Invoice / Cash Memo)</field>
+        <field name="model">fix.ar.invoice</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_invoice_receipt</field>
+        <field name="report_file">cd_doc_suite.report_invoice_receipt</field>
+        <field name="print_report_name">'Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_receipt_80"/>
+        <field name="binding_model_id" ref="cd_billing_engine.model_fix_ar_invoice"/>
+        <field name="binding_type">report</field>
+    </record>
+    <record id="action_report_sales_proforma_receipt" model="ir.actions.report">
+        <field name="name">Receipt 80 mm (Proforma)</field>
+        <field name="model">fix.sales.proforma</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_sales_proforma_receipt</field>
+        <field name="report_file">cd_doc_suite.report_sales_proforma_receipt</field>
+        <field name="print_report_name">'Proforma Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_receipt_80"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_sales_proforma"/>
+        <field name="binding_type">report</field>
+    </record>
+    <record id="action_report_quotation_receipt" model="ir.actions.report">
+        <field name="name">Receipt 80 mm (Quotation)</field>
+        <field name="model">fix.quotation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_quotation_receipt</field>
+        <field name="report_file">cd_doc_suite.report_quotation_receipt</field>
+        <field name="print_report_name">'Quotation Slip %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_receipt_80"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_quotation"/>
+        <field name="binding_type">report</field>
+    </record>
+    <record id="action_report_estimate_receipt" model="ir.actions.report">
+        <field name="name">Receipt 80 mm (Estimate)</field>
+        <field name="model">fix.estimate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_estimate_receipt</field>
+        <field name="report_file">cd_doc_suite.report_estimate_receipt</field>
+        <field name="print_report_name">'Estimate Slip %s' % object.id</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_receipt_80"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_estimate"/>
+        <field name="binding_type">report</field>
+    </record>
+
+</odoo>

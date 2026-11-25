@@ -1,0 +1,121 @@
+{
+  "title": "Planned (not yet published) domain event contracts",
+  "description": "Curated contracts no code publishes yet. The generator moves one back to contracts/events/ as soon as a publish() call for it exists.",
+  "events": [
+    {
+      "event_type": "amc.contract_activated",
+      "filename": "amc_contract_activated.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "consent.granted",
+      "filename": "consent_granted.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "consignment.pickup_dispatched",
+      "filename": "consignment_pickup_dispatched.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "customer.registered",
+      "filename": "customer_registered.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "cwip.capitalised",
+      "filename": "cwip_capitalised.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "data_case.recovery_completed",
+      "filename": "data_case_recovery_completed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "ewaste.collection_requested",
+      "filename": "ewaste_collection_requested.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "ewaste.destruction_certified",
+      "filename": "ewaste_destruction_certified.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "finance.mushak_9_1_filed",
+      "filename": "finance_mushak_9_1_filed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "geofence.breach.detected",
+      "filename": "geofence_breach_detected.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "marketplace.commission_calculated",
+      "filename": "marketplace_commission_calculated.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "marketplace.order_placed",
+      "filename": "marketplace_order_placed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "msp.alert_detected",
+      "filename": "msp_alert_detected.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "msp.session_closed",
+      "filename": "msp_session_closed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "payment.received",
+      "filename": "payment_received.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "payroll.beftn_generated",
+      "filename": "payroll_beftn_generated.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "payroll.period_closed",
+      "filename": "payroll_period_closed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "po.three_way_matched",
+      "filename": "po_three_way_matched.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "qms.capa_closed",
+      "filename": "qms_capa_closed.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "qms.ncr_raised",
+      "filename": "qms_ncr_raised.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "supplier.scorecard_updated",
+      "filename": "supplier_scorecard_updated.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "tradein.evaluated",
+      "filename": "tradein_evaluated.json",
+      "status": "planned"
+    },
+    {
+      "event_type": "warranty_claim.approved",
+      "filename": "warranty_claim_approved.json",
+      "status": "planned"
+    }
+  ]
+}

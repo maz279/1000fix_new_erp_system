@@ -1,0 +1,70 @@
+{
+    "schema":  "1000fix-erp/gate-g1a/2",
+    "ranAtUtc":  "2026-10-23T09:30:41.2031036Z",
+    "pass":  7,
+    "conditions":  3,
+    "failures":  0,
+    "verdict":  "CONDITION",
+    "criteria":  [
+                     {
+                         "Id":  "G1a-1",
+                         "Criterion":  "T0 triad manifests present \u0026 clean-install proof",
+                         "Status":  "PASS",
+                         "Evidence":  "T0 manifests: 3 of 3; install matrix (script-generated, 2026-10-16): verdict GREEN, 66/66 modules; live psql state breakdown (docker compose exec, exit honoured): 71 installed / 0 to upgrade / 0 to install / 0 uninstalled, of 71 cd_* rows vs 71 manifests. The matrix predates the last 5 modules - the live state breakdown is the current measurement."
+                     },
+                     {
+                         "Id":  "G1a-2",
+                         "Criterion":  "Six shared-kernel concepts modelled once",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 223 tests across 6 kernel test dirs; 6 of 6 kernel manifests present (party, catalogue, document, MDM, employee, entity). Modelled-once is enforced by these suites, not by directory existence."
+                     },
+                     {
+                         "Id":  "G1a-3",
+                         "Criterion":  "FF-09 blocking (residency single-client) + FF-03 (vendor clean)",
+                         "Status":  "PASS",
+                         "Evidence":  "check_ff09_residency.py exit 0: FF-09: OK - no residency bypass paths; fix_residency is the sole client; check-vendor-clean.sh exit 0: check-vendor-clean: OK - vendor/ clean (FF-03). Both checks executed here - exit codes honoured, not asserted from file presence."
+                     },
+                     {
+                         "Id":  "G1a-4",
+                         "Criterion":  "Outbox + fix_events (AS-08 transactional events)",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 165 tests across addons/platform/cd_event_outbox/tests and libs/py/fix_events/tests (dual-write, replay, causal ids). Green suites are the evidence; file presence alone would not be."
+                     },
+                     {
+                         "Id":  "G1a-5",
+                         "Criterion":  "Permission negative tests (DoD-07)",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 74 negative tests green; live registry measured read-only via psql (roles|tiers|SoD controls): 56|6|62. HONESTY NOTE: mock-based suite; real ir.rule enforcement via Odoo TransactionCase is separate runtime work (in progress). tooling/fitness/evidence/permission-negative-suite-latest.json records 53 roles/6 tiers/61 controls - self-authored figures from the mock suite\u0027s generator, quoted for contrast only, not evidence."
+                     },
+                     {
+                         "Id":  "G1a-6",
+                         "Criterion":  "Bengali 100% (DoD-08)",
+                         "Status":  "PASS",
+                         "Evidence":  "check_translations.py exit 0: translations: OK - all 1659 user-facing fields have a Bengali rendering; every shipped bn_BD.po is 100% translated. Field count parsed from the checker\u0027s own output: 1659 user-facing fields checked per field (the old hardcoded 1094 figure is retired - this number comes from the tool each run)."
+                     },
+                     {
+                         "Id":  "G1a-7",
+                         "Criterion":  "Coverage \u003e= 80% (DoD-03)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "measured baseline (script-generated coverage-baseline-report.json): estate coverage 56.03% vs the 80.0% DoD-03 target - the report\u0027s own gate verdict is FAIL (statutory pure-logic 75.36%). The baseline is established and the shortfall tracked; the target is not met, so no PASS is awarded (existence of the register markdown was the old, dishonest basis)."
+                     },
+                     {
+                         "Id":  "G1a-8",
+                         "Criterion":  "Architecture drift metrics (AR-012)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "parsed from the script-generated dependency graph (2026-10-01): 67 nodes, 447 edges, 32 wave-order violations recorded; graph checks: 5 PASS / 1 WARN / 0 FAIL (reciprocity check records WARN). Metrics are computed and drift is visible - WARN items and a re-run under AR-006 change control are open, so not a clean PASS."
+                     },
+                     {
+                         "Id":  "G1a-9",
+                         "Criterion":  "Capacity position (velocity vs 120 PW)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "capacity-velocity-measurement-report.md present: False - artefact present, not measured. The velocity position is a human-compiled report; this gate does not re-measure it and quotes no number from hand-authored markdown."
+                     },
+                     {
+                         "Id":  "G1a-10",
+                         "Criterion":  "FF-17 layer discipline",
+                         "Status":  "PASS",
+                         "Evidence":  "check_ff17_layers.py exit 0: FF-17: OK - 12 platform manifest(s) checked, 0 layer violations; parsed violation count: 0. Verdict from the executed exit code plus the parsed count, not from the script file existing."
+                     }
+                 ]
+}

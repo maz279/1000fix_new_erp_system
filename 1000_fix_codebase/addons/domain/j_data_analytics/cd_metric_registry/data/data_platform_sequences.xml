@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_data_erasure" model="ir.sequence">
+            <field name="name">Analytical Erasure Propagation</field>
+            <field name="code">fix.data.erasure</field>
+            <field name="prefix">ERA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_data_run" model="ir.sequence">
+            <field name="name">Data Pipeline Run</field>
+            <field name="code">fix.data.run</field>
+            <field name="prefix">RUN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_data_quality_test" model="ir.sequence">
+            <field name="name">Data Quality Test</field>
+            <field name="code">fix.data.quality.test</field>
+            <field name="prefix">DQT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_data_incident" model="ir.sequence">
+            <field name="name">Data Quality Incident</field>
+            <field name="code">fix.data.incident</field>
+            <field name="prefix">DQI/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_data_declassification_auth" model="ir.sequence">
+            <field name="name">Data Declassification Authorisation</field>
+            <field name="code">fix.data.declassification.auth</field>
+            <field name="prefix">DCA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

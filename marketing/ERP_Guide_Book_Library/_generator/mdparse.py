@@ -7,6 +7,7 @@ The source specifications conform to a tightly controlled house dialect
 ASCII state machines, hairline rules). This parser targets that dialect
 precisely rather than being a general CommonMark implementation.
 """
+
 import re
 
 # ------------------------------------------------------------------ patterns
@@ -33,7 +34,7 @@ def parse_frontmatter(text):
     m = RE_FM.match(text)
     if not m:
         return {}, text
-    fm, body = {}, text[m.end():]
+    fm, body = {}, text[m.end() :]
     key = None
     for line in m.group(1).split("\n"):
         if not line.strip():
@@ -111,8 +112,9 @@ def parse_blocks(text):
         # heading -----------------------------------------------------------
         mh = RE_H.match(line)
         if mh:
-            blocks.append({"t": "h", "level": len(mh.group(1)),
-                           "text": mh.group(2).strip()})
+            blocks.append(
+                {"t": "h", "level": len(mh.group(1)), "text": mh.group(2).strip()}
+            )
             i += 1
             continue
 
@@ -135,16 +137,24 @@ def parse_blocks(text):
             header = (header + [""] * width)[:width]
             rows = [(r + [""] * width)[:width] for r in rows]
             align = (align + ["left"] * width)[:width]
-            blocks.append({"t": "table", "header": header, "rows": rows,
-                           "align": align})
+            blocks.append(
+                {"t": "table", "header": header, "rows": rows, "align": align}
+            )
             continue
 
         # block quote ---------------------------------------------------------
         if RE_BQ.match(line):
             buf = []
-            while i < n and (RE_BQ.match(lines[i]) or
-                             (lines[i].strip() and buf and not RE_H.match(lines[i])
-                              and not RE_ROW.match(lines[i]) and lines[i].startswith(" "))):
+            while i < n and (
+                RE_BQ.match(lines[i])
+                or (
+                    lines[i].strip()
+                    and buf
+                    and not RE_H.match(lines[i])
+                    and not RE_ROW.match(lines[i])
+                    and lines[i].startswith(" ")
+                )
+            ):
                 m = RE_BQ.match(lines[i])
                 buf.append(m.group(1) if m else lines[i].strip())
                 i += 1
@@ -163,16 +173,27 @@ def parse_blocks(text):
                     txt = m2.group(3) if ordered else m2.group(2)
                     items.append({"level": indent // 2, "text": txt})
                     i += 1
-                elif (lines[i].strip() and lines[i].startswith(("   ", "\t"))
-                      and items and not RE_UL.match(lines[i]) and not RE_OL.match(lines[i])
-                      and not RE_ROW.match(lines[i])):
+                elif (
+                    lines[i].strip()
+                    and lines[i].startswith(("   ", "\t"))
+                    and items
+                    and not RE_UL.match(lines[i])
+                    and not RE_OL.match(lines[i])
+                    and not RE_ROW.match(lines[i])
+                ):
                     items[-1]["text"] += " " + lines[i].strip()
                     i += 1
-                elif (lines[i].strip() and items
-                      and not RE_H.match(lines[i]) and not RE_HR.match(lines[i])
-                      and not RE_ROW.match(lines[i]) and not RE_BQ.match(lines[i])
-                      and not RE_FENCE.match(lines[i])
-                      and not RE_UL.match(lines[i]) and not RE_OL.match(lines[i])):
+                elif (
+                    lines[i].strip()
+                    and items
+                    and not RE_H.match(lines[i])
+                    and not RE_HR.match(lines[i])
+                    and not RE_ROW.match(lines[i])
+                    and not RE_BQ.match(lines[i])
+                    and not RE_FENCE.match(lines[i])
+                    and not RE_UL.match(lines[i])
+                    and not RE_OL.match(lines[i])
+                ):
                     break
                 else:
                     break
@@ -183,9 +204,15 @@ def parse_blocks(text):
         buf = [line.strip()]
         i += 1
         while i < n and lines[i].strip():
-            if (RE_H.match(lines[i]) or RE_HR.match(lines[i]) or RE_ROW.match(lines[i])
-                    or RE_BQ.match(lines[i]) or RE_FENCE.match(lines[i])
-                    or RE_UL.match(lines[i]) or RE_OL.match(lines[i])):
+            if (
+                RE_H.match(lines[i])
+                or RE_HR.match(lines[i])
+                or RE_ROW.match(lines[i])
+                or RE_BQ.match(lines[i])
+                or RE_FENCE.match(lines[i])
+                or RE_UL.match(lines[i])
+                or RE_OL.match(lines[i])
+            ):
                 break
             buf.append(lines[i].strip())
             i += 1
@@ -219,7 +246,7 @@ def inline_runs(text, _inherit=None, _depth=0):
 
     for m in RE_INLINE.finditer(text):
         if m.start() > pos:
-            emit(text[pos:m.start()], {})
+            emit(text[pos : m.start()], {})
         if m.group("bi") is not None:
             descend(m.group("bi"), {"b": True, "i": True})
         elif m.group("b") is not None:
@@ -254,8 +281,11 @@ def sectionise(blocks):
             out.append(cur)
             m = re.match(r"^(\d+)\.\s*(.*)$", plain(b["text"]))
             if m:
-                cur = {"num": int(m.group(1)), "title": m.group(2).strip(),
-                       "blocks": []}
+                cur = {
+                    "num": int(m.group(1)),
+                    "title": m.group(2).strip(),
+                    "blocks": [],
+                }
             else:
                 cur = {"num": None, "title": plain(b["text"]), "blocks": []}
         else:

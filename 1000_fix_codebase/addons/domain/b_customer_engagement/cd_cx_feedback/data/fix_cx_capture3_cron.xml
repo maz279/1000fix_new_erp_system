@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M34 third pass (19 Nov 2026):
+  * FR-CXM-003: a survey trigger's delay holds the invitation; this job sends
+    the ones whose delay has run out.
+  * BRU-CXM-05 / AUT-CXM-04: a detractor not contacted by the contact
+    deadline escalates to the branch manager, then the operations director.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_survey_dispatch_delayed" model="ir.cron">
+            <field name="name">M34: send survey invitations whose trigger delay has passed</field>
+            <field name="model_id" ref="model_fix_survey"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispatch_delayed_invitations()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_loop_escalate_uncontacted" model="ir.cron">
+            <field name="name">M34: escalate detractors not contacted by the deadline</field>
+            <field name="model_id" ref="model_fix_cx_followup"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_escalate_uncontacted()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

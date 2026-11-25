@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "field.order.dispatched",
-  "description": "Event emitted when a field service order is dispatched to a technician (M02, CD-M02-01)",
+  "description": "Event emitted when a field service order is dispatched to a technician (M02, CD-M02-01) Published by cd_field_service through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
-  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
   "properties": {
     "event_id": {
       "type": "string",
       "format": "uuid",
-      "description": "Unique event identifier for idempotency"
+      "description": "Unique event identifier for idempotency (UUIDv4)"
     },
     "event_type": {
       "type": "string",
@@ -16,7 +22,8 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
     },
     "producer": {
       "type": "string",
@@ -24,23 +31,60 @@
     },
     "payload": {
       "type": "object",
-      "required": ["order_id", "order_name", "technician_id", "technician_name", "zone_code", "scheduled_start"],
+      "required": [
+        "field_order_id",
+        "order_ref",
+        "service_order_ref",
+        "technician_id",
+        "technician_name",
+        "zone_id",
+        "scheduled_start"
+      ],
       "properties": {
-        "order_id": { "type": "integer" },
-        "order_name": { "type": "string" },
-        "service_order_ref": { "type": "string" },
-        "technician_id": { "type": "integer" },
-        "technician_name": { "type": "string" },
-        "operating_unit_id": { "type": ["integer", "boolean"] },
-        "zone_code": { "type": "string" },
-        "customer_name": { "type": "string" },
-        "customer_phone": { "type": "string" },
-        "customer_lat": { "type": "number" },
-        "customer_lon": { "type": "number" },
-        "scheduled_start": { "type": "string", "format": "date-time" },
-        "scheduled_end": { "type": "string", "format": "date-time" },
-        "composite_score": { "type": "number" }
-      }
+        "field_order_id": {
+          "type": "integer"
+        },
+        "order_ref": {
+          "type": "string"
+        },
+        "service_order_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "technician_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "technician_name": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "zone_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "scheduled_start": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "x-owner-module": "cd_field_service",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)",
+  "x-curated-description": "Event emitted when a field service order is dispatched to a technician (M02, CD-M02-01)"
 }

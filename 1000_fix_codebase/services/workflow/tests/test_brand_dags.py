@@ -7,8 +7,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from services.workflow.brand_submission_engine import (
-    BrandTemplateRegistry,
     BrandSubmissionWorkflow,
+    BrandTemplateRegistry,
     CompletenessViolationError,
 )
 
@@ -31,9 +31,24 @@ class TestBrandSubmissionWorkflows(unittest.TestCase):
 
     def test_brand_names_conformance(self):
         expected_brands = [
-            "Samsung", "Walton", "Dell", "HP", "Lenovo", "LG", "Singer", "Haier",
-            "Gree", "Sony", "Xiaomi", "Asus", "Acer", "Apple", "Canon", "Philips",
-            "Panasonic", "Whirlpool"
+            "Samsung",
+            "Walton",
+            "Dell",
+            "HP",
+            "Lenovo",
+            "LG",
+            "Singer",
+            "Haier",
+            "Gree",
+            "Sony",
+            "Xiaomi",
+            "Asus",
+            "Acer",
+            "Apple",
+            "Canon",
+            "Philips",
+            "Panasonic",
+            "Whirlpool",
         ]
         loaded_names = [t["brand_name"] for t in self.templates]
         for name in expected_brands:
@@ -44,7 +59,11 @@ class TestBrandSubmissionWorkflows(unittest.TestCase):
         incomplete_claim = {
             "claim_no": "CLM-INCOMPLETE-001",
             "device_serial": "SN-INC-001",
-            "evidence_keys": ["photo_before", "diagnostic", "parts_issued"],  # missing 4 mandatory items
+            "evidence_keys": [
+                "photo_before",
+                "diagnostic",
+                "parts_issued",
+            ],  # missing 4 mandatory items
         }
 
         for tmpl in self.templates:
@@ -66,8 +85,13 @@ class TestBrandSubmissionWorkflows(unittest.TestCase):
             "parts_amount": 900.0,
             "total_amount": 2100.0,
             "evidence_keys": [
-                "photo_before", "photo_after", "diagnostic", "parts_issued",
-                "device_serial", "technician_cert", "purchase_proof"
+                "photo_before",
+                "photo_after",
+                "diagnostic",
+                "parts_issued",
+                "device_serial",
+                "technician_cert",
+                "purchase_proof",
             ],
         }
 
@@ -86,6 +110,7 @@ class TestBrandSubmissionWorkflows(unittest.TestCase):
     def test_airflow_dags_generation(self):
         """Verify Airflow DAG file dynamically imports and registers 18 DAGs."""
         import dags.brand_warranty_submission_dag as dag_module
+
         dags_dict = dag_module.generated_dags
         self.assertEqual(len(dags_dict), 18)
 

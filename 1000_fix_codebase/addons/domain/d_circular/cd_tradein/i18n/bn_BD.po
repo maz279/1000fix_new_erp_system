@@ -3,6 +3,314 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__accepted
+msgid "Accepted"
+msgstr "গৃহীত"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Assign Refurb Grade"
+msgstr "রিফার্ব গ্রেড নির্ধারণ করুন"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__collected
+msgid "Collected"
+msgstr "সংগৃহীত"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__consignment_id
+msgid "Collection Consignment (M03)"
+msgstr "সংগ্রহ কনসাইনমেন্ট (M03)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__step__cosmetic
+msgid "Cosmetic Restoration"
+msgstr "বাহ্যিক পুনরুদ্ধার"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Customer Accepts"
+msgstr "গ্রাহক গ্রহণ করেছেন"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Data Wipe & Security Gate (M06)"
+msgstr "ডেটা মুছে ফেলা ও নিরাপত্তা গেট (M06)"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__wipe_certificate_id
+msgid "Data Wipe Certificate (M06)"
+msgstr "ডেটা মুছে ফেলার সনদ (M06)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__wiped
+msgid "Data Wiped"
+msgstr "ডেটা মুছে ফেলা হয়েছে"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__device_model_id
+msgid "Device Model"
+msgstr "ডিভাইস মডেল"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Dispatch Collection"
+msgstr "সংগ্রহের জন্য প্রেরণ করুন"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__state__done
+msgid "Done"
+msgstr "সম্পন্ন"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Execute Treasury Payout"
+msgstr "ট্রেজারি পরিশোধ সম্পাদন করুন"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__step__final_qa
+msgid "Final QA"
+msgstr "চূড়ান্ত QA"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Financials & Payout (M50)"
+msgstr "আর্থিক তথ্য ও পরিশোধ (M50)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__grade__a
+msgid "Grade A (Like New)"
+msgstr "গ্রেড A (নতুনের মতো)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__grade__b
+msgid "Grade B (Good)"
+msgstr "গ্রেড B (ভালো)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__grade__c
+msgid "Grade C (Fair)"
+msgstr "গ্রেড C (মোটামুটি)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__grade__d
+msgid "Grade D (Poor)"
+msgstr "গ্রেড D (নিম্নমানের)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__grade__e
+msgid "Grade E (Parts Only)"
+msgstr "গ্রেড E (কেবল যন্ত্রাংশ)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__graded
+msgid "Graded"
+msgstr "গ্রেডকৃত"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__graded_stock_id
+msgid "Graded Inventory Unit (M15)"
+msgstr "গ্রেডকৃত ইনভেন্টরি ইউনিট (M15)"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Intake & Device Details"
+msgstr "ইনটেক ও ডিভাইসের বিবরণ"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__step__intake
+msgid "Intake Inspection"
+msgstr "ইনটেক পরিদর্শন"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__inventory_valuation
+msgid "Inventory Valuation"
+msgstr "ইনভেন্টরি মূল্যায়ন"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Inventory Valuation (M15) & Marketplace Resale (M12)"
+msgstr "ইনভেন্টরি মূল্যায়ন (M15) ও মার্কেটপ্লেসে পুনঃবিক্রয় (M12)"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__marketplace_seller_id
+msgid "Marketplace Channel (M12)"
+msgstr "মার্কেটপ্লেস চ্যানেল (M12)"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__offered
+msgid "Offer Sent"
+msgstr "প্রস্তাব পাঠানো হয়েছে"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__offered_value
+msgid "Offered Value"
+msgstr "প্রস্তাবিত মূল্য"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_refurbishment__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__payout_amount
+msgid "Payout Amount"
+msgstr "পরিশোধের পরিমাণ"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Publish to Graded Stock & Resale"
+msgstr "গ্রেডকৃত মজুদ ও পুনঃবিক্রয়ে প্রকাশ করুন"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__refurb_grade_id
+msgid "Refurb Grade Master (M37)"
+msgstr "রিফার্ব গ্রেড মাস্টার (M37)"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__labour_cost
+msgid "Refurb Labour Cost"
+msgstr "রিফার্ব শ্রম খরচ"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__parts_cost
+msgid "Refurb Parts Cost"
+msgstr "রিফার্ব যন্ত্রাংশ খরচ"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__refurbished
+msgid "Refurbished"
+msgstr "রিফার্বিশকৃত"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Refurbishment (M31 Workshop) & Grading (M37)"
+msgstr "রিফার্বিশমেন্ট (M31 ওয়ার্কশপ) ও গ্রেডিং (M37)"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__grade
+msgid "Refurbishment Grade"
+msgstr "রিফার্বিশমেন্ট গ্রেড"
+
+#. module: cd_tradein
+#: model:ir.actions.act_window,name:cd_tradein.action_fix_refurbishment
+#: model:ir.ui.menu,name:cd_tradein.menu_fix_refurbishment
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_refurbishment_list
+msgid "Refurbishment Steps"
+msgstr "রিফার্বিশমেন্টের ধাপসমূহ"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__step__repair
+msgid "Repair"
+msgstr "মেরামত"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_tradein_request__state__resale_ready
+msgid "Resale Ready"
+msgstr "পুনঃবিক্রয়ের জন্য প্রস্তুত"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__resale_value
+msgid "Resale Value"
+msgstr "পুনঃবিক্রয় মূল্য"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Secure Data Wipe"
+msgstr "নিরাপদ ডেটা মুছে ফেলা"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Send Valuation Offer"
+msgstr "মূল্যায়ন প্রস্তাব পাঠান"
+
+#. module: cd_tradein
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Start Workshop Refurbishment"
+msgstr "ওয়ার্কশপে রিফার্বিশমেন্ট শুরু করুন"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_refurbishment__parts_cost
+msgid "Step Parts Cost"
+msgstr "ধাপের যন্ত্রাংশ খরচ"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_refurbishment__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_tradein
+#: model:ir.model.fields.selection,name:cd_tradein.selection__fix_refurbishment__step__testing
+msgid "Testing"
+msgstr "পরীক্ষা"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__refurbishment_cost
+msgid "Total Refurb Cost"
+msgstr "মোট রিফার্ব খরচ"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_refurbishment__tradein_id
+msgid "Trade-In"
+msgstr "ট্রেড-ইন"
+
+#. module: cd_tradein
+#: model:ir.model,name:cd_tradein.model_fix_tradein_request
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_form
+msgid "Trade-In Request"
+msgstr "ট্রেড-ইন অনুরোধ"
+
+#. module: cd_tradein
+#: model:ir.actions.act_window,name:cd_tradein.action_fix_tradein_request
+#: model:ir.ui.menu,name:cd_tradein.menu_fix_tradein_request
+#: model_terms:ir.ui.view,arch_db:cd_tradein.view_fix_tradein_request_list
+msgid "Trade-In Requests"
+msgstr "ট্রেড-ইন অনুরোধসমূহ"
+
+#. module: cd_tradein
 msgid "Trade-In, Refurbishment & Resale"
-msgstr "Trade-In, Refurbishment & Resale (বাংলা)"
+msgstr "ট্রেড-ইন, রিফার্বিশমেন্ট ও পুনঃবিক্রয়"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__payout_execution_id
+msgid "Treasury Payout (M50)"
+msgstr "ট্রেজারি পরিশোধ (M50)"
+
+#. module: cd_tradein
+#: model:ir.model.fields,field_description:cd_tradein.field_fix_tradein_request__workshop_job_id
+msgid "Workshop Refurb Job (M31)"
+msgstr "ওয়ার্কশপ রিফার্ব জব (M31)"

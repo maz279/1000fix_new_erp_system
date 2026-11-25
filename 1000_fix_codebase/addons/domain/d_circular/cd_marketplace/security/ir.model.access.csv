@@ -1,5 +1,41 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_marketplace_seller,fix.marketplace.seller,model_fix_marketplace_seller,base.group_user,1,1,1,0
-access_fix_marketplace_order,fix.marketplace.order,model_fix_marketplace_order,base.group_user,1,1,1,0
-access_fix_seller_quote,fix.seller.quote,model_fix_seller_quote,base.group_user,1,1,1,0
-access_fix_seller_score,fix.seller.score,model_fix_seller_score,base.group_user,1,1,1,0
+access_fix_marketplace_seller,fix.marketplace.seller,model_fix_marketplace_seller,base.group_user,1,0,0,0
+access_fix_marketplace_order,fix.marketplace.order,model_fix_marketplace_order,base.group_user,1,0,0,0
+access_fix_seller_quote,fix.seller.quote,model_fix_seller_quote,base.group_user,1,0,0,0
+access_fix_seller_score,fix.seller.score,model_fix_seller_score,base.group_user,1,0,0,0
+access_fix_marketplace_dispute,fix.marketplace.dispute,model_fix_marketplace_dispute,base.group_user,1,0,0,0
+access_fix_marketplace_seller_portal,fix.marketplace.seller,model_fix_marketplace_seller,group_fix_marketplace_seller,1,0,0,0
+access_fix_marketplace_order_portal,fix.marketplace.order,model_fix_marketplace_order,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_quote_portal,fix.seller.quote,model_fix_seller_quote,group_fix_marketplace_seller,1,0,1,0
+access_fix_seller_score_portal,fix.seller.score,model_fix_seller_score,group_fix_marketplace_seller,1,0,0,0
+access_fix_marketplace_dispute_portal,fix.marketplace.dispute,model_fix_marketplace_dispute,group_fix_marketplace_seller,1,0,0,0
+access_fix_marketplace_listing,fix.marketplace.listing,model_fix_marketplace_listing,base.group_user,1,0,0,0
+access_fix_marketplace_chargeback,fix.marketplace.chargeback,model_fix_marketplace_chargeback,base.group_user,1,0,0,0
+access_fix_marketplace_seller_operator,fix.marketplace.seller operator,model_fix_marketplace_seller,group_marketplace_operator,1,1,1,0
+access_fix_marketplace_seller_cfo,fix.marketplace.seller cfo,model_fix_marketplace_seller,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_marketplace_order_operator,fix.marketplace.order operator,model_fix_marketplace_order,group_marketplace_operator,1,1,1,0
+access_fix_seller_quote_operator,fix.seller.quote operator,model_fix_seller_quote,group_marketplace_operator,1,1,1,0
+access_fix_seller_score_operator,fix.seller.score operator,model_fix_seller_score,group_marketplace_operator,1,1,1,0
+access_fix_marketplace_dispute_operator,fix.marketplace.dispute operator,model_fix_marketplace_dispute,group_marketplace_operator,1,1,1,0
+access_fix_marketplace_listing_operator,fix.marketplace.listing operator,model_fix_marketplace_listing,group_marketplace_operator,1,1,1,0
+access_fix_marketplace_chargeback_operator,fix.marketplace.chargeback operator,model_fix_marketplace_chargeback,group_marketplace_operator,1,1,1,0
+access_fix_seller_stock,fix.seller.stock,model_fix_seller_stock,base.group_user,1,0,0,0
+access_fix_seller_stock_operator,fix.seller.stock operator,model_fix_seller_stock,group_marketplace_operator,1,1,1,0
+access_fix_seller_stock_portal,fix.seller.stock portal,model_fix_seller_stock,group_fix_marketplace_seller,1,1,1,0
+access_fix_seller_standard,fix.seller.standard,model_fix_seller_standard,base.group_user,1,0,0,0
+access_fix_seller_standard_compliance,fix.seller.standard compliance,model_fix_seller_standard,group_marketplace_compliance,1,1,1,0
+access_fix_seller_standard_portal,fix.seller.standard portal,model_fix_seller_standard,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_certification,fix.seller.certification,model_fix_seller_certification,base.group_user,1,0,0,0
+access_fix_seller_certification_operator,fix.seller.certification operator,model_fix_seller_certification,group_marketplace_operator,1,1,1,0
+access_fix_seller_certification_portal,fix.seller.certification portal,model_fix_seller_certification,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_consequence,fix.seller.consequence,model_fix_seller_consequence,base.group_user,1,0,0,0
+access_fix_seller_consequence_operator,fix.seller.consequence operator,model_fix_seller_consequence,group_marketplace_operator,1,1,1,0
+access_fix_seller_consequence_portal,fix.seller.consequence portal,model_fix_seller_consequence,group_fix_marketplace_seller,1,0,0,0
+access_fix_marketplace_job_evidence,fix.marketplace.job.evidence,model_fix_marketplace_job_evidence,base.group_user,1,0,0,0
+access_fix_marketplace_job_evidence_operator,fix.marketplace.job.evidence operator,model_fix_marketplace_job_evidence,group_marketplace_operator,1,1,1,1
+access_fix_marketplace_job_evidence_portal,fix.marketplace.job.evidence portal,model_fix_marketplace_job_evidence,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_review,fix.seller.review,model_fix_seller_review,base.group_user,1,0,0,0
+access_fix_seller_review_operator,fix.seller.review operator,model_fix_seller_review,group_marketplace_operator,1,1,1,0
+access_fix_seller_review_portal,fix.seller.review portal,model_fix_seller_review,group_fix_marketplace_seller,1,0,0,0
+access_fix_trust_signal,fix.trust.signal,model_fix_trust_signal,base.group_user,1,0,0,0
+access_fix_trust_signal_operator,fix.trust.signal operator,model_fix_trust_signal,group_marketplace_operator,1,1,1,0

@@ -10,16 +10,83 @@ CD-M50-01: the treasury core.
   payment.executed
 - fix.bank.statement.line (+auto_match) — the reconciliation ladder's
   in-Odoo half: exact reference match, then amount+date-window
-- fix.cash.position — cash position consuming the M04 cash-drawer model
-  (Phase 4) plus pending payments
+- fix.cash.position — cash position from the posted bank GL, M04 cash
+  drawers, petty cash and cash-in-transit, less unconfirmed payments
+
+A08 (2026-10-26): bank account master (BD routing number / account type on
+account.journal + res.partner.bank), cash-in-transit, rider COD settlement
+(finance side), petty cash imprest, cheque register, gateway/MFS settlement
+with three-way match, facilities & covenants, recurring cash items, and the
+computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
+
+A08 workflow audit (2026-11-04): two-person payment release with DOFA
+routing above the single-releaser ceiling (M63), pinned instructions, bank
+confirmation only from an imported statement debit, guarded state / stamp /
+match fields on every treasury model, cheque books and bounce unwinding,
+imprest count against pending vouchers, frozen facility schedules with
+amendments, approved covenants, the payment.requested consumer and the
+auto-match / covenant crons.
+
+Bank master take-on (2026-11-09): the res.bank.branch directory — the
+Bank -> Branch -> Account middle layer that sources the 9-digit BEFTN
+routing number per branch (R4 of the bank-list capability report); bank
+accounts gain a bank_branch_id that defaults institution, branch name and
+routing from the directory.
+
+Courier COD remittance (G10, owner decision 2026-11-12): the payout of a
+third-party courier (Pathao, RedX, Steadfast) for the delivered COD orders it
+carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
+clearing (gross), prepared by an accountant and settled by a different
+Accounting Administrator.
+
+A08 B13 (M50-F5, FR-TRE-017): the treasury controls on M02's existing
+fix.field.cash.recon register — the day's confirmed cash M20 receipts and
+quoted refs, the receipts variance against the two configured thresholds,
+the shortage receivable booked through the rider-COD ledger pattern, and the
+BRU-TRE-04 block while a prior day's variance is open.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.7.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
-    "depends": ["base", "mail", "account", "cd_entity_config", "cd_event_outbox",
-                 "cd_front_desk", "cd_gl_ext"],
-    "data": ["security/ir.model.access.csv", "views/fix_cash_position_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "account",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_front_desk",
+        # A08 B13 (M50-F5): fix.field.cash.recon (FR-FSM-056) is the one
+        # per-technician per-day register; cd_field_service does not depend on
+        # cd_cash_position, so extending it here adds no cycle.
+        "cd_field_service",
+        "cd_gl_ext",
+        # cd_storefront: the COD settlement model carries a One2many to
+        # fix.storefront.order (a load-time field), and through it this
+        # module also sees fix.ar.receipt for the cheque-bounce re-open.
+        "cd_storefront",
+        "cd_workflow_engine",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "data/ir_sequence_data.xml",
+        # A04 report C7: consumers of the storefront refund and bond
+        # encashment hand-offs.
+        "data/fix_a04_consumers.xml",
+        # A02 ERP pass 2 X5-14: shift.closed -> Finance Manager escalation
+        "data/fix_a02r2_shift_consumer.xml",
+        # A05 report cross-area follow-up: the e-waste settlement money leg.
+        "data/fix_a05_consumers.xml",
+        # A09 Update 3/4: payroll payments reach treasury (M50).
+        "data/fix_payroll_treasury_consumers.xml",
+        # A08 B1 (F1/E12): deposit matching, LC expiry and the payment
+        # consumer crons.
+        "data/fix_treasury_automation.xml",
+        # A02 pass 2 (D20): riders holding COD past the hand-in deadline
+        "data/fix_cod_handin_cron.xml",
+        "views/fix_cash_position_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M50-01",

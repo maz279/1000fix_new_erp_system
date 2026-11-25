@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The active M07 lead-scoring model (A03 gap-closure).
+
+  Without a record here, active_model_for() finds nothing and every lead
+  reports "no active scoring model applies" — the capability would exist and
+  do nothing, which is the failure mode this whole build keeps running into.
+
+  basis is m26_model pointing at M26's LEAD_SCORE_V1 engine. That engine is
+  registered as rule_based and returns its weight vector with every score, so
+  nothing here presents a deterministic model as a prediction. If M26 is not
+  installed, the model reports m26_unavailable rather than silently scoring.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="crm_score_model_default" model="fix.crm.score.model">
+            <field name="name">M07 Lead Score (via M26 LEAD_SCORE_V1)</field>
+            <field name="code">M07_LEAD_SCORE</field>
+            <field name="applies_to">both</field>
+            <field name="basis">m26_model</field>
+            <field name="m26_model_ref">LEAD_SCORE_V1</field>
+            <field name="state">active</field>
+            <field name="sequence">10</field>
+        </record>
+    </data>
+</odoo>

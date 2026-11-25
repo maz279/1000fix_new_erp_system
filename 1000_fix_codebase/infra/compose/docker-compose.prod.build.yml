@@ -1,0 +1,105 @@
+# =============================================================================
+# 1000fix-erp - BUILD overlay for docker-compose.prod.full.yml.
+#
+# The deploy file references release images only (pull-only on the prod host).
+# This overlay adds the `build:` sections so a release can be built from the
+# codebase root with the production build arguments, then pushed:
+#
+#   docker compose -p fix-prod \
+#     -f infra/compose/docker-compose.prod.full.yml \
+#     -f infra/compose/docker-compose.prod.build.yml \
+#     --env-file <release.env> build
+#   docker compose ... push        # to ${FIX_IMAGE_REGISTRY} (operator step)
+#
+# Portals: NEXT_PUBLIC_* are inlined into the client bundle by `next build`
+# (apps/web/Dockerfile.portal), so each portal image is built FOR one public
+# host set. PORTAL_BUILD_PROFILE=production makes the build fail on a missing
+# API base / database name or on a non-https / loopback URL. Never pass a
+# secret as a build arg - everything here ends up readable in the bundle.
+# =============================================================================
+
+x-portal-build: &portal-build
+  context: ../..
+  dockerfile: apps/web/Dockerfile.portal
+
+x-portal-args: &portal-args
+  PORTAL_BUILD_PROFILE: production
+  FIX_RELEASE: ${FIX_RELEASE:?FIX_RELEASE is required}
+  NEXT_PUBLIC_FIX_API_BASE: https://${API_HOST:?API_HOST is required}
+  NEXT_PUBLIC_ODOO_DB: ${ODOO_DB:-fix_production}
+  NEXT_PUBLIC_OTEL_ENDPOINT: ${NEXT_PUBLIC_OTEL_ENDPOINT:-}
+
+services:
+  odoo:
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+
+  portal-customer:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: customer
+  portal-corporate:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: corporate
+        NEXT_PUBLIC_OIDC_ISSUER: https://${AUTH_HOST:?AUTH_HOST is required}/realms/${KEYCLOAK_REALM:?KEYCLOAK_REALM is required}
+        NEXT_PUBLIC_OIDC_CLIENT_ID: ${CORPORATE_OIDC_CLIENT_ID:-1000fix-corporate-web}
+        NEXT_PUBLIC_OIDC_REDIRECT_URI: https://${PORTAL_HOST_CORPORATE:?PORTAL_HOST_CORPORATE is required}/auth/callback
+  portal-vendor:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: vendor
+  portal-partner:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: partner
+  portal-seller:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: seller
+  portal-brand:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: brand
+  portal-analytics:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: analytics
+        # optional: the Superset origin the analytics portal may embed (https)
+        NEXT_PUBLIC_SUPERSET_URL: ${SUPERSET_URL:-}
+  portal-agent-console:
+    build:
+      <<: *portal-build
+      args:
+        <<: *portal-args
+        PORTAL: agent-console
+
+  identity-lifecycle:
+    build:
+      context: ../..
+      dockerfile: services/identity-lifecycle/Dockerfile
+  notification-dispatcher:
+    build:
+      context: ../..
+      dockerfile: services/notification-dispatcher/Dockerfile
+  telemetry-collector:
+    build:
+      context: ../../services/telemetry-collector
+  ml-gateway:
+    build:
+      context: ../../services/ml-gateway

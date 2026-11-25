@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Quote-to-cash review P1 (12 Nov 2026): the customer payment methods the
+  estate offers, and the Bangladesh payment-term templates quotations use.
+  noupdate: Finance owns them after install (journals, fees, which channel
+  offers which method). Owner decision pending: the final list of methods
+  and the merchant accounts behind Rocket and Upay.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="payment_method_cash" model="fix.payment.method">
+            <field name="code">CASH</field>
+            <field name="name">Cash</field>
+            <field name="sequence">10</field>
+            <field name="method_type">cash</field>
+            <field name="receipt_method">cash</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="True"/>
+            <field name="for_portal" eval="False"/>
+            <field name="for_corporate" eval="False"/>
+        </record>
+        <record id="payment_method_cheque" model="fix.payment.method">
+            <field name="code">CHEQUE</field>
+            <field name="name">Cheque / Pay Order</field>
+            <field name="sequence">20</field>
+            <field name="method_type">cheque</field>
+            <field name="receipt_method">cheque</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="False"/>
+            <field name="for_corporate" eval="True"/>
+            <field name="settlement_days">2</field>
+            <field name="note">Account payee cheque or pay order in the company's name.</field>
+        </record>
+        <record id="payment_method_beftn" model="fix.payment.method">
+            <field name="code">BEFTN</field>
+            <field name="name">Bank Transfer (BEFTN)</field>
+            <field name="sequence">30</field>
+            <field name="method_type">bank_transfer</field>
+            <field name="receipt_method">bank_transfer</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="True"/>
+            <field name="settlement_days">1</field>
+        </record>
+        <record id="payment_method_rtgs" model="fix.payment.method">
+            <field name="code">RTGS</field>
+            <field name="name">Bank Transfer (RTGS)</field>
+            <field name="sequence">40</field>
+            <field name="method_type">bank_transfer</field>
+            <field name="receipt_method">bank_transfer</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="False"/>
+            <field name="for_corporate" eval="True"/>
+            <field name="note">For high-value payments.</field>
+        </record>
+        <record id="payment_method_npsb" model="fix.payment.method">
+            <field name="code">NPSB</field>
+            <field name="name">Bank Transfer (NPSB)</field>
+            <field name="sequence">50</field>
+            <field name="method_type">bank_transfer</field>
+            <field name="receipt_method">bank_transfer</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="True"/>
+        </record>
+        <record id="payment_method_bkash" model="fix.payment.method">
+            <field name="code">BKASH</field>
+            <field name="name">bKash</field>
+            <field name="sequence">60</field>
+            <field name="method_type">mfs</field>
+            <field name="receipt_method">bkash</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="True"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">1</field>
+        </record>
+        <record id="payment_method_nagad" model="fix.payment.method">
+            <field name="code">NAGAD</field>
+            <field name="name">Nagad</field>
+            <field name="sequence">70</field>
+            <field name="method_type">mfs</field>
+            <field name="receipt_method">nagad</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="True"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">1</field>
+        </record>
+        <record id="payment_method_rocket" model="fix.payment.method">
+            <field name="code">ROCKET</field>
+            <field name="name">Rocket (DBBL)</field>
+            <field name="sequence">80</field>
+            <field name="method_type">mfs</field>
+            <field name="receipt_method">mobile_wallet</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="True"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">1</field>
+        </record>
+        <record id="payment_method_upay" model="fix.payment.method">
+            <field name="code">UPAY</field>
+            <field name="name">Upay</field>
+            <field name="sequence">90</field>
+            <field name="method_type">mfs</field>
+            <field name="receipt_method">mobile_wallet</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="True"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">1</field>
+        </record>
+        <record id="payment_method_card" model="fix.payment.method">
+            <field name="code">CARD</field>
+            <field name="name">Card (POS terminal)</field>
+            <field name="sequence">100</field>
+            <field name="method_type">card</field>
+            <field name="receipt_method">card</field>
+            <field name="for_counter" eval="True"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="False"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">2</field>
+        </record>
+        <record id="payment_method_sslcz" model="fix.payment.method">
+            <field name="code">SSLCZ</field>
+            <field name="name">Online Card / Wallet (SSLCOMMERZ)</field>
+            <field name="sequence">110</field>
+            <field name="method_type">card</field>
+            <field name="receipt_method">card</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">2</field>
+        </record>
+        <record id="payment_method_cod" model="fix.payment.method">
+            <field name="code">COD</field>
+            <field name="name">Cash on Delivery (courier)</field>
+            <field name="sequence">120</field>
+            <field name="method_type">cod</field>
+            <field name="receipt_method">cod</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="True"/>
+            <field name="for_corporate" eval="False"/>
+            <field name="settlement_days">3</field>
+        </record>
+        <record id="payment_method_on_account" model="fix.payment.method">
+            <field name="code">ON_ACCOUNT</field>
+            <field name="name">On Account (credit terms)</field>
+            <field name="sequence">130</field>
+            <field name="method_type">on_account</field>
+            <field name="for_counter" eval="False"/>
+            <field name="for_field" eval="False"/>
+            <field name="for_portal" eval="False"/>
+            <field name="for_corporate" eval="True"/>
+            <field name="note">Invoiced and paid by the agreed payment term.</field>
+        </record>
+        <record id="payment_term_bd_50_advance" model="account.payment.term">
+            <field name="name">50% Advance, Balance on Delivery</field>
+            <field name="note">50% with the order; the balance when the goods or service are delivered.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 50.0, 'nb_days': 0}), Command.create({'value': 'percent', 'value_amount': 50.0, 'nb_days': 0})]"/>
+        </record>
+        <record id="payment_term_bd_30_70_completion" model="account.payment.term">
+            <field name="name">30% Advance, 70% on Completion</field>
+            <field name="note">30% with the order; 70% when the work is completed and accepted.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 30.0, 'nb_days': 0}), Command.create({'value': 'percent', 'value_amount': 70.0, 'nb_days': 0})]"/>
+        </record>
+        <record id="payment_term_bd_net7" model="account.payment.term">
+            <field name="name">Net 7 Days</field>
+            <field name="note">Payment within 7 days of the invoice.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 7})]"/>
+        </record>
+        <record id="payment_term_bd_net30_acceptance" model="account.payment.term">
+            <field name="name">Net 30 after Acceptance</field>
+            <field name="note">Payment within 30 days of the invoice raised on the customer's acceptance certificate.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 30})]"/>
+        </record>
+        <record id="payment_term_bd_amc_quarterly_advance" model="account.payment.term">
+            <field name="name">AMC: Quarterly in Advance</field>
+            <field name="note">Each quarter's charge is due at the start of the quarter.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 0})]"/>
+        </record>
+        <record id="payment_term_bd_tender_retention" model="account.payment.term">
+            <field name="name">Tender: 90% after Acceptance, 10% Retention</field>
+            <field name="note">90% within 30 days of the TEAC acceptance; the 10% retention after the warranty period.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 90.0, 'nb_days': 30}), Command.create({'value': 'percent', 'value_amount': 10.0, 'nb_days': 365})]"/>
+        </record>
+    </data>
+    <function model="fix.payment.method" name="_link_default_journals"/>
+</odoo>

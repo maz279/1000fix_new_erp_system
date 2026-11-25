@@ -8,12 +8,12 @@ repeating header rows, TOC and page-number fields, paragraph borders,
 character spacing, text-box style callouts, section geometry — is
 implemented here once, so the document builder stays declarative.
 """
-from docx.oxml.ns import qn, nsmap
+
+from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-from docx.shared import Pt, Mm, RGBColor, Emu
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_BREAK
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.enum.section import WD_SECTION, WD_ORIENT
+from docx.shared import Pt, Mm, RGBColor
+from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.section import WD_ORIENT
 
 import theme as T
 
@@ -58,8 +58,9 @@ def shade(obj, fill):
 _EDGES = ("top", "left", "bottom", "right")
 
 
-def cell_borders(cell, top=None, left=None, bottom=None, right=None,
-                 inside_h=None, inside_v=None):
+def cell_borders(
+    cell, top=None, left=None, bottom=None, right=None, inside_h=None, inside_v=None
+):
     """Each edge is None (leave) or (size_eighths_pt, colour, style)."""
     tcPr = cell._tc.get_or_add_tcPr()
     old = tcPr.find(qn("w:tcBorders"))
@@ -74,13 +75,21 @@ def cell_borders(cell, top=None, left=None, bottom=None, right=None,
         if v is None:
             continue
         sz, col, style = (list(v) + ["single"])[:3]
-        b.append(el("w:" + edge, w__val=style, w__sz=int(sz),
-                    w__space="0", w__color=col.lstrip("#")))
+        b.append(
+            el(
+                "w:" + edge,
+                w__val=style,
+                w__sz=int(sz),
+                w__space="0",
+                w__color=col.lstrip("#"),
+            )
+        )
     tcPr.append(b)
 
 
-def table_borders(table, sz=4, colour=T.RULE, inside_sz=4, inside_colour=T.RULE_SOFT,
-                  style="single"):
+def table_borders(
+    table, sz=4, colour=T.RULE, inside_sz=4, inside_colour=T.RULE_SOFT, style="single"
+):
     tbl = table._tbl
     tblPr = tbl.tblPr
     old = tblPr.find(qn("w:tblBorders"))
@@ -88,11 +97,25 @@ def table_borders(table, sz=4, colour=T.RULE, inside_sz=4, inside_colour=T.RULE_
         tblPr.remove(old)
     b = OxmlElement("w:tblBorders")
     for edge in ("top", "left", "bottom", "right"):
-        b.append(el("w:" + edge, w__val=style, w__sz=int(sz), w__space="0",
-                    w__color=colour.lstrip("#")))
+        b.append(
+            el(
+                "w:" + edge,
+                w__val=style,
+                w__sz=int(sz),
+                w__space="0",
+                w__color=colour.lstrip("#"),
+            )
+        )
     for edge in ("insideH", "insideV"):
-        b.append(el("w:" + edge, w__val=style, w__sz=int(inside_sz), w__space="0",
-                    w__color=inside_colour.lstrip("#")))
+        b.append(
+            el(
+                "w:" + edge,
+                w__val=style,
+                w__sz=int(inside_sz),
+                w__space="0",
+                w__color=inside_colour.lstrip("#"),
+            )
+        )
     tblPr.append(b)
 
 
@@ -103,7 +126,9 @@ def no_table_borders(table):
         tblPr.remove(old)
     b = OxmlElement("w:tblBorders")
     for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
-        b.append(el("w:" + edge, w__val="none", w__sz="0", w__space="0", w__color="auto"))
+        b.append(
+            el("w:" + edge, w__val="none", w__sz="0", w__space="0", w__color="auto")
+        )
     tblPr.append(b)
 
 
@@ -117,8 +142,15 @@ def para_borders(p, top=None, left=None, bottom=None, right=None):
         if v is None:
             continue
         sz, col, space = (list(v) + [0])[:3]
-        b.append(el("w:" + edge, w__val="single", w__sz=int(sz),
-                    w__space=int(space), w__color=col.lstrip("#")))
+        b.append(
+            el(
+                "w:" + edge,
+                w__val="single",
+                w__sz=int(sz),
+                w__space=int(space),
+                w__color=col.lstrip("#"),
+            )
+        )
     pPr.append(b)
 
 
@@ -152,9 +184,11 @@ def vmerge(cell, val="continue"):
 
 
 def cell_valign(cell, v="center"):
-    cell.vertical_alignment = {"top": WD_ALIGN_VERTICAL.TOP,
-                               "center": WD_ALIGN_VERTICAL.CENTER,
-                               "bottom": WD_ALIGN_VERTICAL.BOTTOM}[v]
+    cell.vertical_alignment = {
+        "top": WD_ALIGN_VERTICAL.TOP,
+        "center": WD_ALIGN_VERTICAL.CENTER,
+        "bottom": WD_ALIGN_VERTICAL.BOTTOM,
+    }[v]
 
 
 def cell_text_direction(cell, val="btLr"):
@@ -206,9 +240,21 @@ def table_indent(table, twips):
 
 
 # ------------------------------------------------------------ paragraph prop
-def pfmt(p, before=0, after=0, line=None, align=None, keep_next=False,
-         keep_lines=True, page_break_before=False, left_indent=None,
-         right_indent=None, first_line=None, widow=True, contextual=False):
+def pfmt(
+    p,
+    before=0,
+    after=0,
+    line=None,
+    align=None,
+    keep_next=False,
+    keep_lines=True,
+    page_break_before=False,
+    left_indent=None,
+    right_indent=None,
+    first_line=None,
+    widow=True,
+    contextual=False,
+):
     pf = p.paragraph_format
     pf.space_before = Pt(before)
     pf.space_after = Pt(after)
@@ -229,9 +275,21 @@ def pfmt(p, before=0, after=0, line=None, align=None, keep_next=False,
     return p
 
 
-def run(p, text, size=T.SIZE_BODY, bold=False, italic=False, colour=T.INK,
-        font=T.FONT_BODY, caps=False, spacing=None, underline=False,
-        strike=False, superscript=False, highlight=None):
+def run(
+    p,
+    text,
+    size=T.SIZE_BODY,
+    bold=False,
+    italic=False,
+    colour=T.INK,
+    font=T.FONT_BODY,
+    caps=False,
+    spacing=None,
+    underline=False,
+    strike=False,
+    superscript=False,
+    highlight=None,
+):
     r = p.add_run(text)
     r.font.name = font
     r.font.size = Pt(size)
@@ -254,7 +312,7 @@ def run(p, text, size=T.SIZE_BODY, bold=False, italic=False, colour=T.INK,
     rf.set(qn("w:cs"), font)
     if caps:
         rPr.append(el("w:caps", w__val="true"))
-    if spacing is not None:          # letter-spacing, twentieths of a point
+    if spacing is not None:  # letter-spacing, twentieths of a point
         rPr.append(el("w:spacing", w__val=int(spacing)))
     if highlight:
         shade(rPr, highlight)
@@ -277,8 +335,15 @@ def tab_stops(p, stops):
 
 
 # ---------------------------------------------------------------- field code
-def add_field(p, instr, placeholder="", size=T.SIZE_BODY, bold=False,
-              colour=T.INK, font=T.FONT_BODY):
+def add_field(
+    p,
+    instr,
+    placeholder="",
+    size=T.SIZE_BODY,
+    bold=False,
+    colour=T.INK,
+    font=T.FONT_BODY,
+):
     r1 = p.add_run()
     r1.font.name = font
     r1.font.size = Pt(size)
@@ -314,16 +379,24 @@ def add_toc(p, levels="1-3", hyperlink=True):
     flags = ' \\o "%s" \\z \\u' % levels
     if hyperlink:
         flags = ' \\o "%s" \\h \\z \\u' % levels
-    add_field(p, "TOC" + flags,
-              "Right-click and choose Update Field to build the table of contents.",
-              size=T.SIZE_BODY, colour=T.GREY)
+    add_field(
+        p,
+        "TOC" + flags,
+        "Right-click and choose Update Field to build the table of contents.",
+        size=T.SIZE_BODY,
+        colour=T.GREY,
+    )
 
 
 def add_table_of_figures(p, label="Exhibit"):
-    add_field(p, ' TOC \\h \\z \\c "%s" ' % label,
-              "Press Ctrl+A then F9 to build the list of %ss with page numbers."
-              % label.lower(),
-              size=T.SIZE_BODY, colour=T.GREY)
+    add_field(
+        p,
+        ' TOC \\h \\z \\c "%s" ' % label,
+        "Press Ctrl+A then F9 to build the list of %ss with page numbers."
+        % label.lower(),
+        size=T.SIZE_BODY,
+        colour=T.GREY,
+    )
 
 
 def set_update_fields_on_open(doc):
@@ -357,8 +430,9 @@ def bookmark(p, name):
     return name
 
 
-def internal_link(p, anchor, text, size=T.SIZE_BODY, colour=T.STEEL,
-                  bold=False, underline=False):
+def internal_link(
+    p, anchor, text, size=T.SIZE_BODY, colour=T.STEEL, bold=False, underline=False
+):
     h = el("w:hyperlink", w__anchor=anchor)
     r = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
@@ -366,12 +440,18 @@ def internal_link(p, anchor, text, size=T.SIZE_BODY, colour=T.STEEL,
     rf.set(qn("w:ascii"), T.FONT_BODY)
     rf.set(qn("w:hAnsi"), T.FONT_BODY)
     rPr.append(rf)
-    sz = OxmlElement("w:sz"); sz.set(qn("w:val"), str(int(size * 2))); rPr.append(sz)
+    sz = OxmlElement("w:sz")
+    sz.set(qn("w:val"), str(int(size * 2)))
+    rPr.append(sz)
     if bold:
         rPr.append(OxmlElement("w:b"))
-    c = OxmlElement("w:color"); c.set(qn("w:val"), colour.lstrip("#")); rPr.append(c)
+    c = OxmlElement("w:color")
+    c.set(qn("w:val"), colour.lstrip("#"))
+    rPr.append(c)
     if underline:
-        u = OxmlElement("w:u"); u.set(qn("w:val"), "single"); rPr.append(u)
+        u = OxmlElement("w:u")
+        u.set(qn("w:val"), "single")
+        rPr.append(u)
     r.append(rPr)
     t = OxmlElement("w:t")
     t.set(qn("xml:space"), "preserve")
@@ -386,30 +466,47 @@ def external_link(p, url, text, size=T.SIZE_BODY, colour=T.STEEL, underline=True
     r_id = part.relate_to(
         url,
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
-        is_external=True)
+        is_external=True,
+    )
     h = OxmlElement("w:hyperlink")
     h.set(qn("r:id"), r_id)
     r = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
     rf = OxmlElement("w:rFonts")
-    rf.set(qn("w:ascii"), T.FONT_BODY); rf.set(qn("w:hAnsi"), T.FONT_BODY)
+    rf.set(qn("w:ascii"), T.FONT_BODY)
+    rf.set(qn("w:hAnsi"), T.FONT_BODY)
     rPr.append(rf)
-    sz = OxmlElement("w:sz"); sz.set(qn("w:val"), str(int(size * 2))); rPr.append(sz)
-    c = OxmlElement("w:color"); c.set(qn("w:val"), colour.lstrip("#")); rPr.append(c)
+    sz = OxmlElement("w:sz")
+    sz.set(qn("w:val"), str(int(size * 2)))
+    rPr.append(sz)
+    c = OxmlElement("w:color")
+    c.set(qn("w:val"), colour.lstrip("#"))
+    rPr.append(c)
     if underline:
-        u = OxmlElement("w:u"); u.set(qn("w:val"), "single"); rPr.append(u)
+        u = OxmlElement("w:u")
+        u.set(qn("w:val"), "single")
+        rPr.append(u)
     r.append(rPr)
-    t = OxmlElement("w:t"); t.set(qn("xml:space"), "preserve"); t.text = text
+    t = OxmlElement("w:t")
+    t.set(qn("xml:space"), "preserve")
+    t.text = text
     r.append(t)
     h.append(r)
     p._p.append(h)
 
 
 # ------------------------------------------------------------------- section
-def setup_section(sec, landscape=False,
-                  top=T.MARGIN_TOP_MM, bottom=T.MARGIN_BOTTOM_MM,
-                  left=T.MARGIN_LEFT_MM, right=T.MARGIN_RIGHT_MM,
-                  header_dist=9.0, footer_dist=9.0, gutter=0.0):
+def setup_section(
+    sec,
+    landscape=False,
+    top=T.MARGIN_TOP_MM,
+    bottom=T.MARGIN_BOTTOM_MM,
+    left=T.MARGIN_LEFT_MM,
+    right=T.MARGIN_RIGHT_MM,
+    header_dist=9.0,
+    footer_dist=9.0,
+    gutter=0.0,
+):
     if landscape:
         sec.orientation = WD_ORIENT.LANDSCAPE
         sec.page_width = Mm(T.PAGE_H_MM)
@@ -508,9 +605,13 @@ def install_base_styles(doc):
 
     # TOC entry styles
     for i, (size, colour, bold, ind) in enumerate(
-            [(T.SIZE_BODY, T.NAVY, True, 0),
-             (T.SIZE_BODY, T.INK, False, 10),
-             (T.SIZE_SMALL, T.INK_SOFT, False, 20)], start=1):
+        [
+            (T.SIZE_BODY, T.NAVY, True, 0),
+            (T.SIZE_BODY, T.INK, False, 10),
+            (T.SIZE_SMALL, T.INK_SOFT, False, 20),
+        ],
+        start=1,
+    ):
         try:
             s = st["TOC %d" % i]
         except KeyError:
@@ -567,9 +668,11 @@ def set_core_properties(doc, title, subject, keywords, comments, category_str):
 
 def set_compat_and_zoom(doc):
     settings = doc.settings.element
-    for tag, attrs in (("w:zoom", {"w__percent": "100"}),
-                       ("w:defaultTabStop", {"w__val": "425"}),
-                       ("w:characterSpacingControl", {"w__val": "doNotCompress"})):
+    for tag, attrs in (
+        ("w:zoom", {"w__percent": "100"}),
+        ("w:defaultTabStop", {"w__val": "425"}),
+        ("w:characterSpacingControl", {"w__val": "doNotCompress"}),
+    ):
         old = settings.find(qn(tag))
         if old is not None:
             settings.remove(old)

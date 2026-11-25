@@ -1,0 +1,83 @@
+# =============================================================================
+# 1000fix-erp - dev environment overlay (PE-002-D-02, infra/environments.yaml)
+#
+# Shared integration target for develop branch.
+# Data rule: synthetic + anonymised-sample; residency_classified: never.
+#
+# Ports:
+#   PostgreSQL: 127.0.0.1:5435
+#   Redis:      127.0.0.1:6381
+#   Odoo:       127.0.0.1:8071
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up -d
+# =============================================================================
+services:
+  postgres-dev:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["dev"]
+    environment:
+      FIX_ENV: dev
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:-fix_dev_secret_insecure}
+      POSTGRES_DB: fix_dev_shared
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5435:5432"]
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_dev_shared"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-dev:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["dev"]
+    environment:
+      FIX_ENV: dev
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6381:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-dev:
+    image: 1000fix/odoo:19.0-dev@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["dev"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: dev
+      HOST: postgres-dev
+      PORT: 5432
+      USER: fix
+      PASSWORD: ${DEV_DB_PASSWORD:-fix_dev_secret_insecure}
+    ports: ["127.0.0.1:8071:8069"]
+    volumes:
+      - odoo-data-dev:/var/lib/odoo
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-dev:
+  odoo-data-dev:

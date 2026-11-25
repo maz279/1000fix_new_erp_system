@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 P1 (2026-11-04) M47-14: leases, licences, utilities, conditions, PM,
+  safety equipment, incidents, projects, site assets and the new P1/P2
+  records carry no company or operating unit of their own, and had no
+  record rule: an OU-1 user read the rent and deposit of a site in OU 2 it
+  could not even see. Each is now scoped through its site, as the site is
+  (fix_isolation_rules.xml): allowed companies for everyone, allowed
+  operating units for internal users. Hand-written (the generator only
+  covers models with their own company/OU field).
+-->
+<odoo>
+    <record id="rule_fix_site_lease_site_company" model="ir.rule">
+        <field name="name">fix.site.lease: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_lease"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.lease: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_lease"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_licence_site_company" model="ir.rule">
+        <field name="name">fix.site.licence: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_licence"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_licence_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.licence: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_licence"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_utility_site_company" model="ir.rule">
+        <field name="name">fix.site.utility: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_utility"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_utility_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.utility: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_utility"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_condition_site_company" model="ir.rule">
+        <field name="name">fix.site.condition: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_condition"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_condition_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.condition: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_condition"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_pm_site_company" model="ir.rule">
+        <field name="name">fix.site.pm: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_pm"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_pm_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.pm: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_pm"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_safety_site_company" model="ir.rule">
+        <field name="name">fix.site.safety: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_safety"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_safety_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.safety: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_safety"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_incident_site_company" model="ir.rule">
+        <field name="name">fix.site.incident: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_incident"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_incident_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.incident: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_incident"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_project_site_company" model="ir.rule">
+        <field name="name">fix.site.project: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_project"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_project_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.project: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_project"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_asset_site_company" model="ir.rule">
+        <field name="name">fix.site.asset: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_asset"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_asset_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.asset: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_asset"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_risk_exception_site_company" model="ir.rule">
+        <field name="name">fix.site.risk.exception: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_risk_exception"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_risk_exception_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.risk.exception: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_risk_exception"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_schedule_site_company" model="ir.rule">
+        <field name="name">fix.site.lease.schedule: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_lease_schedule"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_schedule_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.lease.schedule: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_lease_schedule"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_extract_site_company" model="ir.rule">
+        <field name="name">fix.site.lease.extract: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_lease_extract"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_extract_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.lease.extract: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_lease_extract"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- M47 capture audit (2026-11-17): the new registers are fenced through their site. -->
+    <record id="rule_fix_site_lease_event_site_company" model="ir.rule">
+        <field name="name">fix.site.lease.event: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_lease_event"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_lease_event_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.lease.event: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_lease_event"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_licence_renewal_site_company" model="ir.rule">
+        <field name="name">fix.site.licence.renewal: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_licence_renewal"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_licence_renewal_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.licence.renewal: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_licence_renewal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_utility_account_site_company" model="ir.rule">
+        <field name="name">fix.site.utility.account: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_utility_account"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_utility_account_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.utility.account: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_utility_account"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_outage_site_company" model="ir.rule">
+        <field name="name">fix.site.outage: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_outage"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_outage_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.outage: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_outage"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_site_power_test_site_company" model="ir.rule">
+        <field name="name">fix.site.power.test: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_power_test"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_power_test_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.power.test: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_power_test"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 ERP audit (2026-11-20): scoped through the site, like the rest -->
+    <record id="rule_fix_site_charge_site_company" model="ir.rule">
+        <field name="name">fix.site.charge: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_charge"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_charge_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.charge: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_charge"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 ERP audit (2026-11-20): scoped through the site, like the rest -->
+    <record id="rule_fix_site_project_cost_site_company" model="ir.rule">
+        <field name="name">fix.site.project.cost: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_project_cost"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_project_cost_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.project.cost: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_project_cost"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 ERP audit (2026-11-20): scoped through the site, like the rest -->
+    <record id="rule_fix_site_outage_impact_site_company" model="ir.rule">
+        <field name="name">fix.site.outage.impact: site in allowed companies</field>
+        <field name="model_id" ref="model_fix_site_outage_impact"/>
+        <field name="domain_force">[('site_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_site_outage_impact_site_operating_unit" model="ir.rule">
+        <field name="name">fix.site.outage.impact: site in allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_site_outage_impact"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('site_id.operating_unit_id', '=', False), ('site_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

@@ -52,7 +52,8 @@ class FixLoyaltyTier(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     # Benefits

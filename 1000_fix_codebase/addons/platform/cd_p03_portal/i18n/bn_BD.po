@@ -1,0 +1,1456 @@
+# Bengali (Bangla) translation for cd_p03_portal.
+# Copyright (C) 2026 1000FiX Services Ltd.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: cd_p03_portal 19.0\n"
+"Last-Translator: 1000FiX Localization Team\n"
+"Language-Team: Bengali (Bangladesh)\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s2
+msgid "Access"
+msgstr "অ্যাক্সেস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s3
+msgid "Accounts"
+msgstr "হিসাবসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s2
+msgid "Agent Desktop (P10)"
+msgstr "এজেন্ট ডেস্কটপ (P10)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s2
+msgid "Alerting"
+msgstr "সতর্কবার্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s5
+msgid "Analysis"
+msgstr "বিশ্লেষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s4
+msgid "Analytics"
+msgstr "অ্যানালিটিক্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext
+msgid "AP & Employee Expense"
+msgstr "প্রদেয় হিসাব ও কর্মী ব্যয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s3
+msgid "Approval Loop"
+msgstr "অনুমোদন চক্র"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s2
+msgid "Approvals"
+msgstr "অনুমোদনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine
+msgid "AR, Invoicing & Collections"
+msgstr "প্রাপ্য হিসাব, চালান ও আদায়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s2
+msgid "Assets"
+msgstr "সম্পদসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s3
+msgid "Audits"
+msgstr "নিরীক্ষাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s1
+msgid "Authoring"
+msgstr "রচনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s4
+msgid "Backup & Destruction"
+msgstr "ব্যাকআপ ও ধ্বংস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s2
+msgid "Banking"
+msgstr "ব্যাংকিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s2
+msgid "Bench Board"
+msgstr "বেঞ্চ বোর্ড"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s2
+msgid "Booking"
+msgstr "বুকিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk
+msgid "Branch & Front-Desk"
+msgstr "শাখা ও ফ্রন্ট-ডেস্ক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s5
+msgid "Branch Ops"
+msgstr "শাখা অপারেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s2
+msgid "Brand Claims"
+msgstr "ব্র্যান্ড দাবিসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s3
+msgid "Budgeting"
+msgstr "বাজেটিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s3
+msgid "Calibration"
+msgstr "ক্যালিব্রেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s1
+msgid "Campaigns"
+msgstr "প্রচারণাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s1
+msgid "Capex"
+msgstr "মূলধনী ব্যয় (Capex)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s1
+msgid "Capture"
+msgstr "সংগ্রহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s2
+msgid "Cart & Checkout"
+msgstr "কার্ট ও চেকআউট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s1
+msgid "Cash"
+msgstr "নগদ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s3
+msgid "Cash & Shift"
+msgstr "নগদ ও শিফট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s2
+msgid "Certifications"
+msgstr "সার্টিফিকেশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s4
+msgid "Change"
+msgstr "পরিবর্তন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s4
+msgid "Change & Renewal"
+msgstr "পরিবর্তন ও নবায়ন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s3
+msgid "Channels"
+msgstr "চ্যানেলসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s5
+msgid "Client Reporting"
+msgstr "ক্লায়েন্ট রিপোর্টিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s2
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Close"
+msgstr "বন্ধ করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s3
+msgid "Closed Loop"
+msgstr "ক্লোজড লুপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s1
+msgid "Collection"
+msgstr "সংগ্রহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s4
+msgid "Commerce Marketing"
+msgstr "কমার্স মার্কেটিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s3
+msgid "Commercial"
+msgstr "বাণিজ্যিক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s2
+msgid "Commission"
+msgstr "কমিশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s4
+msgid "Comms"
+msgstr "যোগাযোগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s3
+msgid "Compatibility & Faults"
+msgstr "সামঞ্জস্যতা ও ত্রুটি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s3
+msgid "Compensation"
+msgstr "ক্ষতিপূরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s1
+msgid "Competency"
+msgstr "দক্ষতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s2
+msgid "Complaints"
+msgstr "অভিযোগসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s3
+msgid "Compliance"
+msgstr "কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s2
+msgid "Configuration"
+msgstr "কনফিগারেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s3
+msgid "Connectors"
+msgstr "কানেক্টরসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s4
+msgid "Consent & Rights"
+msgstr "সম্মতি ও অধিকার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s1
+msgid "Consignments"
+msgstr "কনসাইনমেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre
+msgid "Contact Centre (16743)"
+msgstr "যোগাযোগ কেন্দ্র (16743)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core
+msgid "Contract Lifecycle (AMC)"
+msgstr "চুক্তির জীবনচক্র (AMC)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s1
+msgid "Contract Register"
+msgstr "চুক্তি রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s2
+msgid "Controls"
+msgstr "নিয়ন্ত্রণসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core
+msgid "Core HR & Lifecycle"
+msgstr "মূল HR ও জীবনচক্র"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s4
+msgid "Corporate Estates"
+msgstr "কর্পোরেট স্থাপনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s4
+msgid "Costing"
+msgstr "খরচ নির্ধারণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s4
+msgid "Costing & Knowledge"
+msgstr "খরচ নির্ধারণ ও জ্ঞানভান্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa
+msgid "Costing, Budget & FP&A"
+msgstr "খরচ নির্ধারণ, বাজেট ও FP&A"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s4
+msgid "Counter Sales"
+msgstr "কাউন্টার বিক্রয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s4
+msgid "Courier Partners"
+msgstr "কুরিয়ার পার্টনার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s5
+msgid "Coverage"
+msgstr "আওতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s2
+msgid "Coverage & Entitlement"
+msgstr "আওতা ও প্রাপ্যতা"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Created By"
+msgstr "তৈরিকারী"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s3
+msgid "Credit Control"
+msgstr "ক্রেডিট নিয়ন্ত্রণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext
+msgid "CRM & Sales Pipeline"
+msgstr "CRM ও বিক্রয় পাইপলাইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s2
+msgid "Custody"
+msgstr "হেফাজত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s2
+msgid "Custody & POD"
+msgstr "হেফাজত ও ডেলিভারির প্রমাণ (POD)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master
+msgid "Customer & Party Master"
+msgstr "গ্রাহক ও পার্টি মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback
+msgid "CX, Feedback & Complaints"
+msgstr "গ্রাহক অভিজ্ঞতা, মতামত ও অভিযোগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry
+msgid "Data Platform & Governance"
+msgstr "ডেটা প্ল্যাটফর্ম ও গভর্নেন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s3
+msgid "Data Protection"
+msgstr "ডেটা সুরক্ষা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s3
+msgid "Data Quality"
+msgstr "ডেটার গুণমান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case
+msgid "Data Services & Recovery"
+msgstr "ডেটা সার্ভিস ও পুনরুদ্ধার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s2
+msgid "Delivery"
+msgstr "ডেলিভারি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan
+msgid "Demand Planning"
+msgstr "চাহিদা পরিকল্পনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s3
+msgid "Depreciation"
+msgstr "অবচয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry
+msgid "Device & Asset Registry"
+msgstr "ডিভাইস ও সম্পদ রেজিস্ট্রি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s2
+msgid "Device Custody"
+msgstr "ডিভাইস হেফাজত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s3
+msgid "Diagnosis & Estimates"
+msgstr "ডায়াগনোসিস ও আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s3
+msgid "Disbursement"
+msgstr "বিতরণ"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s1
+msgid "Dispatch Console"
+msgstr "ডিসপ্যাচ কনসোল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s3
+msgid "Distribution"
+msgstr "বিতরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s3
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core
+msgid "Documents & E-Signature"
+msgstr "দলিল ও ই-সিগনেচার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront
+msgid "E-Commerce Storefront"
+msgstr "ই-কমার্স স্টোরফ্রন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s3
+msgid "E-Signature"
+msgstr "ই-সিগনেচার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste
+msgid "E-Waste & Recycling"
+msgstr "ই-বর্জ্য ও রিসাইক্লিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s3
+msgid "Employee Expense"
+msgstr "কর্মী ব্যয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s3
+msgid "Employee IT"
+msgstr "কর্মী IT"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s1
+msgid "Employee Master"
+msgstr "কর্মী মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s1
+msgid "Engine"
+msgstr "ইঞ্জিন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register
+msgid "Enterprise Assets & Test Equipment"
+msgstr "প্রাতিষ্ঠানিক সম্পদ ও পরীক্ষা যন্ত্রপাতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s4
+msgid "Entitlement & SLA"
+msgstr "প্রাপ্যতা ও SLA"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s1
+msgid "Estimates"
+msgstr "আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s2
+msgid "Events"
+msgstr "ইভেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s4
+msgid "Evidence"
+msgstr "প্রমাণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s5
+msgid "Exceptions & Billing"
+msgstr "ব্যতিক্রম ও বিলিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s3
+msgid "Execution"
+msgstr "সম্পাদন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility
+msgid "Facility & Branch Infrastructure"
+msgstr "সুবিধা ও শাখা অবকাঠামো"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "FactBox"
+msgstr "তথ্যবাক্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s4
+msgid "Feedback"
+msgstr "মতামত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s3
+msgid "Field Safety"
+msgstr "ফিল্ড নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service
+msgid "Field Service & Dispatch"
+msgstr "ফিল্ড সার্ভিস ও ডিসপ্যাচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext
+msgid "Financial Accounting & GL"
+msgstr "আর্থিক হিসাবরক্ষণ ও GL"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s3
+msgid "Financials"
+msgstr "আর্থিক তথ্য"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext
+msgid "Fixed Assets & Capex"
+msgstr "স্থায়ী সম্পদ ও মূলধনী ব্যয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s1
+msgid "Fleet"
+msgstr "যানবাহন বহর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext
+msgid "Fleet & Vehicles"
+msgstr "যানবাহন বহর ও যানবাহন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s4
+msgid "Floor Ops"
+msgstr "ফ্লোর অপারেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s1
+msgid "Forecasting"
+msgstr "পূর্বাভাস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s1
+msgid "Framework"
+msgstr "ফ্রেমওয়ার্ক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s1
+msgid "Gateway"
+msgstr "গেটওয়ে"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s4
+msgid "Governance"
+msgstr "গভর্নেন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc
+msgid "Governance, Risk & Compliance"
+msgstr "গভর্নেন্স, ঝুঁকি ও কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse
+msgid "Health, Safety & Wellbeing"
+msgstr "স্বাস্থ্য, নিরাপত্তা ও কল্যাণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s2
+msgid "History"
+msgstr "ইতিহাস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s1
+msgid "Identity"
+msgstr "পরিচয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s2
+msgid "Identity & Verification"
+msgstr "পরিচয় ও যাচাই"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext
+msgid "Identity, Access & Security"
+msgstr "পরিচয়, অ্যাক্সেস ও নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s4
+msgid "Impact"
+msgstr "প্রভাব"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order
+msgid "Import & Trade Compliance"
+msgstr "আমদানি ও বাণিজ্য কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s2
+msgid "Inbound"
+msgstr "অন্তর্মুখী"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s2
+msgid "Incentives"
+msgstr "প্রণোদনাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s2
+msgid "Incidents"
+msgstr "ঘটনাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s4
+msgid "Infrastructure"
+msgstr "অবকাঠামো"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s1
+msgid "Ingestion"
+msgstr "ডেটা গ্রহণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s1
+msgid "Intake & Channels"
+msgstr "ইনটেক ও চ্যানেল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox
+msgid "Integration, API & Events"
+msgstr "ইন্টিগ্রেশন, API ও ইভেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s3
+msgid "Intelligence"
+msgstr "ইন্টেলিজেন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm
+msgid "Internal IT Service"
+msgstr "অভ্যন্তরীণ IT সার্ভিস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s1
+msgid "Invoicing"
+msgstr "চালান প্রস্তুত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry
+msgid "IoT Telemetry & Predictive"
+msgstr "IoT টেলিমেট্রি ও পূর্বাভাসমূলক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s1
+msgid "Item Master"
+msgstr "আইটেম মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s3
+msgid "Job Market"
+msgstr "জব মার্কেট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s2
+msgid "Journeys"
+msgstr "যাত্রাপথ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge
+msgid "Knowledge & Technical Library"
+msgstr "জ্ঞানভান্ডার ও কারিগরি লাইব্রেরি"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Last Update"
+msgstr "সর্বশেষ হালনাগাদ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s1
+msgid "Leads"
+msgstr "লিডসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency
+msgid "Learning & Certification"
+msgstr "শিক্ষণ ও সার্টিফিকেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s2
+msgid "Leases"
+msgstr "লিজসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s3
+msgid "Leave"
+msgstr "ছুটি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s1
+msgid "Ledger"
+msgstr "খতিয়ান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s4
+msgid "Legal & Data"
+msgstr "আইনি ও ডেটা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s3
+msgid "Lifecycle"
+msgstr "জীবনচক্র"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s4
+msgid "Maintenance"
+msgstr "রক্ষণাবেক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign
+msgid "Marketing Campaigns"
+msgstr "মার্কেটিং প্রচারণাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace
+msgid "Marketplace & Sellers"
+msgstr "মার্কেটপ্লেস ও বিক্রেতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core
+msgid "Master Data Management"
+msgstr "মাস্টার ডেটা ব্যবস্থাপনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s4
+msgid "Measurement"
+msgstr "পরিমাপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s2
+msgid "Media Custody"
+msgstr "মিডিয়া হেফাজত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s4
+msgid "Metrics"
+msgstr "মেট্রিকসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s2
+msgid "Modelling"
+msgstr "মডেলিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s4
+msgid "Money"
+msgstr "অর্থ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s2
+msgid "Monitored Estate"
+msgstr "পর্যবেক্ষিত সম্পদসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s4
+msgid "Monitoring"
+msgstr "পর্যবেক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s2
+msgid "Nonconformance"
+msgstr "অসঙ্গতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s4
+msgid "Notification Hub"
+msgstr "নোটিফিকেশন হাব"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s3
+msgid "Offers & Content"
+msgstr "অফার ও কনটেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s4
+msgid "Onboarding"
+msgstr "অনবোর্ডিং"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Opened"
+msgstr "খোলা হয়েছে"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s3
+msgid "Operations"
+msgstr "অপারেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s2
+msgid "Order Lifecycle"
+msgstr "অর্ডারের জীবনচক্র"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s3
+msgid "Orders"
+msgstr "অর্ডারসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s1
+msgid "Orders & Finance"
+msgstr "অর্ডার ও ফাইন্যান্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s1
+msgid "Organisation"
+msgstr "সংগঠন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s3
+msgid "Outbound"
+msgstr "বহির্মুখী"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_home
+msgid "P03 Workspace"
+msgstr "P03 ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner
+msgid "Partner & Channel"
+msgstr "পার্টনার ও চ্যানেল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s1
+msgid "Partner Master"
+msgstr "পার্টনার মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s3
+msgid "Partners & Compliance"
+msgstr "পার্টনার ও কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s1
+msgid "Party Records"
+msgstr "পার্টি রেকর্ডসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s3
+msgid "Payments"
+msgstr "পেমেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd
+msgid "Payroll & Statutory"
+msgstr "পেরোল ও সংবিধিবদ্ধ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s1
+msgid "Payroll Engine"
+msgstr "পেরোল ইঞ্জিন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s1
+msgid "Performance"
+msgstr "পারফরম্যান্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance
+msgid "Performance & Incentives"
+msgstr "পারফরম্যান্স ও প্রণোদনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s2
+msgid "Pipeline"
+msgstr "পাইপলাইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s1
+msgid "Pipelines"
+msgstr "পাইপলাইনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s4
+msgid "Planning"
+msgstr "পরিকল্পনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s4
+msgid "Plans & Templates"
+msgstr "পরিকল্পনা ও টেমপ্লেট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config
+msgid "Platform Administration"
+msgstr "প্ল্যাটফর্ম প্রশাসন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s2
+msgid "Policies"
+msgstr "নীতিমালা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s1
+msgid "Portfolio"
+msgstr "পোর্টফোলিও"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s1
+msgid "Price Books"
+msgstr "মূল্য তালিকা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing
+msgid "Pricing & Rate Cards"
+msgstr "মূল্য নির্ধারণ ও রেট কার্ড"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine
+msgid "Process Automation"
+msgstr "প্রক্রিয়া অটোমেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s2
+msgid "Processing"
+msgstr "প্রক্রিয়াকরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition
+msgid "Procurement & Sourcing"
+msgstr "প্রকিউরমেন্ট ও সোর্সিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue
+msgid "Product & Service Catalogue"
+msgstr "পণ্য ও সার্ভিস ক্যাটালগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s2
+msgid "Profitability"
+msgstr "লাভজনকতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s4
+msgid "Programme"
+msgstr "প্রোগ্রাম"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s2
+msgid "Programmes"
+msgstr "প্রোগ্রামসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm
+msgid "Projects & Portfolio"
+msgstr "প্রকল্প ও পোর্টফোলিও"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s3
+msgid "Protection Plans"
+msgstr "সুরক্ষা প্ল্যানসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s2
+msgid "Quality"
+msgstr "গুণমান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s5
+msgid "Quality & Release"
+msgstr "গুণমান ও হস্তান্তর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s5
+msgid "Quality & WFM"
+msgstr "গুণমান ও কর্মীবাহিনী ব্যবস্থাপনা (WFM)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process
+msgid "Quality Management (ISO)"
+msgstr "মান ব্যবস্থাপনা (ISO)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s1
+msgid "Queue & Token"
+msgstr "কিউ ও টোকেন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s3
+msgid "Quotation & Handover"
+msgstr "কোটেশন ও হস্তান্তর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s2
+msgid "Quotations"
+msgstr "কোটেশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation
+msgid "Quotations & Tenders"
+msgstr "কোটেশন ও টেন্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s2
+msgid "Rate Cards"
+msgstr "রেট কার্ডসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s2
+msgid "Rating & Billing"
+msgstr "রেটিং ও বিলিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s4
+msgid "Recalls & Fraud"
+msgstr "রিকল ও জালিয়াতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s2
+msgid "Receipts"
+msgstr "রসিদসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s4
+msgid "Receiving & Match"
+msgstr "গ্রহণ ও মিলান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s1
+msgid "Recovery Cases"
+msgstr "পুনরুদ্ধার কেসসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s3
+msgid "Reference Data"
+msgstr "রেফারেন্স ডেটা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s2
+msgid "Refurbishment"
+msgstr "রিফার্বিশমেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s1
+msgid "Register"
+msgstr "রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s1
+msgid "Registry"
+msgstr "রেজিস্ট্রি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s1
+msgid "Remote Sessions"
+msgstr "রিমোট সেশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract
+msgid "Remote Support & MSP"
+msgstr "রিমোট সাপোর্ট ও MSP"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s4
+msgid "Renewals & Growth"
+msgstr "নবায়ন ও প্রবৃদ্ধি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset
+msgid "Rental & EaaS"
+msgstr "ভাড়া ও EaaS"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s1
+msgid "Repair Orders"
+msgstr "মেরামত অর্ডারসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_report_center
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_report_center
+msgid "Report Center"
+msgstr "রিপোর্ট সেন্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s1
+msgid "Repository"
+msgstr "রিপোজিটরি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s1
+msgid "Requisitions"
+msgstr "ক্রয় অনুরোধসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s3
+msgid "Resale"
+msgstr "পুনঃবিক্রয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s4
+msgid "Retention"
+msgstr "সংরক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s1
+msgid "Revenue"
+msgstr "আয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext
+msgid "Revenue Recognition & Settlement"
+msgstr "আয় স্বীকৃতি ও নিষ্পত্তি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s3
+msgid "Riders & Fleet"
+msgstr "রাইডার ও বহর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s4
+msgid "Risk"
+msgstr "ঝুঁকি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s3
+msgid "Routing & Territories"
+msgstr "রাউটিং ও এলাকা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s3
+msgid "Rules"
+msgstr "নিয়মসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s5
+msgid "Safety"
+msgstr "নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s4
+msgid "Safety & Cost"
+msgstr "নিরাপত্তা ও খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s5
+msgid "Safety & Payments"
+msgstr "নিরাপত্তা ও পেমেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s4
+msgid "Scheduling"
+msgstr "সময়সূচি নির্ধারণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s4
+msgid "Security"
+msgstr "নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s5
+msgid "Segments & Credit"
+msgstr "বিভাগ ও ক্রেডিট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s3
+msgid "Selection"
+msgstr "নির্বাচন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s4
+msgid "Self-Service"
+msgstr "স্ব-সেবা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s1
+msgid "Sellers"
+msgstr "বিক্রেতাগণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s3
+msgid "Service Commitments"
+msgstr "সার্ভিস প্রতিশ্রুতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s2
+msgid "Service Definitions"
+msgstr "সার্ভিসের সংজ্ঞা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s3
+msgid "Service Desk"
+msgstr "সার্ভিস ডেস্ক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment
+msgid "Service Logistics (Pick & Drop)"
+msgstr "সার্ভিস লজিস্টিকস (পিক ও ড্রপ)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order
+msgid "Service Requests & Orders"
+msgstr "সার্ভিস অনুরোধ ও অর্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s4
+msgid "Settlement"
+msgstr "নিষ্পত্তি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s3
+msgid "Settlements"
+msgstr "নিষ্পত্তিসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s3
+msgid "Shipping & Customs"
+msgstr "শিপিং ও কাস্টমস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s4
+msgid "Simulation"
+msgstr "সিমুলেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s1
+msgid "Sites"
+msgstr "সাইটসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s2
+msgid "Sourcing"
+msgstr "সোর্সিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s3
+msgid "Statements"
+msgstr "বিবরণীসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s2
+msgid "Statutory"
+msgstr "সংবিধিবদ্ধ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s1
+msgid "Storefront"
+msgstr "স্টোরফ্রন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s1
+msgid "Structure"
+msgstr "কাঠামো"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s1
+msgid "Subscriptions"
+msgstr "সাবস্ক্রিপশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription
+msgid "Subscriptions & Recurring"
+msgstr "সাবস্ক্রিপশন ও পুনরাবৃত্ত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s2
+msgid "Supply"
+msgstr "সরবরাহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s1
+msgid "Surveys"
+msgstr "সমীক্ষাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s4
+msgid "Sync"
+msgstr "সিঙ্ক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent
+msgid "Talent Acquisition"
+msgstr "কর্মী নিয়োগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s4
+msgid "Task Inbox"
+msgstr "কাজের ইনবক্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd
+msgid "Tax & Regulatory (BD)"
+msgstr "কর ও নিয়ন্ত্রক (বাংলাদেশ)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s2
+msgid "Technical Library"
+msgstr "কারিগরি লাইব্রেরি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s4
+msgid "Technician App (P02)"
+msgstr "টেকনিশিয়ান অ্যাপ (P02)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s4
+msgid "Tenders"
+msgstr "টেন্ডারসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance
+msgid "Time, Attendance & Scheduling"
+msgstr "সময়, উপস্থিতি ও সময়সূচি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s1
+msgid "Trade-In"
+msgstr "ট্রেড-ইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein
+msgid "Trade-In & Refurbishment"
+msgstr "ট্রেড-ইন ও রিফার্বিশমেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s3
+msgid "Training"
+msgstr "প্রশিক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position
+msgid "Treasury & Banking"
+msgstr "ট্রেজারি ও ব্যাংকিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s5
+msgid "Trust"
+msgstr "আস্থা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s1
+msgid "Unified Queue"
+msgstr "সমন্বিত কিউ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s1
+msgid "VAT"
+msgstr "VAT"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s1
+msgid "Vendor Payables"
+msgstr "ভেন্ডরকে প্রদেয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s4
+msgid "Voice of Customer"
+msgstr "গ্রাহকের মতামত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure
+msgid "Warehouse Management"
+msgstr "গুদাম ব্যবস্থাপনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims
+msgid "Warranty & Claims"
+msgstr "ওয়ারেন্টি ও দাবি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s1
+msgid "Warranty Register"
+msgstr "ওয়ারেন্টি রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s2
+msgid "Withholding"
+msgstr "উৎসে কর্তন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s2
+msgid "Work Orders"
+msgstr "ওয়ার্ক অর্ডারসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s2
+msgid "Workflows"
+msgstr "ওয়ার্কফ্লোসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s2
+msgid "Working Time"
+msgstr "কর্মসময়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop
+msgid "Workshop & Depot Repair"
+msgstr "ওয়ার্কশপ ও ডিপো মেরামত"

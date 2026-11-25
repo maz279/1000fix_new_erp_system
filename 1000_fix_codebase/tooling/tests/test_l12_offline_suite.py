@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_l12_offline_suite — L12 Offline Verification Suite (33 Scenarios, AR-010, TS-015, Gate G2-02).
 
 Simulates all 33 offline scenarios including:
@@ -14,11 +13,9 @@ Simulates all 33 offline scenarios including:
 - Mathematical zero data loss proof
 """
 
-import base64
 import hashlib
 import json
 import uuid
-import pytest
 
 
 class MockJournal:
@@ -71,7 +68,7 @@ class MockServer:
         self.orders = {
             101: {"state": "assigned", "tech_id": 5, "name": "FO-101"},
             102: {"state": "cancelled", "tech_id": 5, "name": "FO-102"},
-            103: {"state": "assigned", "tech_id": 99, "name": "FO-103"}, # assigned to other
+            103: {"state": "assigned", "tech_id": 99, "name": "FO-103"},  # assigned to other
         }
         self.attachments = {}
 
@@ -152,7 +149,9 @@ class TestL12OfflineSuite:
 
     def test_scenario_06_offline_job_start_command(self):
         j = MockJournal()
-        cmd = j.record("fix.field.order", 101, "start_order", {"actual_start": "2026-10-17T09:00:00Z"})
+        cmd = j.record(
+            "fix.field.order", 101, "start_order", {"actual_start": "2026-10-17T09:00:00Z"}
+        )
         assert cmd["status"] == "pending"
 
     def test_scenario_07_offline_diagnostic_tree_fault_coding(self):
@@ -168,27 +167,40 @@ class TestL12OfflineSuite:
     def test_scenario_09_offline_customer_digital_signature(self):
         j = MockJournal()
         sig_hash = hashlib.sha256(b"CUSTOMER_PEN_VECTOR_STREAM").hexdigest()
-        cmd = j.record("fix.field.order", 101, "customer_signature", {"signature_hash": sig_hash, "signer": "Rafiq Ahmed"})
+        cmd = j.record(
+            "fix.field.order",
+            101,
+            "customer_signature",
+            {"signature_hash": sig_hash, "signer": "Rafiq Ahmed"},
+        )
         assert cmd["payload"]["signature_hash"] == sig_hash
 
     def test_scenario_10_before_repair_photo_queued_deferred(self):
         j = MockJournal()
-        j.evidence_queue.append({"media_type": "photo", "tag": "before_repair", "path": "/storage/photo_01.jpg"})
+        j.evidence_queue.append(
+            {"media_type": "photo", "tag": "before_repair", "path": "/storage/photo_01.jpg"}
+        )
         assert len(j.evidence_queue) == 1
 
     def test_scenario_11_after_repair_photo_queued_deferred(self):
         j = MockJournal()
-        j.evidence_queue.append({"media_type": "photo", "tag": "after_repair", "path": "/storage/photo_02.jpg"})
+        j.evidence_queue.append(
+            {"media_type": "photo", "tag": "after_repair", "path": "/storage/photo_02.jpg"}
+        )
         assert len(j.evidence_queue) == 1
 
     def test_scenario_12_bengali_audio_voice_note_chunked(self):
         j = MockJournal()
-        j.evidence_queue.append({"media_type": "voice_note_bengali", "duration_sec": 18, "chunks": 3})
+        j.evidence_queue.append(
+            {"media_type": "voice_note_bengali", "duration_sec": 18, "chunks": 3}
+        )
         assert j.evidence_queue[0]["media_type"] == "voice_note_bengali"
 
     def test_scenario_13_panic_sos_distress_alert_offline(self):
         j = MockJournal()
-        cmd = j.record("fix.panic.sos", 0, "panic_sos", {"lat": 23.7785, "lng": 90.4150, "battery_pct": 14})
+        cmd = j.record(
+            "fix.panic.sos", 0, "panic_sos", {"lat": 23.7785, "lng": 90.4150, "battery_pct": 14}
+        )
         assert cmd["operation"] == "panic_sos"
 
     def test_scenario_14_battery_depletion_simulation_persistence(self):
@@ -196,7 +208,7 @@ class TestL12OfflineSuite:
         j1 = MockJournal()
         j1.record("fix.field.order", 101, "start_order", {"step": 1})
         serialized = json.dumps(j1.commands)
-        
+
         # Reloading after crash
         j2 = MockJournal()
         j2.commands = json.loads(serialized)
@@ -270,7 +282,7 @@ class TestL12OfflineSuite:
 
     def test_scenario_23_complete_batch_transition_to_acknowledged(self):
         j = MockJournal()
-        c = j.record("fix.field.order", 101, "start", {})
+        j.record("fix.field.order", 101, "start", {})
         server = MockServer()
         res = server.sync(j.commands)
         for cid, val in res["acknowledged"].items():
@@ -306,7 +318,7 @@ class TestL12OfflineSuite:
 
     def test_scenario_28_two_state_disclosure_separation(self):
         j = MockJournal()
-        c1 = j.record("fix.field.order", 101, "start", {})
+        j.record("fix.field.order", 101, "start", {})
         c2 = j.record("fix.field.order", 102, "start", {})
         j.reject(c2["command_id"], "Order cancelled")
 
@@ -374,3 +386,62 @@ class TestL12OfflineSuite:
             server_rec = server.idempotency_ledger.get(cmd["command_id"])
             assert server_rec is not None
             assert server_rec["status"] == "applied"
+
+    def test_scenario_34_p11_auditor_checklist_execution_offline(self):
+        """P11 Auditor app (third consumer) records ISO 9001 checklist offline."""
+        j = MockJournal()
+        audit_payload = {
+            "audit_id": 1,
+            "branch": "Dhaka Central",
+            "checklist": [
+                {"clause": "8.5.1", "is_passed": True, "remarks": "ESD straps OK"},
+                {"clause": "7.1.5", "is_passed": False, "remarks": "Multimeter out of calibration"},
+            ],
+            "score": 50,
+        }
+        cmd = j.record(
+            "fix.internal.audit",
+            1,
+            "action_execute",
+            {"offline_payload": json.dumps(audit_payload)},
+        )
+        assert cmd["status"] == "pending"
+        assert cmd["model"] == "fix.internal.audit"
+        assert "offline_payload" in cmd["payload"]
+        assert "7.1.5" in cmd["payload"]["offline_payload"]
+
+    def test_scenario_35_p11_field_ncr_raising_offline_sp07_sync(self):
+        """P11 Auditor raises field NCR while offline; syncs upload-first."""
+        j = MockJournal()
+        server = MockServer()
+        ncr_payload = {
+            "title": "Bench 2 Multimeter calibration expired",
+            "clause": "7.1.5",
+            "severity": "major",
+            "root_cause": "Systemic tracking delay in calibration register",
+            "audit_id": 1,
+        }
+        cmd = j.record("fix.ncr", 0, "create", ncr_payload)
+        res = server.sync([cmd])
+        assert cmd["command_id"] in res["acknowledged"]
+        assert res["acknowledged"][cmd["command_id"]]["status"] == "success"
+
+    def test_scenario_36_branch_self_audit_deduplication_di05(self):
+        """Branch self-audit re-upload maintains strict idempotency deduplication."""
+        server = MockServer()
+        audit_cmd = {
+            "command_id": "audit-cmd-self-01",
+            "operation": "action_execute",
+            "record_id": 101,
+            "payload": {"branch_id": 2, "self_audit": True, "score": 95},
+        }
+        # First sync
+        res1 = server.sync([audit_cmd])
+        assert "audit-cmd-self-01" in res1["acknowledged"]
+
+        # Duplicate sync (e.g. connectivity stutter during SP-07)
+        res2 = server.sync([audit_cmd])
+        assert "audit-cmd-self-01" in res2["acknowledged"]
+        assert (
+            res1["acknowledged"]["audit-cmd-self-01"] == res2["acknowledged"]["audit-cmd-self-01"]
+        )

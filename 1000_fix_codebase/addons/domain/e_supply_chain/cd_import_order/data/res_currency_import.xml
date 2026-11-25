@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Imports are bought in the supplier's currency. Only BDT and USD were
+         active, so an import order or proforma in EUR, CNY or JPY could not be
+         recorded at all (user request, 12 Nov 2026). These are the currencies
+         Bangladeshi importers open LCs in; each order carries its own
+         commitment rate (fx_rate), so no daily rate feed is needed here.
+         A function, not record overrides: the currencies are base's records,
+         and base may load them protected from updates. -->
+    <function model="res.currency" name="write">
+        <value eval="[ref('base.EUR'), ref('base.GBP'), ref('base.CNY'), ref('base.JPY'), ref('base.INR'), ref('base.SGD'), ref('base.HKD'), ref('base.AED'), ref('base.MYR'), ref('base.THB'), ref('base.KRW'), ref('base.CHF'), ref('base.AUD'), ref('base.CAD'), ref('base.SAR')]"/>
+        <value eval="{'active': True}"/>
+    </function>
+</odoo>

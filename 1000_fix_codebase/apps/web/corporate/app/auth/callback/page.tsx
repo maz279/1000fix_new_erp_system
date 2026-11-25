@@ -1,34 +1,43 @@
 "use client";
 
-/* OIDC callback page (PP3-M01) — receives the authorization code from
- * Keycloak and exchanges it for tokens. On success, redirects to the
- * estate page; on failure, shows the error.
+/* OIDC callback page (PP3-M01) — receives the authorization code and
+ * `state` from Keycloak and hands both to the server route
+ * /api/auth/callback, which verifies the state (httpOnly cookie) and performs
+ * the PKCE code-for-token exchange server-side (security fix 2026-10-23).
+ * On success, redirects to the estate page; on failure, shows the error.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tokens } from "../../../lib/imports";
 import { exchangeCode } from "../../../lib/auth";
 
 export default function AuthCallback() {
   const [status, setStatus] = useState<"exchanging" | "success" | "error">("exchanging");
   const [error, setError] = useState<string | null>(null);
+  // The code and state are single-use: run once even under StrictMode's double effect.
+  const started = useRef(false);
 
   useEffect(() => {
+    if (started.current) return;
+    started.current = true;
     const url = new URL(window.location.href);
     const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
+    // Keep the one-time code out of the history / Referer.
+    window.history.replaceState(null, "", url.pathname);
 
     if (errorParam) {
       setError(`Keycloak returned: ${errorParam}`);
       setStatus("error");
       return;
     }
-    if (!code) {
-      setError("No authorization code in the callback URL");
+    if (!code || !state) {
+      setError("No authorization code or state in the callback URL");
       setStatus("error");
       return;
     }
 
-    exchangeCode(code)
+    exchangeCode(code, state)
       .then(() => {
         setStatus("success");
         // Redirect to the estate page after a brief flash

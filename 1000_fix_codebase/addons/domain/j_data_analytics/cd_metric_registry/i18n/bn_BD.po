@@ -2,3 +2,162 @@
 msgid ""
 msgstr ""
 "Language: bn_BD"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__accuracy
+msgid "Accuracy (value match)"
+msgstr "নির্ভুলতা (মান মিল)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__api
+msgid "API Resource"
+msgstr "API রিসোর্স"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__completeness
+msgid "Completeness (% non-null)"
+msgstr "সম্পূর্ণতা (% খালি নয়)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__confidential
+msgid "Confidential"
+msgstr "গোপনীয়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__consistency
+msgid "Consistency (cross-source)"
+msgstr "সামঞ্জস্য (উৎস জুড়ে)"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_entity
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_entity
+msgid "Data Entity"
+msgstr "ডেটা এনটিটি"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_lineage
+#: model:ir.model,name:cd_metric_registry.model_fix_data_lineage
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_lineage
+msgid "Data Lineage"
+msgstr "ডেটা লিনিয়েজ"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_quality_rule
+#: model:ir.model,name:cd_metric_registry.model_fix_data_quality_rule
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_quality_rule
+msgid "Data Quality Rule"
+msgstr "ডেটার গুণমান নিয়ম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__steward_id
+msgid "Data Steward"
+msgstr "ডেটা স্টুয়ার্ড"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__table
+msgid "Database Table"
+msgstr "ডেটাবেস টেবিল"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__document
+msgid "Document Type"
+msgstr "দলিলের ধরন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__entity_id
+msgid "Entity"
+msgstr "প্রতিষ্ঠান"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__event
+msgid "Event Stream"
+msgstr "ইভেন্ট স্ট্রিম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__state__failing
+msgid "Failing"
+msgstr "ব্যর্থ হচ্ছে"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__internal
+msgid "Internal"
+msgstr "অভ্যন্তরীণ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__last_result
+msgid "Last Result %"
+msgstr "সর্বশেষ ফলাফল %"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__operating_unit_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__operating_unit_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__lineage_order
+msgid "Order"
+msgstr "ক্রম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__owner_module
+msgid "Owning Module"
+msgstr "মালিক মডিউল"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__state__passing
+msgid "Passing"
+msgstr "উত্তীর্ণ হচ্ছে"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__public
+msgid "Public"
+msgstr "উন্মুক্ত"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__report
+msgid "Report/KPI"
+msgstr "রিপোর্ট/KPI"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__residency_classified
+msgid "Residency-Classified (S3)"
+msgstr "রেসিডেন্সি-শ্রেণিভুক্ত (S3)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__retention_policy
+msgid "Retention Policy"
+msgstr "সংরক্ষণ নীতি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__source_entity_id
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__target_entity_id
+msgid "Target"
+msgstr "লক্ষ্য"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__threshold
+msgid "Threshold %"
+msgstr "সীমা %"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__timeliness
+msgid "Timeliness (freshness)"
+msgstr "সময়োপযোগিতা (সতেজতা)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__transformation
+msgid "Transformation Logic"
+msgstr "রূপান্তরের যুক্তি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__uniqueness
+msgid "Uniqueness (no duplicates)"
+msgstr "অনন্যতা (ডুপ্লিকেট নেই)"

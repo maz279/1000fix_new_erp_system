@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M35 scheduled jobs: the S10 journey runtime and the attribution ledger.
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_journey_advance" model="ir.cron">
+            <field name="name">M35 S10: advance due journey members</field>
+            <field name="model_id" ref="model_fix_campaign_journey"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_advance_journeys()</field>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_journey_segment_resync" model="ir.cron">
+            <field name="name">M35 S10: admit parties who joined a live segment</field>
+            <field name="model_id" ref="model_fix_campaign_journey"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_resync_live_segments()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_attribution_harvest" model="ir.cron">
+            <field name="name">M35: harvest touchpoints from the S1 delivery log</field>
+            <field name="model_id" ref="model_fix_campaign_touch"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_harvest_from_delivery_log()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <!-- A03 audit section 4.7 step 8 (cron 52, failure_count=1): with no
+                 nextcall the job is due the moment the install commits its
+                 row, and a running server picks it up before its registry
+                 has the new model. The failure is then never cleared until
+                 the next DAILY run. Start it at the next 02:00 BST instead. -->
+            <field name="nextcall" eval="(DateTime.now() + relativedelta(days=1)).strftime('%Y-%m-%d 20:00:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

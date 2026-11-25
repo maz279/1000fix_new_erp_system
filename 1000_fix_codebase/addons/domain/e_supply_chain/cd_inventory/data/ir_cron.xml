@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M15 replenishment sweep (A06 audit M15-12, AUT-INV-03): check_replenishment_alerts
+  had no ir.cron, so no reorder alert was ever raised automatically. The sweep
+  alerts rules that enter their reorder point (once per shortage, with a draft
+  M16 requisition) and clears alerts whose stock recovered.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_replenishment_sweep" model="ir.cron">
+            <field name="name">M15: replenishment sweep (reorder rules)</field>
+            <field name="model_id" ref="model_fix_reorder_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.check_replenishment_alerts()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

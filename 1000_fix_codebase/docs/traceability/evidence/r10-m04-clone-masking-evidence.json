@@ -1,0 +1,70 @@
+{
+  "test": "R10-M04-T02: In-Stream Sovereign Masking (NFR-086c)",
+  "timestamp": "2026-10-22T09:01:12.331353+00:00",
+  "status": "PASS",
+  "lines_processed": 8,
+  "lines_masked": 3,
+  "residual_pii_lines": 0,
+  "sovereign_pii_zero_leakage": true,
+  "nfr_086c_compliant": true,
+  "checked_types": [
+    "NID_10",
+    "NID_13",
+    "NID_17",
+    "MOBILE_BD",
+    "EMAIL",
+    "MFS_WALLET",
+    "BANK_ACC"
+  ],
+  "failed_checks": [],
+  "checks": [
+    {
+      "id": "NID_10",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to \"INSERT INTO res_partner VALUES (1, 'BD-NID-MASKED-D69D8B73');\""
+    },
+    {
+      "id": "NID_13",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to \"INSERT INTO res_partner VALUES (4, 'BD-NID-MASKED-B33FCA32');\""
+    },
+    {
+      "id": "NID_17",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to \"INSERT INTO res_partner VALUES (2, 'BD-NID-MASKED-2A5A9E56');\""
+    },
+    {
+      "id": "MOBILE_BD",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to 'Mobile: +880170000e27a and +880170000cde0'"
+    },
+    {
+      "id": "EMAIL",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to 'Contact: anon-0f78637a@masked.1000fix.internal and anon-119ee505@masked.1000fix.internal'"
+    },
+    {
+      "id": "MFS_WALLET",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to 'Payout: MFS-WALLET-FA75E9'"
+    },
+    {
+      "id": "BANK_ACC",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "masked to 'Settlement account: BANK-ACC-C453B4'"
+    },
+    {
+      "id": "SQL_DUMP_STREAM",
+      "status": "PASS",
+      "leaked_values": 0,
+      "detail": "8 lines streamed, 3 masked, 0 raw PII values and 0 residual PII lines in the output"
+    }
+  ]
+}

@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_payroll_bd views — M56 (P08-M03). -->
+<!-- cd_payroll_bd views — M56 (P08-M03). Statutory completion, BEFTN & Bengali Payslip. -->
 <odoo>
+    <!-- ======================================================== -->
+    <!-- PAYROLL PERIOD VIEWS                                      -->
+    <!-- ======================================================== -->
     <record id="view_fix_payroll_period_list" model="ir.ui.view">
         <field name="name">fix.payroll.period.list</field>
         <field name="model">fix.payroll.period</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-muted="state == 'draft'"
+                  decoration-info="state == 'calculated'"
+                  decoration-primary="state == 'approved'"
+                  decoration-warning="state == 'paid'"
+                  decoration-success="state == 'posted'">
                 <field name="name"/>
                 <field name="period_start"/>
                 <field name="period_end"/>
                 <field name="slip_count"/>
+                <field name="gross_total"/>
+                <field name="tax_total"/>
+                <field name="pf_total"/>
                 <field name="net_total"/>
-                <field name="state"/>
+                <field name="calculator_id"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
@@ -26,39 +37,77 @@
                             string="Verify Attendance Lock" class="btn-primary"
                             invisible="state != 'draft'"/>
                     <button name="action_calculate" type="object"
-                            string="Calculate"
+                            string="Calculate Payroll" class="btn-primary"
                             invisible="state != 'attendance_locked'"/>
-                    <button name="action_approve" type="object" string="Approve"
+                    <button name="action_prevalidate" type="object"
+                            string="Validate Run" class="btn-secondary"
                             invisible="state != 'calculated'"/>
-                    <button name="action_pay" type="object" string="Pay (BEFTN)"
+                    <!-- C1: approval is routed to the M63 inbox; nobody approves from here -->
+                    <button name="action_request_approval" type="object"
+                            string="Request Approval" class="btn-success"
+                            invisible="state != 'calculated' or approval_state == 'pending'"/>
+                    <button name="action_recall_approval" type="object"
+                            string="Recall Approval Request" class="btn-secondary"
+                            invisible="approval_state != 'pending'"/>
+                    <button name="action_pay" type="object"
+                            string="Release &amp; Generate BEFTN" class="btn-primary"
                             invisible="state != 'approved'"/>
-                    <button name="action_post" type="object" string="Post to GL"
+                    <button name="action_publish_payslips" type="object"
+                            string="Publish Payslips" class="btn-secondary"
+                            invisible="state not in ('paid', 'posted')"/>
+                    <button name="action_post" type="object"
+                            string="Post to GL (Balanced)" class="btn-primary"
                             invisible="state != 'paid'"/>
-                    <field name="state" widget="statusbar"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,attendance_locked,calculated,approved,paid,posted"/>
+                    <field name="approval_state" invisible="1"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Period Reference"/>
+                        <h1><field name="name" placeholder="e.g. 2026-10 (October 2026)"/></h1>
+                    </div>
                     <group>
-                        <group>
-                            <field name="name"/>
+                        <group string="Period Schedule">
                             <field name="period_start"/>
                             <field name="period_end"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="calculator_id"/>
+                            <field name="company_account_no"
+                                   readonly="state in ('paid', 'posted')"/>
+                            <field name="company_routing_no"
+                                   readonly="state in ('paid', 'posted')"/>
                         </group>
-                        <group>
+                        <group string="Financial Summary (BDT)">
                             <field name="slip_count"/>
-                            <field name="net_total"/>
+                            <field name="gross_total"/>
+                            <field name="tax_total"/>
+                            <field name="pf_total"/>
+                            <field name="net_total" class="oe_subtotal_footer_separator font-weight-bold"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="beftn_batch_id"/>
+                            <field name="gl_move_id"/>
                         </group>
                     </group>
-                    <field name="payslip_ids">
-                        <list>
-                            <field name="employee_id"/>
-                            <field name="gross"/>
-                            <field name="pf_employee"/>
-                            <field name="tax_withheld"/>
-                            <field name="net"/>
-                        </list>
-                    </field>
+                    <notebook>
+                        <page string="Employee Payslips" name="payslips">
+                            <field name="payslip_ids">
+                                <list decoration-info="net &gt; 0">
+                                    <field name="employee_id"/>
+                                    <field name="basic"/>
+                                    <field name="overtime"/>
+                                    <field name="gross"/>
+                                    <field name="pf_employee"/>
+                                    <field name="pf_employer"/>
+                                    <field name="tax_withheld"/>
+                                    <field name="net" class="font-weight-bold"/>
+                                    <field name="taxpayer_category"/>
+                                    <field name="bank_name"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -73,34 +122,19 @@
         <field name="name">Payroll Periods</field>
         <field name="res_model">fix.payroll.period</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create the first monthly payroll period!
+            </p>
+            <p>
+                Follow Journey 13: Attendance Lock &gt; Calculation &gt; SoD Approval &gt; BEFTN &gt; Double-entry Posting.
+            </p>
+        </field>
     </record>
 
-    <!-- The Bengali payslip: TR-07's named rendering failure mode, first
-         class. Odoo qweb report on the payslip model. -->
-    <record id="action_report_payslip_bn" model="ir.actions.report">
-        <field name="name">বেতন স্লিপ (Payslip)</field>
-        <field name="model">fix.payslip</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">cd_payroll_bd.report_payslip_bn</field>
-        <field name="report_file">cd_payroll_bd.report_payslip_bn</field>
-    </record>
-
-    <template id="report_payslip_bn">
-        <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="doc">
-                <div class="page">
-                    <h1>বেতন স্লিপ</h1>
-                    <p>কর্মী: <span t-field="doc.employee_id.name"/></p>
-                    <p>মূল বেতন: <span t-field="doc.basic"/></p>
-                    <p>অতিরিক্ত কর্মঘণ্টা: <span t-field="doc.overtime"/></p>
-                    <p>প্রভিডেন্ট ফান্ড (কর্মী): <span t-field="doc.pf_employee"/></p>
-                    <p>আয়কর কর্তন: <span t-field="doc.tax_withheld"/></p>
-                    <h2>নিট বেতন: <span t-field="doc.net"/></h2>
-                </div>
-            </t>
-        </t>
-    </template>
-
+    <!-- ======================================================== -->
+    <!-- PAYSLIP FORM & LIST VIEWS                                 -->
+    <!-- ======================================================== -->
     <record id="view_fix_payslip_list" model="ir.ui.view">
         <field name="name">fix.payslip.list</field>
         <field name="model">fix.payslip</field>
@@ -108,9 +142,99 @@
             <list>
                 <field name="employee_id"/>
                 <field name="period_id"/>
+                <field name="basic"/>
+                <field name="ot_hours"/>
+                <field name="overtime"/>
                 <field name="gross"/>
-                <field name="net"/>
+                <field name="pf_employee"/>
+                <field name="tax_withheld"/>
+                <field name="net" class="font-weight-bold"/>
+                <field name="bank_account_no"/>
+                <field name="routing_no"/>
             </list>
+        </field>
+    </record>
+
+    <!-- ======================================================== -->
+    <!-- BENGALI PAYSLIP QWEB REPORT (declared before the form that
+         references it: %(...)d resolves at load time) (TR-07) -->
+    <!-- ======================================================== -->
+    <record id="action_report_payslip_bn" model="ir.actions.report">
+        <field name="name">বেতন স্লিপ (Payslip)</field>
+        <field name="model">fix.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_payroll_bd.report_payslip_bn</field>
+        <field name="report_file">cd_payroll_bd.report_payslip_bn</field>
+        <field name="print_report_name">'Payslip_%s_%s' % (object.employee_id.name, object.period_id.name)</field>
+        <field name="binding_model_id" ref="model_fix_payslip"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="view_fix_payslip_form" model="ir.ui.view">
+        <field name="name">fix.payslip.form</field>
+        <field name="model">fix.payslip</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="%(action_report_payslip_bn)d" type="action"
+                            string="প্রিন্ট পে-স্লিপ (Print Bengali Payslip)"
+                            class="btn-primary" icon="fa-print"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="employee_id" string="Employee"/>
+                        <h1><field name="employee_id"/></h1>
+                        <h3><field name="period_id"/></h3>
+                    </div>
+                    <group>
+                        <group string="Earnings &amp; Compensation (উপার্জন)">
+                            <field name="basic"/>
+                            <field name="ot_hours"/>
+                            <field name="overtime"/>
+                            <field name="incentive"/>
+                            <field name="gross" class="font-weight-bold"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Deductions &amp; Statutory (কর্তন)">
+                            <field name="pf_employee_pct"/>
+                            <field name="pf_employee"/>
+                            <field name="pf_employer_pct"/>
+                            <field name="pf_employer"/>
+                            <field name="tax_withheld"/>
+                            <field name="net" class="oe_subtotal_footer_separator font-weight-bold text-success"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Statutory Tax &amp; Rebate Settings" name="tax_settings">
+                            <group>
+                                <group string="Income Tax Act 2023 Parameters">
+                                    <field name="taxpayer_category"/>
+                                    <field name="has_disabled_child"/>
+                                    <field name="minimum_tax_location"/>
+                                </group>
+                                <group string="Rebates &amp; Historical Balances">
+                                    <field name="investment_allowance"/>
+                                    <field name="annual_taxable_other"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="BEFTN Disbursement Banking" name="bank_details">
+                            <group>
+                                <group string="Disbursement Account">
+                                    <field name="bank_name"/>
+                                    <field name="bank_account_no"/>
+                                    <field name="routing_no"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -120,10 +244,160 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ======================================================== -->
+    <!-- BEFTN BATCH VIEWS                                         -->
+    <!-- ======================================================== -->
+    <record id="view_fix_beftn_batch_list" model="ir.ui.view">
+        <field name="name">fix.beftn.batch.list</field>
+        <field name="model">fix.beftn.batch</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="state == 'submitted'"
+                  decoration-success="state == 'settled'">
+                <field name="period_id"/>
+                <field name="submitted_at"/>
+                <field name="settlement_date"/>
+                <field name="employee_count"/>
+                <field name="total_amount"/>
+                <field name="company_routing_no"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_beftn_batch_form" model="ir.ui.view">
+        <field name="name">fix.beftn.batch.form</field>
+        <field name="model">fix.beftn.batch</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_settle" type="object"
+                            string="Mark Settled" class="btn-success"
+                            invisible="state == 'settled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="submitted,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="period_id" string="BEFTN Batch for Period"/>
+                        <h1><field name="period_id"/></h1>
+                    </div>
+                    <group>
+                        <group string="Batch Submission Details">
+                            <field name="submitted_at"/>
+                            <field name="settlement_date"/>
+                            <field name="company_account_no"/>
+                            <field name="company_routing_no"/>
+                        </group>
+                        <group string="Settlement Figures">
+                            <field name="employee_count"/>
+                            <field name="total_amount"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="file_name"/>
+                            <field name="file_digest"/>
+                            <field name="released_by_id"/>
+                        </group>
+                        <group string="Bank Confirmation (FR-PAY-048)">
+                            <field name="bank_confirmation_ref"/>
+                            <field name="bank_confirmation_file" filename="bank_confirmation_filename"/>
+                            <field name="bank_confirmation_filename" invisible="1"/>
+                            <field name="settled_by_id"/>
+                            <field name="settled_on"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="128-Byte ASCII File Preview (Bangladesh Bank Standard)" name="file_content">
+                            <field name="file_content" widget="text" style="font-family: monospace; font-size: 11px; white-space: pre; background-color: #f8f9fa;"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_beftn_batch" model="ir.actions.act_window">
+        <field name="name">BEFTN Batches</field>
+        <field name="res_model">fix.beftn.batch</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- A09 M56-F13: a second template with this same id used to live here and
+         was dead weight - the manifest loads report/report_payslip_bn.xml
+         AFTER this file, so that template's arch always won and this one never
+         rendered. Worse, it printed the FULL bank account and cited
+         "শ্রম বিধিমালা ২০১৫ এর বিধি ৩৫১" and TDS "ধারা ১২৪/১৪০", none of which
+         any repository source confirms. It is deleted; the live, self-
+         explaining payslip is report/report_payslip_bn.xml (one row per
+         allowance, retro/recovery rows, masked account, the pinned
+         statutory_basis string). -->
+
+    <!-- ======================================================== -->
+    <!-- MENU ENTRIES                                              -->
+    <!-- ======================================================== -->
     <menuitem id="menu_fix_payroll" name="Payroll"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_payroll_period" sequence="100"/>
     <menuitem id="menu_fix_payslips" name="Payslips"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_payslip" sequence="110"/>
+    <menuitem id="menu_fix_beftn_batch" name="BEFTN Batches"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_beftn_batch" sequence="120"/>
+
+    <!-- Payroll GL configuration (M56 -> M19): entered by finance, never defaulted -->
+    <record id="view_company_form_payroll_accounting" model="ir.ui.view">
+        <field name="name">res.company.form.payroll.accounting</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Payroll Accounting" name="payroll_accounting">
+                    <group>
+                        <group string="Journal">
+                            <field name="payroll_journal_id"/>
+                        </group>
+                        <group string="Expense">
+                            <field name="payroll_salary_expense_account_id"/>
+                            <field name="payroll_pf_expense_account_id"/>
+                        </group>
+                        <group string="Liabilities">
+                            <field name="payroll_net_payable_account_id"/>
+                            <field name="payroll_tax_payable_account_id"/>
+                            <field name="payroll_pf_payable_account_id"/>
+                            <field name="payroll_wppf_expense_account_id"/>
+                            <field name="payroll_wppf_payable_account_id"/>
+                        </group>
+                        <group string="Off-Cycle / Bonus Originating Account">
+                            <field name="payroll_beftn_account_no"/>
+                            <field name="payroll_beftn_routing_no"/>
+                        </group>
+                        <group string="Statutory Decisions (A09 report 7.3 / 7.4)">
+                            <field name="payroll_tax_table_rule"/>
+                            <field name="payroll_separation_rule"/>
+                            <field name="payroll_minimum_basic_monthly"/>
+                            <field name="payroll_return_due_day"/>
+                            <field name="ot_divisor_hours"/>
+                            <field name="ita_exemption_ceiling"/>
+                        </group>
+                        <group string="Round-2 Decisions (0 / today's method = off)">
+                            <field name="payroll_tds_method"/>
+                            <field name="payroll_bonus_tds"/>
+                            <field name="payroll_variance_threshold_pct"/>
+                            <field name="payroll_bank_cooloff_days"/>
+                            <field name="payroll_wppf_min_service_months"/>
+                            <field name="payroll_wppf_bank_account_id"/>
+                            <field name="payroll_recovery_source"/>
+                            <field name="payroll_recovery_monthly_cap"/>
+                            <field name="payroll_recovery_account_id"/>
+                            <field name="payroll_gratuity_expense_account_id"/>
+                            <field name="payroll_gratuity_provision_account_id"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
 </odoo>

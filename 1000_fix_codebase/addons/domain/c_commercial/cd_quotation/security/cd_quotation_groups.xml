@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M36 quotation and tender roles (A04 audit 2026-11-03 §7.1 / M36 §13;
+     C2-C13 build 2026-11-04).
+
+     M36 had no role group: every internal user created, issued, "signed",
+     won and released everything. The spec (§13) names:
+
+     - Quotation Author (R08 agent, R10-12 technician, R22 account manager,
+       R21 sales manager): drafts quotations, submits them for approval,
+       issues approved ones, records the customer's decision. The approval
+       itself is someone else's (the DOFA tier holders, BRU-QTE-09).
+     - Bid Coordinator (new position under R04): registers tenders, keeps the
+       compliance matrix and the bank guarantees, submits the bid, requests
+       the award and the release of a guarantee.
+     - Tender Committee: takes the bid / no-bid decision and approves an
+       award from the M63 inbox, never on a bid they prepared, submitted or
+       requested (the PPR 2008 r.36(2) separation). Who sits on it is a
+       business appointment (report §7.1).
+     - Commercial Manager (R04 CCO, C R U D A): both work roles, and may
+       delete a quotation or tender that never left draft.
+
+     Plain internal users keep read access. Money decisions (quotation value
+     band, bond release / claim) stay on the DOFA tier groups. The dev admin
+     is a member so daily work keeps running; segregation of duties still
+     applies to them. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_quotation" model="res.groups.privilege">
+            <field name="name">Quotations &amp; Tenders</field>
+            <field name="description">Customer quotations, public tenders, compliance and bid bonds (M36).</field>
+            <field name="sequence">36</field>
+        </record>
+
+        <record id="group_quotation_user" model="res.groups">
+            <field name="name">Quotation Author</field>
+            <field name="privilege_id" ref="privilege_quotation"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Drafts, submits and issues quotations and records the customer's decision. Cannot approve a quotation they wrote.</field>
+        </record>
+
+        <record id="group_bid_coordinator" model="res.groups">
+            <field name="name">Bid Coordinator</field>
+            <field name="privilege_id" ref="privilege_quotation"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Registers tenders, keeps the compliance matrix and bank guarantees, submits bids, requests awards and guarantee releases.</field>
+        </record>
+
+        <record id="group_tender_committee" model="res.groups">
+            <field name="name">Tender Committee</field>
+            <field name="privilege_id" ref="privilege_quotation"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Takes the bid / no-bid decision and approves awards from the M63 inbox, never on a bid they prepared, submitted or requested.</field>
+        </record>
+
+        <record id="group_quotation_manager" model="res.groups">
+            <field name="name">Commercial Manager (Quotations)</field>
+            <field name="privilege_id" ref="privilege_quotation"/>
+            <field name="implied_ids" eval="[(4, ref('group_quotation_user')), (4, ref('group_bid_coordinator'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Business owner of M36: both work roles, and may delete a quotation or tender that never left draft.</field>
+        </record>
+
+    </data>
+</odoo>

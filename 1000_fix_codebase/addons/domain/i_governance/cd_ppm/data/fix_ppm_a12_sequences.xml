@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) R4 / M67-9: fix.project.create asks ir.sequence for
+  code "fix.project", which no data file shipped - every live project is
+  coded "PRJ/New" and the register cannot reference a project.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_project" model="ir.sequence">
+            <field name="name">Project</field>
+            <field name="code">fix.project</field>
+            <field name="prefix">PRJ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

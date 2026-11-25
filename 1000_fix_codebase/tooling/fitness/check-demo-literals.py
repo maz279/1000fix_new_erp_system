@@ -12,6 +12,7 @@ The elimination plan's sweep, made durable (03-DATA-STRATEGY §3 E3):
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,14 +23,13 @@ REPO = Path(__file__).resolve().parents[2]
 ADDONS = REPO / "addons"
 APPS = REPO / "apps"
 
-SKIP_PARTS = {"tests", "stories", "__pycache__", ".mimosa", "i18n",
-              "node_modules", ".next", "demo"}
+SKIP_PARTS = {"tests", "stories", "__pycache__", ".mimosa", "i18n", "node_modules", ".next", "demo"}
 
 LITERAL_SMELLS = {
-    "bd-phone-literal": re.compile(r'>\s*01[3-9]\d{8}\s*<'),
-    "example-email": re.compile(r'[\w.]+@(?:example|test|demo)\.\w+'),
-    "prng": re.compile(r'\b(?:random\.\w+|Math\.random)\s*\('),
-    "lorem": re.compile(r'lorem ipsum', re.I),
+    "bd-phone-literal": re.compile(r">\s*01[3-9]\d{8}\s*<"),
+    "example-email": re.compile(r"[\w.]+@(?:example|test|demo)\.\w+"),
+    "prng": re.compile(r"\b(?:random\.\w+|Math\.random)\s*\("),
+    "lorem": re.compile(r"lorem ipsum", re.I),
 }
 
 
@@ -45,7 +45,7 @@ def main() -> int:
                 continue
             try:
                 txt = f.read_text(encoding="utf-8")
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 continue
             for name, rx in LITERAL_SMELLS.items():
                 for m in rx.finditer(txt):
@@ -75,9 +75,11 @@ def main() -> int:
             print(f"  {line}")
         return 1
 
-    print("demo-literals: OK — estate views/static carry no fabricated "
-          "literals and no module ships Odoo demo data (TEST data enters "
-          "via db/seeds/seed.py only, 03-DATA-STRATEGY §1/E3)")
+    print(
+        "demo-literals: OK — estate views/static carry no fabricated "
+        "literals and no module ships Odoo demo data (TEST data enters "
+        "via db/seeds/seed.py only, 03-DATA-STRATEGY §1/E3)"
+    )
     return 0
 
 

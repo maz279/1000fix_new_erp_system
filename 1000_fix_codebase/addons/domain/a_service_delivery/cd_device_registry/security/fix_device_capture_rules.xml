@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M17 capture pass 2 (2026-11-19): the new registers are satellites of a
+     device (or, for estate nodes, of an estate) and read where it does. -->
+<odoo>
+    <record id="rule_fix_device_label_scope" model="ir.rule">
+        <field name="name">fix.device.label: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_label"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_accessory_scope" model="ir.rule">
+        <field name="name">fix.device.accessory: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_accessory"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_configuration_scope" model="ir.rule">
+        <field name="name">fix.device.configuration: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_configuration"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_population_change_scope" model="ir.rule">
+        <field name="name">fix.device.population.change: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_population_change"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_estate_placement_scope" model="ir.rule">
+        <field name="name">fix.device.estate.placement: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_estate_placement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_eol_decision_scope" model="ir.rule">
+        <field name="name">fix.device.eol.decision: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_eol_decision"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_quality_issue_scope" model="ir.rule">
+        <field name="name">fix.device.quality.issue: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_quality_issue"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_estate_node_scope" model="ir.rule">
+        <field name="name">fix.device.estate.node: follows the estate's company</field>
+        <field name="model_id" ref="model_fix_device_estate_node"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('estate_id.company_id', '=', False), ('estate_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <!--
+      A07 ERP audit FIN-26 (R2a, 2026-11-21): a bulk device load was fenced by company
+      only. Its branch ("Registered At") is optional: a load with no branch stays
+      visible across the company; one with a branch follows the branch's operating unit.
+    -->
+    <record id="rule_fix_device_bulk_load_operating_unit" model="ir.rule">
+        <field name="name">fix.device.bulk.load: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_device_bulk_load"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

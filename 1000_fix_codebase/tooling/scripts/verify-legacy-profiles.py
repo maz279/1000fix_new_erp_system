@@ -44,7 +44,7 @@ def main():
         "5. WordPress CMS",
         "6. Inventory",
         "7. Contacts",
-        "8. Misc Records"
+        "8. Misc Records",
     ]
     for c in classes:
         if c not in content:
@@ -52,7 +52,14 @@ def main():
             sys.exit(1)
 
     # 3. Verify Quality Framework mentions
-    for dim in ["P1: Completeness", "P2: Uniqueness", "P3: Timeliness", "P4: Validity", "P5: Accuracy", "P6: Consistency"]:
+    for dim in [
+        "P1: Completeness",
+        "P2: Uniqueness",
+        "P3: Timeliness",
+        "P4: Validity",
+        "P5: Accuracy",
+        "P6: Consistency",
+    ]:
         if dim not in content:
             print(f"[FAIL] Missing DQ dimension: {dim}")
             sys.exit(1)
@@ -71,8 +78,11 @@ def main():
         print("[FAIL] Missing non-migration ruling")
         sys.exit(1)
 
-    print("[PASS] All 48 legacy sources verified, 8 classes covered, P1-P6 metrics and Bengali normalization valid.")
+    print(
+        "[PASS] All 48 legacy sources verified, 8 classes covered, P1-P6 metrics and Bengali normalization valid."
+    )
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

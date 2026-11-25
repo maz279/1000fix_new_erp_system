@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — M20 engine-depth views (CD-M20-02): the new AR
+     surfaces plus the credit-note/consolidated forms that never had views.
+     In-workspace D365 screens are served by cd_p03_portal; these are the
+     backend fallbacks (Finance menu tree owns them via cd_finance_nav). -->
+<odoo>
+
+    <!-- ================= Billable events ================= -->
+    <record id="view_fix_billable_event_list" model="ir.ui.view">
+        <field name="name">fix.billable.event.list</field>
+        <field name="model">fix.billable.event</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'failed'" decoration-success="state == 'invoiced'" decoration-muted="state == 'cancelled'">
+                <field name="first_seen_at"/>
+                <field name="age_days" string="Age (d)"/>
+                <field name="source_type"/>
+                <field name="description" optional="show"/>
+                <field name="customer_id"/>
+                <field name="amount" optional="show"/>
+                <field name="state" widget="badge"/>
+                <field name="attempts" optional="show"/>
+                <field name="invoice_id"/>
+                <field name="last_error" optional="hide"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_billable_event_form" model="ir.ui.view">
+        <field name="name">fix.billable.event.form</field>
+        <field name="model">fix.billable.event</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate_invoice" type="object" string="Generate Invoice Now" class="btn-primary"/>
+                    <button name="action_cancel" type="object" string="Cancel" confirm="Cancel this queue row? The source period or claim will not be queued again."/>
+                    <field name="state" widget="statusbar" statusbar_visible="new,invoiced,failed,skipped,cancelled"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="event_id" readonly="1"/>
+                            <field name="source_type"/>
+                            <field name="source_model" readonly="1"/>
+                            <field name="source_id" readonly="1"/>
+                            <field name="customer_id"/>
+                        </group>
+                        <group>
+                            <field name="first_seen_at" readonly="1"/>
+                            <field name="age_days"/>
+                            <field name="attempts" readonly="1"/>
+                            <field name="invoiced_at" readonly="1"/>
+                            <field name="invoice_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="period_start" readonly="1"/>
+                            <field name="period_end" readonly="1"/>
+                            <field name="amount" readonly="1"/>
+                            <field name="currency_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="description" readonly="1"/>
+                    <field name="amount_note" readonly="1"/>
+                    <field name="last_error" readonly="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Receipts ================= -->
+    <record id="view_fix_ar_receipt_list" model="ir.ui.view">
+        <field name="name">fix.ar.receipt.list</field>
+        <field name="model">fix.ar.receipt</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'reversed'">
+                <field name="name"/>
+                <field name="receipt_date"/>
+                <field name="customer_id"/>
+                <field name="method"/>
+                <field name="reference" optional="show"/>
+                <field name="amount"/>
+                <field name="allocated_amount"/>
+                <field name="unapplied_amount"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_ar_receipt_form" model="ir.ui.view">
+        <field name="name">fix.ar.receipt.form</field>
+        <field name="model">fix.ar.receipt</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,reversed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Receipt">
+                            <field name="name" readonly="1"/>
+                            <field name="customer_id"/>
+                            <field name="receipt_date"/>
+                            <field name="amount"/>
+                            <field name="method"/>
+                            <field name="reference"/>
+                            <field name="nid_captured" invisible="method != 'cash'"/>
+                        </group>
+                        <group string="GL &amp; application">
+                            <field name="branch_id"/>
+                            <field name="account_id" readonly="1"/>
+                            <field name="posted_move_id"/>
+                            <field name="gl_note" readonly="1"/>
+                            <field name="reversal_reason" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Allocations">
+                            <field name="allocation_ids">
+                                <list editable="bottom">
+                                    <field name="invoice_id"/>
+                                    <field name="amount"/>
+                                    <field name="allocated_at"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Credit profiles ================= -->
+    <record id="view_fix_credit_profile_list" model="ir.ui.view">
+        <field name="name">fix.credit.profile.list</field>
+        <field name="model">fix.credit.profile</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="credit_hold" decoration-warning="over_limit">
+                <field name="customer_id"/>
+                <field name="credit_limit"/>
+                <field name="exposure"/>
+                <field name="over_limit" optional="hide"/>
+                <field name="payment_terms_days" string="Terms (d)"/>
+                <field name="credit_hold" widget="boolean_toggle"/>
+                <field name="hold_reason" optional="show"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_credit_profile_form" model="ir.ui.view">
+        <field name="name">fix.credit.profile.form</field>
+        <field name="model">fix.credit.profile</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_toggle_hold" type="object" string="Toggle Hold"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="credit_limit"/>
+                            <field name="payment_terms_days"/>
+                        </group>
+                        <group>
+                            <field name="exposure"/>
+                            <field name="over_limit"/>
+                            <field name="credit_hold" readonly="1"/>
+                            <field name="hold_reason" placeholder="Reason for placing the hold"/>
+                            <field name="hold_by" invisible="not hold_by"/>
+                            <field name="hold_date" invisible="not hold_date"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Disputes ================= -->
+    <record id="view_fix_ar_dispute_list" model="ir.ui.view">
+        <field name="name">fix.ar.dispute.list</field>
+        <field name="model">fix.ar.dispute</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'resolved'">
+                <field name="invoice_id"/>
+                <field name="amount_disputed"/>
+                <field name="reason"/>
+                <field name="state" widget="badge"/>
+                <field name="create_date" string="Opened"/>
+                <field name="resolved_at" optional="show"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_ar_dispute_form" model="ir.ui.view">
+        <field name="name">fix.ar.dispute.form</field>
+        <field name="model">fix.ar.dispute</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_resolve" type="object" string="Resolve" class="btn-primary"
+                            invisible="state != 'open'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,resolved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="invoice_id"/>
+                            <field name="amount_disputed"/>
+                        </group>
+                        <group>
+                            <field name="reason"/>
+                            <field name="resolution_note"/>
+                            <field name="resolved_by"/>
+                            <field name="resolved_at"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Ageing snapshots ================= -->
+    <record id="view_fix_ar_aging_snapshot_list" model="ir.ui.view">
+        <field name="name">fix.ar.aging.snapshot.list</field>
+        <field name="model">fix.ar.aging.snapshot</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="as_of_date"/>
+                <field name="state" widget="badge"/>
+                <field name="total_open"/>
+                <field name="captured_at"/>
+                <field name="captured_by" widget="many2one_avatar_user"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_ar_aging_snapshot_form" model="ir.ui.view">
+        <field name="name">fix.ar.aging.snapshot.form</field>
+        <field name="model">fix.ar.aging.snapshot</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_capture" type="object" string="Capture Snapshot" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,captured"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="as_of_date"/>
+                            <field name="total_open"/>
+                        </group>
+                        <group>
+                            <field name="captured_at"/>
+                            <field name="captured_by"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <list>
+                            <field name="customer_id"/>
+                            <field name="current"/>
+                            <field name="d1_30"/>
+                            <field name="d31_60"/>
+                            <field name="d61_90"/>
+                            <field name="d90_plus"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Payment links ================= -->
+    <record id="view_fix_ar_payment_link_list" model="ir.ui.view">
+        <field name="name">fix.ar.payment.link.list</field>
+        <field name="model">fix.ar.payment.link</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="invoice_id"/>
+                <field name="amount"/>
+                <field name="token"/>
+                <field name="state" widget="badge"/>
+                <field name="expires_at"/>
+                <field name="gateway_note" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================= Credit note form (never had one) ================= -->
+    <record id="view_fix_credit_note_list" model="ir.ui.view">
+        <field name="name">fix.credit.note.list</field>
+        <field name="model">fix.credit.note</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'issued'" decoration-warning="state == 'pending_approval'">
+                <field name="invoice_id"/>
+                <field name="amount"/>
+                <field name="reason_code"/>
+                <field name="state" widget="badge"/>
+                <field name="approved_by" widget="many2one_avatar_user" optional="show"/>
+                <field name="issued_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_credit_note_form" model="ir.ui.view">
+        <field name="name">fix.credit.note.form</field>
+        <field name="model">fix.credit.note</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" invisible="state != 'draft'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state != 'pending_approval'"/>
+                    <button name="action_issue" type="object" string="Issue &amp; Apply" class="btn-primary"
+                            invisible="state != 'approved'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,pending_approval,approved,issued"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="invoice_id"/>
+                            <field name="amount"/>
+                            <field name="reason_code"/>
+                        </group>
+                        <group>
+                            <field name="approved_by"/>
+                            <field name="issued_at"/>
+                            <field name="posted_move_id"/>
+                            <field name="gl_note"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Consolidated bill form (never had one) ================= -->
+    <record id="view_fix_ar_consolidated_bill_form" model="ir.ui.view">
+        <field name="name">fix.ar.consolidated.bill.form</field>
+        <field name="model">fix.ar.consolidated.bill</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate" type="object" string="Generate" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_send" type="object" string="Mark Sent"
+                            invisible="state != 'generated'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,generated,sent,paid"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="bill_ref"/>
+                            <field name="customer_id"/>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                        </group>
+                        <group>
+                            <field name="total_taxable"/>
+                            <field name="total_vat"/>
+                            <field name="total_payable"/>
+                        </group>
+                    </group>
+                    <field name="invoice_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="invoice_date"/>
+                            <field name="total_payable"/>
+                            <field name="state"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

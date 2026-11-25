@@ -3,105 +3,890 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Payroll Period"
-msgstr "পেরোল পিরিয়ড"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__investment_pool_share
+msgid "1/3 Investment Unit Pool (BLA s.242)"
+msgstr "১/৩ বিনিয়োগ ইউনিট পুল (শ্রম আইন ধারা ২৪২)"
 
-msgid "Payslip"
-msgstr "বেতন স্লিপ"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "128-Byte ASCII File Preview (Bangladesh Bank Standard)"
+msgstr "১২৮-বাইট ASCII ফাইলের প্রিভিউ (বাংলাদেশ ব্যাংক মানদণ্ড)"
 
-msgid "BEFTN Batch"
-msgstr "বিইএফটিএন ব্যাচ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__equal_distribution_pool
+msgid "2/3 Cash Distribution Pool (BLA s.242)"
+msgstr "২/৩ নগদ বিতরণ পুল (শ্রম আইন ধারা ২৪২)"
 
-msgid "Slips"
-msgstr "স্লিপসমূহ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__adhoc_allowance
+msgid "Ad-hoc / Interim Allowance"
+msgstr "অস্থায়ী / অন্তর্বর্তী ভাতা"
 
-msgid "Net Total"
-msgstr "নিট মোট"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__adjustment
+msgid "Adjustment"
+msgstr "সমন্বয়"
 
-msgid "Draft"
-msgstr "খসড়া"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__allowances_total
+msgid "Allowances Total"
+msgstr "ভাতার সর্বমোট"
 
-msgid "Attendance Locked"
-msgstr "উপস্থিতি লক করা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__amount
+msgid "Annual Figure"
+msgstr "বার্ষিক পরিমাণ"
 
-msgid "Calculated"
-msgstr "গণনা করা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__investment_allowance
+msgid "Annual Investment Allowance"
+msgstr "বার্ষিক বিনিয়োগ ভাতা"
 
-msgid "Approved"
-msgstr "অনুমোদিত"
-
-msgid "Paid"
-msgstr "পরিশোধিত"
-
-msgid "Posted"
-msgstr "পোস্ট করা"
-
-msgid "Verify Attendance Lock"
-msgstr "উপস্থিতি লক যাচাই"
-
-msgid "Calculate"
-msgstr "গণনা করুন"
-
+#. module: cd_payroll_bd
 msgid "Approve"
 msgstr "অনুমোদন"
 
-msgid "Pay (BEFTN)"
-msgstr "পরিশোধ (বিইএফটিএন)"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Approve (Maker-Checker)"
+msgstr "অনুমোদন করুন (মেকার-চেকার)"
 
-msgid "Post to GL"
-msgstr "জিএল-এ পোস্ট"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__approved
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__approved
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
 
-msgid "Payroll Periods"
-msgstr "পেরোল পিরিয়ডসমূহ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__approved_by_id
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_net_total
+msgid "Approved Net Total"
+msgstr "অনুমোদিত নিট মোট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__approved_on
+msgid "Approved On"
+msgstr "অনুমোদনের সময়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_digest
+msgid "Approved Payslip Digest"
+msgstr "অনুমোদিত বেতনপত্র ডাইজেস্ট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__arrear
+msgid "Arrear"
+msgstr "বকেয়া"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__attendance_locked
+msgid "Attendance Locked"
+msgstr "উপস্থিতি লক করা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__net_profit
+msgid "Audited Net Profit (BLA s.234)"
+msgstr "নিরীক্ষিত নিট মুনাফা (শ্রম আইন ধারা ২৩৪)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__bank_account_no
+msgid "Bank Account No"
+msgstr "ব্যাংক হিসাব নম্বর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__bank_name
+msgid "Bank Name"
+msgstr "ব্যাংকের নাম"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__basic_pct
+msgid "Basic % of Gross"
+msgstr "গ্রসের শতকরা হিসাবে মূল বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__basic
 msgid "Basic (Monthly)"
 msgstr "মূল বেতন (মাসিক)"
 
-msgid "Overtime Hours"
-msgstr "অতিরিক্ত কর্মঘণ্টা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__basis__basic
+msgid "Basic Salary"
+msgstr "মূল বেতন"
 
-msgid "Incentive (M57)"
-msgstr "প্রণোদনা (M57)"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "Batch Submission Details"
+msgstr "ব্যাচ জমার বিবরণ"
 
-msgid "PF Employee %"
-msgstr "পিএফ কর্মী %"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__file_content
+msgid "BEFTN 128-byte File"
+msgstr "BEFTN ১২৮-বাইট ফাইল"
 
-msgid "PF Employer %"
-msgstr "পিএফ নিয়োগকর্তা %"
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_beftn_batch
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__beftn_batch_id
+msgid "BEFTN Batch"
+msgstr "বিইএফটিএন ব্যাচ"
 
-msgid "YTD Taxable Outside This Slip"
-msgstr "এই স্লিপের বাইরে যাদ-নির্ণীত করযোগ্য"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "BEFTN Batch for Period"
+msgstr "পিরিয়ডের BEFTN ব্যাচ"
 
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_beftn_batch
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_beftn_batch
+msgid "BEFTN Batches"
+msgstr "BEFTN ব্যাচসমূহ"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "BEFTN Disbursement Banking"
+msgstr "BEFTN বিতরণ ব্যাংকিং"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__trustee_board_resolution_ref
+msgid "Board of Trustees Resolution Ref"
+msgstr "ট্রাস্টি বোর্ডের সিদ্ধান্তের সূত্র"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__bwwf_challan_ref
+msgid "BWWF 10% Deposit Challan Ref"
+msgstr "বিডব্লিউডব্লিউএফ ১০% জমার চালান সূত্র"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__welfare_foundation_amount
+msgid "BWWF Government Foundation (10%)"
+msgstr "বিডব্লিউডব্লিউএফ সরকারি ফাউন্ডেশন (১০%)"
+
+#. module: cd_payroll_bd
+msgid "Calculate"
+msgstr "গণনা করুন"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Calculate Payroll"
+msgstr "পেরোল গণনা করুন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__calculated
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__calculated
+msgid "Calculated"
+msgstr "গণনা করা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__calculator_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__calculated_by_id
+msgid "Calculated By"
+msgstr "গণনাকারী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__company_account_no
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__company_account_no
+msgid "Company Originating Account"
+msgstr "কোম্পানির প্রেরক হিসাব"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__company_routing_no
+msgid "Company Routing No"
+msgstr "কোম্পানির রাউটিং নম্বর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__company_routing_no
+msgid "Company Routing No (9 digits)"
+msgstr "কোম্পানির রাউটিং নম্বর (৯ অঙ্ক)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__completed_years
+msgid "Completed Years of Service"
+msgstr "পূর্ণ চাকরিকাল (বছর)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__conveyance_allowance
+msgid "Conveyance Allowance"
+msgstr "যাতায়াত ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__dearness_allowance
+msgid "Dearness Allowance"
+msgstr "মহার্ঘ ভাতা"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Deductions & Statutory (কর্তন)"
+msgstr "কর্তন ও সংবিধিবদ্ধ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__minimum_tax_location__dhaka_chattogram
+msgid "Dhaka/Chattogram City Corp"
+msgstr "ঢাকা/চট্টগ্রাম সিটি কর্পোরেশন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__taxpayer_category__disabled_third_gender
+msgid "Disabled / Third Gender"
+msgstr "প্রতিবন্ধী / তৃতীয় লিঙ্গ"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Disbursement Account"
+msgstr "বিতরণ হিসাব"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__posted
+msgid "Distributed & Posted"
+msgstr "বিতরণকৃত ও পোস্টকৃত"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_return__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__durga_puja
+msgid "Durga Puja"
+msgstr "দুর্গা পূজা"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "e.g. 2026-10 (October 2026)"
+msgstr "যেমন 2026-10 (অক্টোবর ২০২৬)"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Earnings & Compensation (উপার্জন)"
+msgstr "উপার্জন ও পারিশ্রমিক"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__eid_ul_adha
+msgid "Eid-ul-Adha"
+msgstr "ঈদুল আযহা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__eid_ul_fitr
+msgid "Eid-ul-Fitr"
+msgstr "ঈদুল ফিতর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__eligible_workers_count
+msgid "Eligible Beneficiaries Count (BLA s.240)"
+msgstr "যোগ্য সুবিধাভোগীর সংখ্যা (শ্রম আইন ধারা ২৪০)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__employee_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__employee_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__employee_id
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Employee Payslips"
+msgstr "কর্মীদের বেতন স্লিপ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_pf_expense_account_id
+msgid "Employer PF Contribution Expense Account"
+msgstr "নিয়োগকর্তার PF অবদান ব্যয় হিসাব"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__employment
+msgid "Employment Certificate"
+msgstr "চাকরির সনদ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__per_worker_equal_share
+msgid "Equal Per-Worker Cash Share"
+msgstr "শ্রমিকপ্রতি সমান নগদ অংশ"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_company_form_payroll_accounting
+msgid "Expense"
+msgstr "ব্যয়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__taxpayer_category__female_senior
+msgid "Female / Senior 65+"
+msgstr "নারী / প্রবীণ ৬৫+"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__file_name
+msgid "File Name"
+msgstr "ফাইলের নাম"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_return__state__filed
+msgid "Filed"
+msgstr "দাখিল করা হয়েছে"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__settlement
+msgid "Final Settlement Part"
+msgstr "চূড়ান্ত নিষ্পত্তির অংশ"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Financial Summary (BDT)"
+msgstr "আর্থিক সারসংক্ষেপ (টাকা)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__fiscal_year
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__fiscal_year
+msgid "Fiscal Year"
+msgstr "অর্থবছর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__fiscal_year_end_date
+msgid "Fiscal Year Close Date"
+msgstr "অর্থবছর সমাপ্তির তারিখ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__taxpayer_category__freedom_fighter
+msgid "Gazetted Freedom Fighter"
+msgstr "গেজেটভুক্ত মুক্তিযোদ্ধা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__taxpayer_category__general
+msgid "General"
+msgstr "সাধারণ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__gl_move_id
+msgid "GL Entry"
+msgstr "GL এন্ট্রি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__grade
+msgid "Grade / Band"
+msgstr "গ্রেড / ব্যান্ড"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gratuity_amount
+msgid "Gratuity (BLA s.27)"
+msgstr "গ্র্যাচুইটি (শ্রম আইন ধারা ২৭)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__gratuity_applicable
+msgid "Gratuity Applicable"
+msgstr "গ্র্যাচুইটি প্রযোজ্য"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gross
 msgid "Gross"
 msgstr "স্থূল"
 
-msgid "Overtime Pay"
-msgstr "অতিরিক্ত কর্মঘণ্টার বেতন"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__basis__gross
+msgid "Gross Salary"
+msgstr "গ্রস বেতন"
 
-msgid "PF Employee"
-msgstr "পিএফ কর্মী"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__gross_total
+msgid "Gross Total"
+msgstr "মোট (গ্রস)"
 
-msgid "PF Employer"
-msgstr "পিএফ নিয়োগকর্তা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__has_disabled_child
+msgid "Has Disabled Child"
+msgstr "প্রতিবন্ধী সন্তান আছে"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__house_rent_pct
+msgid "House Rent %"
+msgstr "বাড়ি ভাড়া %"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__house_rent
+msgid "House Rent Allowance"
+msgstr "বাড়ি ভাড়া ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__incentive
+msgid "Incentive (M57)"
+msgstr "প্রণোদনা (M57)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_tax_payable_account_id
+msgid "Income Tax (TDS) Payable Account"
+msgstr "প্রদেয় আয়কর (TDS) হিসাব"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Income Tax Act 2023 Parameters"
+msgstr "আয়কর আইন ২০২৩-এর প্যারামিটার"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__tax_withheld
 msgid "Income Tax Withheld"
 msgstr "আয়কর কর্তন"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__state__issued
+msgid "Issued"
+msgstr "ইস্যুকৃত"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__annual_exemption
+msgid "ITA 2023 Para 27 Annual Exemption"
+msgstr "আয়কর আইন ২০২৩ অনুচ্ছেদ ২৭ অনুযায়ী বার্ষিক অব্যাহতি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__ita_exemption_ceiling
+msgid "ITA 2023 Para 27 Exemption Ceiling (BDT)"
+msgstr "আয়কর আইন ২০২৩ অনুচ্ছেদ ২৭ অব্যাহতির সীমা (টাকা)"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_company_form_payroll_accounting
+msgid "Journal"
+msgstr "জার্নাল"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__leave_encashment_amount
+msgid "Leave Encashment"
+msgstr "ছুটি নগদায়ন"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_company_form_payroll_accounting
+msgid "Liabilities"
+msgstr "দায়সমূহ"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "Mark Settled"
+msgstr "নিষ্পত্তিকৃত চিহ্নিত করুন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__medical_fixed
+msgid "Medical (fixed)"
+msgstr "চিকিৎসা (নির্দিষ্ট)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__medical_allowance
+msgid "Medical Allowance"
+msgstr "চিকিৎসা ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__multiplier
+msgid "Multiplier (months)"
+msgstr "গুণক (মাস)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__acknowledgement
+msgid "NBR Acknowledgement"
+msgstr "এনবিআর প্রাপ্তি স্বীকার"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__tax_zone
+msgid "NBR Tax Zone / Circle"
+msgstr "এনবিআর কর অঞ্চল / সার্কেল"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__net
 msgid "Net Pay"
 msgstr "নিট বেতন"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_net_payable_account_id
+msgid "Net Salary Payable Account"
+msgstr "প্রদেয় নিট বেতন হিসাব"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__net_total
+msgid "Net Total"
+msgstr "নিট মোট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__minimum_tax_location__non_city_corporation
+msgid "Non-City / Rural"
+msgstr "সিটি কর্পোরেশনের বাইরে / গ্রামীণ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__notice_pay_amount
+msgid "Notice Pay in Lieu (BLA s.26)"
+msgstr "নোটিশের পরিবর্তে প্রদেয় বেতন (শ্রম আইন ধারা ২৬)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__other_allowance
+msgid "Other Allowance"
+msgstr "অন্যান্য ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payslip__minimum_tax_location__other_city_corporation
+msgid "Other City Corporation"
+msgstr "অন্যান্য সিটি কর্পোরেশন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__ot_hours
+msgid "Overtime Hours"
+msgstr "অতিরিক্ত কর্মঘণ্টা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__overtime
+msgid "Overtime Pay"
+msgstr "অতিরিক্ত কর্মঘণ্টার বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__paid
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__paid
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__paid
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__participatory_fund_amount
+msgid "Participatory Fund (80%)"
+msgstr "অংশগ্রহণ তহবিল (৮০%)"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Pay & Generate BEFTN"
+msgstr "পরিশোধ করুন ও BEFTN তৈরি করুন"
+
+#. module: cd_payroll_bd
+msgid "Pay (BEFTN)"
+msgstr "পরিশোধ (বিইএফটিএন)"
+
+#. module: cd_payroll_bd
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payroll
 msgid "Payroll"
 msgstr "পেরোল"
 
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_company_form_payroll_accounting
+msgid "Payroll Accounting"
+msgstr "পেরোল হিসাবরক্ষণ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_journal_id
+msgid "Payroll Journal"
+msgstr "পেরোল জার্নাল"
+
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payroll_period
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__period_id
+msgid "Payroll Period"
+msgstr "পেরোল পিরিয়ড"
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payroll_period
+msgid "Payroll Periods"
+msgstr "পেরোল পিরিয়ডসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payslip
+msgid "Payslip"
+msgstr "বেতন স্লিপ"
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payslip
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__payslip_ids
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payslips
 msgid "Payslips"
 msgstr "বেতন স্লিপসমূহ"
 
-msgid "Total Amount"
-msgstr "মোট পরিমাণ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_end
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__period_end
+msgid "Period End"
+msgstr "সময়কালের শেষ"
 
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Period Reference"
+msgstr "পিরিয়ড রেফারেন্স"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Period Schedule"
+msgstr "পিরিয়ডের সময়সূচি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_start
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__period_start
+msgid "Period Start"
+msgstr "সময়কালের শুরু"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee
+msgid "PF Employee"
+msgstr "পিএফ কর্মী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee_pct
+msgid "PF Employee %"
+msgstr "পিএফ কর্মী %"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer
+msgid "PF Employer"
+msgstr "পিএফ নিয়োগকর্তা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer_pct
+msgid "PF Employer %"
+msgstr "পিএফ নিয়োগকর্তা %"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__pf_total
+msgid "PF Total (Emp + Empr)"
+msgstr "PF মোট (কর্মী + নিয়োগকর্তা)"
+
+#. module: cd_payroll_bd
+msgid "Post to GL"
+msgstr "জিএল-এ পোস্ট"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Post to GL (Balanced)"
+msgstr "GL-এ পোস্ট করুন (ভারসাম্যপূর্ণ)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__posted
+msgid "Posted"
+msgstr "পোস্ট করা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__prepared_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__prepared_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__prepared_by_id
+msgid "Prepared By"
+msgstr "প্রস্তুতকারী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__pf_applicable
+msgid "Provident Fund Applicable"
+msgstr "প্রভিডেন্ট ফান্ড প্রযোজ্য"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_pf_payable_account_id
+msgid "Provident Fund Payable Account"
+msgstr "প্রদেয় ভবিষ্য তহবিল হিসাব"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Rebates & Historical Balances"
+msgstr "রেয়াত ও পূর্ববর্তী ব্যালেন্স"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "Regenerate 128-Byte File"
+msgstr "১২৮-বাইট ফাইল পুনরায় তৈরি করুন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__resignation_compensation_amount
+msgid "Resignation Compensation (BLA s.27)"
+msgstr "পদত্যাগজনিত ক্ষতিপূরণ (শ্রম আইন ধারা ২৭)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__retrenchment_compensation
+msgid "Retrenchment Compensation (BLA s.20)"
+msgstr "ছাঁটাইজনিত ক্ষতিপূরণ (শ্রম আইন ধারা ২০)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__routing_no
+msgid "Routing No (9 digits)"
+msgstr "রাউটিং নম্বর (৯ অঙ্ক)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_salary_expense_account_id
+msgid "Salary & Wage Expense Account"
+msgstr "বেতন ও মজুরি ব্যয় হিসাব"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__advance
+msgid "Salary Advance"
+msgstr "অগ্রিম বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__salary
+msgid "Salary Certificate"
+msgstr "বেতন সনদ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__settled
+msgid "Settled"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
+msgid "Settlement Figures"
+msgstr "নিষ্পত্তির অঙ্কসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__slip_count
+msgid "Slips"
+msgstr "স্লিপসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__ot_divisor_hours
+msgid "Statutory Overtime Divisor Hours"
+msgstr "বিধিবদ্ধ অতিরিক্ত কর্মঘণ্টার ভাজক ঘণ্টা"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "Statutory Tax & Rebate Settings"
+msgstr "সংবিধিবদ্ধ কর ও রেয়াত সেটিংস"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__distribution_due_date
+msgid "Statutory Transfer Deadline (9 Months, s.234)"
+msgstr "বিধিবদ্ধ হস্তান্তরের সময়সীমা (৯ মাস, ধারা ২৩৪)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__submitted
 msgid "Submitted"
 msgstr "জমা দেওয়া হয়েছে"
 
-msgid "Settled"
-msgstr "নিষ্পত্তি"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__tax
+msgid "Tax Deduction Certificate"
+msgstr "কর কর্তনের সনদ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__minimum_tax_location
+msgid "Tax Location"
+msgstr "কর এলাকা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__total_tax
+msgid "Tax Withheld"
+msgstr "কর্তিত কর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__tax_total
+msgid "Tax Withheld Total"
+msgstr "মোট কর্তিত কর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__taxpayer_category
+msgid "Taxpayer Category"
+msgstr "করদাতার শ্রেণি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__technical_allowance
+msgid "Technical Skill / OEM Allowance"
+msgstr "কারিগরি দক্ষতা / ওইএম ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__total_wppf_pool
+msgid "Total 5% WPPF Pool"
+msgstr "মোট ৫% ডব্লিউপিপিএফ পুল"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_allowances
+msgid "Total Allowances"
+msgstr "মোট ভাতা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__total_amount
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__total_amount
+msgid "Total Amount"
+msgstr "মোট পরিমাণ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_basic
+msgid "Total Basic Salary"
+msgstr "মোট মূল বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_gross
+msgid "Total Gross Salary"
+msgstr "মোট গ্রস বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_tax_withheld
+msgid "Total Income Tax Withheld (TDS)"
+msgstr "মোট কর্তিত আয়কর (টিডিএস)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_pf_deducted
+msgid "Total Provident Fund Contributed"
+msgstr "মোট প্রভিডেন্ট ফান্ড জমা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__transport_fixed
+msgid "Transport (fixed)"
+msgstr "পরিবহন (নির্দিষ্ট)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__challan_date
+msgid "Treasury Challan Date"
+msgstr "ট্রেজারি চালানের তারিখ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__challan_number
+msgid "Treasury Challan No"
+msgstr "ট্রেজারি চালান নম্বর"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__challan_refs
+msgid "Treasury Challan References"
+msgstr "ট্রেজারি চালানের সূত্রসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__approved
+msgid "Trustee Approved"
+msgstr "ট্রাস্টি কর্তৃক অনুমোদিত"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__unused_leave_days
+msgid "Unused Earned Leave (days)"
+msgstr "অব্যবহৃত অর্জিত ছুটি (দিন)"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Verify Attendance Lock"
+msgstr "উপস্থিতি লক যাচাই"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__welfare_fund_amount
+msgid "Welfare Fund (10%)"
+msgstr "কল্যাণ তহবিল (১০%)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__annual_taxable_other
+msgid "YTD Taxable Outside This Slip"
+msgstr "এই স্লিপের বাইরে চলতি বছরের করযোগ্য আয়"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
+msgid "প্রিন্ট পে-স্লিপ (Print Bengali Payslip)"
+msgstr "বাংলা বেতন স্লিপ প্রিন্ট করুন"

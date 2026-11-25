@@ -1,0 +1,87 @@
+{
+  "drill": "Gate G6 Disaster Recovery & High-Availability Validation Drill (PE-007)",
+  "timestamp_utc": "2026-10-22T11:31:34.777988+00:00",
+  "overall_status": "INCOMPLETE",
+  "metrics": {
+    "rpo_target_seconds": 900.0,
+    "rpo_achieved_seconds": null,
+    "rpo_status": "UNMEASURED",
+    "rto_target_seconds": 1800.0,
+    "rto_achieved_seconds": null,
+    "rto_status": "UNMEASURED"
+  },
+  "summary": {
+    "checks_total": 11,
+    "checks_passed": 5,
+    "checks_failed": 0,
+    "checks_unmeasured": 6
+  },
+  "checks": [
+    {
+      "id": "primary_replication_config",
+      "name": "Primary PostgreSQL WAL streaming + archiving configured",
+      "status": "PASS",
+      "detail": "postgres-prod: wal_level=replica, max_wal_senders=10, archive_mode=on, synchronous_standby_names=unset (asynchronous: RPO > 0 on primary loss)"
+    },
+    {
+      "id": "dr_standby_config",
+      "name": "DR warm standby declared as a streaming replica",
+      "status": "PASS",
+      "detail": "postgres-dr: primary_conninfo set, standby bootstrap declared, healthcheck asserts recovery mode"
+    },
+    {
+      "id": "kafka_kraft_quorum_config",
+      "name": "Kafka KRaft quorum survives one broker loss",
+      "status": "PASS",
+      "detail": "3 brokers, 3 KRaft controllers, 3 quorum voters; replication factor and min ISR tolerate one broker loss"
+    },
+    {
+      "id": "kafka_healthchecks",
+      "name": "Kafka broker healthchecks can report an unhealthy broker",
+      "status": "PASS",
+      "detail": "3 broker healthchecks propagate failure"
+    },
+    {
+      "id": "runbook_present",
+      "name": "RB-52 DR runbook present",
+      "status": "PASS",
+      "detail": "RB-52-dr-disaster-recovery-and-cutover.md present"
+    },
+    {
+      "id": "kafka_leader_failover",
+      "name": "Kafka partition leader failover with zero message loss",
+      "status": "UNMEASURED",
+      "detail": "requires the asset-ml Kafka cluster running and a broker kill with produce/consume accounting; this tool never stops a broker"
+    },
+    {
+      "id": "ml_gateway_failover",
+      "name": "ML Gateway stateless worker failover",
+      "status": "UNMEASURED",
+      "detail": "requires running ml-gateway workers and a worker kill; not exercised"
+    },
+    {
+      "id": "z4_storage_integrity",
+      "name": "Z4 storage integrity & custody chain",
+      "status": "UNMEASURED",
+      "detail": "requires the Z4 Bangladesh-resident DR site; not reachable from a workstation"
+    },
+    {
+      "id": "rpo",
+      "name": "RPO <= 900 s (data loss at failover)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "rto",
+      "name": "RTO <= 1800 s (failure to traffic restored)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "failback",
+      "name": "Failback & cluster normalisation",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    }
+  ]
+}

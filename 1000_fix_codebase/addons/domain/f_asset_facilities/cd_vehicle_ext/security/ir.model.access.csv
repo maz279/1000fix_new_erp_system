@@ -1,2 +1,32 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_vehicle_assignment,fix.vehicle.assignment,model_fix_vehicle_assignment,base.group_user,1,1,1,0
+access_fix_vehicle_assignment,fix.vehicle.assignment,model_fix_vehicle_assignment,base.group_user,1,0,0,0
+access_fix_vehicle_assignment_officer,fix.vehicle.assignment fleet officer,model_fix_vehicle_assignment,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_assignment_lm,fix.vehicle.assignment logistics manager,model_fix_vehicle_assignment,group_logistics_manager,1,1,1,1
+access_fix_driver,fix.driver,model_fix_driver,base.group_user,1,0,0,0
+access_fix_driver_officer,fix.driver fleet officer,model_fix_driver,fleet.fleet_group_user,1,1,1,0
+access_fix_driver_lm,fix.driver logistics manager,model_fix_driver,group_logistics_manager,1,1,1,1
+access_fix_vehicle_document,fix.vehicle.document,model_fix_vehicle_document,base.group_user,1,0,0,0
+access_fix_vehicle_document_officer,fix.vehicle.document fleet officer,model_fix_vehicle_document,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_offroad,fix.vehicle.offroad,model_fix_vehicle_offroad,base.group_user,1,1,1,0
+access_fix_vehicle_check,fix.vehicle.check,model_fix_vehicle_check,base.group_user,1,1,1,0
+access_fix_vehicle_pm,fix.vehicle.pm,model_fix_vehicle_pm,base.group_user,1,1,1,0
+access_fix_vehicle_pm_lm,fix.vehicle.pm logistics manager,model_fix_vehicle_pm,group_logistics_manager,1,1,1,1
+access_fix_vehicle_fuel,fix.vehicle.fuel,model_fix_vehicle_fuel,base.group_user,1,1,1,0
+access_fix_vehicle_telemetry,fix.vehicle.telemetry,model_fix_vehicle_telemetry,base.group_user,1,0,0,0
+access_fix_vehicle_telemetry_officer,fix.vehicle.telemetry fleet officer,model_fix_vehicle_telemetry,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_accident,fix.vehicle.accident,model_fix_vehicle_accident,base.group_user,1,1,1,0
+access_fleet_vehicle_model_officer,fleet.vehicle.model fleet officer,fleet.model_fleet_vehicle_model,fleet.fleet_group_user,1,1,1,0
+access_fleet_vehicle_model_brand_officer,fleet.vehicle.model.brand fleet officer,fleet.model_fleet_vehicle_model_brand,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_document_renewal,fix.vehicle.document.renewal,model_fix_vehicle_document_renewal,base.group_user,1,0,0,0
+access_fix_vehicle_document_renewal_officer,fix.vehicle.document.renewal fleet officer,model_fix_vehicle_document_renewal,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_defect,fix.vehicle.defect,model_fix_vehicle_defect,base.group_user,1,1,1,0
+access_fix_telematics_device,fix.telematics.device,model_fix_telematics_device,base.group_user,1,0,0,0
+access_fix_telematics_device_officer,fix.telematics.device fleet officer,model_fix_telematics_device,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_penalty,fix.vehicle.penalty,model_fix_vehicle_penalty,base.group_user,1,0,0,0
+access_fix_vehicle_penalty_officer,fix.vehicle.penalty fleet officer,model_fix_vehicle_penalty,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_penalty_dofa,fix.vehicle.penalty DOFA approver,model_fix_vehicle_penalty,cd_entity_config.group_dofa_tier_3,1,1,0,0
+access_fix_vehicle_disposal,fix.vehicle.disposal fleet officer,model_fix_vehicle_disposal,fleet.fleet_group_user,1,0,0,0
+access_fix_vehicle_disposal_lm,fix.vehicle.disposal logistics manager,model_fix_vehicle_disposal,group_logistics_manager,1,1,1,0
+access_fix_vehicle_disposal_cfo,fix.vehicle.disposal CFO approver,model_fix_vehicle_disposal,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_vehicle_class_profile,fix.vehicle.class.profile,model_fix_vehicle_class_profile,base.group_user,1,0,0,0
+access_fix_vehicle_class_profile_officer,fix.vehicle.class.profile fleet officer,model_fix_vehicle_class_profile,fleet.fleet_group_user,1,1,1,0

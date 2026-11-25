@@ -1,0 +1,177 @@
+# Bengali (Bangladesh) translation for cd_storefront_finance.
+# Field labels (FF-25 / DoD-08, AS-12).
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__ar_receipt_id
+msgid "Applied M20 Receipt"
+msgstr "প্রযোজ্য M20 রসিদ"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__posting_state
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__books_state
+#: model_terms:ir.ui.view,arch_db:cd_storefront_finance.view_fix_storefront_order_form_finance
+msgid "Books"
+msgstr "হিসাবভুক্তি"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__ar_credit_note_id
+msgid "Cancellation Credit Note"
+msgstr "বাতিলকরণের ক্রেডিট নোট"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__ar_credit_note_state
+msgid "Credit Note State"
+msgstr "ক্রেডিট নোটের অবস্থা"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__dispatched_at
+msgid "Dispatched At"
+msgstr "প্রেরণের সময়"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__ar_invoice_state
+msgid "Invoice State"
+msgstr "চালানের অবস্থা"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__stock_location_id
+msgid "Issue From Location"
+msgstr "যে লোকেশন থেকে ইস্যু"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_unit_cost
+msgid "Issue Unit Cost (BDT)"
+msgstr "ইস্যু একক খরচ (টাকা)"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__issued
+msgid "Issued"
+msgstr "ইস্যুকৃত"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_location_id
+msgid "Issued From"
+msgstr "যেখান থেকে ইস্যু"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_ownership_class
+msgid "Issued From Class"
+msgstr "যে শ্রেণি থেকে ইস্যু"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_lot_id
+msgid "Issued Serial"
+msgstr "ইস্যুকৃত সিরিয়াল"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__posting_attempted_at
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__books_attempted_at
+msgid "Last Posting Run"
+msgstr "সর্বশেষ পোস্টিং চেষ্টা"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__ar_invoice_id
+msgid "M20 Invoice"
+msgstr "M20 চালান"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__mushak_id
+msgid "Mushak 6.3"
+msgstr "মূসক ৬.৩"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__not_required
+msgid "No Stock Item"
+msgstr "মজুদ পণ্য নয়"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__none
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__restock_state__none
+msgid "Not Evaluated"
+msgstr "মূল্যায়ন হয়নি"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__cancelled
+msgid "Not Needed (returned before issue)"
+msgstr "প্রয়োজন নেই (ইস্যুর আগেই ফেরত)"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order__posting_state__none
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__books_state__none
+msgid "Nothing to Post"
+msgstr "পোস্ট করার কিছু নেই"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__restock_state__not_required
+msgid "Nothing to Restock"
+msgstr "পুনঃমজুদের কিছু নেই"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__pending
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__restock_state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order__posting_state__pending
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__books_state__pending
+msgid "Pending Posting"
+msgstr "পোস্টিং অপেক্ষমাণ"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order__posting_state__posted
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__books_state__posted
+msgid "Posted"
+msgstr "পোস্ট করা হয়েছে"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order__posting_note
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__books_note
+msgid "Posting Note"
+msgstr "পোস্টিং নোট"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__ar_credit_note_id
+msgid "Refund Credit Note (M20)"
+msgstr "ফেরতের ক্রেডিট নোট (M20)"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_refund_mixin__restock_state
+msgid "Restock"
+msgstr "পুনঃমজুদ"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_refund_mixin__restock_state__restocked
+msgid "Restocked"
+msgstr "পুনঃমজুদকৃত"
+
+#. module: cd_storefront_finance
+#: model_terms:ir.ui.view,arch_db:cd_storefront_finance.view_fix_storefront_order_form_finance
+#: model_terms:ir.ui.view,arch_db:cd_storefront_finance.view_fix_storefront_return_form_finance
+msgid "Retry Posting"
+msgstr "পুনরায় পোস্টিং"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields.selection,name:cd_storefront_finance.selection__fix_storefront_order_line__stock_state__returned
+msgid "Returned"
+msgstr "ফেরত"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_serial
+msgid "Serial Sold"
+msgstr "বিক্রিত সিরিয়াল"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_part_id
+msgid "Spare Part"
+msgstr "খুচরা যন্ত্রাংশ"
+
+#. module: cd_storefront_finance
+#: model:ir.model.fields,field_description:cd_storefront_finance.field_fix_storefront_order_line__stock_state
+msgid "Stock"
+msgstr "মজুদ"

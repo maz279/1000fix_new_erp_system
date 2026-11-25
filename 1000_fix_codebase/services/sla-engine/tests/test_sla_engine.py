@@ -10,21 +10,23 @@ Tests:
   - Resolved order state
 """
 
-import pytest
-from datetime import datetime, timedelta, timezone
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from sla_engine import (
-    SlaPriority,
-    SlaState,
     EscalationTier,
-    SlaPolicy,
     SlaClock,
     SlaEngine,
+    SlaPolicy,
+    SlaPriority,
+    SlaState,
 )
+
 
 @pytest.fixture
 def standard_policy():
@@ -35,8 +37,9 @@ def standard_policy():
         priority=SlaPriority.NORMAL,
         response_hours=2.0,
         resolution_hours=24.0,
-        escalation_template="NT-020"
+        escalation_template="NT-020",
     )
+
 
 @pytest.fixture
 def urgent_policy():
@@ -47,20 +50,36 @@ def urgent_policy():
         priority=SlaPriority.URGENT,
         response_hours=0.5,
         resolution_hours=4.0,
-        escalation_template="NT-020"
+        escalation_template="NT-020",
     )
+
 
 def test_policy_validation():
     """Verify constraint checks on policy targets."""
     with pytest.raises(ValueError, match="positive business hours"):
-        SlaPolicy(code="ERR", name="Err", service_type="walk_in", priority=SlaPriority.NORMAL, response_hours=0, resolution_hours=5)
+        SlaPolicy(
+            code="ERR",
+            name="Err",
+            service_type="walk_in",
+            priority=SlaPriority.NORMAL,
+            response_hours=0,
+            resolution_hours=5,
+        )
 
     with pytest.raises(ValueError, match="Response target cannot exceed resolution target"):
-        SlaPolicy(code="ERR2", name="Err2", service_type="walk_in", priority=SlaPriority.NORMAL, response_hours=10, resolution_hours=5)
+        SlaPolicy(
+            code="ERR2",
+            name="Err2",
+            service_type="walk_in",
+            priority=SlaPriority.NORMAL,
+            response_hours=10,
+            resolution_hours=5,
+        )
+
 
 def test_on_track_evaluation(standard_policy):
     """Verify clock is ON_TRACK when time consumed is low (< 80%)."""
-    start = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
     clock = SlaClock(service_order_ref="SO-001", policy=standard_policy, created_at=start)
 
     # 4 hours elapsed out of 24h (16.7%)
@@ -72,9 +91,10 @@ def test_on_track_evaluation(standard_policy):
     assert res["escalation_tier"] == EscalationTier.NONE.value
     assert res["consumed_pct"] == 16.7
 
+
 def test_near_breach_threshold(standard_policy):
     """Verify NEAR_BREACH state and Tier 1 warning when >= 80% consumed."""
-    start = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
     clock = SlaClock(service_order_ref="SO-002", policy=standard_policy, created_at=start)
 
     # 20 hours elapsed out of 24h (83.3%)
@@ -87,9 +107,10 @@ def test_near_breach_threshold(standard_policy):
     assert res["escalation_template"] == "NT-020"
     assert res["consumed_pct"] == 83.3
 
+
 def test_breach_detection_and_escalation(urgent_policy):
     """Verify BREACHED state and escalation tier firing (Tier 2 and Tier 3)."""
-    start = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
     clock = SlaClock(service_order_ref="SO-003", policy=urgent_policy, created_at=start)
 
     # 4.5 hours elapsed out of 4h (30 mins overdue -> Tier 2 Supervisor alert)
@@ -106,9 +127,10 @@ def test_breach_detection_and_escalation(urgent_policy):
     assert res2["is_breached"] is True
     assert res2["escalation_tier"] == EscalationTier.TIER_3_OPERATIONS.value
 
+
 def test_clock_pause_behavior(standard_policy):
     """Verify pausing the clock stops time consumption."""
-    start = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
     clock = SlaClock(service_order_ref="SO-004", policy=standard_policy, created_at=start)
 
     # Pause after 2 hours
@@ -129,9 +151,10 @@ def test_clock_pause_behavior(standard_policy):
     assert res2["state"] == SlaState.ON_TRACK.value
     assert res2["consumed_pct"] == 25.0
 
+
 def test_resolved_order(standard_policy):
     """Verify resolved orders transition to RESOLVED state."""
-    start = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
     clock = SlaClock(service_order_ref="SO-005", policy=standard_policy, created_at=start)
     clock.record_resolution(when=start + timedelta(hours=12))
 

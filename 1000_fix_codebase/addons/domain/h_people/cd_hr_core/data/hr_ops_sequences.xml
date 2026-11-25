@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_hr_transfer" model="ir.sequence">
+            <field name="name">HR Movement</field>
+            <field name="code">fix.hr.transfer</field>
+            <field name="prefix">HMV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_exit" model="ir.sequence">
+            <field name="name">Employee Exit</field>
+            <field name="code">fix.hr.exit</field>
+            <field name="prefix">HEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_document" model="ir.sequence">
+            <field name="name">HR Document</field>
+            <field name="code">fix.hr.document</field>
+            <field name="prefix">HDOC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_master_change" model="ir.sequence">
+            <field name="name">Employee Master Change</field>
+            <field name="code">fix.hr.master.change</field>
+            <field name="prefix">HMC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_disciplinary_case" model="ir.sequence">
+            <field name="name">Disciplinary Case</field>
+            <field name="code">fix.hr.disciplinary.case</field>
+            <field name="prefix">HDC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_abandonment" model="ir.sequence">
+            <field name="name">Absence Without Leave Case (s.27(3A))</field>
+            <field name="code">fix.hr.abandonment</field>
+            <field name="prefix">HAB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

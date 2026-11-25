@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 finish audit: the M64 schedules (a cron method with no record never runs).
+     E21 raises duplicate candidates from the match rules; E27 audits every domain
+     scorecard. The steward decides what detection raises: nothing merges here. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_mdm_detect_duplicates" model="ir.cron">
+            <field name="name">M64: detect duplicate master records</field>
+            <field name="model_id" ref="model_fix_mdm_match_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_detect_duplicates()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_mdm_audit_scorecards" model="ir.cron">
+            <field name="name">M64: audit the data-quality scorecards</field>
+            <field name="model_id" ref="model_fix_mdm_stewardship"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_audit_data_quality()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

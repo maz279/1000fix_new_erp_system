@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "device.warranty_updated",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (A07 ERP audit 2026-11-20, hand-written).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "device.warranty_updated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_device_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "device_id",
+        "warranty_id",
+        "warranty_type",
+        "status",
+        "change"
+      ],
+      "properties": {
+        "device_id": {
+          "type": "integer"
+        },
+        "serial_number": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "brand": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "owner_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "warranty_id": {
+          "type": "integer"
+        },
+        "warranty_type": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "change": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_device_registry",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device_erp.py"
+  ],
+  "x-derived-from": "hand-written (A07 ERP audit S1)"
+}

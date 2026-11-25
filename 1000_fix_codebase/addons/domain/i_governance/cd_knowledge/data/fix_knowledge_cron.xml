@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 P1-2 (2026-11-05, M61-6): the knowledge review clock. Publishing sets a
+  12-month review window; the daily cron announces published content whose
+  window closed. Without a clock, technical content a technician acts on in
+  the field never came due for review.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_knowledge_article_review" model="ir.cron">
+            <field name="name">M61: article review clock (12-month window)</field>
+            <field name="model_id" ref="model_fix_knowledge_article"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_article_review()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "iot.rule_alert_raised",
+  "description": "Published by cd_stream_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "iot.rule_alert_raised"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_stream_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "alert",
+        "rule",
+        "stream",
+        "device",
+        "metric",
+        "equipment_id",
+        "site_id",
+        "severity",
+        "operator",
+        "threshold",
+        "trigger_value"
+      ],
+      "properties": {
+        "alert": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "stream": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "device": {
+          "description": "Type not statically derivable from `stream.device_id.device_id` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
+        },
+        "metric": {
+          "description": "Type not statically derivable from `stream.metric` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
+        },
+        "equipment_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "site_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "severity": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string"
+        },
+        "threshold": {
+          "type": "number"
+        },
+        "trigger_value": {
+          "description": "Type not statically derivable from `value` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_stream_registry",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

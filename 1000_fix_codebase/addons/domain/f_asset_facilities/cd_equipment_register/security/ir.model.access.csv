@@ -1,3 +1,34 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_equipment,fix.equipment,model_fix_equipment,base.group_user,1,1,1,0
+access_fix_equipment,fix.equipment,model_fix_equipment,base.group_user,1,1,0,0
+access_fix_equipment_custodian,fix.equipment custodian,model_fix_equipment,group_equipment_custodian,1,1,1,0
 access_fix_calibration,fix.calibration,model_fix_calibration,base.group_user,1,1,1,0
+access_fix_calibration_reading,fix.calibration.reading,model_fix_calibration_reading,base.group_user,1,0,1,0
+access_fix_calibration_profile,fix.calibration.profile,model_fix_calibration_profile,base.group_user,1,0,0,0
+access_fix_calibration_profile_tech,fix.calibration.profile technician,model_fix_calibration_profile,group_calibration_technician,1,1,0,0
+access_fix_calibration_profile_qm,fix.calibration.profile quality manager,model_fix_calibration_profile,group_quality_manager,1,1,1,1
+access_fix_calibration_profile_point,fix.calibration.profile.point,model_fix_calibration_profile_point,base.group_user,1,0,0,0
+access_fix_calibration_profile_point_qm,fix.calibration.profile.point quality manager,model_fix_calibration_profile_point,group_quality_manager,1,1,1,1
+access_fix_calibration_impact,fix.calibration.impact,model_fix_calibration_impact,base.group_user,1,0,0,0
+access_fix_calibration_impact_qm,fix.calibration.impact quality manager,model_fix_calibration_impact,group_quality_manager,1,1,0,0
+access_fix_equipment_kit,fix.equipment.kit,model_fix_equipment_kit,base.group_user,1,0,0,0
+access_fix_equipment_kit_custodian,fix.equipment.kit custodian,model_fix_equipment_kit,group_equipment_custodian,1,1,1,0
+access_fix_equipment_kit_qm,fix.equipment.kit quality manager,model_fix_equipment_kit,group_quality_manager,1,1,1,1
+access_fix_equipment_kit_line,fix.equipment.kit.line,model_fix_equipment_kit_line,base.group_user,1,0,0,0
+access_fix_equipment_kit_line_custodian,fix.equipment.kit.line custodian,model_fix_equipment_kit_line,group_equipment_custodian,1,1,1,1
+access_fix_equipment_issue,fix.equipment.issue,model_fix_equipment_issue,base.group_user,1,1,1,0
+access_fix_equipment_transfer,fix.equipment.transfer,model_fix_equipment_transfer,base.group_user,1,1,1,0
+access_fix_equipment_verification,fix.equipment.verification,model_fix_equipment_verification,base.group_user,1,1,1,0
+access_fix_equipment_oos,fix.equipment.oos,model_fix_equipment_oos,base.group_user,1,1,1,0
+access_fix_equipment_pm,fix.equipment.pm,model_fix_equipment_pm,base.group_user,1,1,1,0
+access_fix_equipment_usage,fix.equipment.usage,model_fix_equipment_usage,base.group_user,1,1,1,0
+access_fix_equipment_category,fix.equipment.category,model_fix_equipment_category,base.group_user,1,0,0,0
+access_fix_equipment_category_qm,fix.equipment.category quality manager,model_fix_equipment_category,group_quality_manager,1,1,1,0
+access_fix_branch_equipment_profile,fix.branch.equipment.profile,model_fix_branch_equipment_profile,base.group_user,1,0,0,0
+access_fix_branch_equipment_profile_qm,fix.branch.equipment.profile quality manager,model_fix_branch_equipment_profile,group_quality_manager,1,1,1,0
+access_fix_equipment_pm_plan,fix.equipment.pm.plan,model_fix_equipment_pm_plan,base.group_user,1,0,0,0
+access_fix_equipment_pm_plan_custodian,fix.equipment.pm.plan custodian,model_fix_equipment_pm_plan,group_equipment_custodian,1,1,1,0
+access_fix_equipment_pm_plan_qm,fix.equipment.pm.plan quality manager,model_fix_equipment_pm_plan,group_quality_manager,1,1,1,0
+access_fix_equipment_loss,fix.equipment.loss,model_fix_equipment_loss,base.group_user,1,1,1,0
+access_fix_equipment_audit,fix.equipment.audit,model_fix_equipment_audit,base.group_user,1,1,1,0
+access_fix_equipment_audit_line,fix.equipment.audit.line,model_fix_equipment_audit_line,base.group_user,1,1,1,1
+access_fix_equipment_retirement,fix.equipment.retirement,model_fix_equipment_retirement,base.group_user,1,1,1,0

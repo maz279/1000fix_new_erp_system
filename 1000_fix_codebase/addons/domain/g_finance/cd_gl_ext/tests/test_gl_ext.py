@@ -3,20 +3,12 @@ from __future__ import annotations
 
 import inspect
 from datetime import date
-from decimal import Decimal
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 pytestmark = [pytest.mark.financial]
 
-from odoo.exceptions import UserError, ValidationError
-from odoo.addons.cd_gl_ext.models.fix_gl_ext import (
-    FixPeriodClose,
-    FixPeriodCloseLine,
-    FixJournalDimension,
-    FixFixedAssetSeam,
-    post_with_dimensions,
-)
 from odoo.addons.cd_gl_ext.models.fix_chart_loader import (
     FixChartAccount,
     FixChartLoader,
@@ -25,7 +17,13 @@ from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import (
     FixFiscalYearIntegration,
     FixMisReportBridge,
 )
-from odoo.addons.cd_gl_ext.models.coa_logic import CoaValidationError
+from odoo.addons.cd_gl_ext.models.fix_gl_ext import (
+    FixFixedAssetSeam,
+    FixJournalDimension,
+    FixPeriodClose,
+    post_with_dimensions,
+)
+from odoo.exceptions import UserError, ValidationError
 
 SAMPLE_CSV = """account_code,entity_code,account_name,account_type,account_subtype,is_postable,is_control_account,control_subledger,requires_dimension,statutory_group,active
 1-00-00-000,EN-01,Total Assets,asset,current_asset,FALSE,FALSE,,,Assets,TRUE
@@ -108,79 +106,6 @@ class TestPeriodCloseExecution:
         assert close.close_duration_days == 0.0
         assert close.sla_status == "within_sla"
 
-    def test_action_generate_standard_steps(self):
-        close = MagicMock()
-        close.id = 10
-        line_model = MagicMock()
-        close.env = {"fix.period.close.line": line_model}
-        res = FixPeriodClose.action_generate_standard_steps(close)
-        assert res is True
-        assert line_model.create.call_count == 10
-        close.write.assert_called_with({"state": "in_progress"})
-
-    def test_action_ready_blocking_steps_failure(self):
-        close = MagicMock()
-        step = MagicMock(blocking=True, state="pending")
-        step.name = "Inventory Suspense"
-        blocking_rec = MagicMock()
-        blocking_rec.__bool__.return_value = True
-        blocking_rec.mapped.return_value = ["Inventory Suspense"]
-        close.line_ids.filtered.return_value = blocking_rec
-        with pytest.raises(UserError, match="Close steps still open"):
-            FixPeriodClose.action_ready([close])
-
-    def test_action_ready_suspense_balance_failure(self):
-        close = MagicMock()
-        close.line_ids.filtered.return_value = []
-        close.suspense_closing = 2500.00
-        with pytest.raises(UserError, match="Suspense account must be zero"):
-            FixPeriodClose.action_ready([close])
-
-    def test_action_ready_success(self):
-        close = MagicMock()
-        close.line_ids.filtered.return_value = []
-        close.suspense_closing = 0.0
-        FixPeriodClose.action_ready([close])
-        assert close.state == "ready_to_close"
-
-    def test_action_close_not_ready_failure(self):
-        close = MagicMock()
-        close.state = "draft"
-        with pytest.raises(UserError, match="Run the ready check before closing"):
-            FixPeriodClose.action_close([close])
-
-    def test_action_close_success_and_breach_logging(self):
-        close = MagicMock()
-        close.id = 1
-        close.state = "ready_to_close"
-        close.close_duration_days = 3.0
-        close.sla_status = "within_sla"
-        close.CLOSE_TARGET_DAYS = 5
-        close.line_ids = [MagicMock()]
-        close.company_id.id = 1
-        close.period_end = date(2026, 10, 31)
-        close.env = MagicMock()
-
-        with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
-            FixPeriodClose.action_close([close])
-            close.write.assert_called_once()
-            mock_pub.assert_called_once()
-
-        # Breached close logs warning
-        close_breach = MagicMock()
-        close_breach.id = 2
-        close_breach.state = "ready_to_close"
-        close_breach.close_duration_days = 7.0
-        close_breach.sla_status = "breached"
-        close_breach.CLOSE_TARGET_DAYS = 5
-        close_breach.line_ids = []
-        close_breach.company_id.id = 1
-        close_breach.period_end = date(2026, 10, 31)
-        close_breach.env = MagicMock()
-
-        with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish"):
-            FixPeriodClose.action_close([close_breach])
-
     def test_action_fail_close_target(self):
         close = MagicMock()
         close.CLOSE_TARGET_DAYS = 5
@@ -191,52 +116,40 @@ class TestPeriodCloseExecution:
         assert len(res) == 1
         assert res[0]["close_duration_days"] == 8.0
 
-    def test_action_reconcile_inventory_suspense_with_records(self):
+    def test_action_reconcile_inventory_suspense_requires_a_cutover_entry(self):
+        """Regression: pending entries were marked reconciled against an
+        invented voucher and the suspense forced to zero by a status write."""
         close = MagicMock()
         close.id = 42
         close.company_id.id = 1
-        close.period_end = date(2026, 10, 31)
+        close.cutover_move_id = None
 
         r1 = MagicMock(total_valuation=1200.0)
-        r2 = MagicMock(total_valuation=800.0)
         pending = MagicMock()
-        pending.__iter__.return_value = [r1, r2]
-        pending.__len__.return_value = 2
-        pending.mapped.return_value = [1200.0, 800.0]
+        pending.__iter__.return_value = [r1]
+        pending.__len__.return_value = 1
+        pending.__bool__.return_value = True
+        pending.mapped.return_value = [1200.0]
 
         suspense_model = MagicMock()
         suspense_model.search.return_value = pending
-        close.env = {"fix.inventory.valuation.suspense": suspense_model}
+        close.env = MagicMock(su=True)  # trusted caller: the role gate is open
+        close.env.__getitem__.side_effect = {"fix.inventory.valuation.suspense": suspense_model}.get
+        close.state = "in_progress"
 
         with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
-            res = FixPeriodClose.action_reconcile_inventory_suspense(close)
-            assert res["status"] == "zero_cleared"
-            assert res["reconciled_entries"] == 2
-            assert res["total_valuation"] == 2000.0
-            assert res["voucher_ref"] == "GL-CUTOVER-W2-M15-42"
-            r1.action_reconcile_to_gl.assert_called_with("GL-CUTOVER-W2-M15-42")
-            r2.action_reconcile_to_gl.assert_called_with("GL-CUTOVER-W2-M15-42")
-            close.write.assert_called_with({
-                "suspense_closing": 0.0,
-                "suspense_reconciled": True,
-                "cutover_voucher_ref": "GL-CUTOVER-W2-M15-42",
-            })
-            mock_pub.assert_called_once()
+            with pytest.raises(UserError, match="Post the suspense cutover journal entry"):
+                FixPeriodClose.action_reconcile_inventory_suspense(close)
+            r1.action_reconcile_to_gl.assert_not_called()
+            close.write.assert_not_called()
+            mock_pub.assert_not_called()
 
 
-class TestPeriodCloseLineExecution:
-    def test_action_mark_done(self):
-        line = MagicMock()
-        FixPeriodCloseLine.action_mark_done([line])
-        line.write.assert_called_with({"state": "done", "evidence_ref": "VERIFIED"})
-
-    def test_action_set_state(self):
-        line = MagicMock()
-        FixPeriodCloseLine.action_set_state(line, "done")
-        line.write.assert_called_with({"state": "done"})
-
-        with pytest.raises(UserError, match="Invalid state"):
-            FixPeriodCloseLine.action_set_state(line, "invalid_state")
+# The close-step and close transitions are exercised on the live ORM, as the
+# step owners and the Accounting Administrator, in test_a08_m19_controls.py
+# (P01-P12) and test_gl_ext_orm.py. The MagicMock versions asserted the
+# pre-A08 internals (a free `state` write, any user marking any step done with
+# any string), which are exactly the defects the A08 audit closed.
 
 
 class TestJournalDimension:
@@ -278,9 +191,11 @@ class TestFixedAssetSeam:
     def test_seam_is_interface_only(self):
         """T07: the seam carries NO depreciation logic — M49 owns that."""
         source = inspect.getsource(FixFixedAssetSeam)
-        masked = (source.lower()
-                  .replace("owns depreciation. no depreciation logic here", "")
-                  .replace("the seam, not the asset", ""))
+        masked = (
+            source.lower()
+            .replace("owns depreciation. no depreciation logic here", "")
+            .replace("the seam, not the asset", "")
+        )
         assert "depreciat" not in masked
 
     def test_action_mark_consumed(self):
@@ -299,6 +214,7 @@ class TestPostWithDimensions:
         move_mock.company_id.id = 1
         move_mock.amount_total = 750.0
         move_mock.currency_id.name = "BDT"
+        move_mock.name = "ENTRY-01"
         line1 = MagicMock(id=501)
         line2 = MagicMock(id=502)
         move_mock.line_ids = [line1, line2]
@@ -307,23 +223,65 @@ class TestPostWithDimensions:
         dim_model.create.return_value = MagicMock()
         ou_model = MagicMock()
         ou_model.search.return_value = MagicMock(id=99)
+        # The statutory chart lookup: no linked accounts -> no COA-rule
+        # enforcement (unmapped accounts post with structural checks only).
+        chart_model = MagicMock()
+        chart_model.sudo.return_value.search.return_value = []
+        # The immutable posting log the helper appends (FR-FIN-042).
+        log_model = MagicMock()
+        # M19 capture pass 2: every posting is checked against the active
+        # dimension cross-validation rules (BRU-FIN-22) and the posting rule
+        # in force for its source (FR-FIN-008/010).
+        crossval_model = MagicMock()
+        rule_model = MagicMock()
+        # A02 ERP audit (19 Nov 2026): a line that names a branch but no OU
+        # takes the BRANCH's own OU (the company's first OU was refused at
+        # 57 of 73 fix_real branches), not the company's first.
+        branch_model = MagicMock()
+        branch_ou = MagicMock(id=42)
+        branch_ou.company_id = move_mock.company_id
+        branch_model.browse.return_value.exists.return_value = MagicMock(
+            operating_unit_id=branch_ou
+        )
 
         env = {
             "account.move": MagicMock(create=MagicMock(return_value=move_mock)),
             "fix.journal.dimension": dim_model,
+            "fix.branch": branch_model,
             "operating.unit": ou_model,
+            "fix.chart.account": chart_model,
+            "fix.journal.posting.log": log_model,
+            "fix.gl.crossvalidation.rule": crossval_model,
+            "fix.gl.posting.rule": rule_model,
         }
 
         with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
-            move, dims = post_with_dimensions(
+            move, _dims = post_with_dimensions(
                 env=env,
                 move_vals={"ref": "ENTRY-01"},
                 dimension_by_line={0: {"branch_id": 2, "cost_centre": "CC-01"}},
             )
             assert move == move_mock
-            move_mock.action_post.assert_called_once()
+            # posted through the guarded _post with the M19 token (A08 S2)
+            move_mock.with_env.return_value.with_context.return_value._post.assert_called_once_with(
+                soft=False
+            )
             dim_model.create.assert_called_once()
+            branch_model.browse.assert_called_once_with(2)
+            assert dim_model.create.call_args[0][0]["operating_unit_id"] == 42
+            ou_model.search.assert_not_called()  # never the company's first OU
             mock_pub.assert_called_once()
+            log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
+            crossval_model._check_move.assert_called_once()
+            rule_model._govern.assert_called_once_with(move_mock, "api")
+
+
+def _records(*recs, ledger=None):
+    """A recordset stand-in: iterable, with the ledger-balance lookup."""
+    rs = MagicMock()
+    rs.__iter__.side_effect = lambda: iter(recs)
+    rs._ledger_balances.return_value = ledger or {}
+    return rs
 
 
 class TestChartAccountAndLoader:
@@ -395,7 +353,7 @@ class TestChartAccountAndLoader:
         acc = MagicMock()
         acc.account_code = "1-10-10-001"
         acc.balance = 0.0
-        FixChartAccount.action_archive([acc])
+        FixChartAccount.action_archive(_records(acc))
         acc.write.assert_called_with({"active": False})
 
     def test_chart_account_action_archive_failure(self):
@@ -403,13 +361,20 @@ class TestChartAccountAndLoader:
         acc.account_code = "1-10-10-001"
         acc.balance = 500.00
         with pytest.raises(UserError, match="Cannot archive account"):
-            FixChartAccount.action_archive([acc])
+            FixChartAccount.action_archive(_records(acc))
+
+    def test_chart_account_action_archive_refused_on_ledger_balance(self):
+        acc = MagicMock(id=5, account_code="1-10-10-001", balance=0.0)
+        with pytest.raises(UserError, match="non-zero ledger balance"):
+            FixChartAccount.action_archive(_records(acc, ledger={5: 120.0}))
+        acc.write.assert_not_called()
 
     def test_chart_loader_action_load_from_csv_custom(self):
         loader = MagicMock()
         loader.company_id.id = 1
         loader.operating_unit_id = False
         acc_model = MagicMock()
+        acc_model.with_context.return_value = acc_model
         acc_model.search.return_value = False
         loader.env = {"fix.chart.account": acc_model}
 
@@ -418,7 +383,8 @@ class TestChartAccountAndLoader:
             assert res["status"] == "loaded"
             assert res["account_count"] == 14
             assert acc_model.create.call_count == 14
-            loader.write.assert_called_once()
+            # the loader's stamps are guarded: they go through the transition token
+            loader._guarded.return_value.write.assert_called_once()
 
     def test_chart_loader_action_load_from_csv_existing(self):
         loader = MagicMock()
@@ -426,6 +392,7 @@ class TestChartAccountAndLoader:
         loader.operating_unit_id.id = 5
         existing = MagicMock()
         acc_model = MagicMock()
+        acc_model.with_context.return_value = acc_model
         acc_model.search.return_value = existing
         loader.env = {"fix.chart.account": acc_model}
 
@@ -446,8 +413,10 @@ class TestChartAccountAndLoader:
         loader.operating_unit_id = False
         loader.source_file = "project_content/02_Master_Data_and_Configuration/02E_Finance_and_Statutory/MD-035_Chart_of_Accounts_Bangladesh.csv"
         acc_model = MagicMock()
+        acc_model.with_context.return_value = acc_model
         acc_model.search.return_value = False
-        loader.env = {"fix.chart.account": acc_model}
+        loader.env = MagicMock(su=True)  # the governed master-file reload
+        loader.env.__getitem__.side_effect = {"fix.chart.account": acc_model}.get
 
         with patch("odoo.addons.cd_gl_ext.models.fix_chart_loader.publish"):
             res = FixChartLoader.action_load_from_csv(loader, csv_text=None)
@@ -463,77 +432,19 @@ class TestChartAccountAndLoader:
         with pytest.raises(UserError, match="No accounts loaded"):
             FixChartLoader.action_reconcile_chart(loader)
 
-    def test_chart_loader_action_reconcile_chart(self):
-        loader = MagicMock()
-        loader.company_id.id = 1
-        a1 = MagicMock(account_code="1-10-10-001", account_type="asset", balance=1000.0)
-        a2 = MagicMock(account_code="2-10-10-001", account_type="liability", balance=400.0)
-        a3 = MagicMock(account_code="3-10-10-001", account_type="equity", balance=600.0)
-        for a in (a1, a2, a3):
-            a.name = "Account Name"
-            a.account_subtype = "current"
-            a.is_postable = True
-            a.is_control_account = False
-            a.control_subledger = False
-            a.requires_dimension = ""
-            a.statutory_group = "Group"
-            a.active = True
-        acc_model = MagicMock()
-        acc_model.search.return_value = [a1, a2, a3]
-        loader.env = {"fix.chart.account": acc_model}
-
-        res = FixChartLoader.action_reconcile_chart(loader)
-        assert res["reconciled"] is True
-        loader.write.assert_called_with({"state": "reconciled"})
+    # The ledger-based reconciliation (posted balances of the linked Odoo
+    # accounts + unmapped-ledger detection) is covered on the live ORM in
+    # test_gl_ext_orm.py::TestChartLoader.
 
 
 class TestFiscalYearAndReporting:
     def test_fiscal_year_lock_unclosed_period_raises(self):
         bridge = MagicMock()
         bridge.period_close_id.state = "in_progress"
-        with pytest.raises(UserError, match="Cannot lock journals before period close is completed"):
+        with pytest.raises(
+            UserError, match="Cannot lock journals before period close is completed"
+        ):
             FixFiscalYearIntegration.action_lock_journals(bridge)
-
-    def test_fiscal_year_lock_success(self):
-        bridge = MagicMock()
-        bridge.period_close_id.state = "closed"
-        bridge.period_close_id.period_end = date(2027, 6, 30)
-        bridge.company_id.name = "1000 FiX"
-        bridge.company_id.id = 1
-        bridge.fiscal_year_id = MagicMock()
-
-        j1 = MagicMock()
-        j1.period_lock_date = False
-        j1.fiscalyear_lock_date = False
-        j_model = MagicMock()
-        j_model.search.return_value = [j1]
-        bridge.env = {"account.journal": j_model}
-
-        res = FixFiscalYearIntegration.action_lock_journals(bridge)
-        assert res["status"] == "locked"
-        assert res["date"] == "2027-06-30"
-        j1.write.assert_called_with({
-            "period_lock_date": date(2027, 6, 30),
-            "fiscalyear_lock_date": date(2027, 6, 30),
-        })
-        bridge.write.assert_called_once()
-
-    def test_fiscal_year_lock_without_fiscal_year_and_empty_journal(self):
-        bridge = MagicMock()
-        bridge.period_close_id.state = "closed"
-        bridge.period_close_id.period_end = date(2027, 6, 30)
-        bridge.company_id.name = "1000 FiX"
-        bridge.company_id.id = 1
-        bridge.fiscal_year_id = False  # no fiscal year
-
-        j_empty = object()  # no period_lock_date or fiscalyear_lock_date attribute
-        j_model = MagicMock()
-        j_model.search.return_value = [j_empty]
-        bridge.env = {"account.journal": j_model}
-
-        res = FixFiscalYearIntegration.action_lock_journals(bridge)
-        assert res["status"] == "locked"
-        bridge.write.assert_called_once()
 
     def test_mis_report_bridge_action_generate(self):
         bridge = MagicMock()
@@ -541,8 +452,12 @@ class TestFiscalYearAndReporting:
         bridge.name = "Statutory Balance Sheet"
         bridge.report_type = "balance_sheet"
         bridge.company_id.id = 1
+        bridge.SUPPORTED_TYPES = FixMisReportBridge.SUPPORTED_TYPES
+        bridge.fiscal_year_id = None
+        bridge.date_from = bridge.date_to = None
 
-        res = FixMisReportBridge.action_generate_report(bridge)
-        assert res["status"] == "generated"
-        assert res["type"] == "balance_sheet"
-        bridge.write.assert_called_once()
+        # no constant {"status": "computed"} any more: without a fiscal year
+        # there is no ledger window to compute from
+        with pytest.raises(UserError, match="Select the fiscal year"):
+            FixMisReportBridge.action_generate_report(bridge)
+        bridge.write.assert_not_called()

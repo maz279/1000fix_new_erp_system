@@ -1,0 +1,30 @@
+{
+  "run": "PROD_REHEARSAL_MG005_20261021",
+  "loaded_at": "2026-10-21T11:59:17.422763+00:00",
+  "loaded_totals": {
+    "branches": 53,
+    "customers": 1250,
+    "devices": 2840,
+    "employees": 380,
+    "inventory": 4600,
+    "workshop_wip": 520
+  },
+  "accepted_records": {
+    "branches": 53,
+    "customers": 1247,
+    "devices": 2840,
+    "employees": 380,
+    "inventory": 4600,
+    "workshop_wip": 520
+  },
+  "quarantined_records": {
+    "branches": 0,
+    "customers": 3,
+    "devices": 0,
+    "employees": 0,
+    "inventory": 0,
+    "workshop_wip": 0
+  },
+  "quarantine_disposition": "3 duplicate customer records reconciled per M64 deduplication rule; accepted into secondary contact alias.",
+  "status": "LOAD_COMPLETE"
+}

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M52 (CD-M52-01) master data: document sequences, and DEFAULT policy
+  rows clearly labelled as defaults - edit them to the company's delegation
+  of authority and expense policy. No business activity is seeded.
+-->
+<odoo noupdate="1">
+
+    <record id="seq_fix_payment_run" model="ir.sequence">
+        <field name="name">AP Payment Run</field>
+        <field name="code">fix.payment.run</field>
+        <field name="prefix">PRUN/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_employee_advance" model="ir.sequence">
+        <field name="name">Employee Advance</field>
+        <field name="code">fix.employee.advance</field>
+        <field name="prefix">ADV/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_payee_bank_change" model="ir.sequence">
+        <field name="name">Payee Bank-Detail Change</field>
+        <field name="code">fix.payee.bank.change</field>
+        <field name="prefix">PBANK/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Default AP approval matrix: edit to the delegation of authority -->
+    <record id="ap_approval_rule_level1" model="fix.ap.approval.rule">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Default level 1 - accountant review (edit to company policy)</field>
+        <field name="level">1</field>
+        <field name="amount_min">0</field>
+        <field name="group_id" ref="account.group_account_user"/>
+    </record>
+    <record id="ap_approval_rule_level2" model="fix.ap.approval.rule">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Default level 2 - finance manager from BDT 500,000 (edit to company policy)</field>
+        <field name="level">2</field>
+        <field name="amount_min">500000</field>
+        <field name="group_id" ref="account.group_account_manager"/>
+    </record>
+
+    <!-- Default expense categories (accounts empty = default expense role) -->
+    <record id="expense_category_per_diem" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Per-diem (daily allowance)</field>
+        <field name="code">PERDIEM</field>
+        <field name="line_type">per_diem</field>
+    </record>
+    <record id="expense_category_mileage" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Mileage (own vehicle)</field>
+        <field name="code">MILEAGE</field>
+        <field name="line_type">mileage</field>
+    </record>
+    <record id="expense_category_conveyance" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Local conveyance (rickshaw, CNG, ride-share)</field>
+        <field name="code">CONVEY</field>
+    </record>
+    <record id="expense_category_accommodation" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Accommodation</field>
+        <field name="code">HOTEL</field>
+    </record>
+    <record id="expense_category_parts" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Urgent parts / consumables bought on site</field>
+        <field name="code">PARTS</field>
+    </record>
+    <record id="expense_category_other" model="fix.expense.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="name">Other business expense</field>
+        <field name="code">OTHER</field>
+    </record>
+
+</odoo>

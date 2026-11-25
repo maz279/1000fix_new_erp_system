@@ -1,7 +1,7 @@
 # cd_contact_centre tests — P10 Agent Console API (source-level).
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -52,16 +52,29 @@ class TestCallControl(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_contact_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
         self.assertIn("/contact/conversations", spec["paths"])
         self.assertIn("/contact/handoff", spec["paths"])
+        self.assertIn("/contact/telephony/webhook", spec["paths"])
+        self.assertIn("/contact/chat/message", spec["paths"])
 
     def test_routes_json_auth_user(self):
         routes = re.findall(
-            r'@http\.route\("(/contact/[^"]+)"[^)]*type="json",\s*auth="user"',
-            API)
-        self.assertEqual(len(routes), 4, routes)
+            r'@http\.route\("(/contact/[^"]+)"[^)]*type="jsonrpc",\s*auth="user"', API
+        )
+        self.assertEqual(len(routes), 6, routes)
+
+    def test_telephony_webhook_intake_wiring(self):
+        self.assertIn("telephony_webhook", API)
+        self.assertIn("intake_hotline_call", API)
+        self.assertIn("call_sid", API)
+
+    def test_chat_message_intake_wiring(self):
+        self.assertIn("chat_message", API)
+        self.assertIn("intake_message", API)
 
     def test_team_queue_scope_is_honest(self):
         # no phantom agent-assignment column in the domain

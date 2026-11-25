@@ -1,3 +1,5 @@
 # cd_contact_centre — M27 + M32 (P07-M05).
-from . import models
-from . import controllers  # PP5: the P10 agent console API
+from . import (
+    controllers,  # PP5: the P10 agent console API
+    models,
+)

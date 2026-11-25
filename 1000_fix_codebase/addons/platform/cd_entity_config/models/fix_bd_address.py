@@ -8,6 +8,7 @@ from odoo.exceptions import ValidationError
 
 class FixBdAddress(models.Model):
     """A Bangladesh address stored as its governed parts, not one free string."""
+
     _name = "fix.bd.address"
     _description = "Bangladesh Address"
 
@@ -20,17 +21,16 @@ class FixBdAddress(models.Model):
     union_or_ward = fields.Char(string="Union/Ward")
     street = fields.Char(string="Street/Road")
     house = fields.Char(string="House/Building")
-    postcode = fields.Char(string="Postcode", size=4,
-                           help="Bangladesh postcodes are 4 digits")
+    postcode = fields.Char(string="Postcode", size=4, help="Bangladesh postcodes are 4 digits")
     landmark = fields.Char(
         string="Landmark",
-        help="Field dispatch relies on landmarks; the GPS geocode lives on the geofence, not here")
+        help="Field dispatch relies on landmarks; the GPS geocode lives on the geofence, not here",
+    )
 
     @api.constrains("postcode")
     def _check_postcode(self):
         for address in self:
-            if address.postcode and not (address.postcode.isdigit()
-                                         and len(address.postcode) == 4):
+            if address.postcode and not (address.postcode.isdigit() and len(address.postcode) == 4):
                 raise ValidationError("Bangladesh postcode must be exactly 4 digits")
 
     def format_bn(self) -> str:
@@ -46,5 +46,9 @@ class FixBdAddress(models.Model):
             line += f" {self.postcode}"
         return line
 
-    def name_get(self):
-        return [(address.id, address.format_bn() or address.district) for address in self]
+    @api.depends("house", "street", "upazila", "upazila_bn", "district", "district_bn", "postcode")
+    def _compute_display_name(self):
+        # BN-007 §4 rendering is the record's name everywhere (Odoo 19 ignores
+        # name_get, so the old override never reached the UI).
+        for address in self:
+            address.display_name = address.format_bn() or address.district

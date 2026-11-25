@@ -1,0 +1,22 @@
+{
+  "run": "PROD_REHEARSAL_MG005_20261021",
+  "target_environment": "migration-staging",
+  "data_classification": "REAL_PRODUCTION_SHAPED",
+  "extracted_at": "2026-10-21T11:59:17.421705+00:00",
+  "control_totals": {
+    "branches": 53,
+    "customers": 1250,
+    "devices": 2840,
+    "employees": 380,
+    "inventory": 4600,
+    "workshop_wip": 520
+  },
+  "source_systems": {
+    "branches": "ETL-3: Core ERP Branch Registry",
+    "customers": "ETL-1: WooCommerce + WordPress Legacy Store (M64 Dedup)",
+    "devices": "ETL-2: Asset Warranty & Serial Master",
+    "employees": "ETL-4: Legacy HR & Biometric Payroll 2026",
+    "inventory": "ETL-5: Central & Transit Warehouse Stock Lots",
+    "workshop_wip": "ETL-6: Active Repair Ticket Ledger"
+  }
+}

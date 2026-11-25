@@ -51,6 +51,7 @@ class _DayViewScreenState extends State<DayViewScreen> {
     AttendanceScreen(),
     PartsScreen(),
     EvidenceCaptureScreen(),
+    ScorecardScreen(),
   ];
 
   @override
@@ -91,6 +92,7 @@ class _DayViewScreenState extends State<DayViewScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.location_on), label: 'Attendance'),
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Parts'),
           BottomNavigationBarItem(icon: Icon(Icons.photo_camera), label: 'Evidence'),
+          BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Scorecard'),
         ],
         onTap: (index) {
           setState(() {
@@ -580,6 +582,255 @@ class PartsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// ScorecardScreen — M57 Technician Scorecard & Incentives (R06-M01-T05).
+///
+/// Surfaces explainable composite scorecard (35% FTF + 30% SLA + 20% CSAT - 15% Rework)
+/// and incentive earnings feeding M56 payroll directly in the P02 mobile app.
+class ScorecardScreen extends StatelessWidget {
+  const ScorecardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Composite Score Hero Card
+        Card(
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: fixColor(t_color_primary_base),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Performance Cycle: 2026-10',
+                      style: TextStyle(
+                        color: fixColor(t_color_text_inverse)?.withOpacity(0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade700,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        'Tier 2 — Gold (8%)',
+                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '0.88 / 1.00',
+                  style: TextStyle(
+                    color: fixColor(t_color_text_inverse),
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'কম্পোজিট স্কোর (Composite Score: 88%)',
+                  style: TextStyle(
+                    color: fixColor(t_color_text_inverse)?.withOpacity(0.85),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Incentive Earnings Card (feeding M56 Payroll)
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Incentive Earnings (M56 Payroll)',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: fixColor(t_color_text_primary),
+                      ),
+                    ),
+                    const Icon(Icons.payments, color: Colors.green),
+                  ],
+                ),
+                const Divider(height: 20),
+                _buildIncentiveRow('Band Base (গ্রেড স্কেল)', 'BDT 35,000.00'),
+                _buildIncentiveRow('Incentive Rate (প্রণোদনা হার)', '8.0% (Score >= 0.75)'),
+                _buildIncentiveRow('Calculated Payout (মোট প্রণোদনা)', 'BDT 2,800.00', isTotal: true),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Fed to M56 Payroll: Cycle October 2026 Verified',
+                          style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Metric Breakdown
+        Text(
+          'Metric Breakdown (DoD-03 Formula)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: fixColor(t_color_text_primary),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        _buildMetricTile(
+          icon: Icons.check_circle_outline,
+          title: 'First-Time Fix Rate (FTF)',
+          bengaliTitle: 'প্রথম ফিক্স হার (ওজন ৩৫%)',
+          value: '92.0%',
+          target: 'Target: >= 85%',
+          color: Colors.blue,
+        ),
+        _buildMetricTile(
+          icon: Icons.timer_outlined,
+          title: 'SLA Hit Rate',
+          bengaliTitle: 'সময়সীমা রক্ষা হার (ওজন ৩০%)',
+          value: '95.0%',
+          target: 'Target: >= 90%',
+          color: Colors.teal,
+        ),
+        _buildMetricTile(
+          icon: Icons.sentiment_satisfied_alt,
+          title: 'Customer Satisfaction (CSAT)',
+          bengaliTitle: 'গ্রাহক সন্তুষ্টি হার (ওজন ২০%)',
+          value: '96.0%',
+          target: 'Target: >= 90%',
+          color: Colors.orange,
+        ),
+        _buildMetricTile(
+          icon: Icons.replay,
+          title: 'Rework Penalty',
+          bengaliTitle: 'পুনরাবৃত্তি ত্রুটি জরিমানা (পেনাল্টি -১৫%)',
+          value: '2.0%',
+          target: 'Penalty subtracted: -0.3%',
+          color: Colors.red,
+        ),
+
+        const SizedBox(height: 12),
+
+        // Explainability card
+        Card(
+          color: fixColor(t_color_surface_secondary),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Formula: Score = (0.35 * FTF) + (0.30 * SLA) + (0.20 * CSAT) - (0.15 * Rework)\n'
+              'Bands: >=0.90 (15%) | >=0.75 (8%) | >=0.60 (4%) | <0.60 (0%)\n'
+              'All metrics are tamper-evident and audited under CD-M57-01.',
+              style: TextStyle(fontSize: 11, color: fixColor(t_color_text_secondary)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Widget _buildIncentiveRow(String label, String value, {bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isTotal ? 13 : 12,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isTotal ? 14 : 12,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+              color: isTotal ? Colors.green.shade800 : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildMetricTile({
+    required IconData icon,
+    required String title,
+    required String bengaliTitle,
+    required String value,
+    required String target,
+    required Color color,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.15),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '$bengaliTitle · $target',
+          style: const TextStyle(fontSize: 11),
+        ),
+        trailing: Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 }

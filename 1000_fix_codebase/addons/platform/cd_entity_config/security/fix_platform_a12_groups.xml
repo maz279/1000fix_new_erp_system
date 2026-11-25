@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) X4: the statutory entity/branch register, working
+  calendars, notification configs, platform environments/releases, payment
+  gateways, jurisdiction rules and the MDM masters were writable by every
+  internal user through group_user ACLs.
+
+  - Platform admin: maintains the statutory register and platform
+    configuration (entity, branch, zone, calendar, notification config,
+    environment, release, announcement, jurisdiction rule, feature flag,
+    country pack).
+  - MDM domain steward: decides master-data change requests, duplicate
+    merges and cross-references (P1-2). Ships EMPTY: stewardship is a
+    business appointment (S7-B5).
+  - Gateway activation approver: treasury + IT security authority that
+    puts a payment gateway live (P1-4). Ships EMPTY (S7-B7).
+
+  The operational group carries the development admin so the workspace
+  keeps working; segregation of duties still applies to it.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_platform_admin" model="res.groups.privilege">
+            <field name="name">Platform &amp; Statutory Configuration</field>
+            <field name="description">Statutory register and platform configuration roles of M30/M64/M65.</field>
+            <field name="sequence">63</field>
+        </record>
+
+        <record id="group_platform_admin" model="res.groups">
+            <field name="name">Platform Admin</field>
+            <field name="privilege_id" ref="privilege_fix_platform_admin"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Maintains the statutory entity/branch/zone register, working calendars, notification configs, feature flags, platform environments and releases, announcements, jurisdiction rules and country packs (X4).</field>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+        <record id="group_mdm_domain_steward" model="res.groups">
+            <field name="name">MDM Domain Steward</field>
+            <field name="privilege_id" ref="privilege_fix_platform_admin"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Decides master-data change requests, duplicate merges and cross-references; never decides a change they proposed (P1-2). Ships EMPTY: stewardship is a business appointment (S7-B5).</field>
+        </record>
+
+        <record id="group_gateway_activation_approver" model="res.groups">
+            <field name="name">Payment Gateway Activation Approver</field>
+            <field name="privilege_id" ref="privilege_fix_platform_admin"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Treasury + IT security authority that puts a payment gateway live or moves it sandbox-to-live through the M63 approval route (P1-4). Ships EMPTY (S7-B7).</field>
+        </record>
+
+    </data>
+</odoo>

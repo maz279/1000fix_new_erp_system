@@ -26,16 +26,17 @@
 
 ## T09 — Residual open-item register (Status Post R01-M01)
 
-| # | Item | Owner | Status | Closure Evidence |
-|---|---|---|:--:|---|
-| 1 | **B-01** charter minute, Steering/ARB/DP-Forum standing | PM | **CLOSED** | Board Minutes `BM-2026-10-D001-charter-and-governance.md` |
-| 2 | **B-02** DEP-31 opinion + `D-013` minute | SL | **CLOSED** | Legal Opinion `DEP-31-legal-opinion-pdpa-residency.md` + `D-013` ACCEPTED |
-| 3 | B-05b MV movements — Steering approval | CA | CONDITION | On track for Wave 1 execution |
-| 4 | **B-06** profiling execution (48 sources) | ML | **CLOSED** | `legacy-source-profiles-completed.md` (3.14M records, P1-P6, Bengali normalisation) |
-| 5 | B-10 FF register DA ratification | CA | CONDITION | Ratification scheduled at Wave 1 start |
-| 6 | **B-11** SoW amendment signature | PM | **CLOSED** | Executed Amendment No. 1 `SoW-F08-signed-amendment.md` |
-| 7 | **B-12** D-002 Board decision + names | PM | **CLOSED** | Approved Board Resolution `D-002-super-user-named-roster.md` (85 names) |
-| 8 | Workstation T03 BitLocker (dev machine) | Operator | CONDITION | Operator remediation command available |
+| # | Item | Owner | Target date | Status | Closure Evidence |
+|---|---|---|---|:--:|---|
+| 1 | **B-01** charter minute, Steering/ARB/DP-Forum standing | PM | n/a (closed) | **CLOSED** | Board Minutes `BM-2026-10-D001-charter-and-governance.md` |
+| 2 | **B-02** DEP-31 opinion + `D-013` minute | SL | n/a (closed) | **CLOSED** | Legal Opinion `DEP-31-legal-opinion-pdpa-residency.md` + `D-013` ACCEPTED |
+| 3 | B-05b MV movements — Steering approval (E1) | TBD - Steering to assign | TBD - Steering to assign | OPEN | E1 CONDITION counted as OPEN by `verify-gate-g0a.ps1`: CR prepared (`MV-scope-movements-CR.md`), no Steering approval and no GV-003 override row |
+| 3a | B-05c OCA v19 migration assessment (18 repositories) | TBD - Steering to assign | TBD - Steering to assign | CONDITION | Matrix issued (`oca-v19-migration-matrix.md`); per-repo verification is W0-01 execution |
+| 4 | **B-06** profiling execution (48 sources) | ML | n/a (closed) | **CLOSED** | `legacy-source-profiles-completed.md` (3.14M records, P1-P6, Bengali normalisation) |
+| 5 | B-10 FF register DA ratification | TBD - Steering to assign | TBD - Steering to assign | CONDITION | Register issued (`fitness-function-register.md`); DA ratification not recorded |
+| 6 | **B-11** SoW amendment signature | PM | n/a (closed) | **CLOSED** | Executed Amendment No. 1 `SoW-F08-signed-amendment.md` |
+| 7 | **B-12** D-002 Board decision + names | PM | n/a (closed) | **CLOSED** | Approved Board Resolution `D-002-super-user-named-roster.md` (85 names) |
+| 8 | Workstation T03 BitLocker (dev machine) | Operator | not set | CONDITION | Operator remediation command available |
 
 ## T10 — Gate record (Recomputed 2026-10-15)
 

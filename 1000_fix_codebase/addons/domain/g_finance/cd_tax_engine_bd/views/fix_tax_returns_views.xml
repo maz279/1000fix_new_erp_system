@@ -11,7 +11,10 @@
                 <field name="currency_id" invisible="1"/>
                 <field name="output_vat"/>
                 <field name="input_vat" optional="show"/>
+                <field name="opening_credit" optional="hide"/>
+                <field name="credit_used" optional="hide"/>
                 <field name="net_payable"/>
+                <field name="closing_credit" optional="show"/>
                 <field name="nil_return" optional="show" string="Nil"/>
                 <field name="due_date"/>
                 <field name="state" widget="badge"/>
@@ -25,19 +28,25 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_prepare" type="object" string="Prepare from Registers" invisible="state == 'filed'"/>
                     <button name="action_subledger_reconciliation" type="object" string="Reconcile Sub-Ledger" class="btn-primary" invisible="state == 'filed'"/>
                     <button name="action_file_online" type="object" string="Submit to NBR (INT-038)" class="btn-success" invisible="state == 'filed'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,prepared,filed"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="period" readonly="1"/> — Mushak 9.1</h1></div>
+                    <div class="oe_title"><h1><field name="period" readonly="state != 'draft'" placeholder="YYYY-MM"/> — Mushak 9.1</h1></div>
                     <group>
                         <group string="Statutory Return Amounts">
                             <field name="currency_id" invisible="1"/>
                             <field name="total_taxable"/>
                             <field name="output_vat"/>
                             <field name="input_vat"/>
+                            <field name="opening_credit"/>
+                            <field name="credit_used"/>
                             <field name="net_payable"/>
+                            <field name="closing_credit"/>
+                            <field name="vds_received_credit"/>
+                            <field name="net_payable_after_vds"/>
                         </group>
                         <group string="Filing &amp; NBR Status">
                             <field name="nil_return"/>
@@ -46,6 +55,34 @@
                             <field name="nbr_confirmation" readonly="1"/>
                         </group>
                     </group>
+                    <group string="Mushak 9.1 Lines by Treatment">
+                        <field name="treatment_breakdown" readonly="1"/>
+                        <field name="classification_notes" readonly="1" invisible="not classification_notes"/>
+                    </group>
+                    <notebook>
+                        <page string="Input Credits Claimed">
+                            <field name="input_credit_ids" readonly="1">
+                                <list>
+                                    <field name="partner_id"/>
+                                    <field name="supplier_mushak_no"/>
+                                    <field name="invoice_date"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="vat_amount" sum="Total"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Challans">
+                            <field name="challan_ids" readonly="1">
+                                <list>
+                                    <field name="challan_no"/>
+                                    <field name="challan_date"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                     <group string="Sub-Ledger Reconciliation (GL 210100 &amp; 110500)">
                         <group>
                             <field name="subledger_status" widget="badge"/>
@@ -90,11 +127,14 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_file" type="object" string="File Return with NBR" class="btn-primary" invisible="state == 'filed'"/>
+                    <!-- Records a filing done on the NBR portal: the acknowledgment number NBR
+                         issued must be entered first (the action refuses without it). -->
+                    <button name="action_prepare" type="object" string="Prepare from Deductions" invisible="state == 'filed'"/>
+                    <button name="action_file" type="object" string="Record NBR Filing" class="btn-primary" invisible="state == 'filed'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,prepared,filed"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="quarter" readonly="1"/> — TDS Quarterly Return</h1></div>
+                    <div class="oe_title"><h1><field name="quarter" readonly="state != 'draft'" placeholder="2026-Q1 (Jul-Sep 2026)"/> — TDS Quarterly Return</h1></div>
                     <group>
                         <group>
                             <field name="fiscal_year" readonly="1"/>
@@ -105,7 +145,8 @@
                         <group>
                             <field name="due_date" readonly="1"/>
                             <field name="filed_at" readonly="1"/>
-                            <field name="nbr_acknowledgment" readonly="1"/>
+                            <field name="nbr_acknowledgment" readonly="state == 'filed'"
+                                   placeholder="Acknowledgment No. issued by NBR"/>
                         </group>
                     </group>
                     <notebook>
@@ -211,13 +252,5 @@
         <field name="res_model">fix.withholding.certificate</field>
         <field name="view_mode">list,form</field>
     </record>
-
-    <menuitem id="menu_fix_vat_return" name="VAT Returns"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_vat_return" sequence="140"/>
-    <menuitem id="menu_fix_tds_return" name="TDS Returns"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_tds_return" sequence="150"/>
-    <menuitem id="menu_fix_withholding_certificate" name="Withholding Certificates"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_withholding_certificate" sequence="160"/>
-
 
 </odoo>

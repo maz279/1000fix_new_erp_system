@@ -15,44 +15,167 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_field_service
-#: model:ir.module.category,name:cd_field_service.module_category_field_service
-msgid "Field Service"
-msgstr "ফিল্ড সার্ভিস"
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Accept Job"
+msgstr "জব গ্রহণ করুন"
 
 #. module: cd_field_service
-#: model:res.groups,name:cd_field_service.group_fix_field_service_user
-msgid "Field Service / Technician"
-msgstr "ফিল্ড সার্ভিস / টেকনিশিয়ান"
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__accepted
+msgid "Accepted"
+msgstr "গৃহীত"
 
 #. module: cd_field_service
-#: model:res.groups,name:cd_field_service.group_fix_field_service_manager
-msgid "Field Service / Dispatcher & Manager"
-msgstr "ফিল্ড সার্ভিস / ডিসপ্যাচার ও ম্যানেজার"
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__accuracy_m
+msgid "Accuracy (m)"
+msgstr "নির্ভুলতা (মিটার)"
 
 #. module: cd_field_service
-#: model:ir.model,name:cd_field_service.model_fix_field_order
-msgid "Field Service Order"
-msgstr "ফিল্ড সার্ভিস অর্ডার"
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__actual_travel_minutes
+msgid "Actual Travel Time (min)"
+msgstr "প্রকৃত যাতায়াত সময় (মিনিট)"
 
 #. module: cd_field_service
-#: model:ir.model,name:cd_field_service.model_fix_field_route
-msgid "Field Route Itinerary"
-msgstr "ফিল্ড রুট ভ্রমণসূচি"
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_offline_idempotency_ledger__status__applied
+msgid "Applied"
+msgstr "প্রয়োগকৃত"
 
 #. module: cd_field_service
-#: model:ir.model,name:cd_field_service.model_fix_field_decline_log
-msgid "Field Dispatch Decline Log"
-msgstr "ফিল্ড ডিসপ্যাচ প্রত্যাখ্যান লগ"
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_offline_idempotency_ledger__status__conflict_applied
+msgid "Applied with Conflict Delta"
+msgstr "দ্বন্দ্বের পার্থক্যসহ প্রয়োগকৃত"
 
 #. module: cd_field_service
-#: model:ir.model,name:cd_field_service.model_fix_technician_location
-msgid "Technician Location Ping"
-msgstr "টেকনিশিয়ান অবস্থান পিং"
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__arrived
+msgid "Arrived On Site"
+msgstr "সাইটে পৌঁছেছেন"
 
 #. module: cd_field_service
-#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_service_root
-msgid "Field Service"
-msgstr "ফিল্ড সার্ভিস"
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__technician_id
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_kanban
+msgid "Assigned Technician"
+msgstr "নিয়োজিত টেকনিশিয়ান"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__baseline_duration_hours
+msgid "Baseline Duration (hours)"
+msgstr "ভিত্তি সময়কাল (ঘণ্টা)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__battery_pct
+msgid "Battery %"
+msgstr "ব্যাটারি %"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Cancel"
+msgstr "বাতিল করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_decline_log__reason__capacity
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__decline_reason__capacity
+msgid "Capacity Exceeded / Overbooked"
+msgstr "ধারণক্ষমতা অতিক্রান্ত / অতিরিক্ত বুকিং"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__client_created_at
+msgid "Client Timestamp"
+msgstr "ক্লায়েন্টের সময়"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__command_id
+msgid "Command UUID"
+msgstr "কমান্ড UUID"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__company_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__company_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__company_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__company_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Complete Order"
+msgstr "অর্ডার সম্পন্ন করুন"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Complete Route"
+msgstr "রুট সম্পন্ন করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__completed
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_route__route_state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__conflict_reason
+msgid "Conflict / Rejection Reason"
+msgstr "দ্বন্দ্ব / প্রত্যাখ্যানের কারণ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__zone_id
+msgid "Current Zone"
+msgstr "বর্তমান জোন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__customer_address
+msgid "Customer Address"
+msgstr "গ্রাহকের ঠিকানা"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_audit
+msgid "Decline Audit Log"
+msgstr "প্রত্যাখ্যান অডিট লগ"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Decline Details"
+msgstr "প্রত্যাখ্যানের বিবরণ"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Decline Job"
+msgstr "জব প্রত্যাখ্যান করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__decline_notes
+msgid "Decline Notes"
+msgstr "প্রত্যাখ্যানের নোট"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__reason
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__decline_reason
+msgid "Decline Reason"
+msgstr "প্রত্যাখ্যানের কারণ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__decline_date
+msgid "Decline Timestamp"
+msgstr "প্রত্যাখ্যানের সময়"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__declined
+msgid "Declined"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__technician_id
+msgid "Declining Technician"
+msgstr "প্রত্যাখ্যানকারী টেকনিশিয়ান"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__device_id
+msgid "Device ID"
+msgstr "ডিভাইস আইডি"
 
 #. module: cd_field_service
 #: model:ir.ui.menu,name:cd_field_service.menu_fix_field_dispatch_board
@@ -60,14 +183,103 @@ msgid "Dispatch Board"
 msgstr "ডিসপ্যাচ বোর্ড"
 
 #. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_decline_log_list
+msgid "Dispatch Decline Audit Log"
+msgstr "ডিসপ্যাচ প্রত্যাখ্যান অডিট লগ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__zone_id
+msgid "Dispatch Zone"
+msgstr "ডিসপ্যাচ জোন"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__dispatched
+msgid "Dispatched"
+msgstr "প্রেরিত"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_route__route_state__draft
+msgid "Draft Itinerary"
+msgstr "খসড়া ভ্রমণসূচি"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__en_route
+msgid "En Route"
+msgstr "পথে"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Enter site access codes, contact instructions, or symptom details..."
+msgstr "সাইটে প্রবেশের কোড, যোগাযোগের নির্দেশনা বা উপসর্গের বিবরণ লিখুন..."
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__travel_time_est_minutes
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_kanban
+msgid "Est. Travel Time (min)"
+msgstr "আনুমানিক যাতায়াত সময় (মিনিট)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__distance_km
+msgid "Estimated Distance (km)"
+msgstr "আনুমানিক দূরত্ব (কিমি)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__status
+msgid "Execution Status"
+msgstr "সম্পাদনের অবস্থা"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_decline_log
+msgid "Field Dispatch Decline Log"
+msgstr "ফিল্ড ডিসপ্যাচ প্রত্যাখ্যান লগ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__field_order_id
+msgid "Field Order"
+msgstr "ফিল্ড অর্ডার"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_list
+msgid "Field Orders"
+msgstr "ফিল্ড অর্ডারসমূহ"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_route
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Field Route Itinerary"
+msgstr "ফিল্ড রুট ভ্রমণসূচি"
+
+#. module: cd_field_service
+#: model:ir.module.category,name:cd_field_service.module_category_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_service_root
+msgid "Field Service"
+msgstr "ফিল্ড সার্ভিস"
+
+#. module: cd_field_service
+#: model:res.groups,name:cd_field_service.group_fix_field_service_manager
+msgid "Field Service / Dispatcher & Manager"
+msgstr "ফিল্ড সার্ভিস / ডিসপ্যাচার ও ম্যানেজার"
+
+#. module: cd_field_service
+#: model:res.groups,name:cd_field_service.group_fix_field_service_user
+msgid "Field Service / Technician"
+msgstr "ফিল্ড সার্ভিস / টেকনিশিয়ান"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_order
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Field Service Order"
+msgstr "ফিল্ড সার্ভিস অর্ডার"
+
+#. module: cd_field_service
 #: model:ir.ui.menu,name:cd_field_service.menu_fix_field_orders
 msgid "Field Work Orders"
 msgstr "ফিল্ড ওয়ার্ক অর্ডার"
-
-#. module: cd_field_service
-#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_routes
-msgid "Routing & Optimization"
-msgstr "রুট ও অপ্টিমাইজেশন"
 
 #. module: cd_field_service
 #: model:ir.ui.menu,name:cd_field_service.menu_fix_field_tracking
@@ -75,6 +287,378 @@ msgid "Fleet Telemetry"
 msgstr "ফ্লিট টেলিমেট্রি"
 
 #. module: cd_field_service
-#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_audit
-msgid "Decline Audit Log"
-msgstr "প্রত্যাখ্যান অডিট লগ"
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__geofence_id
+msgid "Geofence Boundary"
+msgstr "জিওফেন্স সীমানা"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__priority__2
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__in_progress
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_route__route_state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Instructions & Notes"
+msgstr "নির্দেশনা ও নোট"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__latitude
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__latitude
+msgid "Latitude"
+msgstr "অক্ষাংশ"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Location & Distance"
+msgstr "অবস্থান ও দূরত্ব"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__name
+msgid "Log Reference"
+msgstr "লগ রেফারেন্স"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__name_bn
+msgid "Log Reference (Bengali)"
+msgstr "লগ রেফারেন্স (বাংলা)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__longitude
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__longitude
+msgid "Longitude"
+msgstr "দ্রাঘিমাংশ"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__priority__0
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Mark Arrival"
+msgstr "পৌঁছানো চিহ্নিত করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_decline_log__reason__skill_gap
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__decline_reason__skill_gap
+msgid "Missing Tool / Skill Requirement"
+msgstr "প্রয়োজনীয় সরঞ্জাম / দক্ষতা নেই"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__priority__1
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__operating_unit_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__operating_unit_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__operating_unit_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__operation
+msgid "Operation"
+msgstr "অপারেশন"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Optimization Performance (G2-03)"
+msgstr "অপ্টিমাইজেশন পারফরম্যান্স (G2-03)"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Optimize via VROOM"
+msgstr "VROOM দিয়ে অপ্টিমাইজ করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__total_distance_km
+msgid "Optimized Distance (km)"
+msgstr "অপ্টিমাইজকৃত দূরত্ব (কিমি)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__total_duration_hours
+msgid "Optimized Duration (hours)"
+msgstr "অপ্টিমাইজকৃত সময়কাল (ঘণ্টা)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__name
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Order Reference"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__name_bn
+msgid "Order Reference (Bengali)"
+msgstr "অর্ডার রেফারেন্স (বাংলা)"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_decline_log__reason__other
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__decline_reason__other
+msgid "Other Reason"
+msgstr "অন্য কারণ"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_decline_log__reason__distance
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__decline_reason__distance
+msgid "Outside Commute Range"
+msgstr "যাতায়াত সীমার বাইরে"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__payload_hash
+msgid "Payload SHA-256"
+msgstr "পেলোড SHA-256"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__state__pending_dispatch
+msgid "Pending Dispatch"
+msgstr "ডিসপ্যাচের অপেক্ষায়"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_decline_log__reason__emergency
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__decline_reason__emergency
+msgid "Personal / Vehicle Emergency"
+msgstr "ব্যক্তিগত / যানবাহনজনিত জরুরি অবস্থা"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__name
+msgid "Ping Reference"
+msgstr "পিং রেফারেন্স"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__name_bn
+msgid "Ping Reference (Bengali)"
+msgstr "পিং রেফারেন্স (বাংলা)"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__timestamp
+msgid "Ping Time"
+msgstr "পিং-এর সময়"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__priority
+msgid "Priority"
+msgstr "অগ্রাধিকার"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__record_id
+msgid "Record ID"
+msgstr "রেকর্ড আইডি"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_offline_idempotency_ledger__status__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Request Dispatch"
+msgstr "ডিসপ্যাচের অনুরোধ করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__response_payload
+msgid "Response Payload (JSON)"
+msgstr "প্রতিক্রিয়া পেলোড (JSON)"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Route Details"
+msgstr "রুটের বিবরণ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__notes
+msgid "Route Notes"
+msgstr "রুট নোট"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__name
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Route Reference"
+msgstr "রুট রেফারেন্স"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__name_bn
+msgid "Route Reference (Bengali)"
+msgstr "রুট রেফারেন্স (বাংলা)"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_routes
+msgid "Routing & Optimization"
+msgstr "রুট ও অপ্টিমাইজেশন"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Schedule & SLAs"
+msgstr "সময়সূচি ও SLA"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__scheduled_end
+msgid "Scheduled End"
+msgstr "নির্ধারিত সমাপ্তি"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__field_order_ids
+msgid "Scheduled Field Orders"
+msgstr "নির্ধারিত ফিল্ড অর্ডারসমূহ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__scheduled_start
+msgid "Scheduled Start"
+msgstr "নির্ধারিত শুরু"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Scheduled Stops"
+msgstr "নির্ধারিত স্টপসমূহ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__applied_at
+msgid "Server Applied At"
+msgstr "সার্ভারে প্রয়োগের সময়"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Service & Assignment"
+msgstr "সার্ভিস ও দায়িত্ব বণ্টন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__date
+msgid "Service Date"
+msgstr "সার্ভিসের তারিখ"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__sla_deadline
+msgid "SLA Deadline"
+msgstr "SLA সময়সীমা"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__notes
+msgid "Special Instructions"
+msgstr "বিশেষ নির্দেশনা"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__speed_kmh
+msgid "Speed (km/h)"
+msgstr "গতি (কিমি/ঘণ্টা)"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "Start Route"
+msgstr "রুট শুরু করুন"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Start Travel (En Route)"
+msgstr "যাত্রা শুরু করুন (পথে)"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Start Work"
+msgstr "কাজ শুরু করুন"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__depot_location
+msgid "Starting Depot / Hub"
+msgstr "যাত্রা শুরুর ডিপো / হাব"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__state
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__route_state
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__order_count
+msgid "Stops Count"
+msgstr "স্টপের সংখ্যা"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__model
+msgid "Target Model"
+msgstr "লক্ষ্য মডেল"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__technician_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_offline_idempotency_ledger__technician_id
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_technician_location
+msgid "Technician Location Ping"
+msgstr "টেকনিশিয়ান অবস্থান পিং"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_decline_log__notes
+msgid "Technician Notes"
+msgstr "টেকনিশিয়ানের নোট"
+
+#. module: cd_field_service
+#: model:ir.actions.act_window,name:cd_field_service.action_fix_field_route
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_list
+msgid "Technician Routes"
+msgstr "টেকনিশিয়ান রুটসমূহ"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_technician_location_list
+msgid "Technician Telemetry Pings"
+msgstr "টেকনিশিয়ান টেলিমেট্রি পিং"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_order__van_location_id
+msgid "Technician Van Location"
+msgstr "টেকনিশিয়ান ভ্যানের অবস্থান"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_technician_location__is_throttled
+msgid "Throttled by NFR-056"
+msgstr "NFR-056 অনুযায়ী সীমিত"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "Travel Metrics"
+msgstr "যাতায়াত মেট্রিক"
+
+#. module: cd_field_service
+#: model:ir.model.fields,field_description:cd_field_service.field_fix_field_route__improvement_pct
+msgid "Travel Time Reduction (%)"
+msgstr "যাতায়াত সময় হ্রাস (%)"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_order__priority__3
+msgid "Urgent"
+msgstr "জরুরি"
+
+#. module: cd_field_service
+#: model:ir.model.fields.selection,name:cd_field_service.selection__fix_field_route__route_state__optimized
+msgid "VROOM Optimized"
+msgstr "VROOM দিয়ে অপ্টিমাইজকৃত"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_order_form
+msgid "অর্ডার রেফারেন্স (বাংলা)"
+msgstr "অর্ডার রেফারেন্স (বাংলা)"
+
+#. module: cd_field_service
+#: model_terms:ir.ui.view,arch_db:cd_field_service.view_fix_field_route_form
+msgid "রুট রেফারেন্স (বাংলা)"
+msgstr "রুট রেফারেন্স (বাংলা)"

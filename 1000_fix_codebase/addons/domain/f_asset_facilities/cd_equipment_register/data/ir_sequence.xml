@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_equipment_issue" model="ir.sequence">
+            <field name="name">Equipment Issue</field>
+            <field name="code">fix.equipment.issue</field>
+            <field name="prefix">EISS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_transfer" model="ir.sequence">
+            <field name="name">Equipment Transfer</field>
+            <field name="code">fix.equipment.transfer</field>
+            <field name="prefix">ETRF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_verification" model="ir.sequence">
+            <field name="name">Equipment Verification</field>
+            <field name="code">fix.equipment.verification</field>
+            <field name="prefix">EVER/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_oos" model="ir.sequence">
+            <field name="name">Out of Service Record</field>
+            <field name="code">fix.equipment.oos</field>
+            <field name="prefix">EOOS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_pm" model="ir.sequence">
+            <field name="name">Equipment PM Job</field>
+            <field name="code">fix.equipment.pm</field>
+            <field name="prefix">EPM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_calibration_impact" model="ir.sequence">
+            <field name="name">Calibration Impact Assessment</field>
+            <field name="code">fix.calibration.impact</field>
+            <field name="prefix">EIMP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_tag" model="ir.sequence">
+            <field name="name">Equipment Asset Tag</field>
+            <field name="code">fix.equipment.tag</field>
+            <field name="prefix">1000FIX-EQ-</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_pm_plan" model="ir.sequence">
+            <field name="name">Equipment PM Plan</field>
+            <field name="code">fix.equipment.pm.plan</field>
+            <field name="prefix">EPMP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_loss" model="ir.sequence">
+            <field name="name">Equipment Loss / Damage Report</field>
+            <field name="code">fix.equipment.loss</field>
+            <field name="prefix">ELOS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_audit" model="ir.sequence">
+            <field name="name">Equipment Physical Verification Run</field>
+            <field name="code">fix.equipment.audit</field>
+            <field name="prefix">EAUD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- M45 capture audit 2026-11-16 -->
+        <record id="seq_fix_equipment_retirement" model="ir.sequence">
+            <field name="name">Equipment Retirement</field>
+            <field name="code">fix.equipment.retirement</field>
+            <field name="prefix">ERET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M59 capture audit (2026-11-18): who reaches the six new registers.
+     GLOBAL rules (groups cleared) for the same reason as
+     fix_a09_hse_rules.xml: they must narrow what the generated company and
+     operating-unit rules grant, and group rules combine with OR. -->
+<odoo>
+    <!-- a safe work procedure is published to everyone once approved; a draft
+         is read by the HSE roles and the person who prepared it -->
+    <record id="rule_hse_procedure_published" model="ir.rule">
+        <field name="name">fix.hse.procedure: published, or your draft, unless an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_procedure"/>
+        <field name="domain_force">['|', '|', ('state', 'in', ('approved', 'superseded', 'retired')), ('prepared_by_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- a permit: the requester, the person doing the work, their line
+         manager (read) and the HSE roles -->
+    <record id="rule_hse_permit_read" model="ir.rule">
+        <field name="name">fix.hse.permit: requester, performer, their manager, or an HSE role (read)</field>
+        <field name="model_id" ref="model_fix_hse_permit"/>
+        <field name="domain_force">['|', '|', '|', ('requested_by_id', '=', user.id), ('performer_id.user_id', '=', user.id), ('performer_id.parent_id.user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_hse_permit_write" model="ir.rule">
+        <field name="name">fix.hse.permit: requester, performer, or an HSE role (write)</field>
+        <field name="model_id" ref="model_fix_hse_permit"/>
+        <field name="domain_force">['|', '|', ('requested_by_id', '=', user.id), ('performer_id.user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- a work refusal: the person who refused, who recorded it, their line
+         manager and the HSE roles; nobody else learns who refused -->
+    <record id="rule_hse_work_refusal_scope" model="ir.rule">
+        <field name="name">fix.hse.work.refusal: own, recorded by you, your direct report's, or an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_work_refusal"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('recorded_by_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- a customer site hazard is read by every employee (the next technician
+         must see it); the reporter changes it only while it is reported -->
+    <record id="rule_hse_location_hazard_write" model="ir.rule">
+        <field name="name">fix.hse.location.hazard: the reporter while reported, or an HSE role (write)</field>
+        <field name="model_id" ref="model_fix_hse_location_hazard"/>
+        <field name="domain_force">['|', '&amp;', ('reported_by_id.user_id', '=', user.id), ('state', '=', 'reported'), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- company isolation for the six registers -->
+    <record id="rule_hse_procedure_company" model="ir.rule">
+        <field name="name">fix.hse.procedure: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_procedure"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_permit_company" model="ir.rule">
+        <field name="name">fix.hse.permit: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_permit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_witness_statement_company" model="ir.rule">
+        <field name="name">fix.hse.witness.statement: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_witness_statement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_work_refusal_company" model="ir.rule">
+        <field name="name">fix.hse.work.refusal: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_work_refusal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_location_hazard_company" model="ir.rule">
+        <field name="name">fix.hse.location.hazard: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_location_hazard"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_emergency_plan_company" model="ir.rule">
+        <field name="name">fix.hse.emergency.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_emergency_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

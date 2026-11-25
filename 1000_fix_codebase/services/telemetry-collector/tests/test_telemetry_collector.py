@@ -1,10 +1,11 @@
 """Tests for telemetry collector service (CD-M02-03) and TimescaleDB hypertable definition."""
+
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import pytest
 
 
 def haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -12,9 +13,10 @@ def haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> floa
     r = 6371000.0
     d_lat = math.radians(lat2 - lat1)
     d_lon = math.radians(lon2 - lon1)
-    a = (math.sin(d_lat / 2) ** 2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(d_lon / 2) ** 2)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
+    )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return r * c
 
@@ -53,14 +55,24 @@ class TestTelemetryCollector:
         assert "CREATE EXTENSION IF NOT EXISTS timescaledb" in sql_content
         assert "CREATE TABLE IF NOT EXISTS fix_technician_telemetry" in sql_content
         assert "SELECT create_hypertable" in sql_content
-        assert "timescaledb.compress" in sql_content
-        assert "add_compression_policy" in sql_content
-        assert "add_retention_policy" in sql_content
         assert "view_technician_current_locations" in sql_content
+        # D-030: Apache-2.0 TimescaleDB features only - retention via drop_chunks,
+        # no TSL compression / policy / job-scheduler calls (comments stripped)
+        code = re.sub(r"--[^\n]*", "", sql_content)
+        assert "FUNCTION fix_telemetry_apply_retention" in code
+        assert "drop_chunks('fix_technician_telemetry'" in code
+        assert "current_setting('timescaledb.license', true)" in code
+        for tsl in (
+            "timescaledb.compress",
+            "add_compression_policy(",
+            "add_retention_policy(",
+            "add_job(",
+        ):
+            assert tsl not in code
 
     def test_nfr_056_throttle_logic_stationary(self):
         """Technician pinging after 15 seconds from same location must be throttled."""
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         t1 = t0 + timedelta(seconds=15)
         # Lat/lon difference of 10 meters
         lat0, lon0 = 23.7937, 90.4066
@@ -69,7 +81,7 @@ class TestTelemetryCollector:
 
     def test_nfr_056_throttle_logic_moving_fast(self):
         """Technician moving 250m in 15 seconds must NOT be throttled."""
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         t1 = t0 + timedelta(seconds=15)
         lat0, lon0 = 23.7937, 90.4066
         lat1, lon1 = 23.7960, 90.4066  # ~256 meters
@@ -77,7 +89,7 @@ class TestTelemetryCollector:
 
     def test_nfr_056_throttle_logic_time_elapsed(self):
         """Technician stationary but 35 seconds elapsed must NOT be throttled."""
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         t1 = t0 + timedelta(seconds=35)
         lat0, lon0 = 23.7937, 90.4066
         lat1, lon1 = 23.7937, 90.4066

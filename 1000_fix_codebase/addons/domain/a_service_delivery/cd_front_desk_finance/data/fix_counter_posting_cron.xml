@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  E2E2 flow 2: a counter sale whose posting could not run (an account that
+  does not resolve, a location nobody named) is left pending, never blocked.
+  This job posts it once the cause is fixed. It posts nothing twice.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_counter_sale_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending counter sales to the books</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_counter_sale"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_counter_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A reconciled drawer variance whose account did not resolve. -->
+        <record id="ir_cron_cash_shift_variance_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending cash shift variances to the GL</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_cash_shift"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_variance_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A02 pass 2 (M04-03): an approved opening-float difference. -->
+        <record id="ir_cron_cash_shift_float_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending opening-float differences to the GL</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_cash_shift"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_float_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A02 pass 2 (M04-01): a drawer cash-out whose account did not resolve. -->
+        <record id="ir_cron_cash_movement_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending drawer cash-outs to the GL</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_cash_movement"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_movement_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -8,6 +8,7 @@ Enforces the state-machine and code-list standard:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -18,8 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ADDONS_DIR = REPO_ROOT / "addons"
 
 STATE_FIELD_PATTERN = re.compile(
-    r'state\s*=\s*fields\.Selection\(\s*(?:selection\s*=\s*)?(\[[^\]]+\])',
-    re.DOTALL
+    r"state\s*=\s*fields\.Selection\(\s*(?:selection\s*=\s*)?(\[[^\]]+\])", re.DOTALL
 )
 
 
@@ -41,9 +41,11 @@ def main() -> int:
             # Find key values in [('draft', 'Draft'), ('confirmed', 'Confirmed')]
             keys = re.findall(r"\(\s*['\"]([a-z0-9_]+)['\"]", body)
             if not keys:
-                violations.append(f"{py_file.name}: state field selection list could not be parsed: {body[:60]}...")
+                violations.append(
+                    f"{py_file.name}: state field selection list could not be parsed: {body[:60]}..."
+                )
             # Check default parameter
-            field_decl = txt[match.start():match.start() + 400]
+            field_decl = txt[match.start() : match.start() + 400]
             if "default=" not in field_decl and "default =" not in field_decl:
                 # Warning/check for default state
                 pass
@@ -52,10 +54,14 @@ def main() -> int:
         print(f"code-lists: FAIL - {len(violations)} state set violation(s):")
         for v in violations:
             print(f"  {v}")
-        print("  remedy: DA-009 requires every state field to declare explicit snake_case selection tuples and default.")
+        print(
+            "  remedy: DA-009 requires every state field to declare explicit snake_case selection tuples and default."
+        )
         return 1
 
-    print(f"code-lists: OK - {models_checked} model file(s) checked, {state_fields_found} state machine(s) conform to DA-009")
+    print(
+        f"code-lists: OK - {models_checked} model file(s) checked, {state_fields_found} state machine(s) conform to DA-009"
+    )
     return 0
 
 

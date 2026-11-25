@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 ERP pass 2 (M05-S15): the printable, bilingual client service report of
+  a month (FR-RMS-035). The payload is built in Python from the report's
+  stored figures and the month's records
+  (fix_msp_a02r2.MspServiceReportPdf); the template only lays it out.
+-->
+<odoo>
+    <record id="action_report_msp_service_report" model="ir.actions.report">
+        <field name="name">Client Service Report</field>
+        <field name="model">fix.msp.service.report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_msp_contract.report_msp_service_report</field>
+        <field name="report_file">cd_msp_contract.report_msp_service_report</field>
+        <field name="print_report_name">'Service Report %s %s' % (object.msp_contract_id.name, object.period_label)</field>
+        <field name="binding_model_id" ref="model_fix_msp_service_report"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_msp_service_report">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <t t-set="p" t-value="payloads[doc.id]"/>
+                    <div class="page" style="font-size: 12px;">
+                        <h3 style="margin-bottom: 0;">Managed Services Report / পরিচালিত সেবা প্রতিবেদন</h3>
+                        <div style="color: #555; margin-bottom: 10px;">
+                            <span t-esc="p['client']"/> · <span t-esc="p['contract']"/> · <span t-esc="p['period']"/>
+                        </div>
+                        <t t-foreach="p['blocks']" t-as="blk">
+                            <h5 style="margin-top: 12px;" t-esc="blk['title']"/>
+                            <table class="table table-sm" style="width: 100%;">
+                                <tr t-foreach="blk['rows']" t-as="row">
+                                    <td style="width: 45%; color: #555;" t-esc="row[0]"/>
+                                    <td t-esc="row[1]"/>
+                                </tr>
+                            </table>
+                        </t>
+                        <t t-foreach="p['tables']" t-as="tbl">
+                            <h5 style="margin-top: 12px;" t-esc="tbl['title']"/>
+                            <table class="table table-sm table-bordered" style="width: 100%;">
+                                <thead><tr><th t-foreach="tbl['cols']" t-as="col" t-esc="col"/></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="tbl['rows']" t-as="row">
+                                        <td t-foreach="row" t-as="cell" t-esc="cell"/>
+                                    </tr>
+                                    <tr t-if="not tbl['rows']">
+                                        <td t-att-colspan="len(tbl['cols'])" style="text-align: center; color: #777;">None / নেই</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+                        <h5 style="margin-top: 12px;">Summary / সারসংক্ষেপ</h5>
+                        <p style="white-space: pre-wrap;" t-esc="p['summary_en']"/>
+                        <p style="white-space: pre-wrap;" t-esc="p['summary_bn']"/>
+                        <div style="color: #777; margin-top: 16px;">
+                            Printed <span t-esc="p['printed_at']"/> by <span t-esc="p['printed_by']"/>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

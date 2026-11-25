@@ -105,6 +105,12 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <!-- A02 audit M04-11: the drawer moves only through its actions. -->
+                    <button name="action_close_shift" type="object" string="Close for Counting" invisible="state != 'open'"/>
+                    <button name="action_submit_blind_count" type="object" string="Submit Blind Count" invisible="state not in ('open', 'counting')"/>
+                    <button name="action_confirm_closed" type="object" string="Confirm Count" invisible="state != 'counting'"/>
+                    <button name="action_approve_variance" type="object" string="Approve Variance" invisible="state not in ('counting', 'closed')"/>
+                    <button name="action_reconcile" type="object" string="Reconcile" invisible="state not in ('counting', 'closed')"/>
                     <field name="state" widget="statusbar" readonly="1"/>
                 </header>
                 <sheet>

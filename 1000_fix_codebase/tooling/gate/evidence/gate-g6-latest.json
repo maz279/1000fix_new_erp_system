@@ -1,0 +1,70 @@
+{
+    "schema":  "1000fix-erp/gate-g6/2",
+    "ranAtUtc":  "2026-10-22T17:21:21.8560099Z",
+    "pass":  3,
+    "conditions":  7,
+    "failures":  0,
+    "verdict":  "CONDITION",
+    "criteria":  [
+                     {
+                         "Id":  "G6-1",
+                         "Criterion":  "T-6 entry: fitness clean",
+                         "Status":  "PASS",
+                         "Evidence":  "fitness runner executed in this gate run: exit 0, 0 blocking failure(s) parsed from its summary line"
+                     },
+                     {
+                         "Id":  "G6-2",
+                         "Criterion":  "Asset businesses transacting",
+                         "Status":  "CONDITION",
+                         "Evidence":  "artefact present, not measured: rental (reservation + damage + deposit), trade-in (10-state lifecycle + wipe gate) and data services (custody chain + Z4 + purge) models exist; no runtime transactions measured - bookings, deposits and purge volume need the production estate (existence was previously awarded PASS with \u0027transacting\u0027 prose)"
+                     },
+                     {
+                         "Id":  "G6-3",
+                         "Criterion":  "Event-bus migration (Kafka)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "evidence verdicts: cluster-survival=PASS dual-write-parity=PASS cutover=PASS dlq-replay=PASS schema-registry-audit=INCOMPLETE D-037=True"
+                     },
+                     {
+                         "Id":  "G6-4",
+                         "Criterion":  "Journeys 8, 9, 11 automated",
+                         "Status":  "CONDITION",
+                         "Evidence":  "journey suites executed (grep-only previously): exit 0, 30 passed (rental money path, trade-in lifecycle, data-services custody + purge); event-registry audit executed live: exit 2, verdict=INCOMPLETE, registered=215, published-direct=175, published-but-unregistered=0 [docs/traceability/evidence/event-schema-registry-audit.json]; broker-side topic provisioning UNMEASURED (brokers down) - end-to-end automation over the bus is not yet demonstrable"
+                     },
+                     {
+                         "Id":  "G6-5",
+                         "Criterion":  "D-025 upgrade slot executed",
+                         "Status":  "CONDITION",
+                         "Evidence":  "D-025=True D-038=True; fork audit + OCA v20 matrix verdict=INCOMPLETE; Bengali conjunct rendering (TR-07) verdict=PASS"
+                     },
+                     {
+                         "Id":  "G6-6",
+                         "Criterion":  "M06 residency conformance",
+                         "Status":  "CONDITION",
+                         "Evidence":  "journey 11 suite executed (grep-only previously): part of 30 passed (exit 0) - exercises the Z4 residency gate (SC-007: recovery blocked unless routed to Z4), step-up authentication and the NIST SP 800-88 purge certificate with statutory retention; runtime Z4 routing and per-read access-audit volume are UNMEASURED"
+                     },
+                     {
+                         "Id":  "G6-7",
+                         "Criterion":  "Content approvals",
+                         "Status":  "CONDITION",
+                         "Evidence":  "appointment and G6 sign-off documents present; register reads UNMEASURED declared Class A/B templates, pending=UNMEASURED - the register is repo-authored and no tool measured the approvals (the gate previously trusted its pending_count for PASS); Steering confirmation is a human act"
+                     },
+                     {
+                         "Id":  "G6-8",
+                         "Criterion":  "ML model governance",
+                         "Status":  "PASS",
+                         "Evidence":  "ml-gateway tests exit 0, 34 passed; model registry present=True; drift detection present=True"
+                     },
+                     {
+                         "Id":  "G6-9",
+                         "Criterion":  "Gate profile (PE-004 \u0026 PE-007)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "PE-004 1.5x-peak profile verdict=INCOMPLETE [docs/traceability/evidence/g6-pe004-performance-evidence.json]; PE-007 DR drill verdict=INCOMPLETE, RPO=UNMEASURED, RTO=UNMEASURED, data loss records=UNMEASURED, 5 PASS / 0 FAIL / 6 UNMEASURED of 11 checks [docs/traceability/evidence/g6-pe007-dr-drill-evidence.json]; Steering gate sign-off: PENDING - human execution, and the hand-written gate-g6-signed-report.json is not evidence"
+                     },
+                     {
+                         "Id":  "G6-10",
+                         "Criterion":  "All modules shipped",
+                         "Status":  "PASS",
+                         "Evidence":  "71 manifests; FF-23: tests-present: OK - 71 modules, all have tests/ (manifest count + FF-23 executed with exit code honoured); installation on fix_dev is not part of this criterion"
+                     }
+                 ]
+}

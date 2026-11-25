@@ -1,0 +1,10 @@
+# Repo-root build context for services/notification-dispatcher/Dockerfile
+# (BuildKit reads <Dockerfile>.dockerignore): send ONLY what the image copies.
+*
+!libs/__init__.py
+!libs/py/__init__.py
+!libs/py/fix_telemetry
+!services/notification-dispatcher/src
+!services/notification-dispatcher/templates
+**/tests
+**/__pycache__

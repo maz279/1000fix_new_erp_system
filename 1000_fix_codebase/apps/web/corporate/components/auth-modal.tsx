@@ -1,31 +1,45 @@
 "use client";
 
 /**
- * Corporate Authentication Modal & Context.
- * Enables direct sign-in against Odoo via the Kong gateway (/web/session/authenticate).
- * Supports both custom credential entry and one-click enterprise demo personas.
- * Fully accessible: aria-modal, role="dialog", Escape key listener, focus styles.
- * Tokens only (CFM-01) — no hand-authored colors.
+ * Corporate Authentication Context.
+ *
+ * Sign-in lives on the dedicated /login page; `openLoginModal()` navigates
+ * there (the name is kept for existing callers). Session truth is the Odoo
+ * cookie checked through the same-origin /api/odoo bridge — the Odoo session
+ * is the only credential and internal (staff) sessions are treated as signed
+ * out. The sessionStorage profile is display-only.
  */
-import { createContext, useContext, useEffect, useState, useId } from "react";
-import { tokens } from "../lib/imports";
-import { loginWithOdoo, logoutOdoo, getCurrentUser, UserSession } from "../lib/auth";
-import { useLanguage } from "./language";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  getCurrentUser,
+  getSessionInfo,
+  loginWithOdoo,
+  logoutOdoo,
+  type UserSession,
+} from "../lib/auth";
 
 interface AuthContextValue {
   user: UserSession | null;
+  backendReachable: boolean | null;
+  /** false until the first Odoo session check has completed. */
+  authReady: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   logoutUser: () => Promise<void>;
   loginWithCredentials: (u: string, p: string) => Promise<void>;
+  refreshUser: () => Promise<UserSession | null>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
+  backendReachable: null,
+  authReady: false,
   openLoginModal: () => {},
   closeLoginModal: () => {},
   logoutUser: async () => {},
   loginWithCredentials: async () => {},
+  refreshUser: async () => null,
 });
 
 export function useAuth() {
@@ -34,364 +48,59 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    const existing = getCurrentUser();
-    if (existing) setUser(existing);
+  const refreshUser = useCallback(async () => {
+    const { user: live, backendReachable: up } = await getSessionInfo();
+    setBackendReachable(up);
+    if (live) {
+      setUser(live);
+      window.sessionStorage.setItem("fix_corporate_user", JSON.stringify(live));
+    } else {
+      setUser(null);
+      window.sessionStorage.removeItem("fix_corporate_user");
+      window.sessionStorage.removeItem("fix_token");
+    }
+    setAuthReady(true);
+    return live;
   }, []);
 
-  const openLoginModal = () => setIsModalOpen(true);
-  const closeLoginModal = () => setIsModalOpen(false);
+  useEffect(() => {
+    const cached = getCurrentUser();
+    if (cached) setUser(cached);
+    refreshUser();
+  }, [refreshUser]);
 
-  const loginWithCredentials = async (u: string, p: string) => {
+  const openLoginModal = useCallback(() => router.push("/login"), [router]);
+  const closeLoginModal = useCallback(() => router.push("/"), [router]);
+
+  const loginWithCredentials = useCallback(async (u: string, p: string) => {
     const session = await loginWithOdoo(u, p);
     setUser(session);
-    setIsModalOpen(false);
-  };
+  }, []);
 
-  const logoutUser = async () => {
+  const logoutUser = useCallback(async () => {
     await logoutOdoo();
     setUser(null);
-  };
+    router.push("/");
+  }, [router]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        backendReachable,
+        authReady,
         openLoginModal,
         closeLoginModal,
         logoutUser,
         loginWithCredentials,
+        refreshUser,
       }}
     >
       {children}
-      {isModalOpen && <AuthModal onClose={closeLoginModal} />}
     </AuthContext.Provider>
-  );
-}
-
-export function AuthModal({ onClose }: { onClose: () => void }) {
-  const { loginWithCredentials } = useAuth();
-  const { t } = useLanguage();
-  const usernameId = useId();
-  const passwordId = useId();
-
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      await loginWithCredentials(username, password);
-    } catch (err) {
-      setError((err as Error).message || "Authentication failed");
-      setLoading(false);
-    }
-  };
-
-  const selectPersona = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-  };
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="corporate-auth-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-        padding: 16,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        style={{
-          background: tokens["color.surface.primary"],
-          border: `1px solid ${tokens["color.border.default"]}`,
-          borderRadius: tokens["dimension.border.radius-md"],
-          maxWidth: 520,
-          width: "100%",
-          padding: 28,
-          boxShadow: tokens["shadow.lg"],
-          position: "relative",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div>
-            <h2
-              id="corporate-auth-title"
-              style={{
-                margin: "0 0 6px",
-                fontSize: tokens["typography.size.400"],
-                fontWeight: Number(tokens["typography.weight.bold"]),
-                color: tokens["color.text.primary"],
-              }}
-            >
-              {t.authModalTitle}
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: tokens["typography.size.200"],
-                color: tokens["color.text.secondary"],
-                lineHeight: tokens["typography.lineHeight.normal"],
-              }}
-            >
-              {t.authModalSubtitle}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label={t.closeButton}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: tokens["color.text.secondary"],
-              fontSize: 20,
-              cursor: "pointer",
-              padding: "4px 8px",
-              lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {error && (
-          <div
-            role="alert"
-            style={{
-              padding: 10,
-              marginBottom: 16,
-              background: tokens["color.status.error-bg"],
-              color: tokens["color.status.error"],
-              border: `1px solid ${tokens["color.status.error"]}`,
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-            }}
-          >
-            ⚠️ {error}
-          </div>
-        )}
-
-        {/* Demo Personas */}
-        <div style={{ marginBottom: 20 }}>
-          <p
-            style={{
-              fontSize: tokens["typography.size.100"],
-              fontWeight: Number(tokens["typography.weight.semibold"]),
-              color: tokens["color.text.secondary"],
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              margin: "0 0 8px",
-            }}
-          >
-            Quick Enterprise Personas:
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => selectPersona("admin", "admin")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "admin" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "admin" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🔑 {t.personaAdmin} (admin)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.primary.base"], fontWeight: 600 }}>
-                  Active Root
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaAdminRole}
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPersona("portal", "portal")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "portal" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "portal" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🏢 {t.personaPortal} (portal)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                  Partner Client
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaPortalRole}
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPersona("demo", "demo")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "demo" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "demo" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🧪 {t.personaDemo} (demo)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                  Evaluator
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaDemoRole}
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 14 }}>
-            <label
-              htmlFor={usernameId}
-              style={{
-                display: "block",
-                fontSize: tokens["typography.size.200"],
-                fontWeight: Number(tokens["typography.weight.medium"]),
-                color: tokens["color.text.primary"],
-                marginBottom: 4,
-              }}
-            >
-              {t.usernameLabel}
-            </label>
-            <input
-              id={usernameId}
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                fontSize: tokens["typography.size.200"],
-                border: `1px solid ${tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                background: tokens["color.surface.canvas"],
-                color: tokens["color.text.primary"],
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <label
-              htmlFor={passwordId}
-              style={{
-                display: "block",
-                fontSize: tokens["typography.size.200"],
-                fontWeight: Number(tokens["typography.weight.medium"]),
-                color: tokens["color.text.primary"],
-                marginBottom: 4,
-              }}
-            >
-              {t.passwordLabel}
-            </label>
-            <input
-              id={passwordId}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                fontSize: tokens["typography.size.200"],
-                border: `1px solid ${tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                background: tokens["color.surface.canvas"],
-                color: tokens["color.text.primary"],
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "8px 16px",
-                fontSize: tokens["typography.size.200"],
-                color: tokens["color.text.secondary"],
-                background: "transparent",
-                border: `1px solid ${tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              {t.cancelButton}
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: "8px 20px",
-                fontSize: tokens["typography.size.200"],
-                fontWeight: Number(tokens["typography.weight.semibold"]),
-                color: tokens["color.text.inverse"],
-                background: tokens["color.primary.base"],
-                border: "none",
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: loading ? "wait" : "pointer",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? t.loggingIn : t.loginButton}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M43 Demand Planning roles (A06 audit 2026-11-03, M43-2, M43-7, M43-9, M43-10).
+
+  M43 declared no group at all: every internal user was planner, approver and
+  inventory manager, approved their own plans, forecasts, parameter changes and
+  rebalances, and released requisitions born `approved` into M16.
+
+  - Demand Planner: computes forecasts from M15 consumption history, prepares
+    policies (safety stock / ROP / target level), segmentation, plans,
+    rebalance proposals, review cycles and what-if scenarios; publishes
+    approved forecasts and releases approved plans to M16 as a DRAFT
+    requisition submitted into M16's own approval.
+  - Demand Plan Approver: approves plans, forecasts, A-class / critical (and
+    unclassified) policy versions and rebalance proposals, never one they
+    prepared; changes item criticality.
+
+  The planner group carries the development admin so the workspace keeps
+  working; segregation of duties still applies to it. The approver group ships
+  EMPTY: who approves demand plans is a business appointment (spec Q-06).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_demand_plan" model="res.groups.privilege">
+            <field name="name">Demand Planning &amp; Replenishment</field>
+            <field name="description">Planner and approver roles of the M43 demand planning module.</field>
+            <field name="sequence">43</field>
+        </record>
+
+        <record id="group_fix_demand_planner" model="res.groups">
+            <field name="name">Demand Planner</field>
+            <field name="privilege_id" ref="privilege_fix_demand_plan"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Computes forecasts from M15 consumption history, prepares replenishment policies, plans, rebalance proposals, review cycles and what-if scenarios, publishes approved forecasts and releases approved plans to M16 as draft requisitions.</field>
+        </record>
+
+        <record id="group_fix_demand_approver" model="res.groups">
+            <field name="name">Demand Plan Approver</field>
+            <field name="privilege_id" ref="privilege_fix_demand_plan"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves demand plans, forecasts, A-class / critical policy versions and rebalance proposals, never one they prepared, and sets item criticality.</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,90 @@
+{
+  "schema": "1000fix-erp/pe-004-performance/2",
+  "gate": "G5",
+  "milestone": "R06-M05-T04",
+  "timestamp_utc": "2026-10-22T09:10:00.589821+00:00",
+  "status": "INCOMPLETE",
+  "peak_multiplier": 1.5,
+  "baseline_peak_rps": 50.0,
+  "sla_thresholds": {
+    "p95_latency_ms_max": 500.0,
+    "error_rate_pct_max": 0.0
+  },
+  "measurement": {
+    "probe_target": "http://127.0.0.1:8069/jsonrpc common.version (read-only)",
+    "odoo_reachable": true,
+    "odoo_reachability_detail": "127.0.0.1:8069 accepted a TCP connection",
+    "unloaded_probe": {
+      "samples": 5,
+      "successes": 5,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "error_samples": [],
+      "latency_ms": {
+        "p50": 27.7,
+        "p95": 41.7,
+        "max": 41.7,
+        "mean": 26.05
+      }
+    },
+    "workloads": [
+      {
+        "workload": "Odoo JSON-RPC Kernel (/jsonrpc)",
+        "target_rps_1_5x_peak": 75.0,
+        "status": "UNMEASURED",
+        "reason": "no load generated at 75.0 req/s: this measure-only tool sends 5 sequential read-only calls; the 1.5x-peak profile needs a load harness against the perf environment"
+      },
+      {
+        "workload": "P11/P02 Offline Sync Engine (/fix/offline/sync)",
+        "target_rps_1_5x_peak": 60.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "Mayan EDMS Dual-Store Retention Bridge",
+        "target_rps_1_5x_peak": 45.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "Payroll Calculation Engine (Batch Journey 13)",
+        "target_rps_1_5x_peak": 50.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      }
+    ],
+    "checks": [
+      {
+        "check": "odoo_jsonrpc_probe_error_free",
+        "status": "PASS",
+        "detail": "5/5 read-only common.version calls succeeded; errors none"
+      },
+      {
+        "check": "odoo_jsonrpc_unloaded_p95_within_budget",
+        "status": "PASS",
+        "detail": "unloaded p95 41.7 ms vs budget 500.0 ms over 5 timed calls"
+      },
+      {
+        "check": "pe004_1_5x_peak::Odoo JSON-RPC Kernel (/jsonrpc)",
+        "status": "UNMEASURED",
+        "detail": "no load generated at 75.0 req/s: this measure-only tool sends 5 sequential read-only calls; the 1.5x-peak profile needs a load harness against the perf environment"
+      },
+      {
+        "check": "pe004_1_5x_peak::P11/P02 Offline Sync Engine (/fix/offline/sync)",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::Mayan EDMS Dual-Store Retention Bridge",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::Payroll Calculation Engine (Batch Journey 13)",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      }
+    ],
+    "status": "INCOMPLETE"
+  }
+}

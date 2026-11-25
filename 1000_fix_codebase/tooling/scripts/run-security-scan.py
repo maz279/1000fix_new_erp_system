@@ -8,14 +8,13 @@ Milestone R09 (Gate G3) under governance rule SC-009.
 Emits structured JSON evidence to tooling/fitness/evidence/security-scan-latest.json.
 Exit code: 0 if 0 Critical and 0 High findings; 1 otherwise.
 """
+
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,7 +26,9 @@ DANGEROUS_PATTERNS = [
         "id": "SEC-RCE-001",
         "name": "Command Injection (shell=True)",
         "severity": "CRITICAL",
-        "pattern": re.compile(r"subprocess\.(?:run|call|check_call|Popen)\([^)]*shell\s*=\s*True", re.IGNORECASE),
+        "pattern": re.compile(
+            r"subprocess\.(?:run|call|check_call|Popen)\([^)]*shell\s*=\s*True", re.IGNORECASE
+        ),
         "description": "Execution of shell commands with shell=True creates arbitrary command execution risk.",
     },
     {
@@ -48,14 +49,19 @@ DANGEROUS_PATTERNS = [
         "id": "SEC-SQLI-001",
         "name": "SQL Injection (Unescaped string formatting in SQL)",
         "severity": "HIGH",
-        "pattern": re.compile(r"cr\.execute\s*\(\s*f[\"'].*SELECT|cr\.execute\s*\(\s*f[\"'].*UPDATE|cr\.execute\s*\(\s*f[\"'].*DELETE", re.IGNORECASE),
+        "pattern": re.compile(
+            r"cr\.execute\s*\(\s*f[\"'].*SELECT|cr\.execute\s*\(\s*f[\"'].*UPDATE|cr\.execute\s*\(\s*f[\"'].*DELETE",
+            re.IGNORECASE,
+        ),
         "description": "Direct interpolation of f-strings into SQL execution without parameterized queries.",
     },
     {
         "id": "SEC-TLS-001",
         "name": "Disabled SSL/TLS Verification",
         "severity": "HIGH",
-        "pattern": re.compile(r"verify\s*=\s*False|(?:ssl\.)?_create_unverified_context", re.IGNORECASE),
+        "pattern": re.compile(
+            r"verify\s*=\s*False|(?:ssl\.)?_create_unverified_context", re.IGNORECASE
+        ),
         "description": "Disabling TLS certificate validation permits man-in-the-middle attacks.",
     },
 ]
@@ -80,7 +86,10 @@ SECRET_PATTERNS = [
         "id": "SEC-SECRET-003",
         "name": "Hardcoded Production DB Password",
         "severity": "HIGH",
-        "pattern": re.compile(r"(?:postgres|mysql|redis)://[^:]+:([a-zA-Z0-9!@#$%^&*]{8,})@(?!localhost|127\.0\.0\.1|db|postgres)[a-zA-Z0-9.-]+", re.IGNORECASE),
+        "pattern": re.compile(
+            r"(?:postgres|mysql|redis)://[^:]+:([a-zA-Z0-9!@#$%^&*]{8,})@(?!localhost|127\.0\.0\.1|db|postgres)[a-zA-Z0-9.-]+",
+            re.IGNORECASE,
+        ),
         "description": "Hardcoded database connection URI with non-local production credentials.",
     },
 ]
@@ -92,13 +101,17 @@ def scan_python_sast(target_dirs: list[Path]) -> list[dict]:
         if not tdir.exists():
             continue
         for py_path in tdir.rglob("*.py"):
-            if "__pycache__" in py_path.parts or "node_modules" in py_path.parts or ".venv" in py_path.parts:
+            if (
+                "__pycache__" in py_path.parts
+                or "node_modules" in py_path.parts
+                or ".venv" in py_path.parts
+            ):
                 continue
             if py_path.name == "run-security-scan.py":
                 continue
             try:
                 content = py_path.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
+            except OSError:
                 continue
 
             rel_path = str(py_path.relative_to(REPO_ROOT)).replace("\\", "/")
@@ -108,15 +121,17 @@ def scan_python_sast(target_dirs: list[Path]) -> list[dict]:
                 if is_test_file and rule["id"] in ("SEC-DESER-001", "SEC-SQLI-001"):
                     continue
                 for match in rule["pattern"].finditer(content):
-                    line_no = content[:match.start()].count("\n") + 1
-                    findings.append({
-                        "id": rule["id"],
-                        "name": rule["name"],
-                        "severity": rule["severity"],
-                        "file": rel_path,
-                        "line": line_no,
-                        "description": rule["description"],
-                    })
+                    line_no = content[: match.start()].count("\n") + 1
+                    findings.append(
+                        {
+                            "id": rule["id"],
+                            "name": rule["name"],
+                            "severity": rule["severity"],
+                            "file": rel_path,
+                            "line": line_no,
+                            "description": rule["description"],
+                        }
+                    )
     return findings
 
 
@@ -126,27 +141,35 @@ def scan_secrets(target_dirs: list[Path]) -> list[dict]:
         if not tdir.exists():
             continue
         for fpath in tdir.rglob("*"):
-            if fpath.is_dir() or "__pycache__" in fpath.parts or ".git" in fpath.parts or "node_modules" in fpath.parts or ".venv" in fpath.parts:
+            if (
+                fpath.is_dir()
+                or "__pycache__" in fpath.parts
+                or ".git" in fpath.parts
+                or "node_modules" in fpath.parts
+                or ".venv" in fpath.parts
+            ):
                 continue
             if fpath.suffix in (".pyc", ".png", ".jpg", ".jpeg", ".ico", ".woff", ".woff2", ".pdf"):
                 continue
             try:
                 content = fpath.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
+            except OSError:
                 continue
 
             rel_path = str(fpath.relative_to(REPO_ROOT)).replace("\\", "/")
             for rule in SECRET_PATTERNS:
                 for match in rule["pattern"].finditer(content):
-                    line_no = content[:match.start()].count("\n") + 1
-                    findings.append({
-                        "id": rule["id"],
-                        "name": rule["name"],
-                        "severity": rule["severity"],
-                        "file": rel_path,
-                        "line": line_no,
-                        "description": rule["description"],
-                    })
+                    line_no = content[: match.start()].count("\n") + 1
+                    findings.append(
+                        {
+                            "id": rule["id"],
+                            "name": rule["name"],
+                            "severity": rule["severity"],
+                            "file": rel_path,
+                            "line": line_no,
+                            "description": rule["description"],
+                        }
+                    )
     return findings
 
 
@@ -158,15 +181,21 @@ def scan_containers() -> list[dict]:
             text = cfile.read_text(encoding="utf-8", errors="ignore")
             rel_path = str(cfile.relative_to(REPO_ROOT)).replace("\\", "/")
             # Verify no plaintext production passwords in compose files
-            if re.search(r"POSTGRES_PASSWORD:\s*['\"]?(?!change-me|dev|postgres|secret)[a-zA-Z0-9!@#$%^&*]{12,}['\"]?", text, re.IGNORECASE):
-                findings.append({
-                    "id": "SEC-CONT-001",
-                    "name": "Production Database Credential in Compose",
-                    "severity": "HIGH",
-                    "file": rel_path,
-                    "line": 1,
-                    "description": "Hardcoded production credential found in docker-compose definition.",
-                })
+            if re.search(
+                r"POSTGRES_PASSWORD:\s*['\"]?(?!change-me|dev|postgres|secret)[a-zA-Z0-9!@#$%^&*]{12,}['\"]?",
+                text,
+                re.IGNORECASE,
+            ):
+                findings.append(
+                    {
+                        "id": "SEC-CONT-001",
+                        "name": "Production Database Credential in Compose",
+                        "severity": "HIGH",
+                        "file": rel_path,
+                        "line": 1,
+                        "description": "Hardcoded production credential found in docker-compose definition.",
+                    }
+                )
     return findings
 
 
@@ -177,15 +206,17 @@ def scan_dependencies() -> list[dict]:
     if pyproject.exists():
         text = pyproject.read_text(encoding="utf-8")
         # Check for unpinned critical components
-        if "fastapi = \"*\"" in text:
-            findings.append({
-                "id": "SEC-DEP-001",
-                "name": "Wildcard Dependency Pinning",
-                "severity": "MEDIUM",
-                "file": "pyproject.toml",
-                "line": 1,
-                "description": "Wildcard dependency specification.",
-            })
+        if 'fastapi = "*"' in text:
+            findings.append(
+                {
+                    "id": "SEC-DEP-001",
+                    "name": "Wildcard Dependency Pinning",
+                    "severity": "MEDIUM",
+                    "file": "pyproject.toml",
+                    "line": 1,
+                    "description": "Wildcard dependency specification.",
+                }
+            )
     return findings
 
 
@@ -216,7 +247,7 @@ def main() -> int:
     verdict = "PASS" if (critical_count == 0 and high_count == 0) else "FAIL"
 
     evidence = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "standard": "G1-06",
         "verdict": verdict,
         "summary": {

@@ -1,6 +1,5 @@
 # fix_device_part_compatibility — M17 W2 Spare Parts Compatibility Matrix (CD-M17-02).
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo import fields, models
 
 
 class FixDevicePartCompatibility(models.Model):

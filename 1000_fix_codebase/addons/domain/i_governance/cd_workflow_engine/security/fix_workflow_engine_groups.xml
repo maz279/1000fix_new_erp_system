@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M63 rule-book owner (A11 audit E1, findings M63-2, M63-7, M63-12).
+
+  The DoA matrix, the business-rule register, the AUT automation register and
+  the workflow instances were writable by every internal user: a salesperson
+  re-pointed the contract-verification rule at his own group and verified a
+  colleague's contract; any user archived a rule, pointed a tier at an empty
+  group, or made a colleague's request auto-reject after an hour.
+
+  - DoA Administrator: the only role that creates, changes or archives those
+    registers, and (with HR) the only one who may record an out-of-office
+    substitution for SOMEONE ELSE. Everyone else keeps read access.
+
+  Who owns the DoA register is a business decision (A11 report section 7,
+  B2: CFO / Board). The group therefore carries only the development admin,
+  so the workspace keeps working on development databases; production
+  appoints its members.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_doa_admin" model="res.groups.privilege">
+            <field name="name">Delegation of Authority Register</field>
+            <field name="description">Who may change the approval rule book (M63).</field>
+            <field name="sequence">24</field>
+        </record>
+
+        <record id="group_doa_administrator" model="res.groups">
+            <field name="name">DoA Administrator</field>
+            <field name="privilege_id" ref="privilege_fix_doa_admin"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Creates, changes and archives the DoA matrix, the business-rule and automation registers and workflow instances, and records approval substitutions on another approver's behalf. Members are appointed by the business (CFO / Board).</field>
+        </record>
+
+    </data>
+</odoo>

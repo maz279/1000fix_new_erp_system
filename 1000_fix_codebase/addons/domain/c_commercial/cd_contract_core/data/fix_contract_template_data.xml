@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_contract_core — the contract template master.
+
+     The M37 "Contract Templates" screen listed an empty table: the model was
+     created to fix a phantom binding and never seeded, so the operator met a
+     blank master with no way to tell whether that was correct (A04 audit,
+     2026-11-01).
+
+     These are the STRUCTURAL templates — one per contract family the engine
+     already supports (fix_contract.FAMILIES), plus the SLA-only case. Term
+     length and notice period follow the renewal and PM configuration the
+     engine already uses.
+
+     `standard_terms` and `terms_bn` are deliberately left empty: contract
+     wording is Legal's to author, not an audit's to invent. The Bengali
+     publish-gate still applies when they are filled.
+
+     noupdate="1": once Legal edits a template, an upgrade must not overwrite it.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="ctpl_amc" model="fix.contract.template">
+            <field name="code">CTPL-AMC</field>
+            <field name="name">Annual Maintenance Contract (AMC)</field>
+            <field name="contract_type">amc</field>
+            <field name="generation_type">auto</field>
+            <field name="duration_months">12</field>
+            <field name="notice_period_days">30</field>
+        </record>
+
+        <record id="ctpl_ramc" model="fix.contract.template">
+            <field name="code">CTPL-RAMC</field>
+            <field name="name">Repair &amp; Maintenance Contract (RAMC)</field>
+            <field name="contract_type">ramc</field>
+            <field name="generation_type">auto</field>
+            <field name="duration_months">12</field>
+            <field name="notice_period_days">30</field>
+        </record>
+
+        <record id="ctpl_managed" model="fix.contract.template">
+            <field name="code">CTPL-MSP</field>
+            <field name="name">Managed Services Agreement</field>
+            <field name="contract_type">managed</field>
+            <field name="generation_type">auto</field>
+            <field name="duration_months">24</field>
+            <field name="notice_period_days">90</field>
+        </record>
+
+        <record id="ctpl_rental" model="fix.contract.template">
+            <field name="code">CTPL-RENT</field>
+            <field name="name">Equipment Rental Agreement</field>
+            <field name="contract_type">rental</field>
+            <field name="generation_type">auto</field>
+            <field name="duration_months">12</field>
+            <field name="notice_period_days">30</field>
+        </record>
+
+        <record id="ctpl_marketplace" model="fix.contract.template">
+            <field name="code">CTPL-MKT</field>
+            <field name="name">Marketplace Seller Agreement</field>
+            <field name="contract_type">marketplace</field>
+            <field name="generation_type">manual</field>
+            <field name="duration_months">12</field>
+            <field name="notice_period_days">60</field>
+        </record>
+
+        <record id="ctpl_sla" model="fix.contract.template">
+            <field name="code">CTPL-SLA</field>
+            <field name="name">Service Level Agreement (SLA Only)</field>
+            <field name="contract_type">sla</field>
+            <field name="generation_type">manual</field>
+            <field name="duration_months">12</field>
+            <field name="notice_period_days">30</field>
+        </record>
+
+    </data>
+</odoo>

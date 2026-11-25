@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M01 estimate expiry (BRU-SRM-13, A02 workflow audit M01-4).
+
+  Nothing ever set an estimate to 'expired', so a quote the customer was sent
+  months ago could still be approved at its stale price. This moves every sent
+  estimate past its "valid until" date to expired; it must be re-issued.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_estimate_expiry" model="ir.cron">
+            <field name="name">M01: expire estimates past their validity date</field>
+            <field name="model_id" ref="model_fix_estimate"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire_estimates()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

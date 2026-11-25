@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "marketplace.commission_calculated",
+  "description": "Event emitted when platform fee/commission is debited and net seller settlement locked (Journey 7)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "marketplace.commission_calculated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_marketplace"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "seller_id",
+        "gross_amount",
+        "commission_amount",
+        "net_payout",
+        "calculated_at"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "seller_id": {
+          "type": "integer"
+        },
+        "gross_amount": {
+          "type": "number"
+        },
+        "commission_amount": {
+          "type": "number"
+        },
+        "net_payout": {
+          "type": "number"
+        },
+        "calculated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

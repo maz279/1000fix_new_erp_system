@@ -22,13 +22,40 @@ management-system patterns:
 - fix.complaint EXTENSION — the M34 -> M23 stubs close: ncr_stub_ref /
   capa_stub_ref become real relations; action_raise_ncr creates the NCR
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Quality/Management System",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox",
-                 "cd_service_order", "cd_cx_feedback"],
-    "data": ["security/ir.model.access.csv", "views/fix_qms_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_cx_feedback",
+        "cd_document_core",
+        # A10 P1-6 (M23-8): fix.qms.review inherits fix.approvable.mixin —
+        # the management review closure routes through M63 to Tier 5
+        "cd_workflow_engine",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/fix_qms_groups.xml",
+        "security/ir.model.access.csv",
+        "data/qms_ops_sequences.xml",
+        # A10 S6 (M23-12): the M42 supplier-CAR hand-off — supplier.car.raised
+        # arrives through the relay and raises the QMS NCR for majors.
+        "data/fix_qms_consumers.xml",
+        # A02 ERP pass 2 X5-14: M01 QC failures and reworks raise their NCR.
+        "data/fix_a02r2_quality_consumers.xml",
+        # M23 capture audit (2026-11-19): numbering of the new records
+        "data/fix_qms_capture_data.xml",
+        # A10 deep audit (2026-11-22, A1-F03): the certification surveillance
+        # clock — the 90/30-day windows and a lapsed certificate tell the
+        # Quality Managers.
+        "data/fix_qms_crons.xml",
+        "views/fix_qms_views.xml",
+    ],
     "installable": True,
     "application": True,
     "x_cd_id": "CD-M23-01",

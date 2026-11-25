@@ -16,14 +16,44 @@ CD-M09-01..05: the warranty and claims engine.
   diagnostic, parts, serial, technician certification, purchase proof
 - Events: warranty_claim.submitted/decided/remitted (AS-08)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Warranty",
-    "depends": ["base", "mail", "product", "cd_entity_config", "cd_event_outbox",
-                 "cd_catalogue", "cd_device_registry", "cd_service_order",
-                 "cd_document_core"],
-    "data": ["security/ir.model.access.csv", "views/fix_warranty_claims_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "product",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_catalogue",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_document_core",
+        # A10 P1-7 (M61-4): a distributed safety recall bulletin becomes an
+        # M09 recall campaign (fix.warranty.recall.bulletin_id).
+        "cd_knowledge",
+        # A04 C4/C9: the routed claim decision (fix.approvable.mixin, M63).
+        # Already loaded before this module (cd_service_order depends on it).
+        "cd_workflow_engine",
+        # A04 ERP M09-F4: a brand claim is valued at the M11 brand
+        # reimbursement rate (fix.rate.card.reimbursement_for). No cycle:
+        # cd_rate_card's closure does not reach this module.
+        "cd_rate_card",
+    ],
+    "data": [
+        "security/cd_warranty_claims_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
+        "data/ir_cron_aut018.xml",
+        "data/fix_recall_consumers.xml",
+        "data/ir_cron.xml",
+        "data/fix_m09_capture_data.xml",
+        # A04 ERP round 2 M09-F12: the OEM receivable chase
+        "data/fix_a04_r2_cron.xml",
+        "views/fix_warranty_claims_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M09-03",

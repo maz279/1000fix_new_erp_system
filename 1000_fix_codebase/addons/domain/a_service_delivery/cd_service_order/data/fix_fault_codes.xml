@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M01 fault & symptom taxonomy seed (FR-SRM-077). Estate-wide configuration
+     master — noupdate so operators can extend/retire codes; codes are the
+     stable keys, names can be reworded. This is the standard repair intake
+     taxonomy for IT / mobile / home-appliance after-sales. -->
+<odoo>
+    <data noupdate="1">
+        <!-- Power / No-boot -->
+        <record id="fault_pwr_01" model="fix.fault.code">
+            <field name="code">PWR-01</field>
+            <field name="name">No power / no boot</field>
+            <field name="category">power</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <record id="fault_pwr_02" model="fix.fault.code">
+            <field name="code">PWR-02</field>
+            <field name="name">Intermittent shutdown / restart</field>
+            <field name="category">power</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Display / Graphics -->
+        <record id="fault_dsp_01" model="fix.fault.code">
+            <field name="code">DSP-01</field>
+            <field name="name">Cracked / broken panel</field>
+            <field name="category">display</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_dsp_02" model="fix.fault.code">
+            <field name="code">DSP-02</field>
+            <field name="name">No display / backlight failure</field>
+            <field name="category">display</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <record id="fault_dsp_03" model="fix.fault.code">
+            <field name="code">DSP-03</field>
+            <field name="name">Lines / artifacts on screen</field>
+            <field name="category">display</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Battery & Charging -->
+        <record id="fault_bat_01" model="fix.fault.code">
+            <field name="code">BAT-01</field>
+            <field name="name">Battery drains fast / degraded</field>
+            <field name="category">battery_charging</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_bat_02" model="fix.fault.code">
+            <field name="code">BAT-02</field>
+            <field name="name">Not charging</field>
+            <field name="category">battery_charging</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <record id="fault_bat_03" model="fix.fault.code">
+            <field name="code">BAT-03</field>
+            <field name="name">Charging port physical damage</field>
+            <field name="category">battery_charging</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Keyboard / Touch / Input -->
+        <record id="fault_inp_01" model="fix.fault.code">
+            <field name="code">INP-01</field>
+            <field name="name">Keyboard keys failing</field>
+            <field name="category">input</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_inp_02" model="fix.fault.code">
+            <field name="code">INP-02</field>
+            <field name="name">Touch screen unresponsive</field>
+            <field name="category">input</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_inp_03" model="fix.fault.code">
+            <field name="code">INP-03</field>
+            <field name="name">Trackpad / pointer failure</field>
+            <field name="category">input</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Audio -->
+        <record id="fault_aud_01" model="fix.fault.code">
+            <field name="code">AUD-01</field>
+            <field name="name">Speaker / sound failure</field>
+            <field name="category">audio</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_aud_02" model="fix.fault.code">
+            <field name="code">AUD-02</field>
+            <field name="name">Microphone failure</field>
+            <field name="category">audio</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Camera / Sensors -->
+        <record id="fault_cam_01" model="fix.fault.code">
+            <field name="code">CAM-01</field>
+            <field name="name">Camera failure</field>
+            <field name="category">camera</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Network / Connectivity -->
+        <record id="fault_net_01" model="fix.fault.code">
+            <field name="code">NET-01</field>
+            <field name="name">Wi-Fi / Bluetooth not connecting</field>
+            <field name="category">network</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_net_02" model="fix.fault.code">
+            <field name="code">NET-02</field>
+            <field name="name">Cellular / SIM not detected</field>
+            <field name="category">network</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <!-- OS / Software -->
+        <record id="fault_sw_01" model="fix.fault.code">
+            <field name="code">SW-01</field>
+            <field name="name">OS crash / boot loop</field>
+            <field name="category">software</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <record id="fault_sw_02" model="fix.fault.code">
+            <field name="code">SW-02</field>
+            <field name="name">Virus / malware / slow performance</field>
+            <field name="category">software</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <record id="fault_sw_03" model="fix.fault.code">
+            <field name="code">SW-03</field>
+            <field name="name">Data recovery / migration needed</field>
+            <field name="category">software</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Physical / Liquid -->
+        <record id="fault_phy_01" model="fix.fault.code">
+            <field name="code">PHY-01</field>
+            <field name="name">Liquid damage</field>
+            <field name="category">physical</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <record id="fault_phy_02" model="fix.fault.code">
+            <field name="code">PHY-02</field>
+            <field name="name">Physical / impact damage (housing, hinge)</field>
+            <field name="category">physical</field>
+            <field name="default_severity">cosmetic</field>
+        </record>
+        <!-- Thermal -->
+        <record id="fault_thm_01" model="fix.fault.code">
+            <field name="code">THM-01</field>
+            <field name="name">Overheating / fan failure</field>
+            <field name="category">thermal</field>
+            <field name="default_severity">functional</field>
+        </record>
+        <!-- Storage / Data -->
+        <record id="fault_sto_01" model="fix.fault.code">
+            <field name="code">STO-01</field>
+            <field name="name">HDD / SSD failure</field>
+            <field name="category">storage</field>
+            <field name="default_severity">critical</field>
+        </record>
+        <!-- No Fault Found -->
+        <record id="fault_nff_01" model="fix.fault.code">
+            <field name="code">NFF-01</field>
+            <field name="name">No fault found</field>
+            <field name="category">none</field>
+            <field name="default_severity">cosmetic</field>
+        </record>
+    </data>
+</odoo>

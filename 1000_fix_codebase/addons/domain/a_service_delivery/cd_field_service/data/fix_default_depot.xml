@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Owner decision (20 Nov 2026): new field routes start at Shewrapara HQ &
+     Flagship; a dispatcher changes the depot per route. noupdate: a site may
+     move its default without an upgrade putting it back. -->
+<odoo>
+    <data noupdate="1">
+        <record id="icp_default_depot" model="ir.config_parameter">
+            <field name="key">cd_field_service.default_depot</field>
+            <field name="value">23.7905,90.3735</field>
+        </record>
+    </data>
+</odoo>

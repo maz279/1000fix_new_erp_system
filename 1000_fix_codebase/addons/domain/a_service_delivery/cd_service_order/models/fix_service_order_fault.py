@@ -1,5 +1,5 @@
 # fix_service_order_fault — FR-SRM-077 Multi-Fault Handling per Device (CD-M01-01).
-from odoo import api, fields, models
+from odoo import fields, models
 
 
 class FixServiceOrderFault(models.Model):
@@ -50,7 +50,8 @@ class FixServiceOrderFault(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
     is_approved = fields.Boolean(
         string="Customer Approved",

@@ -10,31 +10,60 @@ class FixRole(models.Model):
     Each role maps 1:1 to a Keycloak realm role and an Odoo res.groups.
     SoD controls reference role PAIRS that must not be held simultaneously.
     """
+
     _name = "fix.role"
     _description = "Business Role"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'Role code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "Role code must be unique")
 
-    code = fields.Char(string="Role Code (R-nn)", required=True, size=10,
-                       help="The reconciled role identifier, e.g. R-01")
+    code = fields.Char(
+        string="Role Code (R-nn)",
+        required=True,
+        size=10,
+        help="The reconciled role identifier, e.g. R-01",
+    )
     name = fields.Char(string="Role Name", required=True)
     name_bn = fields.Char(string="Role Name (Bengali)", help="DE-17")
     description = fields.Text(string="Description")
     # AS-03: company_id on transactional models
-    company_id = fields.Many2one("res.company", string="Company", index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", string="Company", index=True, default=lambda self: self.env.company
+    )
     operating_unit_ids = fields.Many2many(
-        "operating.unit", string="Operating Units",
-        help="AS-03: OUs this role is scoped to; empty = all OUs")
-    tier_ids = fields.Many2many("fix.isolation.tier", string="Data Isolation Tiers",
-                                help="Which isolation tiers this role may access")
-    group_id = fields.Many2one("res.groups", string="Odoo Group",
-                               help="The Odoo group this role maps to")
-    keycloak_role = fields.Char(string="Keycloak Realm Role",
-                                help="The Keycloak realm role name (usually same as code)")
+        "operating.unit",
+        string="Operating Units",
+        help="AS-03: OUs this role is scoped to; empty = all OUs",
+    )
+    tier_ids = fields.Many2many(
+        "fix.isolation.tier",
+        string="Data Isolation Tiers",
+        help="Which isolation tiers this role may access",
+    )
+    group_id = fields.Many2one(
+        "res.groups",
+        string="Legacy Group (unused)",
+        help="Retired scratch link: nothing reads it (A12 finish E6/E7). The role's groups are "
+        "Permission Groups below.",
+    )
+    # A12 R1 (M29-1): a role maps to the SET of permission groups it needs —
+    # the shipped 53-role -> group mapping is data/fix_role_group_map.xml.
+    # Grants add every mapped group; revokes keep groups another held role
+    # still requires; SoD resolves users' roles through this mapping.
+    group_ids = fields.Many2many(
+        "res.groups",
+        "fix_role_group_rel",
+        "role_id",
+        "group_id",
+        string="Permission Groups",
+        help="Every Odoo group this role carries. The role is the approved, "
+        "SoD-checked way to receive these groups.",
+    )
+    keycloak_role = fields.Char(
+        string="Keycloak Realm Role", help="The Keycloak realm role name (usually same as code)"
+    )
     active = fields.Boolean(default=True, tracking=True)
 
     @api.constrains("code")
@@ -50,3 +79,39 @@ class FixRole(models.Model):
         05-04 register loads — never guessed here."""
         if self.group_id and not self.keycloak_role:
             self.keycloak_role = self.code
+
+
+class FixRoleDisplayRoll(models.Model):
+    """Read-only name rolls for the m2m fields the D365 Role form shows but
+    the workspace cannot edit (no m2m editor): the mapped permission groups,
+    the isolation tiers and the OU scope (M29 wiring pass, 2026-11-05)."""
+
+    _inherit = "fix.role"
+    _description = "Fix Role M29 Display Rolls"
+
+    fix_group_roll = fields.Char(
+        string="Mapped Permission Groups",
+        compute="_compute_display_rolls",
+        help="Every Odoo group this role maps to (the register access "
+        "requests actually grant). Read-only display; the editable mapping "
+        "is governed Odoo-side.",
+    )
+    fix_tier_roll = fields.Char(
+        string="Isolation Tiers",
+        compute="_compute_display_rolls",
+        help="The data-isolation tiers this role may reach (T0–T5).",
+    )
+    fix_ou_roll = fields.Char(
+        string="Operating-Unit Scope",
+        compute="_compute_display_rolls",
+        help="OUs this role is scoped to; empty means all OUs (AS-03).",
+    )
+
+    def _compute_display_rolls(self):
+        for rec in self:
+            groups = rec.group_ids.sudo().mapped("name")
+            rec.fix_group_roll = ", ".join(sorted(groups)) if groups else "—"
+            tiers = rec.tier_ids.mapped("code")
+            rec.fix_tier_roll = ", ".join(sorted(tiers)) if tiers else "All tiers"
+            ous = rec.operating_unit_ids.mapped("name")
+            rec.fix_ou_roll = ", ".join(sorted(ous)) if ous else "All OUs"

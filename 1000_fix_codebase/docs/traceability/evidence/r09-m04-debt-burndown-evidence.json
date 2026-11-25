@@ -1,0 +1,22 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R09-M04",
+  "task": "R09-M04-T02",
+  "title": "Technical Debt Burn-Down & Todo Tree Register Verification",
+  "standard": "BE-009 / P11-M08-T01",
+  "timestamp": "2026-10-20T21:18:00Z",
+  "register_summary": {
+    "total_registered_items": 15,
+    "burned_down_items": 15,
+    "open_unowned_todos": 0,
+    "debt_ratio_pct": 0.0,
+    "debt_ceiling_pct": 15.0,
+    "status": "HEALTHY_BURNED_DOWN"
+  },
+  "items_count": 15,
+  "unowned_todos_count": 0,
+  "owned_todos_count": 0,
+  "unowned_todos": [],
+  "owned_todos": [],
+  "status": "PASS"
+}

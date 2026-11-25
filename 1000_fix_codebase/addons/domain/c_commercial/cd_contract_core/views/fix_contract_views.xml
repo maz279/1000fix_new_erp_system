@@ -26,7 +26,18 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="pending_signature,active,expiring,expired,terminated"/>
+                    <!-- A04 build (2026-11-04) C3: the lifecycle runs by its actions. -->
+                    <button name="action_request_approval" type="object" string="Submit for Approval" invisible="state != 'draft'" groups="cd_contract_core.group_contract_officer"/>
+                    <button name="action_legal_review" type="object" string="Legal Review" invisible="state != 'pending_approval' or not legal_review_required or legal_reviewed_by" groups="cd_contract_core.group_contract_legal"/>
+                    <button name="action_approve_stamp_exemption" type="object" string="Approve Stamp Exemption" invisible="stamp_duty_applicable or stamp_exemption_approved_by" groups="account.group_account_manager"/>
+                    <button name="action_activate" type="object" string="Activate" invisible="state != 'pending_signature'" groups="cd_contract_core.group_contract_officer"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft" invisible="state not in ('pending_approval', 'pending_signature')" groups="cd_contract_core.group_contract_officer"/>
+                    <button name="action_renew" type="object" string="Renew" invisible="state not in ('active', 'expiring', 'expired')" groups="cd_contract_core.group_contract_officer"/>
+                    <button name="action_resume" type="object" string="Resume" invisible="state != 'suspended'" groups="cd_contract_core.group_contract_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,pending_approval,pending_signature,active,expiring,expired,terminated"/>
+                    <field name="legal_review_required" invisible="1"/>
+                    <field name="legal_reviewed_by" invisible="1"/>
+                    <field name="stamp_exemption_approved_by" invisible="1"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="code" readonly="1"/></h1></div>

@@ -3,6 +3,80 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__country_origin
+msgid "Country of Origin"
+msgstr "উৎপত্তির দেশ"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__customs_duty
+msgid "Customs Duty"
+msgstr "কাস্টমস শুল্ক"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__fob_value
+msgid "FOB Value"
+msgstr "FOB মূল্য"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__freight_cost
+msgid "Freight"
+msgstr "মালভাড়া"
+
+#. module: cd_import_order
+#: model:ir.actions.act_window,name:cd_import_order.action_fix_import_order
+#: model:ir.model,name:cd_import_order.model_fix_import_order
+#: model:ir.ui.menu,name:cd_import_order.menu_fix_import_order
+msgid "Import Order"
+msgstr "আমদানি অর্ডার"
+
+#. module: cd_import_order
 msgid "Import, Trade Compliance & Landed Cost"
-msgstr "Import, Trade Compliance & Landed Cost (বাংলা)"
+msgstr "আমদানি, বাণিজ্য কমপ্লায়েন্স ও ল্যান্ডেড খরচ"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__customs
+msgid "In Customs"
+msgstr "কাস্টমসে"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__insurance_cost
+msgid "Insurance"
+msgstr "বিমা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__landed_cost
+msgid "Landed Cost"
+msgstr "ল্যান্ডেড খরচ"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__landed
+msgid "Landed Cost Applied"
+msgstr "ল্যান্ডেড খরচ প্রয়োগকৃত"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__received
+msgid "Received"
+msgstr "গৃহীত"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__shipped
+msgid "Shipped"
+msgstr "জাহাজীকৃত"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__supplier_id
+msgid "Supplier"
+msgstr "সরবরাহকারী"

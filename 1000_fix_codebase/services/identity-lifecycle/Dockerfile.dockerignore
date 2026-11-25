@@ -1,0 +1,11 @@
+# Repo-root build context for services/identity-lifecycle/Dockerfile (BuildKit reads
+# <Dockerfile>.dockerignore): send ONLY what the image copies.
+*
+!libs/__init__.py
+!libs/py/__init__.py
+!libs/py/fix_events
+!libs/py/fix_env_guard
+!libs/py/fix_telemetry
+!services/identity-lifecycle/src
+**/tests
+**/__pycache__

@@ -1,0 +1,259 @@
+# Zero-trust network model for the fix-erp namespace.
+#   1. default-deny ALL ingress and egress for every pod;
+#   2. DNS egress to kube-system for every pod;
+#   3. explicit allows only: ingress controller -> kong; kong -> each upstream;
+#      identity-lifecycle -> keycloak; keycloak <-> keycloak (JGroups);
+#      workloads -> the managed data services in the VPC; the few workloads
+#      that must call the internet -> public addresses on 443 (587 for Odoo mail).
+# ASSUMPTIONS (adjust in the overlay if they differ):
+#   - the ingress controller runs in namespace `ingress-nginx`;
+#   - managed PostgreSQL / Valkey / Kafka sit in the VPC 10.110.0.0/20
+#     (infra/terraform var.vpc_ip_range) on DigitalOcean's ports 25060 (pg),
+#     25061 (valkey), 25073 (managed kafka) or 9092 (self-run kafka).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# --------------------------------------------------------------- edge -> kong
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-from-ingress-controller
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: kong }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-to-upstreams
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: kong }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: portal } }
+      ports: [{ protocol: TCP, port: 3000 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: odoo } }
+      ports: [{ protocol: TCP, port: 8069 }, { protocol: TCP, port: 8072 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: keycloak } }
+      ports: [{ protocol: TCP, port: 8080 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: ml-gateway } }
+      ports: [{ protocol: TCP, port: 8090 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: telemetry-collector } }
+      ports: [{ protocol: TCP, port: 8084 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: notification-dispatcher } }
+      ports: [{ protocol: TCP, port: 8110 }]
+---
+# ------------------------------------------------- upstream ingress (from kong)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portals-from-kong
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: portal }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: kong } }
+      ports: [{ protocol: TCP, port: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: odoo-from-kong
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: odoo }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: kong } }
+      ports: [{ protocol: TCP, port: 8069 }, { protocol: TCP, port: 8072 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-ingress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: keycloak }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: kong } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: identity-lifecycle } }
+      ports: [{ protocol: TCP, port: 8080 }]
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: keycloak } }
+      ports: [{ protocol: TCP, port: 7800 }, { protocol: TCP, port: 57800 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: services-from-kong
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [ml-gateway, telemetry-collector, notification-dispatcher]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: kong } }
+      ports:
+        - { protocol: TCP, port: 8090 }
+        - { protocol: TCP, port: 8084 }
+        - { protocol: TCP, port: 8110 }
+---
+# ------------------------------------------------------------- service egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: keycloak }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: keycloak } }
+      ports: [{ protocol: TCP, port: 7800 }, { protocol: TCP, port: 57800 }]
+    - to:
+        - ipBlock: { cidr: 10.110.0.0/20 }
+      ports: [{ protocol: TCP, port: 25060 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: identity-lifecycle-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: identity-lifecycle }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: keycloak } }
+      ports: [{ protocol: TCP, port: 8080 }]
+    - to:
+        - ipBlock: { cidr: 10.110.0.0/20 }
+      ports:
+        - { protocol: TCP, port: 25061 }
+        - { protocol: TCP, port: 25073 }
+        - { protocol: TCP, port: 9092 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: telemetry-collector-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: telemetry-collector }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 10.110.0.0/20 }
+      ports: [{ protocol: TCP, port: 25060 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: odoo-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: odoo }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 10.110.0.0/20 }
+      ports:
+        - { protocol: TCP, port: 25060 }
+        - { protocol: TCP, port: 25061 }
+        - { protocol: TCP, port: 25073 }
+        - { protocol: TCP, port: 9092 }
+    # payment / NBR / bank / mail gateways on the public internet
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 587 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notification-dispatcher-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: notification-dispatcher }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 10.110.0.0/20 }
+      ports:
+        - { protocol: TCP, port: 25061 }
+        - { protocol: TCP, port: 25073 }
+        - { protocol: TCP, port: 9092 }
+    # SMS / WhatsApp / email provider APIs (https only, channels.py)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports: [{ protocol: TCP, port: 443 }]
+---
+# Portals reach Odoo through the in-cluster service (the same-origin
+# /api/odoo bridge reads ODOO_INTERNAL_URL), and external HTTPS for the
+# services that do not have an in-cluster path.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portals-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: portal }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: odoo }
+      ports: [{ protocol: TCP, port: 8069 }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports: [{ protocol: TCP, port: 443 }]

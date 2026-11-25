@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M38 storefront roles (A04 workflow audit 2026-11-03, M38-2/5 and report 7.1).
+
+  Every storefront step - confirming a payment, dispatching, delivering,
+  approving and paying a refund - was open to any internal user; one clerk
+  ran a BDT 500,000 refund end to end. Plain internal users now READ orders,
+  returns, RMAs and slots; the work goes to these roles.
+
+  - Storefront Operator: authorises returns (RMA), receives and inspects
+    returned items, dispatches, delivers and cancels orders, runs the
+    delivery slots.
+  - Storefront Payment Officer (finance): confirms an order paid against its
+    M20 receipt, and completes an approved refund with its M20 credit note.
+  - Storefront Refund Approver: decides refunds from the M63 inbox, within
+    the DOFA tier the approver also holds, never on a return they raised.
+  - Storefront Manager: all three.
+
+  The development admin is a member so the workspace keeps working;
+  segregation of duties still applies to it.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="privilege_fix_storefront" model="res.groups.privilege">
+            <field name="name">E-Commerce Storefront</field>
+            <field name="description">Fulfilment, payment and refund roles of the M38 storefront.</field>
+            <field name="sequence">42</field>
+        </record>
+
+        <record id="group_fix_storefront_operator" model="res.groups">
+            <field name="name">Storefront Operator</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Authorises returns, receives and inspects returned items, dispatches, delivers and cancels orders, and runs the delivery slots.</field>
+        </record>
+
+        <record id="group_fix_storefront_payment_officer" model="res.groups">
+            <field name="name">Storefront Payment Officer</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Confirms storefront payments against their M20 receipts and completes approved refunds with their M20 credit notes.</field>
+        </record>
+
+        <record id="group_fix_storefront_refund_approver" model="res.groups">
+            <field name="name">Storefront Refund Approver</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves storefront refunds from the approval inbox, within the DOFA tier the approver also holds, and never on a return they raised.</field>
+        </record>
+
+        <!-- M38 capture audit (19 Nov 2026): storefront content and
+             collections (R23 Marketing Manager, spec §13). -->
+        <record id="group_fix_storefront_merchandiser" model="res.groups">
+            <field name="name">Storefront Merchandiser</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Writes and publishes storefront banners, pages and collections.</field>
+        </record>
+
+        <!-- A04 ERP audit (20 Nov 2026) M38-F5: any internal user could
+             create and write carts and record the customer's terms or the
+             client's approval. Assisted ordering (R08/R34) is this role's. -->
+        <record id="group_fix_storefront_assisted_sales" model="res.groups">
+            <field name="name">Storefront Assisted Sales</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Captures assisted and corporate carts for customers (hotline, branch) and places them through the storefront checkout. The customer's terms and the client's approval are recorded by someone other than the person who captured the cart.</field>
+        </record>
+
+        <record id="group_fix_storefront_manager" model="res.groups">
+            <field name="name">Storefront Manager</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('group_fix_storefront_operator')), (4, ref('group_fix_storefront_payment_officer')), (4, ref('group_fix_storefront_refund_approver')), (4, ref('group_fix_storefront_merchandiser')), (4, ref('group_fix_storefront_assisted_sales'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Everything an operator, a payment officer and a refund approver do.</field>
+        </record>
+    </data>
+</odoo>

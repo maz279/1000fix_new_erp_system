@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP pass 2 X5-05 (owner decision D24): an approved M09 claim
+     write-off is written off the brand's OEM invoice on AR. The M09 Finance
+     Manager approval is the M20 approval; the posting is M20's own (Dr loss
+     allowance / bad debts, Cr AR). Idempotent per write-off. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a02r2_warranty_claim_written_off" model="fix.event.consumer">
+            <field name="name">M20: an approved warranty-claim write-off is written off the OEM invoice</field>
+            <field name="event_type">warranty_claim.written_off</field>
+            <field name="model">fix.a04.claim.consumers</field>
+            <field name="method">consume_warranty_claim_written_off</field>
+            <field name="module">cd_billing_engine</field>
+        </record>
+
+    </data>
+</odoo>

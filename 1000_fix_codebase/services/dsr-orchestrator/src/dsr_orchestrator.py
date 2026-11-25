@@ -11,28 +11,35 @@ read replicas, warehouse, object store, search index and backups-in-scope —
 while PRESERVING the five-year statutory processing record (T05) and the
 controller's 30-day notification clock (T06, NFR-093).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from enum import Enum
+from enum import StrEnum
 
 
 class DsrError(ValueError):
     pass
 
 
-class DsrType(str, Enum):
-    ACCESS = "access"            # T02
+class ResidencyServiceError(DsrError):
+    """The residency service cannot vouch for a real DSR outcome: it is
+    unreachable, not ready, or running in synthetic-only mode (GV-009 —
+    never a canned success, never synthetic data presented as resident data)."""
+
+
+class DsrType(StrEnum):
+    ACCESS = "access"  # T02
     RECTIFICATION = "rectification"
     PORTABILITY = "portability"  # T03 — machine-readable export
-    ERASURE = "erasure"          # T04 — the saga
+    ERASURE = "erasure"  # T04 — the saga
     OBJECTION = "objection"
 
 
-class DsrState(str, Enum):
+class DsrState(StrEnum):
     RECEIVED = "received"
-    VERIFYING = "verifying"      # identity verification first — always
+    VERIFYING = "verifying"  # identity verification first — always
     IN_PROGRESS = "in_progress"
     AWAITING_VERIFICATION = "awaiting_verification"  # rectification review
     COMPLETED = "completed"
@@ -47,7 +54,7 @@ PROCESSING_RECORD_YEARS = 5  # NFR-095: retained THROUGH erasure
 class DsrRequest:
     request_id: str
     dsr_type: DsrType
-    party_ref: str            # the fix.party pointer (never raw PII here)
+    party_ref: str  # the fix.party pointer (never raw PII here)
     received_on: date
     state: DsrState = DsrState.RECEIVED
     due_on: date = None
@@ -60,6 +67,7 @@ class DsrRequest:
 
 # ---------------------------------------------------------- export (T03) ----
 
+
 class ResidencyClientProtocol:
     """The residency-service contract (FF-09: the ONLY path to Z4). The
     orchestrator depends on the protocol, never a concrete client."""
@@ -67,15 +75,106 @@ class ResidencyClientProtocol:
     def fetch_resident(self, party_ref: str) -> dict:
         raise NotImplementedError
 
-    def tombstone(self, party_ref: str, key: str) -> None:
+    def tombstone(self, party_ref: str, key: str) -> dict:
         raise NotImplementedError
+
+
+class FixResidencyAdapter(ResidencyClientProtocol):
+    """FF-09 conformance: ALL classified-field access goes through
+    libs/py/fix_residency - the single SSRF-hardened client of the Z4
+    residency store. This adapter maps that canonical client onto the
+    orchestrator's protocol; no URL, socket or transport detail lives here.
+
+    GV-009 fail-closed:
+    - connection errors RAISE (a DSR never proceeds past an unreachable
+      resident store);
+    - a service reporting synthetic-only mode is surfaced as a clear error -
+      synthetic values are never exported as the subject's resident data.
+    """
+
+    SYNTHETIC_BANNER = "SYNTHETIC-LOCAL-ONLY"
+
+    def __init__(self, base_url: str | None = None, timeout: float | None = None, client=None):
+        from libs.py.fix_residency import ResidencyClient, get_client
+
+        if client is not None:
+            self._client = client
+        elif base_url:
+            self._client = ResidencyClient(base_url=base_url)
+        else:
+            self._client = get_client()
+        self._timeout = timeout
+
+    @property
+    def base_url(self) -> str:
+        return self._client.base_url
+
+    def _translate(self, exc: Exception) -> Exception:
+        """The canonical client raises its own ResidencyError family; the
+        orchestrator's saga steps catch ResidencyServiceError, so translate."""
+        from libs.py.fix_residency import ResidencyError
+
+        if isinstance(exc, ResidencyError):
+            return ResidencyServiceError(str(exc))
+        return exc
+
+    def _ready(self) -> None:
+        try:
+            state = self._client.health()
+        except Exception as exc:
+            raise self._translate(exc) from exc
+        if state.get("status") != "UP":
+            raise ResidencyServiceError(
+                f"residency service not UP (reported {state.get('status')!r})"
+            )
+        if state.get("mode") == "synthetic-only":
+            raise ResidencyServiceError(
+                "residency service is in synthetic-only mode - it cannot vouch "
+                "for real resident data"
+            )
+
+    def health(self) -> dict:
+        try:
+            return self._client.health()
+        except Exception as exc:
+            raise self._translate(exc) from exc
+
+    def assert_service_ready(self) -> dict:
+        self._ready()
+        return self._client.health()
+
+    def fetch_resident(self, party_ref: str) -> dict:
+        """T03 export residency check via the canonical client. A synthetic
+        VALUE is refused - never exported as the subject's resident data
+        (the local stub is synthetic-only by design; assert_service_ready is
+        the strict gate, export refuses at the value level)."""
+        try:
+            value = str(self._client.get(party_ref))
+        except Exception as exc:
+            raise self._translate(exc) from exc
+        if value.startswith(self.SYNTHETIC_BANNER):
+            raise ResidencyServiceError(
+                f"residency service returned a synthetic value for {party_ref!r} "
+                "(synthetic-only mode) - refusing to export it as resident data"
+            )
+        return {"key": party_ref, "value": value}
+
+    def tombstone(self, party_ref: str, key: str) -> dict:
+        """T04 erasure residency check via the canonical client. Transport
+        failure fails the saga step (closed), never a silent success. The
+        erase is real work even against the synthetic-local stub."""
+        erase_key = party_ref if key == "all" else key
+        try:
+            return self._client.erase(erase_key)
+        except Exception as exc:
+            raise self._translate(exc) from exc
 
 
 @dataclass
 class ExportBundle:
     party_ref: str
-    regional: dict = field(default_factory=dict)   # the OLTP-side record
-    resident: dict = field(default_factory=dict)   # Z4-side classified data
+    regional: dict = field(default_factory=dict)  # the OLTP-side record
+    resident: dict = field(default_factory=dict)  # Z4-side classified data
     machine_readable: bool = True
 
     def to_portable(self) -> dict:
@@ -83,12 +182,12 @@ class ExportBundle:
         residency service (T03) — machine-readable, both stores."""
         if not self.machine_readable:
             raise DsrError("portability exports must be machine-readable")
-        return {"party_ref": self.party_ref,
-                "regional": self.regional,
-                "resident": self.resident}
+        return {"party_ref": self.party_ref, "regional": self.regional, "resident": self.resident}
 
 
-def assemble_export(party_ref: str, regional_loader, residency: ResidencyClientProtocol) -> ExportBundle:
+def assemble_export(
+    party_ref: str, regional_loader, residency: ResidencyClientProtocol
+) -> ExportBundle:
     """T03: assemble through the residency service — never a direct
     resident-store read."""
     return ExportBundle(
@@ -100,10 +199,11 @@ def assemble_export(party_ref: str, regional_loader, residency: ResidencyClientP
 
 # ------------------------------------------------------ erasure saga (T04) ---
 
-class SagaStep(str, Enum):
+
+class SagaStep(StrEnum):
     # Forward order; compensations run in REVERSE for rollback.
     ANONYMIZE_REGIONAL = "anonymize_regional"
-    TOMBSTONE_RESIDENT = "tombstone_resident"        # Z4 via the residency client
+    TOMBSTONE_RESIDENT = "tombstone_resident"  # Z4 via the residency client
     PURGE_REPLICAS = "purge_read_replicas"
     PURGE_WAREHOUSE = "purge_warehouse_rows"
     PURGE_OBJECT_STORE = "purge_object_store"
@@ -125,15 +225,20 @@ class SagaState:
 
     @property
     def status(self) -> str:
-        if self.failed_at:
-            return "rolled_back" if self.compensations_run else "failing"
+        # Every step done wins: a saga re-run to completion after an earlier
+        # failure must report "completed", not the stale failure.
         if len(self.completed) == len(list(SagaStep)):
             return "completed"
+        if self.failed_at:
+            return "rolled_back" if self.compensations_run else "failing"
         return "in_progress"
 
 
-def run_erasure_saga(state: SagaState, executors: dict[SagaStep, callable],
-                     residency: ResidencyClientProtocol | None = None) -> SagaState:
+def run_erasure_saga(
+    state: SagaState,
+    executors: dict[SagaStep, callable],
+    residency: ResidencyClientProtocol | None = None,
+) -> SagaState:
     """T04: the saga. Each step runs once; the FIRST failure triggers the
     compensation chain in REVERSE order over the COMPLETED steps only.
 
@@ -152,7 +257,7 @@ def run_erasure_saga(state: SagaState, executors: dict[SagaStep, callable],
                 residency.tombstone(state.party_ref, "all")
             executor(state.party_ref)
             state.completed.append(step)
-        except Exception as exc:  # noqa: BLE001 — the saga must survive any step
+        except Exception as exc:
             state.failed_at = step
             # Compensations in REVERSE order over completed steps.
             for done in reversed(state.completed):
@@ -161,7 +266,8 @@ def run_erasure_saga(state: SagaState, executors: dict[SagaStep, callable],
                 state.completed = []  # rolled back to the pre-saga state
             raise DsrError(
                 f"erasure saga failed at {step.value}: {exc}; "
-                f"compensations run: {state.compensations_run}") from exc
+                f"compensations run: {state.compensations_run}"
+            ) from exc
     return state
 
 

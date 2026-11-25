@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M04 front-desk roles (A02 audit M04-6, BRU-FRD-11).
+
+     M04 had no role group: every internal user created and edited the cash
+     models, and the cashier reconciled her own drawer and signed off her own
+     variance.
+
+     - Cashier: operational. Opens, counts and closes a drawer; rings counter
+       sales. The dev admin is a member so daily work keeps running; the
+       segregation-of-duties checks still apply to it.
+     - Branch Manager: approves a variance beyond tolerance, reconciles a
+       shift it did not handle, approves a price below list and refunds.
+     - Refund Approver: approves a counter-sale refund it did not sell.
+     - Queue Agent (A02 audit M04-P2): calls, serves, re-calls, no-shows and
+       cancels queue tokens. Cashiers and Branch Managers may too. The dev
+       admin is a member so the queue keeps running.
+
+     The two decision groups ship EMPTY: who holds them is a business
+     appointment. A decision with no holder is refused with a clear message. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_front_desk" model="res.groups.privilege">
+            <field name="name">Branch Front Desk</field>
+            <field name="description">Cash drawer, counter sales and their approvals at the branch counter (M04).</field>
+            <field name="sequence">24</field>
+        </record>
+
+        <record id="group_fd_cashier" model="res.groups">
+            <field name="name">Front Desk Cashier</field>
+            <field name="privilege_id" ref="privilege_front_desk"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Opens, counts (blind) and closes a cash shift, and rings counter sales. Cannot approve or reconcile a drawer they handled.</field>
+        </record>
+
+        <record id="group_fd_branch_manager" model="res.groups">
+            <field name="name">Branch Manager (Cash Variance Approver)</field>
+            <field name="privilege_id" ref="privilege_front_desk"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves a shift variance beyond tolerance, reconciles shifts they did not handle (BRU-FRD-11), approves a price below list, and approves refunds.</field>
+        </record>
+
+        <record id="group_fd_refund_approver" model="res.groups">
+            <field name="name">Counter Refund Approver</field>
+            <field name="privilege_id" ref="privilege_front_desk"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves a counter-sale refund they neither sold nor requested. A Branch Manager may also approve refunds.</field>
+        </record>
+
+        <record id="group_fd_queue_agent" model="res.groups">
+            <field name="name">Front Desk Queue Agent</field>
+            <field name="privilege_id" ref="privilege_front_desk"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Calls, serves, re-calls and closes queue tokens (no-show, cancel). Front Desk Cashiers and Branch Managers may do the same.</field>
+        </record>
+
+    </data>
+</odoo>

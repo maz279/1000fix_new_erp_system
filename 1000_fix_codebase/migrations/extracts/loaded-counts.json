@@ -1,33 +1,125 @@
 {
   "run": "WAVE1_REHEARSAL_20261016",
-  "loaded_at": "2026-10-16T15:13:23.510302+00:00",
+  "loaded_at": "2026-10-22T10:11:23.343799+00:00",
+  "target_database": "127.0.0.1:5433/fix_migration",
   "loaded_totals": {
     "branches": 6,
     "customers": 50,
     "devices": 50,
-    "employees": 20
+    "employees": 20,
+    "attendance_opening": 20
   },
   "accepted_records": {
     "branches": 6,
     "customers": 49,
-    "devices": 50,
-    "employees": 20
+    "devices": 49,
+    "employees": 20,
+    "attendance_opening": 0
   },
   "quarantined_records": {
     "branches": 0,
     "customers": 1,
-    "devices": 0,
-    "employees": 0
+    "devices": 1,
+    "employees": 0,
+    "attendance_opening": 20
   },
   "rejections": {
     "customers": [
       {
         "legacy_reference": "CUST:WP_STORE:1050",
         "phone": "880171000049",
-        "reason": "M64 dedup: exact phone match already seen in batch \u2014 quarantined for steward review"
+        "reason": "M64 dedup: exact phone match already seen in batch — quarantined for steward review"
       }
     ],
-    "devices": [],
-    "employees": []
+    "devices": [
+      {
+        "legacy_reference": "DEV:ASSET_SHEET:SN-OPP-2026001",
+        "source_id": "DEV-AST-2050",
+        "serial_number": "SN-OPP-2026001",
+        "reason": "MDM collision: Duplicate serial number detected — flagged for MDM steward review"
+      }
+    ],
+    "attendance_opening": [
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:TEJGAON:EMP-2024-001",
+        "reason": "employee 'EMP-2024-001' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:TEJGAON:EMP-2024-002",
+        "reason": "employee 'EMP-2024-002' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:BANANI:EMP-2024-003",
+        "reason": "employee 'EMP-2024-003' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:BANANI:EMP-2024-004",
+        "reason": "employee 'EMP-2024-004' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:DHANMONDI:EMP-2024-005",
+        "reason": "employee 'EMP-2024-005' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:DHANMONDI:EMP-2024-006",
+        "reason": "employee 'EMP-2024-006' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:CHATTOGRAM:EMP-2024-007",
+        "reason": "employee 'EMP-2024-007' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:CHATTOGRAM:EMP-2024-008",
+        "reason": "employee 'EMP-2024-008' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:SYLHET:EMP-2024-009",
+        "reason": "employee 'EMP-2024-009' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:SYLHET:EMP-2024-010",
+        "reason": "employee 'EMP-2024-010' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:RAJSHAHI:EMP-2024-011",
+        "reason": "employee 'EMP-2024-011' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:RAJSHAHI:EMP-2024-012",
+        "reason": "employee 'EMP-2024-012' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:TEJGAON:EMP-2024-013",
+        "reason": "employee 'EMP-2024-013' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:TEJGAON:EMP-2024-014",
+        "reason": "employee 'EMP-2024-014' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:BANANI:EMP-2024-015",
+        "reason": "employee 'EMP-2024-015' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:BANANI:EMP-2024-016",
+        "reason": "employee 'EMP-2024-016' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:DHANMONDI:EMP-2024-017",
+        "reason": "employee 'EMP-2024-017' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:CHATTOGRAM:EMP-2024-018",
+        "reason": "employee 'EMP-2024-018' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:SYLHET:EMP-2024-019",
+        "reason": "employee 'EMP-2024-019' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      },
+      {
+        "legacy_reference": "LEG:SIGNIN_BOOK:RAJSHAHI:EMP-2024-020",
+        "reason": "employee 'EMP-2024-020' not found on target (hr_employee.employee_code) - opening balance quarantined for HR steward review"
+      }
+    ]
   }
 }

@@ -15,13 +15,38 @@ CD-M34-nn + CD-M42-nn (P07-M06):
   score on-time/late; blocked-invoice rejections score quality; scorecards
   PUBLISH through events for the P05 portal's API
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Experience",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox",
-                 "cd_party_master", "cd_service_order"],
-    "data": ["security/ir.model.access.csv", "views/fix_cx_feedback_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_service_order",
+        "cd_document_core",
+        "cd_contact_centre",
+        "cd_workflow_engine",
+        # A03 audit M34-9: an approved concession becomes an M20 credit note
+        # or an M10 voucher. Neither depends on this module (checked), so the
+        # dependency adds no cycle.
+        "cd_billing_engine",
+        "cd_loyalty",
+    ],
+    "data": [
+        "data/fix_cx_gap_cron.xml",
+        "data/fix_cx_cron.xml",
+        "data/fix_cx_event_consumers.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
+        "views/fix_cx_feedback_views.xml",
+        # M34 third pass: delayed invitations + detractor contact escalation.
+        "data/fix_cx_capture3_cron.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M34-01",

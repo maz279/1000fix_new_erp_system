@@ -1,3 +1,62 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_partner,fix.partner,model_fix_partner,base.group_user,1,1,1,0
-access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,1,1,0
+access_fix_partner,fix.partner,model_fix_partner,base.group_user,1,0,0,0
+access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,0,0,0
+access_fix_partner_portal,fix.partner,model_fix_partner,group_fix_partner_portal,1,0,0,0
+access_fix_referral_portal,fix.referral,model_fix_referral,group_fix_partner_portal,1,0,0,0
+access_fix_partner_authorisation,fix.partner.authorisation,model_fix_partner_authorisation,base.group_user,1,0,0,0
+access_fix_partner_deal,fix.partner.deal,model_fix_partner_deal,base.group_user,1,0,0,0
+access_fix_partner_rebate,fix.partner.rebate,model_fix_partner_rebate,base.group_user,1,0,0,0
+access_fix_partner_franchise,fix.partner.franchise,model_fix_partner_franchise,base.group_user,1,0,0,0
+access_fix_partner_conflict,fix.partner.conflict,model_fix_partner_conflict,base.group_user,1,1,1,0
+access_fix_partner_audit,fix.partner.audit,model_fix_partner_audit,base.group_user,1,0,0,0
+access_fix_partner_officer,fix.partner officer,model_fix_partner,group_fix_channel_officer,1,1,1,0
+access_fix_partner_authorisation_officer,fix.partner.authorisation officer,model_fix_partner_authorisation,group_fix_channel_officer,1,1,1,0
+access_fix_partner_deal_officer,fix.partner.deal officer,model_fix_partner_deal,group_fix_channel_officer,1,1,1,0
+access_fix_partner_rebate_officer,fix.partner.rebate officer,model_fix_partner_rebate,group_fix_channel_officer,1,1,1,0
+access_fix_partner_franchise_officer,fix.partner.franchise officer,model_fix_partner_franchise,group_fix_channel_officer,1,1,1,0
+access_fix_partner_conflict_officer,fix.partner.conflict officer,model_fix_partner_conflict,group_fix_channel_officer,1,1,1,0
+access_fix_partner_audit_officer,fix.partner.audit officer,model_fix_partner_audit,group_fix_channel_officer,1,1,1,0
+access_fix_partner_kyc,fix.partner kyc,model_fix_partner,group_fix_channel_kyc_officer,1,1,0,0
+access_fix_partner_rebate_approver,fix.partner.rebate approver,model_fix_partner_rebate,group_fix_rebate_approver,1,1,0,0
+access_fix_referral_manager,fix.referral.manager,model_fix_referral,group_fix_referral_manager,1,1,1,0
+access_fix_partner_programme_user,fix.partner.programme user,model_fix_partner_programme,base.group_user,1,0,0,0
+access_fix_partner_programme_officer,fix.partner.programme officer,model_fix_partner_programme,group_fix_channel_officer,1,1,1,0
+access_fix_partner_tier_user,fix.partner.tier user,model_fix_partner_tier,base.group_user,1,0,0,0
+access_fix_partner_tier_officer,fix.partner.tier officer,model_fix_partner_tier,group_fix_channel_officer,1,1,1,0
+access_fix_partner_contact_role_user,fix.partner.contact.role user,model_fix_partner_contact_role,base.group_user,1,0,0,0
+access_fix_partner_contact_role_officer,fix.partner.contact.role officer,model_fix_partner_contact_role,group_fix_channel_officer,1,1,1,0
+access_fix_partner_onboarding_user,fix.partner.onboarding user,model_fix_partner_onboarding,base.group_user,1,0,0,0
+access_fix_partner_onboarding_officer,fix.partner.onboarding officer,model_fix_partner_onboarding,group_fix_channel_officer,1,1,1,0
+access_fix_partner_enablement_user,fix.partner.enablement user,model_fix_partner_enablement,base.group_user,1,0,0,0
+access_fix_partner_enablement_officer,fix.partner.enablement officer,model_fix_partner_enablement,group_fix_channel_officer,1,1,1,0
+access_fix_brand_obligation_user,fix.brand.obligation user,model_fix_brand_obligation,base.group_user,1,0,0,0
+access_fix_brand_obligation_officer,fix.brand.obligation officer,model_fix_brand_obligation,group_fix_channel_officer,1,1,1,0
+access_fix_brand_audit_user,fix.brand.audit user,model_fix_brand_audit,base.group_user,1,0,0,0
+access_fix_brand_audit_officer,fix.brand.audit officer,model_fix_brand_audit,group_fix_channel_officer,1,1,1,0
+access_fix_partner_engagement_user,fix.partner.engagement user,model_fix_partner_engagement,base.group_user,1,0,0,0
+access_fix_partner_engagement_officer,fix.partner.engagement officer,model_fix_partner_engagement,group_fix_channel_officer,1,1,1,0
+access_fix_alliance_scheme_user,fix.alliance.scheme user,model_fix_alliance_scheme,base.group_user,1,0,0,0
+access_fix_alliance_scheme_officer,fix.alliance.scheme officer,model_fix_alliance_scheme,group_fix_channel_officer,1,1,1,0
+access_fix_alliance_eligibility_check_user,fix.alliance.eligibility.check user,model_fix_alliance_eligibility_check,base.group_user,1,0,0,0
+access_fix_alliance_eligibility_check_officer,fix.alliance.eligibility.check officer,model_fix_alliance_eligibility_check,group_fix_channel_officer,1,1,1,0
+access_fix_referral_link_user,fix.referral.link user,model_fix_referral_link,base.group_user,1,0,0,0
+access_fix_referral_link_officer,fix.referral.link officer,model_fix_referral_link,group_fix_channel_officer,1,1,1,0
+access_fix_partner_lead_user,fix.partner.lead user,model_fix_partner_lead,base.group_user,1,0,0,0
+access_fix_partner_lead_officer,fix.partner.lead officer,model_fix_partner_lead,group_fix_channel_officer,1,1,1,0
+access_fix_channel_conflict_rule_user,fix.channel.conflict.rule user,model_fix_channel_conflict_rule,base.group_user,1,0,0,0
+access_fix_channel_conflict_rule_officer,fix.channel.conflict.rule officer,model_fix_channel_conflict_rule,group_fix_channel_officer,1,1,1,0
+access_fix_reseller_allocation_user,fix.reseller.allocation user,model_fix_reseller_allocation,base.group_user,1,0,0,0
+access_fix_reseller_allocation_officer,fix.reseller.allocation officer,model_fix_reseller_allocation,group_fix_channel_officer,1,1,1,0
+access_fix_franchise_territory_user,fix.franchise.territory user,model_fix_franchise_territory,base.group_user,1,0,0,0
+access_fix_franchise_territory_officer,fix.franchise.territory officer,model_fix_franchise_territory,group_fix_channel_officer,1,1,1,0
+access_fix_franchise_royalty_user,fix.franchise.royalty user,model_fix_franchise_royalty,base.group_user,1,0,0,0
+access_fix_franchise_royalty_officer,fix.franchise.royalty officer,model_fix_franchise_royalty,group_fix_channel_officer,1,1,1,0
+access_fix_mdf_fund_user,fix.mdf.fund user,model_fix_mdf_fund,base.group_user,1,0,0,0
+access_fix_mdf_fund_officer,fix.mdf.fund officer,model_fix_mdf_fund,group_fix_channel_officer,1,1,1,0
+access_fix_mdf_claim_user,fix.mdf.claim user,model_fix_mdf_claim,base.group_user,1,0,0,0
+access_fix_mdf_claim_officer,fix.mdf.claim officer,model_fix_mdf_claim,group_fix_channel_officer,1,1,1,0
+access_fix_referral_officer,fix.referral officer,model_fix_referral,group_fix_channel_officer,1,1,1,0
+access_fix_partner_rate_change_user,fix.partner.rate.change user,model_fix_partner_rate_change,base.group_user,1,0,0,0
+access_fix_partner_rate_change_manager,fix.partner.rate.change manager,model_fix_partner_rate_change,group_fix_channel_manager,1,1,1,0
+access_fix_reseller_draw_user,fix.reseller.draw user,model_fix_reseller_draw,base.group_user,1,0,0,0
+access_fix_partner_rate_change_tier3,fix.partner.rate.change tier 3,model_fix_partner_rate_change,cd_entity_config.group_dofa_tier_3,1,1,0,0

@@ -1,2 +1,76 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_discount_approval,fix.discount.approval,model_fix_discount_approval,base.group_user,1,1,1,0
+access_fix_quotation,fix.quotation,model_fix_quotation,base.group_user,1,0,0,0
+access_fix_quotation_author,fix.quotation author,model_fix_quotation,group_quotation_user,1,1,1,0
+access_fix_quotation_approver,fix.quotation value-band approver,model_fix_quotation,cd_entity_config.group_dofa_tier_1,1,1,0,0
+access_fix_quotation_manager,fix.quotation manager,model_fix_quotation,group_quotation_manager,1,1,1,1
+access_fix_quote_review,fix.quote.review,model_fix_quote_review,base.group_user,1,0,0,0
+access_fix_tender,fix.tender,model_fix_tender,base.group_user,1,0,0,0
+access_fix_tender_coordinator,fix.tender bid coordinator,model_fix_tender,group_bid_coordinator,1,1,1,0
+access_fix_tender_committee,fix.tender committee,model_fix_tender,group_tender_committee,1,1,0,0
+access_fix_tender_manager,fix.tender manager,model_fix_tender,group_quotation_manager,1,1,1,1
+access_fix_tender_requirement,fix.tender.requirement,model_fix_tender_requirement,base.group_user,1,0,0,0
+access_fix_tender_requirement_coordinator,fix.tender.requirement bid coordinator,model_fix_tender_requirement,group_bid_coordinator,1,1,1,1
+access_fix_tender_bond,fix.tender.bond,model_fix_tender_bond,base.group_user,1,0,0,0
+access_fix_tender_bond_coordinator,fix.tender.bond bid coordinator,model_fix_tender_bond,group_bid_coordinator,1,1,1,0
+access_fix_tender_bond_approver,fix.tender.bond release approver,model_fix_tender_bond,cd_entity_config.group_dofa_tier_2,1,1,0,0
+access_fix_tender_bond_manager,fix.tender.bond manager,model_fix_tender_bond,group_quotation_manager,1,1,1,1
+access_fix_tender_variation,fix.tender.variation,model_fix_tender_variation,base.group_user,1,0,0,0
+access_fix_tender_variation_coordinator,fix.tender.variation bid coordinator,model_fix_tender_variation,group_bid_coordinator,1,1,1,0
+access_fix_tender_variation_committee,fix.tender.variation committee,model_fix_tender_variation,group_tender_committee,1,1,0,0
+access_fix_tender_variation_manager,fix.tender.variation manager,model_fix_tender_variation,group_quotation_manager,1,1,1,1
+access_fix_quotation_line,fix.quotation.line,model_fix_quotation_line,base.group_user,1,0,0,0
+access_fix_quotation_line_author,fix.quotation.line author,model_fix_quotation_line,group_quotation_user,1,1,1,1
+access_fix_quotation_line_approver,fix.quotation.line value-band approver,model_fix_quotation_line,cd_entity_config.group_dofa_tier_1,1,0,0,0
+access_fix_quotation_line_manager,fix.quotation.line manager,model_fix_quotation_line,group_quotation_manager,1,1,1,1
+access_fix_tender_line,fix.tender.line,model_fix_tender_line,base.group_user,1,0,0,0
+access_fix_tender_line_coordinator,fix.tender.line bid coordinator,model_fix_tender_line,group_bid_coordinator,1,1,1,1
+access_fix_quotation_bid_coordinator,fix.quotation bid pricing,model_fix_quotation,group_bid_coordinator,1,1,1,0
+access_fix_quotation_line_bid_coordinator,fix.quotation.line bid pricing,model_fix_quotation_line,group_bid_coordinator,1,1,1,1
+access_fix_quotation_billing_line,fix.quotation.billing.line,model_fix_quotation_billing_line,base.group_user,1,0,0,0
+access_fix_quotation_billing_line_author,fix.quotation.billing.line author,model_fix_quotation_billing_line,group_quotation_user,1,1,1,1
+access_fix_quotation_billing_line_manager,fix.quotation.billing.line manager,model_fix_quotation_billing_line,group_quotation_manager,1,1,1,1
+access_fix_quotation_billing_line_account,fix.quotation.billing.line accountant,model_fix_quotation_billing_line,account.group_account_user,1,1,0,0
+access_fix_quotation_handoff,fix.quotation.handoff,model_fix_quotation_handoff,base.group_user,1,0,0,0
+access_fix_contract_scope_line,fix.contract.scope.line,model_fix_contract_scope_line,base.group_user,1,0,0,0
+access_fix_quotation_template,fix.quotation.template,model_fix_quotation_template,base.group_user,1,0,0,0
+access_fix_quotation_template_manager,fix.quotation.template manager,model_fix_quotation_template,group_quotation_manager,1,1,1,1
+access_fix_quotation_template_line,fix.quotation.template.line,model_fix_quotation_template_line,base.group_user,1,0,0,0
+access_fix_quotation_template_line_manager,fix.quotation.template.line manager,model_fix_quotation_template_line,group_quotation_manager,1,1,1,1
+access_fix_quotation_template_billing,fix.quotation.template.billing,model_fix_quotation_template_billing,base.group_user,1,0,0,0
+access_fix_quotation_template_billing_manager,fix.quotation.template.billing manager,model_fix_quotation_template_billing,group_quotation_manager,1,1,1,1
+access_fix_quotation_delivery,fix.quotation.delivery,model_fix_quotation_delivery,base.group_user,1,0,0,0
+access_fix_quotation_delivery_author,fix.quotation.delivery author,model_fix_quotation_delivery,group_quotation_user,1,1,1,0
+access_fix_quotation_delivery_manager,fix.quotation.delivery manager,model_fix_quotation_delivery,group_quotation_manager,1,1,1,1
+access_fix_quotation_counter,fix.quotation.counter,model_fix_quotation_counter,base.group_user,1,0,0,0
+access_fix_quotation_counter_author,fix.quotation.counter author,model_fix_quotation_counter,group_quotation_user,1,1,1,0
+access_fix_quotation_counter_manager,fix.quotation.counter manager,model_fix_quotation_counter,group_quotation_manager,1,1,1,1
+access_fix_quotation_counter_line,fix.quotation.counter.line,model_fix_quotation_counter_line,base.group_user,1,0,0,0
+access_fix_quotation_counter_line_author,fix.quotation.counter.line author,model_fix_quotation_counter_line,group_quotation_user,1,1,1,0
+access_fix_quotation_counter_line_manager,fix.quotation.counter.line manager,model_fix_quotation_counter_line,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma,fix.sales.proforma,model_fix_sales_proforma,base.group_user,1,0,0,0
+access_fix_sales_proforma_author,fix.sales.proforma author,model_fix_sales_proforma,group_quotation_user,1,1,1,1
+access_fix_sales_proforma_manager,fix.sales.proforma manager,model_fix_sales_proforma,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma_account,fix.sales.proforma billing,model_fix_sales_proforma,account.group_account_invoice,1,1,1,0
+access_fix_sales_proforma_line,fix.sales.proforma.line,model_fix_sales_proforma_line,base.group_user,1,0,0,0
+access_fix_sales_proforma_line_author,fix.sales.proforma.line author,model_fix_sales_proforma_line,group_quotation_user,1,1,1,1
+access_fix_sales_proforma_line_manager,fix.sales.proforma.line manager,model_fix_sales_proforma_line,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma_line_account,fix.sales.proforma.line billing,model_fix_sales_proforma_line,account.group_account_invoice,1,1,1,1
+access_fix_discount_reason,fix.discount.reason,model_fix_discount_reason,base.group_user,1,1,1,1
+access_fix_quotation_standard_term,fix.quotation.standard.term,model_fix_quotation_standard_term,base.group_user,1,0,0,0
+access_fix_quotation_standard_term_manager,fix.quotation.standard.term manager,model_fix_quotation_standard_term,group_quotation_manager,1,1,1,1
+access_fix_quotation_term,fix.quotation.term,model_fix_quotation_term,base.group_user,1,0,0,0
+access_fix_quotation_term_author,fix.quotation.term author,model_fix_quotation_term,group_quotation_user,1,1,1,1
+access_fix_quotation_term_manager,fix.quotation.term manager,model_fix_quotation_term,group_quotation_manager,1,1,1,1
+access_fix_quotation_credit_override,fix.quotation.credit.override,model_fix_quotation_credit_override,base.group_user,1,0,0,0
+access_fix_quotation_credit_override_finance,fix.quotation.credit.override finance,model_fix_quotation_credit_override,account.group_account_manager,1,0,1,0
+access_fix_quotation_legal_hold,fix.quotation.legal.hold,model_fix_quotation_legal_hold,base.group_user,1,0,0,0
+access_fix_quotation_legal_hold_author,fix.quotation.legal.hold author,model_fix_quotation_legal_hold,group_quotation_user,1,0,1,0
+access_fix_estimate_review,fix.estimate.review,model_fix_estimate_review,base.group_user,1,1,1,0
+access_fix_estimate_review_manager,fix.estimate.review manager,model_fix_estimate_review,group_quotation_manager,1,1,1,1
+access_fix_tender_document,fix.tender.document,model_fix_tender_document,base.group_user,1,0,0,0
+access_fix_tender_document_bid,fix.tender.document bid,model_fix_tender_document,group_bid_coordinator,1,1,1,1
+access_fix_tender_outcome,fix.tender.outcome,model_fix_tender_outcome,base.group_user,1,0,0,0
+access_fix_tender_outcome_bid,fix.tender.outcome bid,model_fix_tender_outcome,group_bid_coordinator,1,0,1,0
+access_fix_quotation_entitlement,fix.quotation.entitlement,model_fix_quotation_entitlement,base.group_user,1,0,0,0
+access_fix_quotation_entitlement_author,fix.quotation.entitlement author,model_fix_quotation_entitlement,group_quotation_user,1,1,1,1

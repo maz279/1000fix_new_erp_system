@@ -3,6 +3,740 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__sla_deadline
+msgid "48-Hour Resolution SLA Deadline"
+msgstr "৪৮ ঘণ্টার সমাধান SLA সময়সীমা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__acceptance_rate
+msgid "Acceptance Rate (0-1)"
+msgstr "গ্রহণের হার (০-১)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Accrue Commission"
+msgstr "কমিশন জমা করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__category_ids
+msgid "Approved Service Categories"
+msgstr "অনুমোদিত সার্ভিস শ্রেণিসমূহ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Approved Service Categories (BRU-ECM-07)"
+msgstr "অনুমোদিত সার্ভিস শ্রেণিসমূহ (BRU-ECM-07)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__resolved_by
+msgid "Arbitrated By"
+msgstr "সালিশকারী"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Arbitration & Resolution"
+msgstr "সালিশ ও সমাধান"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__resolution_notes
+msgid "Arbitration & Resolution Rationale"
+msgstr "সালিশ ও সমাধানের যৌক্তিকতা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__tier__at_risk
+msgid "At-Risk (Dispute Hold)"
+msgstr "ঝুঁকিতে (বিরোধজনিত হোল্ড)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_review_mode__automated_l6
+msgid "Automated L6 Service (INT-034)"
+msgstr "স্বয়ংক্রিয় L6 সার্ভিস (INT-034)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Awarded Seller & Ephemeral Contact (BRU-ECM-05)"
+msgstr "নির্বাচিত বিক্রেতা ও সাময়িক যোগাযোগ (BRU-ECM-05)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__revealed_seller_id
+msgid "Awarded Seller for Contact Disclosure"
+msgstr "যোগাযোগ তথ্য প্রকাশের জন্য নির্বাচিত বিক্রেতা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__battery_health_percent
+msgid "Battery Health (%)"
+msgstr "ব্যাটারির অবস্থা (%)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__name
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Business / Shop Name"
+msgstr "ব্যবসা / দোকানের নাম"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__cfo_approval_date
+msgid "CFO Approval Date"
+msgstr "CFO অনুমোদনের তারিখ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__cfo_approved_by
+msgid "CFO Approved By"
+msgstr "CFO অনুমোদনকারী"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__cfo_approved
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "CFO Operational Approval"
+msgstr "CFO পরিচালনগত অনুমোদন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "CFO Operational Approval (BRU-ECM-01)"
+msgstr "CFO পরিচালনগত অনুমোদন (BRU-ECM-01)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__commission_amount
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__commissioned
+msgid "Commission Earned"
+msgstr "অর্জিত কমিশন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Complete Job"
+msgstr "জব সম্পন্ন করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__compliance_reviewer_id
+msgid "Compliance Reviewer"
+msgstr "কমপ্লায়েন্স পর্যালোচক"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__composite
+msgid "Composite Performance Score"
+msgstr "সমন্বিত পারফরম্যান্স স্কোর"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_score_form
+msgid "Compute Tier & Publish Score"
+msgstr "টায়ার গণনা ও স্কোর প্রকাশ করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__customer_contact_revealed
+msgid "Contact Info Revealed to Selected Seller"
+msgstr "নির্বাচিত বিক্রেতার কাছে যোগাযোগের তথ্য প্রকাশিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__customer_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__budget
+msgid "Customer Budget / Listing Price"
+msgstr "গ্রাহকের বাজেট / তালিকাভুক্ত মূল্য"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Customer Complaint"
+msgstr "গ্রাহকের অভিযোগ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Customer Sign-Off"
+msgstr "গ্রাহকের সম্মতি স্বাক্ষর"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Describe device fault, diagnostic needs, or repair scope..."
+msgstr "ডিভাইসের ত্রুটি, ডায়াগনস্টিক প্রয়োজন বা মেরামতের পরিধি লিখুন..."
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__dispute_reason__damage
+msgid "Device Cosmetic or Hardware Damage"
+msgstr "ডিভাইসের বাহ্যিক বা হার্ডওয়্যার ক্ষতি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__disclosed_defects
+msgid "Disclosed Cosmetic / Functional Defects"
+msgstr "প্রকাশিত বাহ্যিক / কার্যগত ত্রুটি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__resolution_type__payout_seller
+msgid "Dismissed - Release Full Payout to Seller"
+msgstr "খারিজ - বিক্রেতাকে সম্পূর্ণ পরিশোধ ছাড় করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__description
+msgid "Dispute Details & Evidence"
+msgstr "বিরোধের বিবরণ ও প্রমাণ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Dispute ID"
+msgstr "বিরোধ আইডি"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Dispute Open"
+msgstr "বিরোধ চলমান"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__state__raised
+msgid "Dispute Raised"
+msgstr "বিরোধ উত্থাপিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__dispute_rate
+msgid "Dispute Rate (0-1)"
+msgstr "বিরোধের হার (০-১)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__name
+msgid "Dispute Reference"
+msgstr "বিরোধ রেফারেন্স"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__disputed_amount
+msgid "Disputed Amount (BDT)"
+msgstr "বিরোধপূর্ণ পরিমাণ (টাকা)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Disputes"
+msgstr "বিরোধসমূহ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Disputes & Arbitration"
+msgstr "বিরোধ ও সালিশ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Document reasons for ruling, concession amounts, or customer refund details..."
+msgstr "সিদ্ধান্তের কারণ, ছাড়ের পরিমাণ বা গ্রাহককে ফেরতের বিবরণ লিখুন..."
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "e.g. Uttara Express Phone Repair"
+msgstr "যেমন উত্তরা এক্সপ্রেস ফোন রিপেয়ার"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Escalate to Executive"
+msgstr "নির্বাহীর কাছে এসকালেট করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__state__escalated
+msgid "Escalated to Executive"
+msgstr "নির্বাহীর কাছে এসকালেটেড"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__eta_days
+msgid "ETA (days)"
+msgstr "ETA (দিন)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__resolution_type__rework_order
+msgid "Free Warranty Rework Scheduled"
+msgstr "বিনামূল্যে ওয়ারেন্টি পুনঃকাজ নির্ধারিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__resolution_type__refund_customer
+msgid "Full Refund to Customer"
+msgstr "গ্রাহককে সম্পূর্ণ অর্থ ফেরত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__tier__gold
+msgid "Gold Seller (Standard Qualified)"
+msgstr "গোল্ড বিক্রেতা (মানসম্মত যোগ্য)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__graded_stock_id
+msgid "Graded Refurb Inventory Unit"
+msgstr "গ্রেডকৃত রিফার্ব ইনভেন্টরি ইউনিট"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Graded Stock Link"
+msgstr "গ্রেডকৃত মজুদ লিংক"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__has_open_dispute
+msgid "Has Active Open Disputes"
+msgstr "সক্রিয় অমীমাংসিত বিরোধ আছে"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__state__arbitration
+msgid "In Arbitration"
+msgstr "সালিশাধীন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__in_review
+msgid "In Compliance Review"
+msgstr "কমপ্লায়েন্স পর্যালোচনাধীন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Investigate"
+msgstr "তদন্ত করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__in_progress
+msgid "Job In Progress"
+msgstr "জব চলমান"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "KYC & Identity Verification (INT-034)"
+msgstr "KYC ও পরিচয় যাচাই (INT-034)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__pending
+msgid "KYC Pending"
+msgstr "KYC অপেক্ষমাণ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__rejected
+msgid "KYC Rejected"
+msgstr "KYC প্রত্যাখ্যাত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__kyc_submission_date
+msgid "KYC Submission Date"
+msgstr "KYC জমার তারিখ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__kyc_verified_date
+msgid "KYC Verification Date"
+msgstr "KYC যাচাইয়ের তারিখ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__verified
+msgid "KYC Verified"
+msgstr "KYC যাচাইকৃত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__dispute_ids
+msgid "Linked Disputes"
+msgstr "সংযুক্ত বিরোধসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__service_order_id
+msgid "Linked Service Order (M01)"
+msgstr "সংযুক্ত সার্ভিস অর্ডার (M01)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Mandatory Disclosures"
+msgstr "বাধ্যতামূলক প্রকাশ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_review_mode__manual_compliance
+msgid "Manual Compliance Review (FB-14)"
+msgstr "ম্যানুয়াল কমপ্লায়েন্স পর্যালোচনা (FB-14)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Mark Paid"
+msgstr "পরিশোধিত চিহ্নিত করুন"
+
+#. module: cd_marketplace
 msgid "Marketplace & Seller Ecosystem"
-msgstr "Marketplace & Seller Ecosystem (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "মার্কেটপ্লেস ও বিক্রেতা ইকোসিস্টেম"
+
+#. module: cd_marketplace
+#: model:ir.model,name:cd_marketplace.model_fix_marketplace_dispute
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Marketplace Dispute"
+msgstr "মার্কেটপ্লেস বিরোধ"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_marketplace_dispute
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_marketplace_dispute
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_list
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_search
+msgid "Marketplace Disputes"
+msgstr "মার্কেটপ্লেস বিরোধসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.model,name:cd_marketplace.model_fix_marketplace_order
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__order_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__marketplace_order_id
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Marketplace Order"
+msgstr "মার্কেটপ্লেস অর্ডার"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_marketplace_order
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_marketplace_order
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_list
+msgid "Marketplace Orders"
+msgstr "মার্কেটপ্লেস অর্ডারসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.model,name:cd_marketplace.model_fix_marketplace_seller
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Marketplace Seller"
+msgstr "মার্কেটপ্লেস বিক্রেতা"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_marketplace_seller
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_marketplace_seller
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_list
+msgid "Marketplace Sellers"
+msgstr "মার্কেটপ্লেস বিক্রেতাগণ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__nid_number
+msgid "National ID (NID)"
+msgstr "জাতীয় পরিচয়পত্র (NID)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__not_selected
+msgid "Not Selected"
+msgstr "নির্বাচিত নয়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__on_time_rate
+msgid "On-Time Delivery (0-1)"
+msgstr "সময়মতো ডেলিভারি (০-১)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_search
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Open Arbitration"
+msgstr "সালিশ শুরু করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__open
+msgid "Open for Quotes"
+msgstr "কোটেশনের জন্য উন্মুক্ত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Order Description"
+msgstr "অর্ডারের বিবরণ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Order Reference"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__partner_id
+msgid "Party (M33)"
+msgstr "পার্টি (M33)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__paid
+msgid "Payout Complete"
+msgstr "পরিশোধ সম্পন্ন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Payout Hold"
+msgstr "পরিশোধ হোল্ড"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__payout_hold
+msgid "Payout Locked (Dispute Hold)"
+msgstr "পরিশোধ লক করা (বিরোধজনিত হোল্ড)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_score_form
+msgid "Performance Metrics"
+msgstr "পারফরম্যান্স মেট্রিক"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__tier__platinum
+msgid "Platinum Seller (Top 5%)"
+msgstr "প্লাটিনাম বিক্রেতা (শীর্ষ ৫%)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_quote_form
+msgid "Proposal specifics, parts included, warranty duration..."
+msgstr "প্রস্তাবের বিস্তারিত, অন্তর্ভুক্ত যন্ত্রাংশ, ওয়ারেন্টির মেয়াদ..."
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__notes
+msgid "Quote Description / Proposal"
+msgstr "কোটেশনের বিবরণ / প্রস্তাব"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_quote_form
+msgid "Quote Details"
+msgstr "কোটেশনের বিবরণ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__quoted_price
+msgid "Quoted Price"
+msgstr "উদ্ধৃত মূল্য"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Quotes"
+msgstr "কোটেশনসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__quoted
+msgid "Quotes Received"
+msgstr "প্রাপ্ত কোটেশন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__order_type__refurb_resale
+msgid "Refurbished Device Resale"
+msgstr "রিফার্বিশকৃত ডিভাইস পুনঃবিক্রয়"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Refurbished Resale Wiring (BRU-TRF-04)"
+msgstr "রিফার্বিশকৃত পুনঃবিক্রয় সংযোগ (BRU-TRF-04)"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Reject KYC"
+msgstr "KYC প্রত্যাখ্যান করুন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Rejection / Compliance Notes"
+msgstr "প্রত্যাখ্যান / কমপ্লায়েন্স নোট"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__rejection_reason
+msgid "Rejection Justification"
+msgstr "প্রত্যাখ্যানের যৌক্তিকতা"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Resolution Rationale"
+msgstr "সমাধানের যৌক্তিকতা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__resolution_type
+msgid "Resolution Ruling"
+msgstr "সমাধানের সিদ্ধান্ত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__resolved_date
+msgid "Resolution Timestamp"
+msgstr "সমাধানের সময়"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Resolve & Release Lock"
+msgstr "সমাধান করুন ও লক ছাড়ুন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__state__resolved
+msgid "Resolved & Closed"
+msgstr "সমাধানকৃত ও বন্ধ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__rating
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__review_rating
+msgid "Review Rating (0-5)"
+msgstr "রিভিউ রেটিং (০-৫)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__reviewed
+msgid "Reviewed"
+msgstr "পর্যালোচিত"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Select authorized repair/refurb categories..."
+msgstr "অনুমোদিত মেরামত/রিফার্ব শ্রেণি নির্বাচন করুন..."
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__selected
+msgid "Selected"
+msgstr "নির্বাচিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__selected_quote_id
+msgid "Selected Quote"
+msgstr "নির্বাচিত কোটেশন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__seller_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__seller_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__seller_id
+msgid "Seller"
+msgstr "বিক্রেতা"
+
+#. module: cd_marketplace
+#: model:ir.model,name:cd_marketplace.model_fix_seller_quote
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_quote_form
+msgid "Seller Quote"
+msgstr "বিক্রেতার কোটেশন"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_seller_quote
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__quote_ids
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_seller_quote
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_quote_list
+msgid "Seller Quotes"
+msgstr "বিক্রেতার কোটেশনসমূহ"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_score_form
+msgid "Seller Score"
+msgstr "বিক্রেতার স্কোর"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_seller_score
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_seller_score
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_seller_score_list
+msgid "Seller Scores"
+msgstr "বিক্রেতার স্কোরসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__selected
+msgid "Seller Selected"
+msgstr "বিক্রেতা নির্বাচিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__dispute_reason__unresponsive
+msgid "Seller Unresponsive"
+msgstr "বিক্রেতা সাড়া দিচ্ছেন না"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__order_type__service_quote
+msgid "Service & Repair Order"
+msgstr "সার্ভিস ও মেরামত অর্ডার"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__category_id
+msgid "Service Category"
+msgstr "সার্ভিস শ্রেণি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__dispute_reason__delay
+msgid "Significant Delay Exceeding SLA"
+msgstr "SLA অতিক্রম করে উল্লেখযোগ্য বিলম্ব"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__tier__silver
+msgid "Silver Seller (Probationary)"
+msgstr "সিলভার বিক্রেতা (পরীক্ষামূলক)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_dispute__sla_breached
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_form
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_dispute_search
+msgid "SLA Breached"
+msgstr "SLA লঙ্ঘিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__tradein_request_id
+msgid "Source Trade-In Request"
+msgstr "উৎস ট্রেড-ইন অনুরোধ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__resolution_type__split_settlement
+msgid "Split Settlement / Mutual Concession"
+msgstr "বিভক্ত নিষ্পত্তি / পারস্পরিক ছাড়"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_order_form
+msgid "Start Job"
+msgstr "জব শুরু করুন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Statutory Identifiers"
+msgstr "সংবিধিবদ্ধ শনাক্তকারী"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Submit KYC (Z4)"
+msgstr "KYC জমা দিন (Z4)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__submitted
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__dispute_reason__quality
+msgid "Substandard Repair Quality"
+msgstr "নিম্নমানের মেরামত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__tin_number
+msgid "Tax Identification Number (TIN)"
+msgstr "করদাতা শনাক্তকরণ নম্বর (TIN)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__total_jobs
+msgid "Total Completed Jobs"
+msgstr "মোট সম্পন্ন জব"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__trade_license_no
+msgid "Trade License Number"
+msgstr "ট্রেড লাইসেন্স নম্বর"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__dispute_reason__pricing
+msgid "Unauthorized Additional Charges"
+msgstr "অননুমোদিত অতিরিক্ত চার্জ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_dispute__state__investigating
+msgid "Under Investigation"
+msgstr "তদন্তাধীন"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Verified"
+msgstr "যাচাইকৃত"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Verify & Approve Seller"
+msgstr "বিক্রেতা যাচাই ও অনুমোদন করুন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__kyc_doc_z4_ref
+msgid "Z4 Document Reference"
+msgstr "Z4 দলিল রেফারেন্স"
+
+#. module: cd_marketplace
+#: model_terms:ir.ui.view,arch_db:cd_marketplace.view_fix_marketplace_seller_form
+msgid "Z4 Sovereign Split-Residency"
+msgstr "Z4 সার্বভৌম বিভক্ত-রেসিডেন্সি"

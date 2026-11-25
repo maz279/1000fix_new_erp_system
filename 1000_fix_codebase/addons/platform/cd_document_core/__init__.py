@@ -1,2 +1,2 @@
 # cd_document_core — M24-core Document kernel
-from . import models
+from . import controllers, models

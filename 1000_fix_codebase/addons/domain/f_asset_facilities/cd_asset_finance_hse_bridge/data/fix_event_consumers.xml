@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04) report §6 P1 "Event consumers": the hand-offs from M17/M45/M46/M47
+     into M09, M49, M52, M59 and M60. Each method is idempotent per source (see the model).
+     active_from defaults to the install time: older events are replayed only by Backfill. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_equipment_written_off" model="fix.event.consumer">
+            <field name="name">M49: an approved equipment write-off becomes a disposal request</field>
+            <field name="event_type">equipment.written_off</field>
+            <field name="model">fix.asset.finance.request</field>
+            <field name="method">consume_equipment_written_off</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_recorded" model="fix.event.consumer">
+            <field name="name">M19/M49: a recorded M47 lease becomes a draft IFRS 16 contract</field>
+            <field name="event_type">lease.recorded</field>
+            <field name="model">fix.lease</field>
+            <field name="method">consume_lease_recorded</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_extract_published" model="fix.event.consumer">
+            <field name="name">M19/M49: a new lease extract updates the draft or raises a modification item</field>
+            <field name="event_type">lease.extract_published</field>
+            <field name="model">fix.lease</field>
+            <field name="method">consume_lease_extract_published</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_facility_work_order_closed" model="fix.event.consumer">
+            <field name="name">M52: a verified facility work order becomes a pending cost entry</field>
+            <field name="event_type">facility.work_order_closed</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_facility_work_order_closed</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_vehicle_fuel_recorded" model="fix.event.consumer">
+            <field name="name">M52: a clean fuel fill becomes a pending cost entry</field>
+            <field name="event_type">vehicle.fuel_recorded</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_vehicle_fuel_recorded</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_vehicle_service_completed" model="fix.event.consumer">
+            <field name="name">M52: a completed vehicle service becomes a pending cost entry</field>
+            <field name="event_type">vehicle.service_completed</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_vehicle_service_completed</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_incident" model="fix.event.consumer">
+            <field name="name">M59: a site injury opens the HSE case and writes its reference back</field>
+            <field name="event_type">site.incident</field>
+            <field name="model">fix.hse.incident</field>
+            <field name="method">consume_site_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_vehicle_incident" model="fix.event.consumer">
+            <field name="name">M59: a vehicle accident with injuries opens the HSE case</field>
+            <field name="event_type">vehicle.incident</field>
+            <field name="model">fix.hse.incident</field>
+            <field name="method">consume_vehicle_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_safety_equipment_unfit" model="fix.event.consumer">
+            <field name="name">M59: unfit site safety equipment raises one open hazard</field>
+            <field name="event_type">site.safety_equipment_unfit</field>
+            <field name="model">fix.hse.hazard</field>
+            <field name="method">consume_site_safety_equipment_unfit</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_risk_exception_raised" model="fix.event.consumer">
+            <field name="name">M60: a site operating on a lapsed licence: one open risk per site</field>
+            <field name="event_type">site.risk_exception_raised</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_risk_exception_raised</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_risk_decision_recorded" model="fix.event.consumer">
+            <field name="name">M60: the continue/suspend decision goes on the site's open risk</field>
+            <field name="event_type">site.risk_decision_recorded</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_risk_decision_recorded</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_compliance_expired" model="fix.event.consumer">
+            <field name="name">M60: an expired site licence: one open risk per site</field>
+            <field name="event_type">site.compliance_expired</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_compliance_expired</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_driver_licence_expired" model="fix.event.consumer">
+            <field name="name">M60: an expired driving licence: one open risk per driver</field>
+            <field name="event_type">driver.licence_expired</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_driver_licence_expired</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_vehicle_document_expired" model="fix.event.consumer">
+            <field name="name">M60: an expired vehicle document: one open risk per vehicle</field>
+            <field name="event_type">vehicle.document_expired</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_vehicle_document_expired</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_device_transferred" model="fix.event.consumer">
+            <field name="name">M09: a device owner change puts its open warranty claims on re-check</field>
+            <field name="event_type">device.transferred</field>
+            <field name="model">fix.warranty.claim</field>
+            <field name="method">consume_device_transferred</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_device_warranty_updated" model="fix.event.consumer">
+            <field name="name">M09: a device warranty change puts its open warranty claims on re-check</field>
+            <field name="event_type">device.warranty_updated</field>
+            <field name="model">fix.warranty.claim</field>
+            <field name="method">consume_device_warranty_updated</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <!-- A07 P1 wiring (2026-11-04): FF-48 events that had no consumer. -->
+        <record id="consumer_equipment_lost_risk" model="fix.event.consumer">
+            <field name="name">M60: a missing test instrument: one open risk per item</field>
+            <field name="event_type">equipment.lost</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_equipment_lost</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_equipment_lost_m49" model="fix.event.consumer">
+            <field name="name">M49: a missing capitalised item becomes a pending write-off request</field>
+            <field name="event_type">equipment.lost</field>
+            <field name="model">fix.asset.finance.request</field>
+            <field name="method">consume_equipment_lost</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_equipment_recovered_risk" model="fix.event.consumer">
+            <field name="name">M60: a recovered item is logged on its open risk (never closed)</field>
+            <field name="event_type">equipment.recovered</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_equipment_recovered</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_equipment_recovered_m49" model="fix.event.consumer">
+            <field name="name">M49: a recovered item withdraws its still-pending write-off request</field>
+            <field name="event_type">equipment.recovered</field>
+            <field name="model">fix.asset.finance.request</field>
+            <field name="method">consume_equipment_recovered</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_equipment_transferred" model="fix.event.consumer">
+            <field name="name">M49: a received transfer of a capitalised item raises a draft asset transfer</field>
+            <field name="event_type">equipment.transferred</field>
+            <field name="model">fix.asset.transfer</field>
+            <field name="method">consume_equipment_transferred</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_modified" model="fix.event.consumer">
+            <field name="name">M19/M49: an applied lease modification updates the draft or raises a modification item</field>
+            <field name="event_type">lease.modified</field>
+            <field name="model">fix.lease</field>
+            <field name="method">consume_lease_modified</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_renewal_decision_required" model="fix.event.consumer">
+            <field name="name">M60: a lease renewal decision due: one open premises risk per lease</field>
+            <field name="event_type">lease.renewal_decision_required</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_lease_renewal_decision_required</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_critical_date_due" model="fix.event.consumer">
+            <field name="name">M60: a lease critical date: logged on the lease's open premises risk</field>
+            <field name="event_type">lease.critical_date_due</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_lease_critical_date_due</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_compliance_expiring" model="fix.event.consumer">
+            <field name="name">M60: an expiring site licence is logged on the site's risk (opened low if none)</field>
+            <field name="event_type">site.compliance_expiring</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_compliance_expiring</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <!-- A07 operability (2026-11-07): what the P03 screens say M47 does. -->
+        <record id="consumer_site_utility_payable" model="fix.event.consumer">
+            <field name="name">M52: a utility bill not held, or released after review, becomes a pending cost entry</field>
+            <field name="event_type">site.utility_payable</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_site_utility_payable</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_rent_payment_requested" model="fix.event.consumer">
+            <field name="name">M52: a rent row sent to AP becomes a pending cost entry on the landlord</field>
+            <field name="event_type">lease.rent_payment_requested</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_lease_rent_payment_requested</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_incident_risk" model="fix.event.consumer">
+            <field name="name">M60: a site fire, theft, trespass or injury goes on the site's open risk</field>
+            <field name="event_type">site.incident</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_incident_hazard" model="fix.event.consumer">
+            <field name="name">M59: a site fire, theft or trespass raises one hazard</field>
+            <field name="event_type">site.incident</field>
+            <field name="model">fix.hse.hazard</field>
+            <field name="method">consume_site_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_safety_check_failed" model="fix.event.consumer">
+            <field name="name">M59: a failed site safety check raises one open hazard</field>
+            <field name="event_type">site.safety_check_failed</field>
+            <field name="model">fix.hse.hazard</field>
+            <field name="method">consume_site_safety_check_failed</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+    </data>
+</odoo>

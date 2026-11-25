@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_rbac_ext - A08 finance segregation-of-duties rule set (S4; A12 R2; D1).
+
+  GROUP pairs: who may hold both duties. A grant that gives one person both
+  sides is refused at every grant path (res.users / res.groups writes, access
+  request grant, JML apply, hr.employee role assignment) unless an approved,
+  unexpired SoD exception (fix.sod.mitigation, FR-SEC-024) covers that user.
+  Existing holders are reported (fix.sod.control.fix_report_violations), never
+  locked out. The per-RECORD maker != checker (the creator of this journal,
+  this bill, this payout) is enforced by the finance modules themselves.
+
+  Groups are named by XML ID because they live in addons that load after this
+  one; a side that is not installed leaves the control inert (shown as not
+  measurable on the report), never failing.
+-->
+<odoo noupdate="1">
+
+    <record id="fsod_01" model="fix.sod.control">
+        <field name="code">FSOD-01</field>
+        <field name="name">Confirm a supplier bank-detail change + prepare, register or release payments</field>
+        <field name="control_type">group</field>
+        <field name="group_a_xmlid">cd_vendor_portal.group_fix_supplier_approver</field>
+        <field name="group_b_xmlid">account.group_account_invoice</field>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Billing, Accountant and Accounting Administrator (the payment releaser, A08 F1) all hold Invoicing: they raise bills, payment runs and payments and release them. The call-back that vouches for a supplier's new bank account is independent only if the confirmer is outside the payables and treasury chain; together the two duties redirect a payment to an account the same person vouched for (A08 D1/S4, M52-1, M50-1; BRU-APE-09).</field>
+    </record>
+
+    <record id="fsod_02" model="fix.sod.control">
+        <field name="code">FSOD-02</field>
+        <field name="name">Propose + confirm a supplier bank-detail change</field>
+        <field name="control_type">group</field>
+        <field name="group_a_xmlid">cd_vendor_portal.group_fix_supplier_steward</field>
+        <field name="group_b_xmlid">cd_vendor_portal.group_fix_supplier_approver</field>
+        <field name="conflict_action">block</field>
+        <field name="rationale">The steward proposes a bank-detail change and the approver confirms it after the call-back; one person holding both can propose and confirm their own redirection on any supplier (A06 S1/S7, A08 S4). The per-record proposer != confirmer check stays in cd_vendor_portal.</field>
+    </record>
+
+</odoo>

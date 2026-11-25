@@ -1,29 +1,67 @@
-# cd_fixed_asset_ext — M49 Fixed Assets & Capital Investment (P08-M08).
+# cd_fixed_asset_ext — M49 Fixed Assets & Capital Investment (P08-M08, A08 rebuild).
 {
     "name": "1000FiX Fixed Assets",
-    "summary": "M49: fixed assets on M19's seam, straight-line depreciation (100% covered), CWIP capitalisation; M54 budget link advisory (CD-M49-nn)",
+    "summary": "M49: capex requests and capital budget, asset register, CWIP, dual-book depreciation with GL posting, revaluation/impairment, disposal, verification, IFRS 16 leases",
     "description": """
-CD-M49-01 (P08-M08) — fixed assets on the seam M19 built (P06-M01-T07):
+CD-M49-01 (P08-M08, rebuilt for A08) — fixed assets on the seam M19 built:
 
-- fix.fixed.asset — gross (Monetary), life, salvage; straight-line
-  monthly depreciation computed by a PURE function (100% coverage,
-  DoD-03 — a financial path); capitalised FROM the M19 seam
-  (fix.fixed.asset.seam): finance posts capitalisation events, M49
-  consumes
-- fix.cwip.entry — capital-work-in-progress: costs accumulate; the
-  CAPITALISE action creates the fixed asset from the accumulated total
-- THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes
-  depreciation EVENTS (depreciation.accrued published monthly); M49
-  does NOT read budgets — budget_reference is an ADVISORY char (5.4
-  NOT-A-PREREQ), never a foreign key into M54
+- fix.capex.budget / fix.capex.request — request -> approve (SoD, within the
+  budget's available amount) -> CWIP project -> capitalised asset
+- fix.fixed.asset — the register (tag, category, branch, custodian);
+  straight-line monthly charge from a PURE function (DoD-03)
+- fix.cwip.entry — capital work in progress; CAPITALISE posts Dr asset /
+  Cr CWIP and registers the asset
+- fix.asset.depreciation.run — monthly dual-book run: accounting book
+  (IAS 16 straight-line, GL posted per category) and tax book (ITA 2023
+  Third Schedule reducing balance, effective-dated master data, memo book);
+  one line per asset, book and month (idempotent)
+- fix.asset.transfer — branch / custodian moves with history
+- fix.asset.revaluation — IAS 16 revaluation, IAS 36 impairment and reversal
+- fix.asset.disposal — sale / scrap / write-off with gain or loss posting
+- fix.asset.verification.campaign — physical verification by tag scan
+- fix.lease — IFRS 16 branch leases: liability at the IBR, ROU asset,
+  effective-interest schedule, monthly postings
+- capture audit 2026-11-17 (fix_asset_capture): capital projects with their
+  post-implementation review, CWIP components capitalised as separate
+  assets, approved life / residual changes and depreciation suspension,
+  impairment assessments recorded whether or not impairment results, and
+  verification variance investigations approved by a non-counter
+- capture gaps (fix_asset_gaps): components of an asset brought into
+  service through the M19 seam (one asset per component, reclassified by
+  category), and insurance policies covering named assets or an asset
+  class, reviewed against the register value with any gap reported to
+  the CFO and linked from a write-off claim
+- THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes depreciation
+  EVENTS (depreciation.accrued, now published only for POSTED charges)
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.1.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Accounting/Fixed Assets",
-    "depends": ["base", "mail", "cd_entity_config", "cd_gl_ext",
-                 "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_fixed_asset_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "account",
+        "hr",
+        "cd_entity_config",
+        "cd_gl_ext",
+        "cd_event_outbox",
+        # A08: routed DOFA approvals (M63) and the M51 Third Schedule rates
+        "cd_workflow_engine",
+        "cd_tax_engine_bd",
+        # A08 M49-10: a capital purchase order carries its capex reference
+        "cd_requisition",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "data/fix_asset_sequence_data.xml",
+        "data/fix_asset_master_data.xml",
+        "data/fix_asset_consumers.xml",
+        "data/fix_asset_cron.xml",
+        "views/fix_fixed_asset_views.xml",
+        "views/fix_asset_lifecycle_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M49-01",

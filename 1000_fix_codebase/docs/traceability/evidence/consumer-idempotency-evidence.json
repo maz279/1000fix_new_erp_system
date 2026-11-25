@@ -1,0 +1,80 @@
+{
+  "test": "R07-M01-T02: Consumer Idempotency at Scale (DI-05)",
+  "timestamp_utc": "2026-11-02T01:22:32Z",
+  "results": {
+    "measurement_scope": "in-process: libs/py/fix_events.InMemoryBus (in-memory log) + script-local reference dedup handler; no broker, no production consumer",
+    "total_deliveries": 5000,
+    "unique_events_count": 4000,
+    "duplicate_events_injected": 1000,
+    "duplicate_events_intercepted": 1000,
+    "duplicate_mutations_executed": 0,
+    "idempotency_preservation_rate": 1.0,
+    "business_state": {
+      "expected_mutations": 4000,
+      "actual_mutations": 4000,
+      "expected_balance": 600000,
+      "actual_balance": 600000,
+      "balance_drift": 0
+    },
+    "in_process_microbenchmark": {
+      "note": "in-memory consume loop + set-based dedup; not broker or consumer throughput",
+      "throughput_events_per_sec": 750041.3,
+      "handler_latency_p50_ms": 0.0007,
+      "handler_latency_p95_ms": 0.0012,
+      "handler_latency_p99_ms": 0.0024
+    },
+    "infra_probe": {
+      "redis_reachable": true,
+      "detail": "127.0.0.1:6380 accepted a TCP connection"
+    },
+    "checks": [
+      {
+        "check": "library_event_ids_unique",
+        "status": "PASS",
+        "detail": "4000 distinct event_ids from 4000 produce() calls"
+      },
+      {
+        "check": "library_preserves_explicit_event_id",
+        "status": "PASS",
+        "detail": "5000/5000 envelopes kept the event_id supplied by the producer"
+      },
+      {
+        "check": "every_record_delivered_once",
+        "status": "PASS",
+        "detail": "consume() delivered 5000, handler saw 5000, produced 5000"
+      },
+      {
+        "check": "one_mutation_per_unique_event",
+        "status": "PASS",
+        "detail": "4000 mutations for 4000 unique events"
+      },
+      {
+        "check": "duplicates_intercepted",
+        "status": "PASS",
+        "detail": "1000 duplicates intercepted of 1000 injected"
+      },
+      {
+        "check": "zero_balance_drift",
+        "status": "PASS",
+        "detail": "balance 600000 BDT vs expected 600000 BDT (drift 0)"
+      },
+      {
+        "check": "negative_control_duplicates_were_delivered",
+        "status": "PASS",
+        "detail": "non-dedup handler applied 5000 mutations from 5000 deliveries"
+      },
+      {
+        "check": "committed_offsets_prevent_redelivery",
+        "status": "PASS",
+        "detail": "second consume() pass for the same group delivered 0 records"
+      },
+      {
+        "check": "production_dedup_store_at_scale",
+        "status": "PASS",
+        "detail": "LIVE run 1bd7693c: 300 event_ids offered to the DI-05 SADD barrier on real Redis twice (first pass admitted 300, redelivery pass admitted 0); set cardinality 300 == 300; naive control would apply 600; barrier throughput 1591 ops/s over the wire"
+      }
+    ],
+    "verdict": "PASS"
+  },
+  "verdict": "PASS"
+}

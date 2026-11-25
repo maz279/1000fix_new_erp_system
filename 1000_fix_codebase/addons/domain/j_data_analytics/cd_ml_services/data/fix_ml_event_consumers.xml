@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M26's in-Odoo event consumers (A2-F09).
+
+  The module now publishes its lifecycle events; each one has a consumer here,
+  because the fitness gate FF-48 (check_deployment_wiring.py) treats a
+  published event with no consumer as a defect — an event nobody acts on is
+  code that never runs. All five share one idempotent consumer method on
+  fix.ml.model: the audit trail is a chatter post on the model, and the two
+  alert events additionally raise a to-do for the model's owner when one is
+  named (owner_id is NULL on the live estate — then the chatter post is the
+  alert).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_model_promoted" model="fix.event.consumer">
+            <field name="name">M26: record a model promotion on its chatter</field>
+            <field name="event_type">model.promoted</field>
+            <field name="model">fix.ml.model</field>
+            <field name="method">consume_model_event</field>
+            <field name="module">cd_ml_services</field>
+        </record>
+        <record id="consumer_model_retired" model="fix.event.consumer">
+            <field name="name">M26: record a model retirement on its chatter</field>
+            <field name="event_type">model.retired</field>
+            <field name="model">fix.ml.model</field>
+            <field name="method">consume_model_event</field>
+            <field name="module">cd_ml_services</field>
+        </record>
+        <record id="consumer_model_gate_failed" model="fix.event.consumer">
+            <field name="name">M26: alert the model owner that a gate failed</field>
+            <field name="event_type">model.gate_failed</field>
+            <field name="model">fix.ml.model</field>
+            <field name="method">consume_model_event</field>
+            <field name="module">cd_ml_services</field>
+        </record>
+        <record id="consumer_model_bias_test_completed" model="fix.event.consumer">
+            <field name="name">M26: record a completed bias test on the model</field>
+            <field name="event_type">model.bias_test_completed</field>
+            <field name="model">fix.ml.model</field>
+            <field name="method">consume_model_event</field>
+            <field name="module">cd_ml_services</field>
+        </record>
+        <record id="consumer_model_drift_alert" model="fix.event.consumer">
+            <field name="name">M26: alert the model owner that drift is in the alert band</field>
+            <field name="event_type">model.drift_alert</field>
+            <field name="model">fix.ml.model</field>
+            <field name="method">consume_model_event</field>
+            <field name="module">cd_ml_services</field>
+        </record>
+    </data>
+</odoo>

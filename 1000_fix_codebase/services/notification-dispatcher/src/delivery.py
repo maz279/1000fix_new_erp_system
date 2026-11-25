@@ -16,12 +16,13 @@ NT-001 §4, transcribed:
 The dead-letter queue is a first-class citizen: it is inspectable, it ages,
 and an ageing DLQ raises the NT-021 integration alert.
 """
+
 from __future__ import annotations
 
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # P0 integrations with a NAMED fallback (IP-09 fallback register, P04-M05-T09).
 FALLBACK_REGISTER: dict[str, str] = {
@@ -56,9 +57,9 @@ class DeliveryRecord:
     rendered: str
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     attempts: list[Attempt] = field(default_factory=list)
-    state: str = "pending"     # pending | delivered | dead | suppressed | held | discarded
+    state: str = "pending"  # pending | delivered | dead | suppressed | held | discarded
     final_channel: str = ""
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     delivered_at: datetime | None = None
 
     @property
@@ -86,13 +87,15 @@ class DeliveryTracker:
         self.records.append(record)
         return record
 
-    def record_attempt(self, record: DeliveryRecord, channel: str, status: str, detail: str = "") -> None:
+    def record_attempt(
+        self, record: DeliveryRecord, channel: str, status: str, detail: str = ""
+    ) -> None:
         record.attempts.append(Attempt(channel=channel, status=status, detail=detail))
 
     def mark_delivered(self, record: DeliveryRecord, channel: str) -> None:
         record.state = "delivered"
         record.final_channel = channel
-        record.delivered_at = datetime.now(timezone.utc)
+        record.delivered_at = datetime.now(UTC)
 
     def mark_suppressed(self, record: DeliveryRecord, reason: str) -> None:
         record.state = "suppressed"
@@ -121,7 +124,7 @@ class DeliveryTracker:
             "record_id": record.id,
             "reason": reason,
             "fallback_register": "IP-09 / OP-014",
-            "raised_at": datetime.now(timezone.utc).isoformat(),
+            "raised_at": datetime.now(UTC).isoformat(),
         }
         self.operational_tasks.append(task)
         return task

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 scheduled sweeps (A06 audit 2026-11-03, M16-10 / M16-12: 0 crons).
+  A cron method without its ir.cron record never runs.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_fix_procurement_blanket_expiry" model="ir.cron">
+            <field name="name">M16: expire blanket agreements past their end date</field>
+            <field name="model_id" ref="model_fix_procurement_blanket"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire_blankets()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_fix_purchase_order_overdue" model="ir.cron">
+            <field name="name">M16: open expediting cases for overdue purchase orders</field>
+            <field name="model_id" ref="model_fix_purchase_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_open_overdue_expedites()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_fix_requisition_emergency_posthoc" model="ir.cron">
+            <field name="name">M16: escalate emergency purchases past their post-hoc approval window</field>
+            <field name="model_id" ref="model_fix_requisition"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_emergency_posthoc()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A06 P22: an RFQ past its response deadline closes by itself -->
+        <record id="ir_cron_fix_procurement_rfq_close_due" model="ir.cron">
+            <field name="name">M16: close RFQs past their response deadline</field>
+            <field name="model_id" ref="model_fix_procurement_rfq"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_close_due_rfqs()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A06 P33: chase POs the vendor has not acknowledged within the SLA -->
+        <record id="ir_cron_fix_purchase_order_ack_chase" model="ir.cron">
+            <field name="name">M16: chase unacknowledged purchase orders</field>
+            <field name="model_id" ref="model_fix_purchase_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_chase_acknowledgements()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

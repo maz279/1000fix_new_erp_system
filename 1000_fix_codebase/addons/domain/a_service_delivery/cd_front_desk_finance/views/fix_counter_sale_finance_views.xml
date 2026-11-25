@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E2E2 flow 2: where a counter sale stands in the books, and the retry. -->
+<odoo>
+    <record id="view_fix_counter_sale_form_finance" model="ir.ui.view">
+        <field name="name">fix.counter.sale.form.finance</field>
+        <field name="model">fix.counter.sale</field>
+        <field name="inherit_id" ref="cd_front_desk.view_fix_counter_sale_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_retry_posting" type="object" string="Retry Posting"
+                        invisible="posting_state not in ('pending', 'reversal_pending')"/>
+            </xpath>
+            <xpath expr="//sheet/group" position="after">
+                <group string="Books">
+                    <group>
+                        <field name="posting_state"/>
+                        <field name="posting_note" invisible="not posting_note"/>
+                        <field name="mushak_id"/>
+                        <field name="mushak_note_id" invisible="not mushak_note_id"/>
+                        <field name="vat_taxable_amount"/>
+                        <field name="vat_output_amount"/>
+                        <field name="mushak_63_ref" string="Counter Ref (M63 series)"/>
+                    </group>
+                    <group>
+                        <field name="gl_move_id"/>
+                        <field name="gl_reversal_move_id" invisible="not gl_reversal_move_id"/>
+                        <field name="payment_account_id"/>
+                        <field name="revenue_account_id"/>
+                        <field name="stock_state"/>
+                        <field name="stock_location_id"
+                               readonly="stock_state in ('issued', 'returned', 'cancelled')"/>
+                        <field name="serial_or_warranty_ref"/>
+                        <field name="stock_unit_cost"/>
+                        <field name="posting_attempted_at"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_counter_sale_list_finance" model="ir.ui.view">
+        <field name="name">fix.counter.sale.list.finance</field>
+        <field name="model">fix.counter.sale</field>
+        <field name="inherit_id" ref="cd_front_desk.view_fix_counter_sale_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="posting_state"/>
+                <field name="mushak_no" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_counter_sale_search_finance" model="ir.ui.view">
+        <field name="name">fix.counter.sale.search.finance</field>
+        <field name="model">fix.counter.sale</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="branch_id"/>
+                <field name="product_id"/>
+                <field name="mushak_no"/>
+                <filter name="pending_posting" string="Pending Posting"
+                        domain="[('posting_state', 'in', ('pending', 'reversal_pending'))]"/>
+                <filter name="posted" string="Posted"
+                        domain="[('posting_state', 'in', ('posted', 'reversed'))]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- E2E2 flow 2: the reconciled drawer variance in the GL, and the retry. -->
+    <record id="view_fix_cash_shift_form_finance" model="ir.ui.view">
+        <field name="name">fix.cash.shift.form.finance</field>
+        <field name="model">fix.cash.shift</field>
+        <field name="inherit_id" ref="cd_front_desk.view_fix_cash_shift_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_retry_variance_posting" type="object"
+                        string="Retry Variance Posting"
+                        invisible="variance_posting_state != 'pending'"/>
+            </xpath>
+            <xpath expr="//field[@name='variance']" position="after">
+                <field name="variance_posting_state"/>
+                <field name="variance_posting_note" invisible="not variance_posting_note"/>
+                <field name="variance_move_id" invisible="not variance_move_id"/>
+                <field name="variance_account_id" invisible="not variance_account_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_branch_form_counter_stock" model="ir.ui.view">
+        <field name="name">fix.branch.form.counter.stock</field>
+        <field name="model">fix.branch</field>
+        <field name="inherit_id" ref="cd_entity_config.view_fix_branch_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='operating_unit_id']" position="after">
+                <field name="counter_stock_location_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

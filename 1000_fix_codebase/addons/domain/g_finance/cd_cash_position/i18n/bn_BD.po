@@ -7,51 +7,1411 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__active
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__active
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_fund__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__amount
 msgid "Amount"
 msgstr "পরিমাণ"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__amount_mismatch
+msgid "Amount Differs"
+msgstr "পরিমাণ ভিন্ন"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__approved
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__operator__ge
+msgid "At Least (≥)"
+msgstr "অন্তত (≥)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__operator__le
+msgid "At Most (≤)"
+msgstr "সর্বোচ্চ (≤)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_signatories
+msgid "Authorised Signatories"
+msgstr "অনুমোদিত স্বাক্ষরকারী"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__auto
+msgid "Auto-Detect"
+msgstr "স্বয়ংক্রিয় শনাক্ত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__auto
+msgid "Auto-Matched"
+msgstr "স্বয়ংক্রিয়ভাবে মিলকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__balanced
+msgid "Balanced"
+msgstr "মিলেছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__bank_balance
 msgid "Bank"
 msgstr "ব্যাংক"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__journal_id
+msgid "Bank Account"
+msgstr "ব্যাংক হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_branch_name
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_branch_name
+msgid "Bank Branch"
+msgstr "ব্যাংক শাখা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__is_bank_charge
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__charge
+msgid "Bank Charge"
+msgstr "ব্যাংক চার্জ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Bank Confirmation"
+msgstr "ব্যাংক নিশ্চিতকরণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__bank_confirmed
+msgid "Bank Confirmed"
+msgstr "ব্যাংক নিশ্চিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__statement_line_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__statement_line_id
+msgid "Bank Credit"
+msgstr "ব্যাংক জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__bank_matched
+msgid "Bank Credit Matched"
+msgstr "ব্যাংক জমা মিলেছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__bank
+msgid "Bank Deposit"
+msgstr "ব্যাংক জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__bank_guarantee
+msgid "Bank Guarantee"
+msgstr "ব্যাংক গ্যারান্টি"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Bank Line"
+msgstr "ব্যাংক লাইন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__reference
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__bank_reference
 msgid "Bank Reference"
 msgstr "ব্যাংক রেফারেন্স"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__bank_reference
+msgid "Bank Reference Recorded"
+msgstr "ব্যাংক রেফারেন্স লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Bank Rejected"
+msgstr "ব্যাংক প্রত্যাখ্যাত"
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_bank_statement_line
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__statement_line_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__statement_line_id
+msgid "Bank Statement Line"
+msgstr "ব্যাংক স্টেটমেন্ট লাইন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__statement
+msgid "Bank Statement Match"
+msgstr "ব্যাংক স্টেটমেন্ট মিল"
+
+#. module: cd_cash_position
 msgid "Bank Statements"
 msgstr "ব্যাংক স্টেটমেন্ট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__bank_transfer
+msgid "Bank Transfer"
+msgstr "ব্যাংক ট্রান্সফার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__name
+msgid "Batch Ref"
+msgstr "ব্যাচ রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_account_type
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_account_type
+msgid "BD Account Type"
+msgstr "বাংলাদেশি হিসাবের ধরন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__beftn
+msgid "BEFTN"
+msgstr "BEFTN"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__bkash
+msgid "bKash"
+msgstr "bKash"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__mfs
+msgid "bKash / Nagad"
+msgstr "bKash / Nagad"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__mobile_fs
+msgid "bKash/Nagad Merchant Pay"
+msgstr "bKash/Nagad মার্চেন্ট পে"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Book as Bank Charge"
+msgstr "ব্যাংক চার্জ হিসেবে লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_count__book_balance
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__book_balance
+msgid "Book Balance"
+msgstr "বই স্থিতি"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_count_form
+msgid "Book Variance"
+msgstr "পার্থক্য লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__bounced
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Bounced"
+msgstr "ফেরত (অনাদায়ী)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__branch_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__deposit
+msgid "Branch Cash Deposit"
+msgstr "শাখা নগদ জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__drawer_float_total
 msgid "Branch Drawers"
 msgstr "শাখা ড্রয়ার"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__carrier__staff
+msgid "Branch Staff"
+msgstr "শাখা কর্মী"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__breach
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__breach
+msgid "Breach"
+msgstr "লঙ্ঘন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__caller_asserted
+msgid "Caller-Asserted (No Bank Evidence)"
+msgstr "অনুরোধকারীর দাবি (ব্যাংক প্রমাণ নেই)"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+msgid "Cancel"
+msgstr "বাতিল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__cancelled
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__carrier_name
+msgid "Carried By"
+msgstr "বাহক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cash
+msgid "Cash"
+msgstr "নগদ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__count_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Cash Counts"
+msgstr "নগদ গণনা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__cash_credit
+msgid "Cash Credit"
+msgstr "নগদ ঋণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__business_date
+msgid "Cash Day"
+msgstr "নগদ দিবস"
+
+#. module: cd_cash_position
+#: model:ir.actions.act_window,name:cd_cash_position.action_fix_cash_position
 msgid "Cash Position"
 msgstr "নগদ অবস্থান"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__cash
+msgid "Cash to Branch"
+msgstr "শাখায় নগদ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__cash_in_transit_total
+msgid "Cash-in-Transit"
+msgstr "পরিবহনরত নগদ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__carrier__cit_company
+msgid "Cash-in-Transit Company"
+msgstr "নগদ পরিবহন প্রতিষ্ঠান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__charge_move_id
+msgid "Charge Entry"
+msgstr "চার্জ এন্ট্রি"
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_cheque
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__cheque
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cheque
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__cheque
+msgid "Cheque"
+msgstr "চেক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__cheque_date
+msgid "Cheque Date"
+msgstr "চেকের তারিখ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__cheque_no
+msgid "Cheque No"
+msgstr "চেক নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__cleared
+msgid "Cleared"
+msgstr "নিষ্পন্ন"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Close"
+msgstr "বন্ধ করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__closed
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_fund__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__expected_amount
+msgid "COD Expected"
+msgstr "প্রত্যাশিত সিওডি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__order_ids
+msgid "COD Orders"
+msgstr "সিওডি অর্ডার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__collection
+msgid "Collection"
+msgstr "সংগ্রহ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_company_currency_id
+msgid "Company Currency"
+msgstr "প্রতিষ্ঠানের মুদ্রা"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Confirm Bank Debit"
+msgstr "ব্যাংক খরচ নিশ্চিত করুন"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Confirm Match"
+msgstr "মিল নিশ্চিত করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__covenant_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Covenants"
+msgstr "চুক্তি শর্ত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__credited
+msgid "Credited by Bank"
+msgstr "ব্যাংকে জমা হয়েছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__journal_id
+msgid "Credited To"
+msgstr "জমা হয়েছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__csv
+msgid "CSV"
+msgstr "CSV"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__current
+msgid "Current Account (CD)"
+msgstr "চলতি হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__current_ratio
+msgid "Current Ratio"
+msgstr "চলতি অনুপাত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__custodian_id
+msgid "Custodian"
+msgstr "রক্ষক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__debit_account_id
+msgid "Debit Account"
+msgstr "ডেবিট হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__dscr
+msgid "Debt Service Coverage (trailing 12 months)"
+msgstr "ঋণ পরিশোধ সক্ষমতা (বিগত ১২ মাস)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__debt_to_equity
+msgid "Debt to Equity"
+msgstr "ঋণ-মূলধন অনুপাত"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Deposit"
+msgstr "জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__journal_id
+msgid "Deposit Into"
+msgstr "যে হিসাবে জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__name
+msgid "Deposit Ref"
+msgstr "জমা রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__slip_no
+msgid "Deposit Slip No"
+msgstr "জমা স্লিপ নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__deposited
+msgid "Deposited"
+msgstr "জমাকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__principal
+msgid "Disbursed Principal"
+msgstr "বিতরণকৃত আসল"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+msgid "Dispatch to Bank"
+msgstr "ব্যাংকে প্রেরণ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Dispute"
+msgstr "আপত্তি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__disputed
+msgid "Disputed"
+msgstr "আপত্তিকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__drawee_bank
+msgid "Drawn On (Bank / Branch)"
+msgstr "যে ব্যাংকে কাটা (ব্যাংক / শাখা)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__duplicate
+msgid "Duplicate File"
+msgstr "পুনরাবৃত্ত ফাইল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__duplicate
+msgid "Duplicate Transaction"
+msgstr "পুনরাবৃত্ত লেনদেন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__exception_count
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__exceptions
+msgid "Exceptions"
+msgstr "ব্যতিক্রম"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__executed
+msgid "Executed"
+msgstr "সম্পাদিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__expense_account_id
+msgid "Expense Account"
+msgstr "খরচ হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__expiry_date
+msgid "Expiry / Maturity"
+msgstr "মেয়াদ শেষ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__utilisation_pct
+msgid "Facility Utilisation %"
+msgstr "সুবিধা ব্যবহার %"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__failure_reason
+msgid "Failure Reason"
+msgstr "ব্যর্থতার কারণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__fee
+msgid "Fee (MDR)"
+msgstr "ফি (MDR)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__total_fee
+msgid "Fees (MDR)"
+msgstr "ফি (MDR)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__file_hash
+msgid "File Hash"
+msgstr "ফাইল হ্যাশ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__filename
+msgid "File Name"
+msgstr "ফাইলের নাম"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__start_date
+msgid "First Instalment Date"
+msgstr "প্রথম কিস্তির তারিখ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__fdr
+msgid "Fixed Deposit (FDR)"
+msgstr "স্থায়ী আমানত (FDR)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_foreign_balance
+msgid "Foreign-Currency Balance"
+msgstr "বৈদেশিক মুদ্রার স্থিতি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__format_type
+msgid "Format"
+msgstr "ধরন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__gateway
+msgid "Gateway / MFS Settlement"
+msgstr "গেটওয়ে / এমএফএস নিষ্পত্তি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__gateway
+msgid "Gateway Settlement"
+msgstr "গেটওয়ে নিষ্পত্তি"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Generate Schedule"
+msgstr "সূচি তৈরি করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_gl_balance
+msgid "GL Balance"
+msgstr "GL স্থিতি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__move_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__move_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__move_id
+msgid "GL Entry"
+msgstr "GL এন্ট্রি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__gl_note
+msgid "GL Note"
+msgstr "GL টীকা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__import_id
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_import_form
+msgid "Import"
+msgstr "আমদানি"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Import Report"
+msgstr "প্রতিবেদন আমদানি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__imported
+msgid "Imported"
+msgstr "আমদানিকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__imported
+msgid "Imported — Awaiting Bank Credit"
+msgstr "আমদানিকৃত — ব্যাংক জমার অপেক্ষায়"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__imprest_limit
+msgid "Imprest Ceiling"
+msgstr "খরচি নগদ সর্বোচ্চ সীমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__in_transit
+msgid "In Transit"
+msgstr "পরিবহনরত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__direction__inflow
+msgid "Inflow"
+msgstr "আন্তঃপ্রবাহ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__instruction_attachment_id
+msgid "Instruction File"
+msgstr "নির্দেশনা ফাইল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__name
+msgid "Instruction Ref"
+msgstr "নির্দেশনা রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__interest_rate
+msgid "Interest Rate (% p.a.)"
+msgstr "সুদের হার (বার্ষিক %)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__direction__issued
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__issued
+msgid "Issued"
+msgstr "ইস্যুকৃত"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Ledger"
+msgstr "খতিয়ান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__lender_id
+msgid "Lender"
+msgstr "ঋণদাতা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__lc
+msgid "Letter of Credit"
+msgstr "ঋণপত্র"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__liability_account_id
+msgid "Liability Account"
+msgstr "দায় হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__line_ids
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__line_ids
+msgid "Lines"
+msgstr "লাইন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__imported_count
+msgid "Lines Imported"
+msgstr "আমদানিকৃত লাইন"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Load COD Orders"
+msgstr "সিওডি অর্ডার আনুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__manual
+msgid "Manually Matched"
+msgstr "ম্যানুয়ালি মিলকৃত"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Match To (pick one)"
+msgstr "যার সাথে মেলাবেন (একটি বাছুন)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__matched
+msgid "Matched"
+msgstr "মিলেছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_deposit_id
+msgid "Matched Cash Deposit"
+msgstr "মিলকৃত নগদ জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_cheque_id
+msgid "Matched Cheque"
+msgstr "মিলকৃত চেক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_invoice_ref
 msgid "Matched Invoice"
 msgstr "মিলিত চালান"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_payment_id
 msgid "Matched Payment"
 msgstr "মিলিত পেমেন্ট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_gateway_id
+msgid "Matched Settlement"
+msgstr "মিলকৃত নিষ্পত্তি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_kind
+msgid "Matched To"
+msgstr "যার সাথে মিলেছে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__mfs_wallet
+msgid "MFS Merchant Wallet"
+msgstr "এমএফএস মার্চেন্ট ওয়ালেট"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__mfs_wallet
+msgid "MFS Wallet"
+msgstr "এমএফএস ওয়ালেট"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__min_liquidity
+msgid "Minimum Cash & Bank Balance"
+msgstr "ন্যূনতম নগদ ও ব্যাংক স্থিতি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__repayment_frequency__monthly
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__mt940
+msgid "MT940"
+msgstr "MT940"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__nagad
+msgid "Nagad"
+msgstr "Nagad"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__missing_receipt
+msgid "No Receipt Booked"
+msgstr "কোনো রসিদ লিপিবদ্ধ নেই"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_repayment__sequence
+msgid "No."
+msgstr "নং"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__na
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__na
+msgid "Not Computable"
+msgstr "গণনাযোগ্য নয়"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__npsb
+msgid "NPSB"
+msgstr "NPSB"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__once
+msgid "Once"
+msgstr "একবার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__operating
+msgid "Operating"
+msgstr "পরিচালন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__order_count
+msgid "Orders"
+msgstr "অর্ডার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__other
+msgid "Other Gateway / Wallet"
+msgstr "অন্যান্য গেটওয়ে / ওয়ালেট"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__journal_id
+msgid "Our Bank Account"
+msgstr "আমাদের ব্যাংক হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__receipt_name
+msgid "Our Receipt"
+msgstr "আমাদের রসিদ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__direction__outflow
+msgid "Outflow"
+msgstr "বহিঃপ্রবাহ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__payment
+msgid "Outgoing Payment"
+msgstr "বহির্গামী পরিশোধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__overdraft
+msgid "Overdraft"
+msgstr "ওভারড্রাফট"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__od_cc
+msgid "Overdraft / Cash Credit"
+msgstr "ওভারড্রাফট / নগদ ঋণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_repayment__is_overdue
+msgid "Overdue"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_repayment__state__paid
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__paid
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__journal_id
+msgid "Paid From"
+msgstr "যে হিসাব থেকে পরিশোধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__partner_id
+msgid "Party"
+msgstr "পক্ষ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__pass
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__pass
+msgid "Pass"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Pay"
+msgstr "পরিশোধ করুন"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Pay & Post"
+msgstr "পরিশোধ ও লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+msgid "Pay from Bank"
+msgstr "ব্যাংক থেকে পরিশোধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__payee
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__payee
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
 msgid "Payee"
 msgstr "প্রাপক"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__payee_name
+msgid "Payee / Drawer Name"
+msgstr "প্রাপক / প্রদানকারীর নাম"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__partner_bank_id
+msgid "Payee Account / Wallet"
+msgstr "প্রাপকের হিসাব / ওয়ালেট"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__partner_id
+msgid "Payee Partner"
+msgstr "প্রাপক পক্ষ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Payment"
+msgstr "পরিশোধ"
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_payment_execution
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__payment_execution_id
+msgid "Payment Execution"
+msgstr "পরিশোধ সম্পাদন"
+
+#. module: cd_cash_position
+#: model:ir.actions.act_window,name:cd_cash_position.action_fix_payment_execution
 msgid "Payment Executions"
 msgstr "পেমেন্ট নির্বাহনসমূহ"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__gateway
+msgid "Payment Gateway Merchant Account"
+msgstr "পেমেন্ট গেটওয়ে মার্চেন্ট হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__payroll
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__payroll
+msgid "Payroll"
+msgstr "বেতন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__pending_payments
 msgid "Pending Payments"
 msgstr "অপেক্ষমাণ পেমেন্ট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__voucher_limit
+msgid "Per-Voucher Limit"
+msgstr "প্রতি ভাউচার সীমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__petty_cash_total
+msgid "Petty Cash"
+msgstr "খরচি নগদ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__account_id
+msgid "Petty Cash GL Account"
+msgstr "খরচি নগদ GL হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_repayment__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_position_form
 msgid "Position"
 msgstr "অবস্থান"
 
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Post"
+msgstr "লিপিবদ্ধ করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__is_pdc
+msgid "Post-Dated"
+msgstr "অগ্রিম তারিখের"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__posted
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__posted
+msgid "Posted"
+msgstr "লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__provider_batch_ref
+msgid "Provider Settlement Ref"
+msgstr "সরবরাহকারীর নিষ্পত্তি রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__repayment_frequency__quarterly
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__rail
+msgid "Rail"
+msgstr "পরিশোধ মাধ্যম"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Re-queue"
+msgstr "পুনরায় সারিতে"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Re-run Match"
+msgstr "পুনরায় মেলান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__receipt_ref
+msgid "Receipt / Bill Ref"
+msgstr "রসিদ / বিল রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__direction__received
+msgid "Received"
+msgstr "প্রাপ্ত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__received
+msgid "Received (Held)"
+msgstr "প্রাপ্ত (সংরক্ষিত)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__received_date
+msgid "Received / Issued On"
+msgstr "প্রাপ্তি / ইস্যুর তারিখ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remittance_journal_id
+msgid "Received Into"
+msgstr "যে হিসাবে গৃহীত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__branch_id
+msgid "Receiving Branch"
+msgstr "গ্রহণকারী শাখা"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_count_form
+msgid "Reconcile"
+msgstr "মিলকরণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__refund
+msgid "Refund / Chargeback — Review"
+msgstr "ফেরত / চার্জব্যাক — পর্যালোচনা"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__rejected
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Release to Bank"
+msgstr "ব্যাংকে প্রেরণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__sent_by_id
+msgid "Released By"
+msgstr "প্রেরণকারী"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remittance_ref
+msgid "Remittance Ref / TrxID"
+msgstr "প্রেরণ রেফারেন্স / লেনদেন নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remitted_amount
+msgid "Remitted"
+msgstr "প্রেরিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__rent
+msgid "Rent"
+msgstr "ভাড়া"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__repayment_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Repayment Schedule"
+msgstr "পরিশোধ সূচি"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Request Top-Up"
+msgstr "পূরণের অনুরোধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__requested
+msgid "Requested"
+msgstr "অনুরোধকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__rider_id
+msgid "Rider"
+msgstr "রাইডার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_routing_number
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_routing_number
+msgid "Routing Number"
+msgstr "রাউটিং নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__rtgs
+msgid "RTGS"
+msgstr "RTGS"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Sanction"
+msgstr "অনুমোদন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__sanction_ref
+msgid "Sanction Letter Ref"
+msgstr "অনুমোদনপত্র রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__limit_amount
+msgid "Sanctioned Limit"
+msgstr "অনুমোদিত সীমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__savings
+msgid "Savings Account (SB)"
+msgstr "সঞ্চয়ী হিসাব"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__sent
+msgid "Sent — Awaiting Bank Confirmation"
+msgstr "প্রেরিত — ব্যাংক নিশ্চিতকরণের অপেক্ষায়"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Settle"
+msgstr "নিষ্পত্তি করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__settled
+msgid "Settled"
+msgstr "নিষ্পন্ন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__name
+msgid "Settlement Ref"
+msgstr "নিষ্পত্তি রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__report_file
+msgid "Settlement Report (CSV)"
+msgstr "নিষ্পত্তি প্রতিবেদন (CSV)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__snd
+msgid "Short Notice Deposit (SND)"
+msgstr "স্বল্প নোটিশ আমানত (SND)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__short_term_loan
+msgid "Short-Term Loan"
+msgstr "স্বল্পমেয়াদি ঋণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__source_ref
+msgid "Source Document"
+msgstr "উৎস দলিল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_id
 msgid "Source ID"
 msgstr "উৎস আইডি"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_model
 msgid "Source Model"
 msgstr "উৎস মডেল"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_posts_gl
+msgid "Source Posts GL"
+msgstr "উৎস দলিল GL লিপিবদ্ধ করে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__sslcommerz
+msgid "SSLCOMMERZ"
+msgstr "SSLCOMMERZ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__file
+msgid "Statement File"
+msgstr "স্টেটমেন্ট ফাইল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__statement_file_hash
+msgid "Statement File Hash"
+msgstr "স্টেটমেন্ট ফাইল হ্যাশ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__statement_sequence
+msgid "Statement Sequence"
+msgstr "স্টেটমেন্ট ক্রম"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__submitted
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__tax
+msgid "Tax / VAT Deposit"
+msgstr "কর / VAT জমা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__tenor_months
+msgid "Tenor (Months)"
+msgstr "মেয়াদ (মাস)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__deposit
+msgid "Term Deposit"
+msgstr "মেয়াদি আমানত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__term_loan
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Term Loan"
+msgstr "মেয়াদি ঋণ"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Test"
+msgstr "পরীক্ষা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_covenant__test_ids
+msgid "Test History"
+msgstr "পরীক্ষার ইতিহাস"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__matched
+msgid "Three-Way Matched"
+msgstr "ত্রিমুখী মিল সম্পন্ন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__name
+msgid "Top-Up Ref"
+msgstr "পূরণ রেফারেন্স"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__replenish_amount
+msgid "Top-Up To Ceiling"
+msgstr "সীমা পর্যন্ত পূরণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__topup_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Top-Ups"
+msgstr "পূরণসমূহ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__total_position
 msgid "Total Position"
 msgstr "মোট অবস্থান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__txn_date
+msgid "Transaction Date"
+msgstr "লেনদেনের তারিখ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__trx_id
+msgid "Transaction ID"
+msgstr "লেনদেন নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_journal_posting_log__source__treasury
+msgid "Treasury (M50)"
+msgstr "কোষাগার (M50)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_treasury_role
+msgid "Treasury Role"
+msgstr "কোষাগার ভূমিকা"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__unmatched
+msgid "Unmatched"
+msgstr "অমিল"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_unmatched_lines
+msgid "Unmatched Statement Lines"
+msgstr "অমিল স্টেটমেন্ট লাইন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__pending_vouchers
+msgid "Unposted Vouchers"
+msgstr "অলিপিবদ্ধ ভাউচার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__utilisation_pct
+msgid "Utilisation %"
+msgstr "ব্যবহার %"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Utilisation (from the GL)"
+msgstr "ব্যবহার (GL থেকে)"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__utilities
+msgid "Utilities"
+msgstr "ইউটিলিটি"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__value_date
+msgid "Value Date"
+msgstr "মূল্য তারিখ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__variance
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_count__variance
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__variance
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__variance
+msgid "Variance"
+msgstr "পার্থক্য"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__booked
+msgid "Variance Booked"
+msgstr "পার্থক্য লিপিবদ্ধ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__fee_vat
+msgid "VAT on Fee"
+msgstr "ফির উপর VAT"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__total_fee_vat
+msgid "VAT on Fees"
+msgstr "ফির উপর VAT"
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Void"
+msgstr "বাতিল করুন"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__name
+msgid "Voucher No"
+msgstr "ভাউচার নম্বর"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__voucher_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Vouchers"
+msgstr "ভাউচার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__weekly
+msgid "Weekly"
+msgstr "সাপ্তাহিক"

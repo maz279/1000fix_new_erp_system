@@ -1,0 +1,162 @@
+# Which fields do the workspace forms let a user edit, per model?
+#
+# Read from the fragment files themselves (static/src/<area>/m*.js): for
+# every `kind: 'model_form'` screen, the header fields not declared
+# `readonly: true`, plus the one2many its `lines:` grid edits and every
+# one2many of its `grids:` list. This is the
+# single source for the per-surface write whitelists (controllers/<area>/
+# writable.py: R3 of the A03 audit, A2 of the A02 audit, B1 of the A09 audit) and for the tests
+# that keep them in step. Not imported by the server; run it to regenerate:
+#
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a02 --a03 --a04 --a05 --a06 --a07 --a08 --a09 --a10
+import re
+import sys
+from pathlib import Path
+
+PORTAL = Path(__file__).resolve().parents[1]
+STATIC = PORTAL / "static" / "src"
+CONTROLLERS = PORTAL / "controllers"
+A03 = CONTROLLERS / "a03"
+AREAS = ("a02", "a03", "a04", "a05", "a06", "a07", "a08", "a09", "a10")
+
+SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
+MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")
+FIELD = re.compile(r"\{\s*name:\s*'([a-z0-9_]+)'([^{}]*)\}")
+SURFACE = re.compile(r'^    "([a-z0-9_.]+)": \{', re.M)
+
+
+def _cut_block(body, key):
+    """Remove `key: { ... }` (balanced braces); return (rest, block)."""
+    m = re.search(r"\b%s:\s*\{" % key, body)
+    if not m:
+        return body, ""
+    depth = 0
+    for j in range(m.end() - 1, len(body)):
+        if body[j] == "{":
+            depth += 1
+        elif body[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return body[: m.start()] + body[j + 1 :], body[m.start() : j + 1]
+    return body, ""
+
+
+def _cut_list(body, key):
+    """Remove `key: [ ... ]` (balanced brackets); return (rest, block)."""
+    m = re.search(r"\b%s:\s*\[" % key, body)
+    if not m:
+        return body, ""
+    depth = 0
+    for j in range(m.end() - 1, len(body)):
+        if body[j] == "[":
+            depth += 1
+        elif body[j] == "]":
+            depth -= 1
+            if depth == 0:
+                return body[: m.start()] + body[j + 1 :], body[m.start() : j + 1]
+    return body, ""
+
+
+def forms(root=STATIC):
+    """Yield (area, screen_id, model, editable_fields) for every model form."""
+    for js in sorted(root.glob("*/m*.js")):
+        text = js.read_text(encoding="utf-8")
+        starts = [(m.start(), m.group(1)) for m in SCREEN.finditer(text)]
+        for i, (pos, sid) in enumerate(starts):
+            end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
+            body = text[pos:end]
+            if "kind: 'model_form'" not in body:
+                continue
+            header, lines = _cut_block(body, "lines")
+            # `grids`: several one2many grids on one form, each edited by it
+            header, grids = _cut_list(header, "grids")
+            header, _status = _cut_block(header, "status")
+            model = MODEL.search(header)
+            if not model:
+                continue
+            editable = {
+                f.group(1)
+                for f in FIELD.finditer(header)
+                if not re.search(r"\breadonly:\s*true", f.group(2))
+            }
+            grid = re.search(r"\bfield:\s*'([a-z0-9_]+)'", lines)
+            # readonlyGrid: the grid only shows the children, so the form edits nothing there
+            if grid and "readonlyGrid: true" not in lines:
+                editable.add(grid.group(1))
+            # each grid is one `{ field: ... }` object; a readonlyGrid one only
+            # shows its children (M13 capture pass 2), so it is not writable
+            for chunk in re.split(r"\{\s*(?=field:)", grids)[1:]:
+                name = re.match(r"field:\s*'([a-z0-9_]+)'", chunk)
+                if name and not re.search(r"\breadonlyGrid:\s*true", chunk):
+                    editable.add(name.group(1))
+            yield js.parent.name, sid, model.group(1), editable
+
+
+def editable_by_model(root=STATIC):
+    out = {}
+    for _area, _sid, model, editable in forms(root):
+        out.setdefault(model, set()).update(editable)
+    return out
+
+
+def surface_models(area):
+    models = set()
+    for py in sorted((CONTROLLERS / area).glob("m*.py")):
+        text = py.read_text(encoding="utf-8")
+        start = text.index("SURFACES = {")
+        models.update(SURFACE.findall(text[start:]))
+    return models
+
+
+def a03_surface_models():
+    return surface_models("a03")
+
+
+def render(area):
+    editable = editable_by_model()
+    rows = []
+    for model in sorted(surface_models(area)):
+        names = sorted(editable.get(model, ()))
+        if not names:
+            rows.append('    "%s": frozenset(),' % model)
+            continue
+        body = "".join('            "%s",\n' % n for n in names)
+        rows.append('    "%s": frozenset(\n        {\n%s        }\n    ),' % (model, body))
+    header = HEADER.replace("A03", area.upper())
+    if area not in ("a02", "a03"):
+        # The a02/a03 files predate per-area flags; later areas name their own.
+        header = header.replace("--a03 --a02", "--" + area)
+    return header + "WRITABLE = {\n" + "\n".join(rows) + "\n}\n"
+
+
+def render_a03():
+    return render("a03")
+
+
+HEADER = """\
+# A03 - the fields each workspace surface accepts from /p03/model/write (R3).
+#
+# GENERATED by controllers/form_fields.py from the model_form declarations in
+# static/src/*/m*.js: a surface accepts exactly the fields some workspace
+# form offers as editable, and nothing else. A surface with no form (an empty
+# set) accepts no writes through the endpoint; its records are edited in
+# Odoo's own form, under the model's guards. The endpoint still drops or
+# refuses read-only and workflow-locked fields even when they are listed.
+#
+# test_a03_writable_matches_forms fails when the forms and this file
+# disagree. Regenerate rather than hand-edit:
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
+
+"""
+
+
+if __name__ == "__main__":
+    wanted = [a for a in AREAS if "--" + a in sys.argv]
+    for area in wanted:
+        (CONTROLLERS / area / "writable.py").write_text(
+            render(area), encoding="utf-8", newline="\n"
+        )
+        print("wrote", CONTROLLERS / area / "writable.py")
+    if not wanted:
+        for model, names in sorted(editable_by_model().items()):
+            print(model, sorted(names))

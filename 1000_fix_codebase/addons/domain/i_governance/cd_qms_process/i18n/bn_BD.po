@@ -3,99 +3,188 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Non-Conformance Record"
-msgstr "অসঙ্গতি রেকর্ড"
-
-msgid "CAPA"
-msgstr "সিএপিএ"
-
-msgid "Internal Audit"
-msgstr "অভ্যন্তরীণ নিরীক্ষা"
-
-msgid "Service Order"
-msgstr "সার্ভিস অর্ডার"
-
-msgid "QC Checklist"
-msgstr "কিউসি চেকলিস্ট"
-
-msgid "Complaint (M34)"
-msgstr "অভিযোগ (M34)"
-
-msgid "Supplier (M42)"
-msgstr "সরবরাহকারী (M42)"
-
-msgid "Minor"
-msgstr "গৌণ"
-
-msgid "Major"
-msgstr "বড়"
-
-msgid "Critical"
-msgstr "সংকটাপন্ন"
-
-msgid "New"
-msgstr "নতুন"
-
-msgid "Root Cause Identified"
-msgstr "মূল কারণ চিহ্নিত"
-
-msgid "CAPA Open"
-msgstr "সিএপিএ চালু"
-
-msgid "Verification"
-msgstr "যাচাই"
-
-msgid "Closed"
-msgstr "বন্ধ"
-
-msgid "Open"
-msgstr "চালু"
-
-msgid "Implemented"
-msgstr "বাস্তবায়িত"
-
-msgid "Verified"
-msgstr "যাচাইকৃত"
-
-msgid "Auditor"
-msgstr "নিরীক্ষক"
-
-msgid "Planned"
-msgstr "পরিকল্পিত"
-
-msgid "Executed"
-msgstr "সম্পাদিত"
-
-msgid "Reported"
-msgstr "প্রতিবেদনকৃত"
-
-msgid "Offline Capture (P11)"
-msgstr "অফলাইন সংগ্রহ (P11)"
-
-msgid "Findings"
-msgstr "পর্যবেক্ষণসমূহ"
-
-msgid "NCR (M23)"
-msgstr "এনসিআর (M23)"
-
-msgid "Quality (M23)"
-msgstr "গুণমান (M23)"
-
-msgid "Non-Conformances"
-msgstr "অসঙ্গতিসমূহ"
-
-msgid "Internal Audits"
-msgstr "অভ্যন্তরীণ নিরীক্ষাসমূহ"
-
-msgid "Owner"
-msgstr "মালিক"
-
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_ncr__audit_id
 msgid "Audit"
 msgstr "নিরীক্ষা"
 
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_internal_audit__auditor_id
+msgid "Auditor"
+msgstr "নিরীক্ষক"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_internal_audit__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_qms_process
+#: model:ir.model,name:cd_qms_process.model_fix_capa
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_complaint__capa_id
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_ncr__capa_id
+msgid "CAPA"
+msgstr "সিএপিএ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__state__capa_open
+msgid "CAPA Open"
+msgstr "CAPA খোলা"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__state__closed
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_ncr__complaint_id
 msgid "Complaint"
 msgstr "অভিযোগ"
 
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__source__complaint
+msgid "Complaint (M34)"
+msgstr "অভিযোগ (M34)"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__severity__critical
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__severity__critical
+msgid "Critical"
+msgstr "সংকটজনক"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_internal_audit__state__executed
+msgid "Executed"
+msgstr "সম্পাদিত"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_internal_audit__ncr_ids
+msgid "Findings"
+msgstr "পর্যবেক্ষণসমূহ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__state__implemented
+msgid "Implemented"
+msgstr "বাস্তবায়িত"
+
+#. module: cd_qms_process
+#: model:ir.model,name:cd_qms_process.model_fix_internal_audit
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__source__audit
+msgid "Internal Audit"
+msgstr "অভ্যন্তরীণ নিরীক্ষা"
+
+#. module: cd_qms_process
+#: model:ir.actions.act_window,name:cd_qms_process.action_fix_internal_audit
+#: model:ir.ui.menu,name:cd_qms_process.menu_fix_audit
+msgid "Internal Audits"
+msgstr "অভ্যন্তরীণ নিরীক্ষাসমূহ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__severity__major
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__severity__major
+msgid "Major"
+msgstr "বড়"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__severity__minor
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__severity__minor
+msgid "Minor"
+msgstr "গৌণ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_complaint__ncr_id
 msgid "NCR"
 msgstr "এনসিআর"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_qc_checklist__ncr_id
+msgid "NCR (M23)"
+msgstr "এনসিআর (M23)"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_qms_process
+#: model:ir.model,name:cd_qms_process.model_fix_ncr
+msgid "Non-Conformance Record"
+msgstr "অসঙ্গতি রেকর্ড"
+
+#. module: cd_qms_process
+#: model:ir.actions.act_window,name:cd_qms_process.action_fix_ncr
+#: model:ir.ui.menu,name:cd_qms_process.menu_fix_ncr
+msgid "Non-Conformances"
+msgstr "অসঙ্গতিসমূহ"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_internal_audit__offline_payload
+msgid "Offline Capture (P11)"
+msgstr "অফলাইন সংগ্রহ (P11)"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_capa__operating_unit_id
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_complaint__operating_unit_id
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_internal_audit__operating_unit_id
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_ncr__operating_unit_id
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_qc_checklist__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_capa__owner_id
+msgid "Owner"
+msgstr "মালিক"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_internal_audit__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__source__qc
+msgid "QC Checklist"
+msgstr "কিউসি চেকলিস্ট"
+
+#. module: cd_qms_process
+#: model:ir.ui.menu,name:cd_qms_process.menu_ws_quality
+msgid "Quality (M23)"
+msgstr "গুণমান (M23)"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_internal_audit__state__reported
+msgid "Reported"
+msgstr "রিপোর্টকৃত"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__state__root_cause
+msgid "Root Cause Identified"
+msgstr "মূল কারণ চিহ্নিত"
+
+#. module: cd_qms_process
+#: model:ir.model.fields,field_description:cd_qms_process.field_fix_ncr__order_id
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__source__service_order
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__source__supplier
+msgid "Supplier (M42)"
+msgstr "সরবরাহকারী (M42)"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_ncr__state__verification
+msgid "Verification"
+msgstr "যাচাই"
+
+#. module: cd_qms_process
+#: model:ir.model.fields.selection,name:cd_qms_process.selection__fix_capa__state__verified
+msgid "Verified"
+msgstr "যাচাইকৃত"

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 P1 bridge (2026-11-04). M45 PM jobs publish no due event, so the spine
+  reads them daily; the same job retries the demands still waiting for a
+  routing fact (a site created for the branch since). Idempotent and
+  superuser-safe: a demand exists once per source item.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_spine_maintenance_due" model="ir.cron">
+            <field name="name">Spine: M45 PM due raises its work order; retry unrouted demands</field>
+            <field name="model_id" ref="model_fix_maintenance_demand"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_maintenance_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

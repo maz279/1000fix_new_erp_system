@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M42 lifecycle sweep (A06 audit 2026-11-03, M42-5/7: 0 crons on M42 models).
+  Expires documents past their end date, suspends active suppliers whose
+  mandatory documents lapsed or whose re-qualification is overdue, and
+  escalates overdue CARs once. A cron method without this record never runs.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_fix_supplier_lifecycle" model="ir.cron">
+            <field name="name">M42: supplier document expiry, suspension and CAR escalation</field>
+            <field name="model_id" ref="model_fix_supplier"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_lifecycle_sweep()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_fix_supplier_review_cadence" model="ir.cron">
+            <field name="name">M42: schedule supplier reviews by segment cadence</field>
+            <field name="model_id" ref="model_fix_supplier"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_review_cadence()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-SRM2-19 (capture audit 2026-11-15): agreement expiry warnings and lapse -->
+        <record id="ir_cron_fix_supplier_agreement_expiry" model="ir.cron">
+            <field name="name">M42: supplier agreement expiry warnings and lapse</field>
+            <field name="model_id" ref="model_fix_supplier_agreement"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_agreement_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

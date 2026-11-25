@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_entity_config — 5-Tier Delegation of Financial Authority (DOFA).
+
+     A03 zero-trust audit (2026-10-31): every "approved" flag in Area A03 was a
+     Boolean the beneficiary set on themselves. A BDT 500,000 complaint
+     settlement, a BDT 250,000 Tier 4 campaign budget and a 5,000-point loyalty
+     credit were each self-approved by the user who raised them, because
+     approval checked only that an amount was positive.
+
+     These groups give fix.dofa.mixin something to check. They imply upward, so
+     a Tier 4 approver can clear a Tier 2 concession but never the reverse. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_dofa" model="res.groups.privilege">
+            <field name="name">Delegation of Financial Authority</field>
+            <field name="description">Approval authority for concessions, discounts, credits and promotional budgets.</field>
+            <field name="sequence">22</field>
+        </record>
+
+        <record id="group_dofa_tier_1" model="res.groups">
+            <field name="name">DOFA Tier 1 — Team Lead / Contact Centre Supervisor</field>
+            <field name="privilege_id" ref="privilege_dofa"/>
+            <field name="comment">Approves minor goodwill concessions and fee waivers at the lowest threshold.</field>
+        </record>
+
+        <record id="group_dofa_tier_2" model="res.groups">
+            <field name="name">DOFA Tier 2 — Branch / Operations Manager</field>
+            <field name="privilege_id" ref="privilege_dofa"/>
+            <field name="implied_ids" eval="[(4, ref('group_dofa_tier_1'))]"/>
+        </record>
+
+        <record id="group_dofa_tier_3" model="res.groups">
+            <field name="name">DOFA Tier 3 — Customer Experience / Commercial Director</field>
+            <field name="privilege_id" ref="privilege_dofa"/>
+            <field name="implied_ids" eval="[(4, ref('group_dofa_tier_2'))]"/>
+        </record>
+
+        <record id="group_dofa_tier_4" model="res.groups">
+            <field name="name">DOFA Tier 4 — CFO / CCO / COO</field>
+            <field name="privilege_id" ref="privilege_dofa"/>
+            <field name="implied_ids" eval="[(4, ref('group_dofa_tier_3'))]"/>
+        </record>
+
+        <record id="group_dofa_tier_5" model="res.groups">
+            <field name="name">DOFA Tier 5 — Managing Director / Board</field>
+            <field name="privilege_id" ref="privilege_dofa"/>
+            <field name="implied_ids" eval="[(4, ref('group_dofa_tier_4'))]"/>
+        </record>
+
+        <!-- REQ-33.3: unmasked PII is a supervisor privilege, not a default.
+             Before the A03 audit (2026-10-31) every front-desk operator read
+             raw National ID numbers, and nothing recorded that they had. -->
+        <record id="privilege_pii" model="res.groups.privilege">
+            <field name="name">Personal Data Access</field>
+            <field name="description">Viewing unmasked customer PII under the Personal Data Protection Act.</field>
+            <field name="sequence">23</field>
+        </record>
+
+        <record id="group_pii_unmasked" model="res.groups">
+            <field name="name">PII — View Unmasked Identifiers</field>
+            <field name="privilege_id" ref="privilege_pii"/>
+            <field name="comment">Supervisors cleared to view raw NID, TIN and residential addresses. Every access is logged.</field>
+        </record>
+
+    </data>
+</odoo>

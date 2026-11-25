@@ -1,0 +1,1412 @@
+/** @odoo-module **/
+/* A04 · Commercial & Revenue — M37 Product & Service Catalogue (v2 rebuild).
+ * Registry-faithful: 5 groups / 17 screens / 6 reports / 5 forms / freg 120.
+ * Catalogue items (400 services), fault codes, kits and rental SKUs are real;
+ * the rBOM is the new fix.rbom.line. Lifecycle/publication fields were added
+ * to fix.catalogue.item. */
+
+export const MODULE = {
+  area: 'A04', code: 'M37', en: 'Product & Service Catalogue', title: 'M37 · Product & Service Catalogue',
+  bn: 'পণ্য ও সেবা ক্যাটালগ', icon: '📦',
+  desc: 'Unified item master across nine types, taxonomy and hierarchy, service definitions, rBOM and SRT, brand-model compatibility, fault taxonomy, contract/protection/rental templates, lifecycle and publication.',
+  kpis: [
+    { l: 'Active Items', m: 'active_items' },
+    { l: 'rBOM Coverage', m: 'rbom_coverage', suffix: '%' },
+    { l: 'New SKUs MTD', m: 'new_skus_mtd' },
+    { l: 'Pending Approval', m: 'pending_approval' },
+    { l: 'Model Compatibility', m: 'model_compatibility' },
+    { l: 'Bilingual Content', m: 'bilingual_content', suffix: '%' }
+  ],
+  groups: [
+    { en: 'Catalogue Records', screens: [
+      { id: 'M37-brand', en: "Brand", bn: "Brand", t: 'g' },
+      { id: 'M37-refurb-grade', en: "Refurb Grade", bn: "Refurb Grade", t: 'g' }
+    ]},
+    { en: 'Item Master', screens: [
+      { id: 'M37-items', en: 'Unified Item Master', bn: 'ইউনিফায়েড আইটেম মাস্টার', t: 'g' },
+      { id: 'M37-numbering', en: 'Item Numbering Rules', bn: 'আইটেম কোড নিয়ম', t: 'g' },
+      { id: 'M37-item', en: 'Item Record', bn: 'আইটেম রেকর্ড', t: 'f' },
+      { id: 'M37-taxonomy', en: 'Typed Taxonomy (14 streams)', bn: 'টাইপড ট্যাক্সোনমি', t: 'g' },
+      { id: 'M37-hierarchy', en: 'Product Hierarchy', bn: 'পণ্য শ্রেণিবিন্যাস', t: 'r' },
+      { id: 'M37-attributes', en: 'Product Attributes & Variants', bn: 'পণ্যের বৈশিষ্ট্য ও ভ্যারিয়েন্ট', t: 'g' },
+      { id: 'M37-attribute-sets', en: 'Attribute Sets per Item Class', bn: 'আইটেম শ্রেণির বৈশিষ্ট্য সেট', t: 'g' }
+    ]},
+    { en: 'Service Definitions', screens: [
+      { id: 'M37-services', en: 'Service Definitions', bn: 'সেবা সংজ্ঞা', t: 'g' },
+      { id: 'M37-charge-codes', en: 'Service & Charge Codes (non-stock)', bn: 'সেবা ও চার্জ কোড', t: 'g' },
+      { id: 'M37-operations', en: 'Repair Operations', bn: 'মেরামত অপারেশন', t: 'g' },
+      { id: 'M37-rbom', en: 'Repair BOM (rBOM)', bn: 'রিপেয়ার BOM', t: 'g' },
+      { id: 'M37-srt', en: 'Standard Repair Time (SRT)', bn: 'স্ট্যান্ডার্ড রিপেয়ার টাইম', t: 'r' },
+      { id: 'M37-srt-baselines', en: 'SRT Baselines', bn: 'এসআরটি মানদণ্ড', t: 'g' },
+      { id: 'M37-kits', en: 'Kits & Bundles', bn: 'কিট ও বান্ডল', t: 'g' }
+    ]},
+    { en: 'Compatibility & Faults', screens: [
+      { id: 'M37-brandmodel', en: 'Brand-Model-Device Master', bn: 'ব্র্যান্ড-মডেল মাস্টার', t: 'g' },
+      { id: 'M37-model-compat', en: 'Model Compatibility Matrix', bn: 'মডেল সামঞ্জস্য', t: 'g' },
+      { id: 'M37-fault', en: 'Fault / Symptom / Root-Cause', bn: 'ফল্ট ট্যাক্সোনমি', t: 'g' },
+      { id: 'M37-symptoms', en: 'Fault Symptoms', bn: 'ত্রুটির লক্ষণ', t: 'g' },
+      { id: 'M37-parts-id', en: 'Part Identity & Supersession', bn: 'পার্ট আইডেন্টিটি', t: 'g' },
+      { id: 'M37-part-xref', en: 'Part Cross-References & Alternates', bn: 'পার্ট ক্রস-রেফারেন্স ও বিকল্প', t: 'g' }
+    ]},
+    { en: 'Plans & Templates', screens: [
+      { id: 'M37-contract-tpl', en: 'Contract Templates', bn: 'চুক্তি টেমপ্লেট', t: 'g' },
+      { id: 'M37-protection', en: 'Protection Plan Catalogue', bn: 'প্রোটেকশন প্ল্যান', t: 'g' },
+      { id: 'M37-rental-sku', en: 'Rental SKUs & Grades', bn: 'রেন্টাল SKU', t: 'g' },
+      { id: 'M37-plan-defs', en: 'Subscription Plan Definitions', bn: 'সাবস্ক্রিপশন প্ল্যান', t: 'g' }
+    ]},
+    { en: 'Catalogue Governance', screens: [
+      { id: 'M37-approval', en: 'Item Approval Workflow', bn: 'আইটেম অনুমোদন', t: 'r' },
+      { id: 'M37-lifecycle', en: 'Item Lifecycle & Deprecation', bn: 'লাইফসাইকেল', t: 'r' },
+      { id: 'M37-publication', en: 'Channel Publication', bn: 'প্রকাশনা', t: 'r' },
+      { id: 'M37-publications', en: 'Channel Publications (versions)', bn: 'চ্যানেল প্রকাশনা (সংস্করণ)', t: 'g' },
+      { id: 'M37-taxclass', en: 'Tax & Revenue Classification', bn: 'কর ও রাজস্ব শ্রেণিবিন্যাস', t: 'g' }
+    ]}
+  ],
+  reports: ['Catalogue Coverage by Brand', 'rBOM Completeness', 'SRT Calibration Variance', 'Item Margin Analysis', 'Deprecated Items Register', 'Bilingual Content Gaps'],
+  forms: ['Item Numbering Rule', 'Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template',
+    'Service Kit', 'Brand & Authorisation', 'Catalogue Category', 'Contract Template', 'Rental SKU', 'VAT Treatment',
+    'SRT Baseline', 'Part Cross-Reference', 'Tax & Revenue Classification', 'Channel Publication', 'Product Attribute',
+    'Service / Charge Code', 'Model Compatibility', 'Attribute Set', 'Fault Symptom', 'Subscription Plan',
+    'Protection Product (Cover Terms)'],
+  cross: ['M11 Pricing', 'M36 Quotations', 'M15 Inventory', 'M16 Procurement'],
+  /* M37 capture audit (2026-11-13): each page captures what its functions
+   * (FR-CAT-001..046) record. Before it, Typed Taxonomy, Product Hierarchy,
+   * Tax & Rev-Rec and Lifecycle had no capture; rBOM & SRT and Fault Taxonomy
+   * only a chip (their lists refused + New though the forms worked); Repair
+   * Operations and Part Identity both captured rBOM lines; Service
+   * Definitions and the Protection Plan list showed all 16,178 items (every
+   * one a part, accessory or finished good on fix_real); Kits and Brands
+   * had no chip; rental SKUs and refurb grades sat on no page.
+   * Second pass (2026-11-14): Typed Taxonomy and Product Hierarchy still had
+   * only a chip; Tax & Rev-Rec opened M51's tariff master (the item itself
+   * had no tax, HS or revenue class); Lifecycle captured nothing although
+   * FR-CAT-044 publishes channel projections; the SRT, part cross-references
+   * and brand claim codes had no record at all. Each now has its own.
+   * Third pass (2026-11-19): the buttons opened forms that could not hold the
+   * page's record. Service Definition had no scope, delivery modes,
+   * durations, skill, warranty or consent; the protection template showed a
+   * labour time; rBOM lines had no model, criticality or alternates; there
+   * was no compatibility matrix, attribute set, symptom / root cause or
+   * subscription plan, and refurb grades could not be defined by anyone. */
+  freg: { src: 120, sub: [
+    ['1', 'Unified Item Master', 14, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'], screens: ['M37-items', 'M37-numbering'], reports: ['Catalogue Coverage by Brand', 'Deprecated Items Register'], forms: ['Catalogue Item (9 types)', 'Item Numbering Rule'] }],
+    // FR-CAT-004: the category tree. A node is captured here; saving one
+    // needs the product-manager role (product.category ACL), which the
+    // server checks - the role decides the save, not whether the page offers it.
+    ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['complete_name', 'parent_id', 'product_count'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: ['Catalogue Category'], create: 'M37-form-category' }],
+    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'state', 'active'], screens: ['M37-services', 'M37-charge-codes'], reports: ['Item Margin Analysis'], forms: ['Service Definition', 'Service / Charge Code'], create: 'M37-form-service', domain: [['item_type', 'in', ['service', 'inspection']]] }],
+    // FR-CAT-022/023/024: the rBOM lines and the governed SRT baselines
+    // (BRU-CAT-11: an Active item's standard time moves only by an approved one).
+    ['4', 'rBOM & SRT', 12, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'sequence', 'quantity', 'note'], screens: ['M37-rbom', 'M37-srt-baselines', 'M37-srt'], reports: ['rBOM Completeness', 'SRT Calibration Variance'], forms: ['rBOM Line', 'SRT Baseline'] }],
+    // FR-CAT-021/023/027: a repair operation is a labour-only catalogue item
+    // with its standard repair time; its parts are its rBOM lines.
+    ['5', 'Repair Operations', 8, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'repair_level', 'standard_labour_time', 'srt_observed_minutes', 'requires_brand_authorisation', 'state'], screens: ['M37-operations', 'M37-srt-baselines', 'M37-srt'], reports: ['SRT Calibration Variance'], forms: ['Service Definition', 'rBOM Line', 'SRT Baseline'], create: 'M37-form-service', domain: [['item_type', '=', 'labour']] }],
+    ['6', 'Kits & Bundles', 4, { model: 'fix.service.kit', cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'], screens: ['M37-kits'], reports: ['Item Margin Analysis'], forms: ['Service Kit'] }],
+    // FR-CAT-005/006: a variant axis is an attribute with its values; the
+    // hierarchy node is Typed Taxonomy's capture, offered here as a chip.
+    ['7', 'Product Hierarchy & Variants', 8, { model: 'fix.catalogue.item', cols: ['name', 'item_type', 'category_id', 'brand_id', 'product_tmpl_id'], screens: ['M37-hierarchy', 'M37-attributes', 'M37-attribute-sets', 'M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: ['Product Attribute', 'Attribute Set', 'Catalogue Category'], create: 'M37-form-attribute' }],
+    ['8', 'Brand-Model-Device Master', 9, { model: 'fix.brand', cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'], screens: ['M37-brand', 'M37-brandmodel', 'M37-model-compat'], reports: ['Catalogue Coverage by Brand'], forms: ['Brand & Authorisation', 'Model Compatibility'] }],
+    ['9', 'Fault Taxonomy', 10, { model: 'fix.fault.code', cols: ['name', 'code', 'category', 'default_severity', 'active'], screens: ['M37-fault', 'M37-symptoms'], reports: [], forms: ['Fault Code', 'Fault Symptom'] }],
+    // FR-CAT-029/031: a part is a catalogue item of type Spare Part; its
+    // successor is staged on the item and set by Discontinue.
+    // FR-CAT-030/034/035: its cross-references and alternates, its
+    // provenance grade and hazard class.
+    ['10', 'Part Identity', 9, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'brand_id', 'category_id', 'provenance_grade', 'hazard_class', 'state', 'successor_id', 'active'], screens: ['M37-parts-id', 'M37-part-xref'], reports: ['rBOM Completeness'], forms: ['Catalogue Item (9 types)', 'Part Cross-Reference'], create: 'M37-item', domain: [['item_type', '=', 'part']] }],
+    // FR-CAT-036..040: contract, protection, rental and refurb templates.
+    ['11', 'Contract & Protection Templates', 10, { model: 'fix.contract.template', cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'], screens: ['M37-contract-tpl', 'M37-protection', 'M37-rental-sku', 'M37-refurb-grade', 'M37-plan-defs'], reports: [], forms: ['Contract Template', 'Protection Product Template', 'Protection Product (Cover Terms)', 'Rental SKU', 'Subscription Plan'] }],
+    // FR-CAT-043 / BRU-CAT-02: the item's own VAT class, SD flag, HS code and
+    // revenue pattern, captured by picking the item. M51's tariff code ->
+    // treatment master stays a chip (M51 owns and approves it).
+    ['12', 'Tax & Rev-Rec Classification', 7, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'item_type', 'hs_code', 'vat_class', 'sd_applicable', 'revenue_recognition', 'state'], screens: ['M37-taxclass', 'M37-items'], reports: ['Item Margin Analysis'], forms: ['Tax & Revenue Classification', 'VAT Treatment'], create: 'M37-form-taxclass' }],
+    // FR-CAT-045: the lifecycle moves by the actions on the item lists
+    // (Submit, Publish, Restrict, Discontinue, Revise). FR-CAT-044: what is
+    // captured here is a versioned channel publication.
+    ['13', 'Lifecycle & Governance', 10, { model: 'fix.catalogue.item', cols: ['name', 'state', 'approved_by', 'is_published', 'active'], screens: ['M37-publications', 'M37-lifecycle', 'M37-approval', 'M37-publication', 'M37-items'], reports: ['Deprecated Items Register', 'Bilingual Content Gaps'], forms: ['Channel Publication'], create: 'M37-form-publication' }]
+  ] }
+};
+
+export const SCREENS = {
+  /* ---- registry screens restored (A04 zero-trust audit 2026-10-31): nav ids that dead-ended ---- */
+  'M37-taxonomy': { kind: 'model_list', model: 'product.category',
+    cols: ['complete_name', 'name_bn', 'code', 'tree_type', 'product_count'],
+    note: 'The commercial category tree. Add a node with + New; saving one needs the product-manager role.' },
+  'M37-hierarchy': { kind: 'table_report', module: 'M37', report: 'catalogue_hierarchy', title: 'Catalogue Hierarchy', period: true },
+  // M37 capture audit: this list had no filter, so "Service Definitions"
+  // showed all 16,178 items (every one a part, accessory or finished good on
+  // fix_real) and refused + New although its form worked.
+  // Commercial document standard (17 Nov 2026): every document line has a
+  // code. Inventory items carry their part number; service, labour,
+  // support, transport and other charges carry a charge code - a non-stock
+  // item that never touches inventory.
+  'M37-charge-codes': { kind: 'model_list', model: 'fix.charge.code',
+    cols: ['code', 'name', 'name_bn', 'charge_type', 'uom_id', 'default_rate', 'is_generic', 'active'],
+    empty: 'No charge code yet: + New Charge Code. The generic codes (CHG-SERVICE, CHG-LABOUR, ...) are installed with the catalogue.' },
+  'M37-form-charge': {
+    kind: 'model_form',
+    model: 'fix.charge.code',
+    title: 'Service / Charge Code',
+    back: 'M37-charge-codes',
+    tabs: [
+      { id: 'code', label: '1. Charge Code', bn: '১. চার্জ কোড', icon: '🏷️', badge: '9' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথিপত্র', icon: '📁', badge: '0' }
+    ],
+    sections: [
+      { tab: 'code', title: 'Charge code', note: 'A code for a non-stock charge printed on estimates, quotations, proformas and invoices: e.g. SVC-AC-GAS-15 "AC gas refill 1.5 ton", LAB-CHIP-HR "Chip-level labour (per hour)", TRN-DHK "Transport inside Dhaka". It creates a service item that never touches inventory; the M11 rate card may price it by its code.',
+        fields: [
+          { name: 'code', required: true, label: 'Code (no spaces)' },
+          { name: 'name', required: true, label: 'Charge Name (English)' },
+          { name: 'name_bn', label: 'Charge Name (Bengali)' },
+          { name: 'charge_type', required: true, label: 'Charge Type' },
+          { name: 'uom_id', label: 'Charged Per (unit)' },
+          { name: 'default_rate', label: 'Standard Rate excl. VAT (BDT)' },
+          { name: 'description', type: 'text', label: 'What the charge covers' },
+          { name: 'active', label: 'Active' },
+          { name: 'product_id', readonly: true, label: 'Non-stock Item' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Rate approvals, price lists and the scope sheet of the charge attach to this record.', fields: [] }
+    ]
+  },
+  'M37-services': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'brand_id', 'state', 'active'],
+    domain: [['item_type', 'in', ['service', 'inspection']]],
+    empty: 'No service or inspection items yet: add one with + New Service Definition.',
+    stateField: 'state',
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
+  'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line',
+    cols: ['item_id', 'device_model_id', 'component_item_id', 'quantity', 'criticality', 'alternate_group', 'note'],
+    note: 'The standard parts a service or repair operation consumes. Adding a line needs the Catalogue Officer role.',
+    empty: 'No repair BOM lines yet: add one with + New rBOM Line.' },
+  // FR-CAT-021/023/027: repair operations are the labour-only items, each
+  // with its standard repair time; the rBOM lists their parts.
+  'M37-operations': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'name_bn', 'repair_level', 'standard_labour_time', 'srt_observed_minutes', 'requires_brand_authorisation', 'state', 'active'],
+    domain: [['item_type', '=', 'labour']],
+    note: 'A repair operation is a labour-only catalogue item with its repair level and standard repair time (both needed before approval, BRU-CAT-06). Its parts are its rBOM lines; once Active, its time moves only by an approved SRT Baseline.',
+    empty: 'No repair operations yet: add one with + New Service Definition (type Labour Only).',
+    stateField: 'state',
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
+  'M37-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Variance', period: true },
+  // A kit is defined by its components, so the list must be able to
+  // create one and the form must show them (see M37-form-kit.lines).
+  'M37-kits': { kind: 'model_list', model: 'fix.service.kit', create: true,
+    cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'] },
+  'M37-brandmodel': { kind: 'model_list', model: 'fix.brand', create: false,
+    cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'],
+    // A04 audit 2026-11-04 (M37-7): an authorisation is requested with its
+    // evidence and decided by a Catalogue Publisher from the M63 inbox.
+    actions: [
+      { m: 'action_request_authorisation', l: 'Request Authorisation (evidence staged on the form)' },
+      { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
+      { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
+    ] },
+  'M37-fault': { kind: 'model_list', model: 'fix.fault.code',
+    cols: ["name", "code", "create_date", "active", "category", "default_severity"] },
+  // M37 capture audit: "Part Identity & Supersession" listed rBOM lines.
+  // A part is a catalogue item of type Spare Part; its successor is staged
+  // on the item and set by Discontinue (FR-CAT-029/031).
+  'M37-parts-id': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'brand_id', 'category_id', 'provenance_grade', 'hazard_class', 'state', 'successor_id', 'end_of_support_date', 'active'],
+    domain: [['item_type', '=', 'part']],
+    note: 'Spare parts. A superseded part is discontinued with its successor staged on the item; it stays searchable. Its alternates are recorded with Part Cross-Reference.',
+    stateField: 'state',
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_discontinue', l: 'Discontinue / Supersede (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
+  'M37-contract-tpl': { kind: 'model_list', model: 'fix.contract.template', create: true,
+    cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'],
+    stateField: 'contract_type',
+    // A04 audit 2026-11-04 (M08 template sign-off): Legal signs the wording
+    // off (someone other than its author) and can withdraw it.
+    actions: [
+      { m: 'action_legal_signoff', l: 'Legal Sign-off (Contract Legal Reviewer)' },
+      { m: 'action_withdraw_signoff', l: 'Withdraw Legal Sign-off' }
+    ] },
+  'M37-protection': { kind: 'model_list', model: 'fix.catalogue.item', create: true,
+    cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'],
+    domain: [['item_type', '=', 'protection']],
+    empty: 'No protection plans yet: add one with Protection Product Template.',
+    stateField: 'state',
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
+  'M37-rental-sku': { kind: 'model_list', model: 'fix.rental.sku',
+    cols: ['name', 'catalogue_item_id', 'daily_rate', 'weekly_rate', 'monthly_rate', 'security_deposit', 'max_rental_days', 'active'],
+    note: 'A rental SKU hangs off a Rental-type catalogue item (FR-CAT-039). Saving one needs the Catalogue Officer role.',
+    empty: 'No rental SKUs yet: add one with Rental SKU.' },
+  'M37-approval': { kind: 'table_report', module: 'M37', report: 'approval_queue', title: 'Catalogue Approval Queue', period: false },
+  'M37-lifecycle': { kind: 'table_report', module: 'M37', report: 'lifecycle_summary', title: 'Item Lifecycle Summary', period: false },
+  'M37-publication': { kind: 'table_report', module: 'M37', report: 'publication_status', title: 'Publication Status', period: false },
+
+
+  /* ---- M37 capture audit, second pass (2026-11-14): the spec's own records ---- */
+  // FR-CAT-023/024, BRU-CAT-11: the SRT register. An officer proposes; a
+  // publisher who did not propose it approves, which moves the item's time.
+  'M37-srt-baselines': { kind: 'model_list', model: 'fix.srt.baseline', stateField: 'state',
+    cols: ['item_id', 'device_model_id', 'repair_level', 'previous_minutes', 'minutes', 'source', 'effective_from', 'state', 'approved_by'],
+    note: 'Standard repair times, effective-dated. An Active operation\'s time is never edited in place: propose a baseline with its evidence; another Catalogue Publisher approves it (BRU-CAT-11).',
+    empty: 'No SRT baselines yet: add one with + New SRT Baseline.',
+    actions: [
+      { m: 'action_propose', l: 'Propose (Catalogue Officer)' },
+      { m: 'action_approve', l: 'Approve (another Catalogue Publisher)' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why is this baseline rejected?', kwarg: 'reason' }
+    ] },
+  // FR-CAT-030
+  'M37-part-xref': { kind: 'model_list', model: 'fix.part.crossref',
+    cols: ['part_item_id', 'relation_type', 'direction', 'alt_item_id', 'quality_note', 'active'],
+    note: 'OEM and aftermarket cross-references and approved alternates. An aftermarket or compatible alternate carries its quality note.',
+    empty: 'No cross-references yet: add one with + New Part Cross-Reference.' },
+  // FR-CAT-043 / BRU-CAT-02
+  'M37-taxclass': { kind: 'model_list', model: 'fix.catalogue.item', stateField: 'state',
+    cols: ['product_tmpl_id', 'item_type', 'hs_code', 'vat_class', 'sd_applicable', 'revenue_recognition', 'state'],
+    note: 'Every item\'s VAT class, supplementary duty, HS code and revenue pattern. An item without its VAT class and revenue class is not approved (BRU-CAT-02). A blank on a migrated item may be completed; a set value changes only by Revise.' },
+  // FR-CAT-044
+  'M37-publications': { kind: 'model_list', model: 'fix.catalogue.publication',
+    cols: ['channel', 'version', 'item_count', 'completeness_pct', 'incomplete_count', 'published_at', 'note'],
+    note: 'Versioned catalogue projections per channel. A customer-facing projection carries only Active and Published items and is refused while any lacks its Bengali name or hierarchy position.',
+    empty: 'Nothing published to a channel yet: publish with + New Channel Publication.' },
+  // FR-CAT-005/006
+  'M37-attributes': { kind: 'model_list', model: 'product.attribute',
+    cols: ['name', 'create_variant', 'display_type', 'sequence'],
+    note: 'Variant axes (colour, storage, capacity...) and their values. Saving one needs the product-manager role.',
+    empty: 'No product attributes yet: add one with + New Product Attribute.' },
+
+  /* ---- M37 capture audit, third pass (2026-11-19): records the spec owns
+   * that no page could capture (FR-CAT-005, 033, 038, 042). ---- */
+  // FR-CAT-033 / BRU-CAT-07
+  'M37-model-compat': { kind: 'model_list', model: 'fix.model.compatibility',
+    cols: ['device_model_id', 'brand_id', 'item_id', 'item_type', 'compatible', 'note', 'active'],
+    note: 'Which parts and operations fit which device models. A "does not fit" row refuses the part on that model\'s rBOM (BRU-CAT-07). Saving needs the Catalogue Officer role.',
+    empty: 'No compatibility declared yet: + New Model Compatibility.' },
+  'M37-form-compat': { kind: 'model_form', model: 'fix.model.compatibility',
+    title: 'Model Compatibility', back: 'M37-model-compat',
+    tabs: [
+      { id: 'general', label: '1. Fit', bn: '১. সামঞ্জস্য', icon: '🧩' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Does It Fit This Model? (FR-CAT-033)',
+        note: 'Untick Compatible to declare that the part or operation does NOT apply to the model, and say why. A part already on that model\'s rBOM must come off it first.',
+        fields: [
+          { name: 'device_model_id', label: 'Device Model', required: true },
+          { name: 'item_id', label: 'Part / Operation', required: true },
+          { name: 'compatible', label: 'Compatible' },
+          { name: 'note', label: 'Fit Note (why not, or how it fits)', type: 'text' },
+          { name: 'evidence_ref', label: 'Source (brand bulletin, parts catalogue page)' },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+  // FR-CAT-005
+  'M37-attribute-sets': { kind: 'model_list', model: 'fix.catalogue.attribute.set',
+    cols: ['name', 'item_type', 'note', 'active'],
+    note: 'The attributes each item class must carry. A mandatory attribute for every item blocks Submit until the product carries it; a channel attribute counts the item incomplete for that channel\'s publication.',
+    empty: 'No attribute set yet: + New Attribute Set.' },
+  'M37-form-attrset': { kind: 'model_form', model: 'fix.catalogue.attribute.set',
+    title: 'Attribute Set', back: 'M37-attribute-sets',
+    tabs: [
+      { id: 'general', label: '1. Item Class', bn: '১. আইটেম শ্রেণি', icon: '🗂️' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    grids: [
+      { field: 'line_ids', tab: 'general', title: 'Attributes of the Class',
+        addLabel: '+ Add attribute',
+        empty: 'No attribute yet.',
+        note: 'One line per attribute (from Product Attributes). Required For: every item of the class (checked at Submit) or a single channel (checked at publication).',
+        fields: [
+          { name: 'attribute_id', label: 'Attribute', required: true },
+          { name: 'mandatory', label: 'Mandatory' },
+          { name: 'channel', label: 'Required For', required: true },
+          { name: 'note', label: 'Note' }
+        ] }
+    ],
+    sections: [
+      { tab: 'general', title: 'Attribute Set per Item Class (FR-CAT-005)',
+        note: 'One active set per item class.',
+        fields: [
+          { name: 'name', label: 'Set Name', required: true },
+          { name: 'item_type', label: 'Item Class', required: true },
+          { name: 'note', label: 'Note', type: 'text' },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+  // FR-CAT-042: the top of the taxonomy
+  'M37-symptoms': { kind: 'model_list', model: 'fix.fault.symptom',
+    cols: ['code', 'name', 'name_bn', 'device_type', 'active'],
+    note: 'Symptoms as the customer reports them at intake, in both languages, each linked to the fault codes it presents as.',
+    empty: 'No symptom yet: + New Fault Symptom.' },
+  'M37-form-symptom': { kind: 'model_form', model: 'fix.fault.symptom',
+    title: 'Fault Symptom', back: 'M37-symptoms',
+    tabs: [
+      { id: 'general', label: '1. Symptom', bn: '১. লক্ষণ', icon: '🩺' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Customer-Reported Symptom (FR-CAT-042)', fields: [
+          { name: 'code', label: 'Symptom Code', required: true },
+          { name: 'name', label: 'Symptom (English)', required: true },
+          { name: 'name_bn', label: 'Symptom (Bengali)' },
+          { name: 'device_type', label: 'Device Type', required: true },
+          { name: 'description', label: 'How the Customer Says It', type: 'text' },
+          { name: 'fault_code_ids', label: 'Fault Codes It Presents As' },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+  /* A04 ERP round 2 (21 Nov 2026) FR-CAT-007: the code mask of each item
+   * type (no-gap sequence; a code is never reused). */
+  'M37-numbering': { kind: 'model_list', model: 'fix.catalogue.numbering',
+    cols: ['item_type', 'prefix', 'padding', 'next_code', 'company_id', 'active'],
+    note: 'An item created with no code takes the next code of its type. Masks are the owner\'s; none is seeded.',
+    empty: 'No numbering rule yet: + New Numbering Rule.' },
+  'M37-form-numbering': { kind: 'model_form', model: 'fix.catalogue.numbering',
+    title: 'Item Numbering Rule', back: 'M37-numbering',
+    tabs: [{ id: 'mask', label: '1. Mask', bn: '১. কোড কাঠামো', icon: '#️⃣', badge: '4' }],
+    sections: [
+      { tab: 'mask', title: 'Item Code Mask (FR-CAT-007)',
+        note: 'Prefix plus a zero-padded number with no gaps. Catalogue Publisher only.',
+        fields: [
+          { name: 'item_type', label: 'Item Type', required: true },
+          { name: 'prefix', label: 'Prefix (e.g. SRV-)', required: true },
+          { name: 'padding', label: 'Digits', required: true },
+          { name: 'next_code', label: 'Next Code', readonly: true }
+        ] }
+    ] },
+  // FR-CAT-038
+  'M37-plan-defs': { kind: 'model_list', model: 'fix.subscription.plan.def',
+    cols: ['name', 'billing_frequency', 'commitment_months', 'included_quantity', 'included_uom_id', 'overage_uom_id', 'active'],
+    note: 'Subscription plan definitions M39 bills against: frequency, commitment, inclusions and the overage unit. Never the price (M11).',
+    empty: 'No plan defined yet: + New Subscription Plan.' },
+  'M37-form-plandef': { kind: 'model_form', model: 'fix.subscription.plan.def',
+    title: 'Subscription Plan', back: 'M37-plan-defs',
+    tabs: [
+      { id: 'general', label: '1. Plan', bn: '১. প্ল্যান', icon: '🔁' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Subscription Plan Definition (FR-CAT-038)',
+        note: 'One definition per plan item. The price is M11\'s; billing is M39\'s.',
+        fields: [
+          { name: 'item_id', label: 'Plan Item', required: true },
+          { name: 'billing_frequency', label: 'Billing Frequency', required: true },
+          { name: 'commitment_months', label: 'Commitment Term (months)', required: true },
+          { name: 'included_quantity', label: 'Included Quantity per Period (0 = fair use)' },
+          { name: 'included_uom_id', label: 'Included Unit' },
+          { name: 'overage_uom_id', label: 'Overage Charged Per' },
+          { name: 'entitlement_note', label: 'What the Plan Includes', type: 'text' },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  /* Report screens */
+  'M37-rpt-brand': { kind: 'table_report', module: 'M37', report: 'coverage_by_brand', title: 'Catalogue Coverage by Brand', period: false },
+  'M37-rpt-rbom': { kind: 'table_report', module: 'M37', report: 'rbom_completeness', title: 'rBOM Completeness', period: false },
+  'M37-rpt-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Calibration Variance', period: false },
+  'M37-rpt-margin': { kind: 'table_report', module: 'M37', report: 'item_margin', title: 'Item Margin Analysis', period: false },
+  'M37-rpt-deprecated': { kind: 'table_report', module: 'M37', report: 'deprecated_items', title: 'Deprecated Items Register', period: false },
+  'M37-rpt-bilingual': { kind: 'table_report', module: 'M37', report: 'bilingual_gaps', title: 'Bilingual Content Gaps', period: false },
+
+  'M37-items': { kind: 'model_list', model: 'fix.catalogue.item', stateField: 'state',
+    cols: ['product_tmpl_id', 'item_type', 'brand_id', 'category_id', 'state', 'approval_state', 'is_published',
+      'is_warranty_eligible', 'active'],
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
+  'M37-item': {
+    kind: 'model_form',
+    model: 'fix.catalogue.item',
+    title: 'Catalogue Master Item & Engineering SKU',
+    back: 'M37-items',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'product', label: '1. Product Master', bn: '১. পণ্য পরিচিতি', icon: '📦', badge: '6' },
+      { id: 'costing', label: '2. Costing & SRT Standards', bn: '২. খরচ ও এসআরটি', icon: '⏱️', badge: '3' },
+      { id: 'rbom', label: '3. Repair BOM & Kits', bn: '৩. মেরামত বিওএম', icon: '🔧', badge: '2' },
+      { id: 'statutory', label: '4. Statutory HS Code & VAT', bn: '৪. এইচএস কোড ও ভ্যাট', icon: '⚖️', badge: '2' },
+      { id: 'lifecycle', label: '5. Lifecycle & Publishing', bn: '৫. লাইফসাইকেল ও প্রকাশ', icon: '🔄', badge: '5' },
+      { id: 'fit', label: '6. Model Compatibility', bn: '৬. মডেল সামঞ্জস্য', icon: '🧩' },
+      { id: 'vault', label: '7. Technical Datasheets', bn: '৭. নথিপত্র', icon: '📁', badge: '2' }
+    ],
+    // FR-CAT-033: which models the part fits. A "does not fit" row blocks
+    // the part on an rBOM line for that model (BRU-CAT-07).
+    grids: [
+      { field: 'compatibility_ids', tab: 'fit', title: 'Device Models This Part / Operation Fits',
+        addLabel: '+ Add model',
+        empty: 'No model declared yet.',
+        note: 'One line per model. Untick Compatible to declare that it does NOT fit (say why); it is then refused on that model\'s rBOM.',
+        fields: [
+          { name: 'device_model_id', label: 'Device Model', required: true },
+          { name: 'compatible', label: 'Compatible' },
+          { name: 'note', label: 'Fit Note' },
+          { name: 'evidence_ref', label: 'Source' }
+        ] }
+    ],
+    sections: [
+      { tab: 'product', title: 'Item Master Classification',
+        note: 'Universal engineering catalogue kernel for IT, mobile, and electronics service delivery.',
+        fields: [
+          { name: 'product_tmpl_id', required: true, label: 'Product Template (Odoo Kernel)' },
+          { name: 'item_type', required: true, label: 'Item Classification Type' },
+          { name: 'category_id', label: 'Product Category Tree' },
+          { name: 'brand_id', label: 'Brand Partner' },
+          { name: 'name_bn', label: 'Name in Bengali (DE-17 Mandatory for Publish)' },
+          { name: 'description_bn', label: 'Description in Bengali' },
+          { name: 'manufacturer_part_number', label: 'Manufacturer Part Number (MPN)' },
+          { name: 'oem_reference', label: 'OEM Reference' },
+          { name: 'provenance_grade', label: 'Provenance Grade (Genuine / OEM / Aftermarket)' },
+          { name: 'hazard_class', label: 'Hazard Class' },
+          { name: 'hazard_handling', label: 'Handling, Transport & Disposal Constraints (hazardous items)', type: 'text' }
+        ] },
+      { tab: 'costing', title: 'Standard Repair Time (SRT) & Labor Benchmarks',
+        note: 'Once the item is Active its standard time moves only by an approved SRT Baseline (BRU-CAT-11). A repair operation needs its level and time before approval (BRU-CAT-06).',
+        fields: [
+          { name: 'repair_level', label: 'Repair Level' },
+          { name: 'standard_labour_time', label: 'Standard Labour Time (Hours)' },
+          { name: 'srt_observed_minutes', label: 'Observed Workshop SRT (Minutes)' }
+        ] },
+      { tab: 'rbom', title: 'Component Explosion & Repair BOM (rBOM)',
+        note: 'Exploded spare parts and consumable requirements for standard service execution.',
+        fields: [] },
+      { tab: 'statutory', title: 'Customs HS Code & NBR Statutory VAT',
+        note: 'No item is approved without its VAT class and revenue-recognition class (BRU-CAT-02). M51 looks the VAT treatment up by the HS code.',
+        fields: [
+          { name: 'hs_code', label: 'HS / Tariff Code' },
+          { name: 'vat_class', label: 'VAT Class' },
+          { name: 'sd_applicable', label: 'Supplementary Duty Applies' },
+          { name: 'revenue_recognition', label: 'Revenue Recognition' }
+        ] },
+      { tab: 'lifecycle', title: 'Publication Gates & Authorization Controls',
+        note: 'The lifecycle moves only through its actions: Submit, approval by a Catalogue Publisher other than the author (M63 inbox), Publish, Restrict, Discontinue, Revise. Only an Active item is sold (BRU-CAT-14).',
+        fields: [
+          { name: 'state', label: 'Catalogue Lifecycle State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'submitted_by', label: 'Submitted By', readonly: true },
+          { name: 'approved_by', label: 'Approved By', readonly: true },
+          { name: 'is_published', label: 'Published in Public Portal', readonly: true },
+          { name: 'is_sellable', label: 'Sellable Now', readonly: true },
+          { name: 'is_warranty_eligible', label: 'Manufacturer Warranty Eligible' },
+          { name: 'requires_brand_authorisation', label: 'Requires Brand Authorized Technician' },
+          { name: 'proposed_successor_id', label: 'Successor (staged for Discontinue)' },
+          { name: 'proposed_end_of_support', label: 'End of Support (staged for Discontinue)' },
+          { name: 'successor_id', label: 'Successor Item', readonly: true },
+          { name: 'end_of_support_date', label: 'End of Support', readonly: true },
+          { name: 'rejection_reason', label: 'Returned Because', type: 'text', readonly: true },
+          { name: 'active', label: 'Active Record Status' }
+        ] },
+      { tab: 'fit', title: 'Model Compatibility (FR-CAT-033)', fields: [] },
+      { tab: 'vault', title: 'Datasheet & Schematics Vault',
+        note: 'Engineering schematics, component pinouts, brand service bulletins, and MSDS sheets.',
+        fields: [] }
+    ]
+  },
+
+  // A new definition starts as a Service; opened from Repair Operations the
+  // page filter makes it Labour Only (fregCreate presets).
+  'M37-form-service': { kind: 'model_form', model: 'fix.catalogue.item',
+    title: 'Service Definition', back: 'M37-services',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'scope', label: '2. Scope of Work', bn: '২. কাজের পরিধি' },
+      { id: 'delivery', label: '3. Delivery Modes', bn: '৩. সেবা প্রদানের ধরন' },
+      { id: 'skill', label: '4. Skill & Tooling', bn: '৪. দক্ষতা ও সরঞ্জাম' },
+      { id: 'schedule', label: '5. Schedule', bn: '৫. সময়সূচি' },
+      { id: 'relations', label: '6. Links', bn: '৬. সংযোগ' },
+      { id: 'statutory', label: '7. Statutory', bn: '৭. আইনি তথ্য' },
+      { id: 'flags', label: '8. Status & Consent', bn: '৮. অবস্থা ও সম্মতি' },
+      { id: 'audit', label: '9. System Audit', bn: '৯. সিস্টেম অডিট' },
+      { id: 'docs', label: '10. Documents', bn: '১০. নথি ও প্রমাণক' }
+    ],
+    // M37 capture audit, third pass (2026-11-19): FR-CAT-014/016 - the
+    // delivery modes the service supports, each with its standard duration.
+    grids: [
+      { field: 'mode_duration_ids', tab: 'delivery', title: 'Delivery Modes & Standard Durations',
+        addLabel: '+ Add delivery mode',
+        empty: 'No delivery mode yet. A service supports exactly the modes listed here; it cannot be submitted without one.',
+        note: 'One line per mode the service is delivered in (walk-in, on-site, pick & drop, workshop, remote...), with its standard duration. Appointment sizing, capacity and the SLA start from it.',
+        fields: [
+          { name: 'delivery_mode', label: 'Delivery Mode', required: true },
+          { name: 'standard_minutes', label: 'Standard Duration (minutes)', required: true },
+          { name: 'note', label: 'Note' }
+        ] }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'description_bn', label: 'Description (Bengali)' },
+        { name: 'item_type', label: 'Item Type', required: true, value: 'service' },
+        { name: 'repair_level', label: 'Repair Level (required for Labour Only)' },
+        { name: 'standard_labour_time', label: 'Standard Labour Time (hours)' },
+        { name: 'state', label: 'Lifecycle State', readonly: true },
+        { name: 'srt_observed_minutes', label: 'Observed Repair Minutes' }
+      ] },
+      { tab: 'scope', title: 'What the Service Is (FR-CAT-013)',
+        note: 'The scope of work is required before review. On an Active service a set scope, inclusion or exclusion changes only by Revise and re-approval (BRU-CAT-12).',
+        fields: [
+        { name: 'scope_of_work', label: 'Scope of Work', type: 'text' },
+        { name: 'inclusions', label: 'Included', type: 'text' },
+        { name: 'exclusions', label: 'Not Included', type: 'text' },
+        { name: 'prerequisites', label: 'Prerequisites (what the customer or device must provide)', type: 'text' },
+        { name: 'deliverables', label: 'Deliverables', type: 'text' }
+      ] },
+      { tab: 'delivery', title: 'Warranty and SLA (FR-CAT-018/020)', fields: [
+        { name: 'repair_warranty_days', label: 'Repair Warranty (days; M01 gives the longer of this and the company policy)' },
+        { name: 'default_sla_policy_id', label: 'Default SLA Template' }
+      ] },
+      { tab: 'skill', title: 'Who May Perform It and With What (FR-CAT-015/025/026)',
+        note: 'A repair operation (Labour Only) needs its repair level, standard time and required skill profile before review (BRU-CAT-06).',
+        fields: [
+        { name: 'required_competency_id', label: 'Required Skill Profile (M22 competency)' },
+        { name: 'requires_certification', label: 'Certified Technician Only' },
+        { name: 'required_skill_band', label: 'Required Skill Band (also prices labour, FR-PRC-012)' },
+        { name: 'requires_brand_certification', label: 'Brand-Certified Technician Only' },
+        { name: 'workstation_class', label: 'Workstation Class' },
+        { name: 'tooling_required', label: 'Tools & Test Equipment', type: 'text' },
+        { name: 'fault_code_ids', label: 'Faults It Resolves (estimate pre-fill)' },
+        { name: 'device_model_ids', label: 'Device Models It Applies To (blank = all)' }
+      ] },
+      { tab: 'schedule', title: '3. Schedule', fields: [
+        { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
+      ] },
+      { tab: 'relations', title: '4. Links', fields: [
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'product_tmpl_id', label: 'Product Template', required: true },
+        { name: 'category_id', label: 'Product Category' },
+        { name: 'brand_id', label: 'Brand' },
+        { name: 'approved_by', label: 'Approved By', readonly: true },
+        { name: 'legacy_codes', label: 'Legacy Codes (searchable aliases, FR-CAT-007)' },
+        { name: 'impact_summary', label: 'Impact Preview (FR-CAT-046)', type: 'text', readonly: true },
+        { name: 'impact_previewed_at', label: 'Impact Previewed At', readonly: true }
+      ] },
+      { tab: 'statutory', title: '5. Statutory',
+        note: 'VAT class and revenue recognition are required before approval (BRU-CAT-02).',
+        fields: [
+        { name: 'operating_unit_id', label: 'Operating Unit' },
+        { name: 'hs_code', label: 'HS / Tariff Code' },
+        { name: 'vat_class', label: 'VAT Class' },
+        { name: 'sd_applicable', label: 'Supplementary Duty Applies' },
+        { name: 'revenue_recognition', label: 'Revenue Recognition' }
+      ] },
+      { tab: 'flags', title: 'Status, Consent & Compliance (FR-CAT-019)', fields: [
+        { name: 'is_warranty_eligible', label: 'Warranty Eligible' },
+        { name: 'is_out_of_scope', label: 'Is Out Of Scope' },
+        { name: 'requires_brand_authorisation', label: 'Requires Brand Authorisation' },
+        { name: 'requires_customer_consent', label: 'Needs Explicit Customer Consent' },
+        { name: 'requires_data_declaration', label: 'Needs a Data-Handling Declaration' },
+        { name: 'requires_regulatory_cert', label: 'Needs a Regulatory Certification' },
+        { name: 'active', label: 'Active' },
+        { name: 'is_published', label: 'Published on the Web', readonly: true }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (device_model_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+  'M37-form-rbom': { kind: 'model_form', model: 'fix.rbom.line',
+    title: 'rBOM Line', back: 'M37-rbom',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'relations', label: '2. Links', bn: '২. সংযোগ' },
+      { id: 'audit', label: '3. System Audit', bn: '৩. সিস্টেম অডিট' },
+      { id: 'docs', label: '4. Documents', bn: '৪. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'sequence', label: 'Sequence' },
+        { name: 'quantity', label: 'Quantity', required: true },
+        { name: 'criticality', label: 'Criticality', required: true },
+        { name: 'alternate_group', label: 'Alternate Group (lines sharing it: any one will do)' },
+        { name: 'note', label: 'Note' }
+      ] },
+      { tab: 'relations', title: 'Operation, Model and Part (FR-CAT-022)',
+        note: 'The rBOM is per operation per model: leave the model blank for a line that applies to every model the operation covers. A part declared as not fitting the model is refused (BRU-CAT-07).',
+        fields: [
+        { name: 'item_id', label: 'Repair Operation / Service', required: true },
+        { name: 'device_model_id', label: 'Device Model (blank = all its models)' },
+        { name: 'component_item_id', label: 'Part / Consumable', required: true }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+  // FR-CAT-042: a brand files a claim under its own code - the fault code
+  // carries the brand mapping as its lines.
+  'M37-form-fault': {
+    lines: {
+      field: 'brand_code_ids',
+      title: 'Brand Claim Codes',
+      note: 'The code each brand uses for this fault on a warranty claim. One code per brand.',
+      fields: [
+        { name: 'brand_id', label: 'Brand', required: true },
+        { name: 'brand_code', label: 'Brand Claim Code', required: true },
+        { name: 'brand_description', label: 'Brand Wording' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.fault.code',
+    title: 'Fault Code', back: 'M37-fault',
+    status: { field: 'active' },
+    // M37 capture audit, third pass: FR-CAT-042 symptom -> fault -> root
+    // cause, FR-CAT-025 fault -> resolving operations.
+    grids: [
+      { field: 'root_cause_ids', tab: 'taxonomy', title: 'Root Causes',
+        addLabel: '+ Add root cause',
+        empty: 'No root cause yet.',
+        note: 'Why the fault happens, in both languages. Tick Customer-Induced for liquid, drop or misuse (no brand warranty).',
+        fields: [
+          { name: 'code', label: 'Code', required: true },
+          { name: 'name', label: 'Root Cause (English)', required: true },
+          { name: 'name_bn', label: 'Root Cause (Bengali)' },
+          { name: 'is_customer_induced', label: 'Customer-Induced' }
+        ] }
+    ],
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'taxonomy', label: '2. Symptoms, Causes & Operations', bn: '২. লক্ষণ, কারণ ও অপারেশন' },
+      { id: 'flags', label: '3. Status Flags', bn: '৩. অবস্থা নির্দেশক' },
+      { id: 'text', label: '4. Notes & Terms', bn: '৪. মন্তব্য ও শর্ত' },
+      { id: 'audit', label: '5. System Audit', bn: '৫. সিস্টেম অডিট' },
+      { id: 'docs', label: '6. Documents', bn: '৬. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'code', label: 'Fault Code', required: true },
+        { name: 'name', label: 'Fault Name', required: true },
+        { name: 'name_bn', label: 'Fault Name (Bengali)' },
+        { name: 'category', label: 'Category', required: true },
+        { name: 'default_severity', label: 'Default Severity' }
+      ] },
+      { tab: 'taxonomy', title: 'Where It Sits in the Taxonomy (FR-CAT-042 / 025)',
+        note: 'The symptoms a customer reports for it, its root causes (lines below), and the repair operations that resolve it - the estimate pre-fills from them.',
+        fields: [
+        { name: 'symptom_ids', label: 'Presents As (Symptoms)' },
+        { name: 'operation_ids', label: 'Resolving Repair Operations' }
+      ] },
+      { tab: 'flags', title: '6. Status Flags', fields: [
+        { name: 'active', label: 'Active' }
+      ] },
+      { tab: 'text', title: '7. Notes & Terms', fields: [
+        { name: 'description', label: 'Description', type: 'text' }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+  'M37-form-protection': { kind: 'model_form', model: 'fix.catalogue.item',
+    title: 'Protection Product Template', back: 'M37-protection',
+    // M37 capture audit, third pass: this form showed a labour time and
+    // observed repair minutes (a plan has neither). Its cover - scope,
+    // exclusions, term, claim limit, eligibility - is the Protection Product
+    // (Cover Terms) chip on the same page (FR-CAT-037).
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'schedule', label: '2. Schedule', bn: '২. সময়সূচি' },
+      { id: 'relations', label: '3. Links', bn: '৩. সংযোগ' },
+      { id: 'statutory', label: '4. Statutory', bn: '৪. আইনি তথ্য' },
+      { id: 'flags', label: '5. Status Flags', bn: '৫. অবস্থা নির্দেশক' },
+      { id: 'audit', label: '6. System Audit', bn: '৬. সিস্টেম অডিট' },
+      { id: 'docs', label: '7. Documents', bn: '৭. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'description_bn', label: 'Description (Bengali)' },
+        { name: 'item_type', label: 'Item Type', required: true, value: 'protection' },
+        { name: 'state', label: 'Lifecycle State', readonly: true }
+      ] },
+      { tab: 'schedule', title: '3. Schedule', fields: [
+        { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
+      ] },
+      { tab: 'relations', title: '4. Links', fields: [
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'product_tmpl_id', label: 'Product Template', required: true },
+        { name: 'category_id', label: 'Product Category' },
+        { name: 'brand_id', label: 'Brand' },
+        { name: 'approved_by', label: 'Approved By', readonly: true }
+      ] },
+      { tab: 'statutory', title: '5. Statutory',
+        note: 'VAT class and revenue recognition are required before approval (BRU-CAT-02); a plan is usually recognised ratably over its term.',
+        fields: [
+        { name: 'operating_unit_id', label: 'Operating Unit' },
+        { name: 'hs_code', label: 'HS / Tariff Code' },
+        { name: 'vat_class', label: 'VAT Class' },
+        { name: 'sd_applicable', label: 'Supplementary Duty Applies' },
+        { name: 'revenue_recognition', label: 'Revenue Recognition' }
+      ] },
+      { tab: 'flags', title: '6. Status Flags', fields: [
+        { name: 'is_warranty_eligible', label: 'Is Warranty Eligible' },
+        { name: 'is_out_of_scope', label: 'Is Out Of Scope' },
+        { name: 'requires_brand_authorisation', label: 'Requires Brand Authorisation' },
+        { name: 'active', label: 'Active' },
+        { name: 'is_published', label: 'Published on the Web', readonly: true }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (device_model_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+
+  /* ===== master-data forms (batch 2) — D365 in-workspace ===== */
+  'M37-form-kit': {
+    lines: {
+      field: 'component_ids',
+      title: 'Kit Components — the parts and labour this kit contains',
+      note: 'estimated_cost and estimated_time above are the SUM of these rows; a kit must carry at least one component.',
+      fields: [
+        { name: 'component_type', label: 'Type', required: true },
+        { name: 'product_id', label: 'Product' },
+        { name: 'quantity', label: 'Qty', required: true },
+        { name: 'standard_cost', label: 'Unit Cost' },
+        { name: 'time_allocation', label: 'Time (h)' },
+        { name: 'subtotal_cost', label: 'Subtotal' },
+        { name: 'is_optional', label: 'Optional' },
+        { name: 'substitution', label: 'Substitution', required: true },
+        { name: 'notes', label: 'Notes' }
+      ]
+    }, kind: 'model_form', model: 'fix.service.kit',
+    title: 'Service Kit & rBOM', back: 'M37-kits',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
+      { id: 'schedule', label: '3. Schedule', bn: '৩. সময়সূচি' },
+      { id: 'relations', label: '4. Links', bn: '৪. সংযোগ' },
+      { id: 'statutory', label: '5. Statutory', bn: '৫. আইনি তথ্য' },
+      { id: 'flags', label: '6. Status Flags', bn: '৬. অবস্থা নির্দেশক' },
+      { id: 'text', label: '7. Notes & Terms', bn: '৭. মন্তব্য ও শর্ত' },
+      { id: 'audit', label: '8. System Audit', bn: '৮. সিস্টেম অডিট' },
+      { id: 'docs', label: '9. Documents', bn: '৯. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'estimated_time', label: 'Estimated Time (hours)', readonly: true },
+        { name: 'explode_at', label: 'Explodes (FR-CAT-041)', required: true }
+      ] },
+      { tab: 'commercial', title: '2. Commercial', fields: [
+        { name: 'estimated_cost', label: 'Estimated Cost', readonly: true }
+      ] },
+      { tab: 'schedule', title: '3. Schedule', fields: [
+        { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
+      ] },
+      { tab: 'relations', title: '4. Links', fields: [
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'catalogue_item_id', label: 'Catalogue Item', required: true },
+        { name: 'currency_id', label: 'Currency', required: true }
+      ] },
+      { tab: 'statutory', title: '5. Statutory', fields: [
+        { name: 'operating_unit_id', label: 'Operating Unit' }
+      ] },
+      { tab: 'flags', title: '6. Status Flags', fields: [
+        { name: 'active', label: 'Active' }
+      ] },
+      { tab: 'text', title: '7. Notes & Terms', fields: [
+        { name: 'description', label: 'Description', type: 'text' }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (component_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+  'M37-form-ctpl': {
+    kind: 'model_form',
+    model: 'fix.contract.template',
+    title: 'Statutory Service Contract Template',
+    back: 'M37-contract-tpl',
+    status: { field: 'active' },
+    tabs: [
+      { id: 'template_core', label: '1. Contract Template', bn: '১. চুক্তি টেমপ্লেট', icon: '📜', badge: '5' },
+      { id: 'terms_duration', label: '2. Validity & Terms', bn: '২. মেয়াদ ও শর্তাবলি', icon: '📅', badge: '4' },
+      { id: 'legal_clauses', label: '3. Statutory Clauses & Bilingual Text', bn: '৩. আইনি ধারা ও দ্বিভাষিক পাঠ', icon: '⚖️', badge: '3' }
+    ],
+    sections: [
+      { tab: 'template_core', title: 'Template Identification', note: 'Statutory contract template for recurring service delivery, SLA packages, and corporate agreements.',
+        fields: [
+          { name: 'code', label: 'Template Code', readonly: true },
+          { name: 'name', required: true, label: 'Template Title' },
+          { name: 'company_id', required: true, label: 'Operating Entity' },
+          { name: 'contract_type', required: true, label: 'Contract Family' },
+          { name: 'generation_type', required: true, label: 'Generation Mode' }
+        ] },
+      { tab: 'terms_duration', title: 'Term & Termination Notice', fields: [
+          { name: 'duration_months', label: 'Standard Term (Months)' },
+          { name: 'notice_period_days', label: 'Notice Period (Days)' },
+          { name: 'date_start', label: 'Valid From' },
+          { name: 'date_end', label: 'Valid To' }
+        ] },
+      { tab: 'legal_clauses', title: 'Stamp Act 1899 Clauses & Bengali Translation', fields: [
+          { name: 'standard_terms', type: 'text', label: 'Standard Terms & Statutory Clauses' },
+          { name: 'terms_bn', type: 'text', label: 'Terms & Conditions (?????)' },
+          { name: 'active', label: 'Active for Generation' }
+        ] }
+    ]
+  },
+  'M37-form-rentalsku': { kind: 'model_form', model: 'fix.rental.sku',
+    title: 'Rental SKU', back: 'M37-rental-sku',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
+      { id: 'schedule', label: '3. Schedule', bn: '৩. সময়সূচি' },
+      { id: 'relations', label: '4. Links', bn: '৪. সংযোগ' },
+      { id: 'statutory', label: '5. Statutory', bn: '৫. আইনি তথ্য' },
+      { id: 'flags', label: '6. Status Flags', bn: '৬. অবস্থা নির্দেশক' },
+      { id: 'audit', label: '7. System Audit', bn: '৭. সিস্টেম অডিট' },
+      { id: 'docs', label: '8. Documents', bn: '৮. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'name', label: 'Name', readonly: true },
+        { name: 'min_hire_days', label: 'Minimum Hire Period (days)' },
+        { name: 'max_rental_days', label: 'Maximum Rental Duration (days)' },
+        { name: 'deposit_basis', label: 'Deposit Basis' },
+        { name: 'condition_standard', label: 'Condition Standard (goes out as)', type: 'text' },
+        { name: 'return_criteria', label: 'Return Criteria (deposit released when)', type: 'text' }
+      ] },
+      { tab: 'commercial', title: '2. Commercial', fields: [
+        { name: 'daily_rate', label: 'Daily Rate' },
+        { name: 'weekly_rate', label: 'Weekly Rate' },
+        { name: 'monthly_rate', label: 'Monthly Rate' },
+        { name: 'security_deposit', label: 'Security Deposit' }
+      ] },
+      { tab: 'schedule', title: '3. Schedule', fields: [
+        { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
+      ] },
+      { tab: 'relations', title: '4. Links', fields: [
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'catalogue_item_id', label: 'Catalogue Item', required: true },
+        { name: 'currency_id', label: 'Currency', required: true }
+      ] },
+      { tab: 'statutory', title: '5. Statutory', fields: [
+        { name: 'operating_unit_id', label: 'Operating Unit' }
+      ] },
+      { tab: 'flags', title: '6. Status Flags', fields: [
+        { name: 'requires_inspection_return', label: 'Requires Inspection Return' },
+        { name: 'active', label: 'Active' }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+
+  /* ===== triage coverage screens ===== */
+  'M37-brand': { kind: 'model_list', model: 'fix.brand',
+    cols: ['name', 'code', 'active', 'name_bn', 'website', 'support_url', 'authorised', 'authorisation_expiry', 'approval_state'],
+    // A04 audit 2026-11-04 (M37-7): an authorisation is requested with its
+    // evidence and decided by a Catalogue Publisher from the M63 inbox.
+    actions: [
+      { m: 'action_request_authorisation', l: 'Request Authorisation (evidence staged on the form)' },
+      { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
+      { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
+    ] },
+  // The grade bands A-D are a fixed set (selection) that no workspace role
+  // may create (model ACL: read only); the list offered a + New that every
+  // save would refuse (M37 capture audit).
+  // Third pass: a Catalogue Officer now defines each band's criteria,
+  // warranty and permitted channels (open a row); the bands stay a fixed set.
+  'M37-refurb-grade': { kind: 'model_list', model: 'fix.refurb.grade', create: false,
+    cols: ['name', 'name_bn', 'warranty_days', 'sell_counter', 'sell_online', 'sell_marketplace', 'sell_b2b', 'active'],
+    note: 'The fixed grade bands (FR-CAT-040). Open a band to define its cosmetic and functional criteria, warranty and the channels it may be sold on (Catalogue Officer).' },
+
+  'M37-form-brand': {
+
+    lines: {
+
+      field: 'device_model_ids',
+
+      title: 'Device Models of this Brand',
+
+      note: 'The models serviced under this brand\'s authorisation.',
+
+      fields: [
+
+        { name: 'name', label: 'Model', required: true },
+
+        { name: 'name_bn', label: 'Model (Bengali)' },
+
+        { name: 'model_code', label: 'Code' },
+
+        { name: 'device_type', label: 'Type' },
+
+        { name: 'parts_available', label: 'Parts Available' },
+
+        { name: 'discontinued', label: 'Discontinued' }
+
+      ]
+
+    }, kind: 'model_form', model: 'fix.brand',
+    title: 'Brand & Authorisation', back: 'M37-brand',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'schedule', label: '2. Schedule', bn: '২. সময়সূচি' },
+      { id: 'flags', label: '3. Status Flags', bn: '৩. অবস্থা নির্দেশক' },
+      { id: 'audit', label: '4. System Audit', bn: '৪. সিস্টেম অডিট' },
+      { id: 'docs', label: '5. Documents', bn: '৫. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'code', label: 'Brand Code', required: true },
+        { name: 'logo', label: 'Logo' },
+        { name: 'website', label: 'Website' },
+        { name: 'support_url', label: 'Support Portal URL' },
+        { name: 'model_count', label: 'Model Count', readonly: true }
+      ] },
+      { tab: 'schedule', title: '3. Schedule', fields: [
+        { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true },
+        { name: 'authorisation_expiry', label: 'Authorisation Expiry', readonly: true }
+      ] },
+      { tab: 'flags', title: '6. Status Flags',
+        note: 'Brand authorisation is a decision: stage the brand letter or agreement reference and its expiry, then Request Authorisation; a Catalogue Publisher who did not request it decides from the M63 inbox. It lapses on its expiry (nightly job).',
+        fields: [
+        { name: 'authorised', label: '1000FiX Authorised', readonly: true },
+        { name: 'authorisation_reference', label: 'Authorisation Reference', readonly: true },
+        { name: 'authorised_by', label: 'Authorised By', readonly: true },
+        { name: 'proposed_authorisation_reference', label: 'Evidence Reference (staged)' },
+        { name: 'proposed_authorisation_expiry', label: 'Proposed Expiry (staged)' },
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'active', label: 'Active' }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (device_model_ids, api_user_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+  'M37-form-category': {
+    lines: {
+      field: 'child_id',
+      title: 'Sub-categories',
+      readonlyGrid: true,
+      note: 'A sub-category is placed here by giving it this category as its parent.',
+      fields: [
+        { name: 'name', label: 'Category Name', readonly: true },
+        { name: 'complete_name', label: 'Full Path', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'product.category',
+    title: 'Catalogue Category', back: 'M37-taxonomy',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Category Node (FR-CAT-004)',
+        note: 'A node of the commercial tree: give it a parent to place it under a category, or none for a top-level stream. Saving needs the product-manager role.',
+        fields: [
+          { name: 'name', label: 'Category Name', required: true },
+          { name: 'name_bn', label: 'Category Name (Bengali)' },
+          { name: 'code', label: 'Category Code' },
+          { name: 'tree_type', label: 'Tree', required: true },
+          { name: 'parent_id', label: 'Parent Category' },
+          { name: 'complete_name', label: 'Full Path', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  'M37-form-refurb-grade': { kind: 'model_form', model: 'fix.refurb.grade',
+    title: 'Refurbishment Grade', back: 'M37-refurb-grade',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
+      { id: 'relations', label: '3. Links', bn: '৩. সংযোগ' },
+      { id: 'flags', label: '4. Status Flags', bn: '৪. অবস্থা নির্দেশক' },
+      { id: 'text', label: '5. Notes & Terms', bn: '৫. মন্তব্য ও শর্ত' },
+      { id: 'audit', label: '6. System Audit', bn: '৬. সিস্টেম অডিট' },
+      { id: 'docs', label: '7. Documents', bn: '৭. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. General', fields: [
+        { name: 'sequence', label: 'Sequence' },
+        { name: 'code', label: 'Grade', readonly: true },
+        { name: 'name', label: 'Name', readonly: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'warranty_days', label: 'Refurb Warranty (days)' }
+      ] },
+      { tab: 'commercial', title: 'Grade Criteria and Channels (FR-CAT-040)',
+        note: 'The objective test a unit must pass to carry this grade, and where a unit of this grade may be sold. The grade code and M14\'s price multiplier are fixed.',
+        fields: [
+        { name: 'cosmetic_criteria', label: 'Cosmetic Criteria', type: 'text' },
+        { name: 'functional_criteria', label: 'Functional Criteria', type: 'text' },
+        { name: 'sell_counter', label: 'Sold at the Counter / POS' },
+        { name: 'sell_online', label: 'Sold Online (website / app)' },
+        { name: 'sell_marketplace', label: 'Sold on the Marketplace' },
+        { name: 'sell_b2b', label: 'Sold to Corporate (B2B)' },
+        { name: 'price_multiplier', label: 'Price Multiplier (M14, fixed)', readonly: true }
+      ] },
+      { tab: 'relations', title: '4. Links', fields: [
+        { name: 'currency_id', label: 'Currency', readonly: true }
+      ] },
+      { tab: 'flags', title: '6. Status Flags', fields: [
+        { name: 'active', label: 'Active' }
+      ] },
+      { tab: 'text', title: '7. Notes & Terms', fields: [
+        { name: 'description', label: 'Description', type: 'text' }
+      ] },
+      { tab: 'audit', title: '8. System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true },
+        { name: 'write_uid', label: 'Last Updated by', readonly: true },
+        { name: 'write_date', label: 'Last Updated on', readonly: true }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+  /* ---- M37 capture audit, second pass (2026-11-14) ---- */
+  'M37-form-srt': { kind: 'model_form', model: 'fix.srt.baseline',
+    title: 'SRT Baseline', back: 'M37-srt-baselines',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Baseline', bn: '১. মানদণ্ড', icon: '⏱️' },
+      { id: 'evidence', label: '2. Evidence', bn: '২. প্রমাণ', icon: '📊' },
+      { id: 'decision', label: '3. Decision', bn: '৩. সিদ্ধান্ত', icon: '✅' },
+      { id: 'docs', label: '4. Documents', bn: '4. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Standard Repair Time (FR-CAT-023)',
+        note: 'Save as Draft, then Propose from the SRT Baselines list. Another Catalogue Publisher approves it; a general baseline (no model) then becomes the operation\'s standard time on its effective date (BRU-CAT-11).',
+        fields: [
+          { name: 'item_id', label: 'Repair Operation / Service', required: true },
+          { name: 'device_model_id', label: 'Device Model (blank = general)' },
+          { name: 'repair_level', label: 'Repair Level', required: true },
+          { name: 'minutes', label: 'Standard Time (minutes)', required: true },
+          { name: 'effective_from', label: 'Effective From', required: true },
+          { name: 'company_id', label: 'Company', required: true }
+        ] },
+      { tab: 'evidence', title: 'Why This Time (FR-CAT-024)',
+        note: 'A calibration rests on measured actuals: give the number of jobs measured and their average.',
+        fields: [
+          { name: 'source', label: 'Source', required: true },
+          { name: 'sample_size', label: 'Measured Jobs' },
+          { name: 'observed_avg_minutes', label: 'Measured Average (minutes)' },
+          { name: 'reason', label: 'Why This Baseline', type: 'text', required: true }
+        ] },
+      { tab: 'decision', title: 'Proposal & Approval', fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'previous_minutes', label: 'Standard Before (minutes)', readonly: true },
+          { name: 'proposed_by', label: 'Proposed By', readonly: true },
+          { name: 'approved_by', label: 'Approved By', readonly: true },
+          { name: 'approved_at', label: 'Approved On', readonly: true },
+          { name: 'applied_at', label: 'Applied To The Item On', readonly: true },
+          { name: 'rejection_reason', label: 'Rejected Because', type: 'text', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  'M37-form-xref': { kind: 'model_form', model: 'fix.part.crossref',
+    title: 'Part Cross-Reference', back: 'M37-part-xref',
+    tabs: [
+      { id: 'general', label: '1. Cross-Reference', bn: '১. ক্রস-রেফারেন্স', icon: '🔁' },
+      { id: 'scope', label: '2. Scope & Quality', bn: '২. পরিধি ও মান', icon: '📋' },
+      { id: 'docs', label: '3. Documents', bn: '3. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Part and Its Alternate (FR-CAT-030)', fields: [
+          { name: 'part_item_id', label: 'Part', required: true },
+          { name: 'alt_item_id', label: 'Alternate / Cross-Referenced Part', required: true },
+          { name: 'relation_type', label: 'Relation', required: true },
+          { name: 'direction', label: 'Direction', required: true },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'scope', title: 'Where It Applies and How It Differs',
+        note: 'An aftermarket or compatible alternate needs its quality note: how it differs in quality, life or warranty.',
+        fields: [
+          { name: 'device_model_ids', label: 'Only For Models (blank = wherever the part fits)' },
+          { name: 'quality_note', label: 'Quality Note', type: 'text' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  // Picks the item, then captures its classification. Fields the server
+  // locks (a value already set on an Active item) show read-only.
+  'M37-form-taxclass': { kind: 'model_form', model: 'fix.catalogue.item',
+    title: 'Tax & Revenue Classification', back: 'M37-taxclass',
+    newLabel: 'Classify an Item (Tax & Revenue)',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the item to classify',
+      note: 'Items still missing their VAT class or revenue-recognition class. An item is not approved without both (BRU-CAT-02).',
+      search: 'Search item name / code',
+      choose: 'Classify this item',
+      cols: ['product_tmpl_id', 'item_type', 'category_id', 'vat_class', 'revenue_recognition', 'state'],
+      domain: ['|', ['vat_class', '=', false], ['revenue_recognition', '=', false]],
+      empty: 'Every catalogue item already carries its VAT and revenue class.'
+    },
+    tabs: [
+      { id: 'tax', label: '1. VAT & Duty', bn: '১. ভ্যাট ও শুল্ক', icon: '⚖️' },
+      { id: 'revenue', label: '2. Revenue Recognition', bn: '২. রাজস্ব স্বীকৃতি', icon: '📈' },
+      { id: 'docs', label: '3. Documents', bn: '3. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'tax', title: 'Step 2 of 2: VAT Class, SD and HS Code (FR-CAT-043)',
+        note: 'M51 looks the VAT treatment up by the HS code; the class here is the item\'s own. A blank may be completed on an Active item; a set value changes only by Revise.',
+        fields: [
+          { name: 'product_tmpl_id', label: 'Item', readonly: true },
+          { name: 'item_type', label: 'Item Type', readonly: true },
+          { name: 'hs_code', label: 'HS / Tariff Code' },
+          { name: 'vat_class', label: 'VAT Class', required: true },
+          { name: 'sd_applicable', label: 'Supplementary Duty Applies' }
+        ] },
+      { tab: 'revenue', title: 'When Revenue Is Recognised', fields: [
+          { name: 'revenue_recognition', label: 'Revenue Recognition', required: true },
+          { name: 'state', label: 'Lifecycle State', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  'M37-form-publication': { kind: 'model_form', model: 'fix.catalogue.publication',
+    title: 'Channel Publication', back: 'M37-publications',
+    newLabel: 'Publish to a Channel',
+    tabs: [
+      { id: 'general', label: '1. Channel', bn: '১. চ্যানেল', icon: '📢' },
+      { id: 'snapshot', label: '2. Snapshot', bn: '২. স্ন্যাপশট', icon: '🧾' },
+      { id: 'docs', label: '3. Documents', bn: '3. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Publish a Catalogue Projection (FR-CAT-044)',
+        note: 'Saving publishes the next version for the channel: a snapshot of the items it carries, with its content hash and completeness. Needs the Catalogue Publisher role. A customer-facing channel is refused while any of its items lacks a Bengali name or hierarchy position.',
+        fields: [
+          { name: 'channel', label: 'Channel', required: true },
+          { name: 'note', label: 'Release Note', type: 'text' },
+          { name: 'company_id', label: 'Company', required: true }
+        ] },
+      { tab: 'snapshot', title: 'What Was Published', fields: [
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'item_count', label: 'Items', readonly: true },
+          { name: 'completeness_pct', label: 'Completeness (%)', readonly: true },
+          { name: 'incomplete_count', label: 'Incomplete Items', readonly: true },
+          { name: 'content_hash', label: 'Content Hash (SHA-256)', readonly: true },
+          { name: 'published_at', label: 'Published On', readonly: true },
+          { name: 'create_uid', label: 'Published By', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] },
+
+  'M37-form-attribute': {
+    lines: {
+      field: 'value_ids',
+      title: 'Values',
+      note: 'The values this axis takes (e.g. 64 GB, 128 GB). Each combination makes a variant when the attribute creates variants.',
+      fields: [
+        { name: 'name', label: 'Value', required: true },
+        { name: 'sequence', label: 'Sequence' }
+      ]
+    },
+    kind: 'model_form', model: 'product.attribute',
+    title: 'Product Attribute', back: 'M37-attributes',
+    tabs: [
+      { id: 'general', label: '1. Attribute', bn: '১. বৈশিষ্ট্য', icon: '🎛️' },
+      { id: 'docs', label: '2. Documents', bn: '2. নথি ও প্রমাণক', icon: '📁' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Variant Axis (FR-CAT-005/006)',
+        note: 'Saving needs the product-manager role.',
+        fields: [
+          { name: 'name', label: 'Attribute Name', required: true },
+          { name: 'create_variant', label: 'Variant Creation', required: true },
+          { name: 'display_type', label: 'Display Type', required: true },
+          { name: 'sequence', label: 'Sequence' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
+    ] }
+
+};
+
+export const REPORT_ROUTES = {
+  'M37:Catalogue Coverage by Brand': 'M37-rpt-brand',
+  'M37:rBOM Completeness': 'M37-rpt-rbom',
+  'M37:SRT Calibration Variance': 'M37-rpt-srt',
+  'M37:Item Margin Analysis': 'M37-rpt-margin',
+  'M37:Deprecated Items Register': 'M37-rpt-deprecated',
+  'M37:Bilingual Content Gaps': 'M37-rpt-bilingual'
+};
+
+export const FORM_MODELS = {
+  'M37:Catalogue Item (9 types)': 'fix.catalogue.item',
+  'M37:Service Definition': 'fix.catalogue.item',
+  'M37:rBOM Line': 'fix.rbom.line',
+  'M37:Fault Code': 'fix.fault.code',
+  'M37:Protection Product Template': 'fix.catalogue.item',
+  'M37:Service Kit': 'fix.service.kit',
+  'M37:Brand & Authorisation': 'fix.brand',
+  'M37:Catalogue Category': 'product.category',
+  'M37:Contract Template': 'fix.contract.template',
+  'M37:Rental SKU': 'fix.rental.sku',
+  'M37:VAT Treatment': 'fix.vat.treatment',
+  'M37:SRT Baseline': 'fix.srt.baseline',
+  'M37:Part Cross-Reference': 'fix.part.crossref',
+  'M37:Tax & Revenue Classification': 'fix.catalogue.item',
+  'M37:Channel Publication': 'fix.catalogue.publication',
+  'M37:Product Attribute': 'product.attribute',
+  'M37:Service / Charge Code': 'fix.charge.code',
+  'M37:Model Compatibility': 'fix.model.compatibility',
+  'M37:Attribute Set': 'fix.catalogue.attribute.set',
+  'M37:Fault Symptom': 'fix.fault.symptom',
+  'M37:Subscription Plan': 'fix.subscription.plan.def',
+  'M37:Item Numbering Rule': 'fix.catalogue.numbering',
+  'M37:Protection Product (Cover Terms)': 'fix.warranty.product'
+};
+
+export const FORM_CHIPS = {
+  'M37:Service Kit': 'M37-form-kit',
+  'M37:Contract Template': 'M37-form-ctpl',
+  'M37:Rental SKU': 'M37-form-rentalsku',
+  'M37:Catalogue Item (9 types)': 'M37-item',
+  'M37:Service Definition': 'M37-form-service',
+  'M37:rBOM Line': 'M37-form-rbom',
+  'M37:Fault Code': 'M37-form-fault',
+  'M37:Protection Product Template': 'M37-form-protection',
+  'M37:Brand & Authorisation': 'M37-form-brand',
+  'M37:Catalogue Category': 'M37-form-category',
+  // M51 owns the tariff code -> VAT treatment master (a change is a proposal
+  // a second tax manager activates); M37 opens M51's own form.
+  'M37:VAT Treatment': 'M51-form-treatment',
+  'M37:SRT Baseline': 'M37-form-srt',
+  'M37:Part Cross-Reference': 'M37-form-xref',
+  'M37:Tax & Revenue Classification': 'M37-form-taxclass',
+  'M37:Channel Publication': 'M37-form-publication',
+  'M37:Product Attribute': 'M37-form-attribute',
+  'M37:Service / Charge Code': 'M37-form-charge',
+  'M37:Model Compatibility': 'M37-form-compat',
+  'M37:Attribute Set': 'M37-form-attrset',
+  'M37:Fault Symptom': 'M37-form-symptom',
+  'M37:Subscription Plan': 'M37-form-plandef',
+  'M37:Item Numbering Rule': 'M37-form-numbering',
+  // FR-CAT-037: the protection product's cover (scope, exclusions, term,
+  // claim limit, eligibility) is held on M09's Protection Product, which
+  // sells and honours it; M37 opens that form rather than a second copy.
+  'M37:Protection Product (Cover Terms)': 'M09-form-wproduct',
+  'M37:__by_model__': {
+    'fix.brand': 'M37-form-brand',
+    'fix.refurb.grade': 'M37-form-refurb-grade',
+    'fix.service.kit': 'M37-form-kit',
+    'fix.contract.template': 'M37-form-ctpl',
+    'fix.rental.sku': 'M37-form-rentalsku',
+    'fix.catalogue.item': 'M37-item',
+    'fix.rbom.line': 'M37-form-rbom',
+    'fix.fault.code': 'M37-form-fault',
+    'product.category': 'M37-form-category',
+    'fix.srt.baseline': 'M37-form-srt',
+    'fix.part.crossref': 'M37-form-xref',
+    'fix.catalogue.publication': 'M37-form-publication',
+    'product.attribute': 'M37-form-attribute',
+    'fix.charge.code': 'M37-form-charge',
+    'fix.model.compatibility': 'M37-form-compat',
+    'fix.catalogue.attribute.set': 'M37-form-attrset',
+    'fix.fault.symptom': 'M37-form-symptom',
+    'fix.subscription.plan.def': 'M37-form-plandef',
+    'fix.catalogue.numbering': 'M37-form-numbering'
+  },
+  'M37:__by_screen__': {
+    'M37-brand': 'M37-form-brand',
+    'M37-refurb-grade': 'M37-form-refurb-grade',
+    'M37-kits': 'M37-form-kit',
+    'M37-contract-tpl': 'M37-form-ctpl',
+    'M37-rental-sku': 'M37-form-rentalsku',
+    'M37-items': 'M37-item',
+    'M37-services': 'M37-form-service',
+    'M37-protection': 'M37-form-protection',
+    'M37-rbom': 'M37-form-rbom',
+    'M37-fault': 'M37-form-fault',
+    'M37-operations': 'M37-form-service',
+    'M37-parts-id': 'M37-item',
+    'M37-taxonomy': 'M37-form-category',
+    'M37-srt-baselines': 'M37-form-srt',
+    'M37-part-xref': 'M37-form-xref',
+    'M37-taxclass': 'M37-form-taxclass',
+    'M37-publications': 'M37-form-publication',
+    'M37-attributes': 'M37-form-attribute',
+    'M37-charge-codes': 'M37-form-charge',
+    'M37-model-compat': 'M37-form-compat',
+    'M37-attribute-sets': 'M37-form-attrset',
+    'M37-symptoms': 'M37-form-symptom',
+    'M37-plan-defs': 'M37-form-plandef',
+    'M37-numbering': 'M37-form-numbering'
+  }
+};
+
+export const CREATE = {
+  M37: { screen: 'M37-item', model: 'fix.catalogue.item', label: 'Catalogue Item' }
+};

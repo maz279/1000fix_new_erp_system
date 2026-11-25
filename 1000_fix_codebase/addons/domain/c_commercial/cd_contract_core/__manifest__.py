@@ -19,14 +19,38 @@ CD-M08-01..04: the contract engine.
 - Events: contract.activated, contract.renewed, contract.expiring,
   entitlement.consumed (AS-08)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Contracts",
-    "depends": ["base", "mail", "product", "contract", "cd_entity_config", "cd_event_outbox",
-                 "cd_party_master", "cd_device_registry", "cd_service_order",
-                 "cd_esignature"],
-    "data": ["security/ir.model.access.csv", "views/fix_contract_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "product",
+        "contract",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_esignature",
+        # A04 build (2026-11-04): the contract value, amendment and
+        # termination approvals are routed through M63 (already loaded
+        # before this module through cd_service_order and cd_party_master).
+        "cd_workflow_engine",
+    ],
+    "data": [
+        "security/cd_contract_core_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
+        "data/ir_cron.xml",
+        "data/fix_contract_template_data.xml",
+        "data/fix_contract_template_terms.xml",
+        "views/fix_contract_views.xml",
+        # A04 ERP audit M08-F20: the contract printout
+        "report/fix_contract_report.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M08-01",

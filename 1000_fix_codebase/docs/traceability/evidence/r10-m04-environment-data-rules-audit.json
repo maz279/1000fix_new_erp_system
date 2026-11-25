@@ -1,0 +1,268 @@
+{
+  "timestamp": "2026-10-21T09:55:18.530551+00:00",
+  "total_environments": 12,
+  "expected_environments": 12,
+  "all_environments_present": true,
+  "environments": [
+    {
+      "name": "local",
+      "purpose": "developer workstation (Docker Compose profiles)",
+      "data_rule": "generated-synthetic-only",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5433,
+        6380,
+        9002,
+        1025,
+        8025,
+        8100,
+        8080,
+        6432,
+        8000,
+        8001,
+        8081,
+        3000,
+        8110,
+        8082,
+        5055,
+        5000,
+        3001,
+        4317,
+        4318,
+        9090,
+        3002,
+        3100,
+        3200
+      ],
+      "databases": [
+        "fix_dev"
+      ],
+      "volumes": [
+        "pgdata"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "ci",
+      "purpose": "ephemeral per run",
+      "data_rule": "versioned-snapshot-restore",
+      "residency_classified": "never",
+      "compose_file": null,
+      "passed": true,
+      "details": []
+    },
+    {
+      "name": "dev",
+      "purpose": "shared integration target for develop",
+      "data_rule": "synthetic + anonymised-sample",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.dev.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5435,
+        6381,
+        8071
+      ],
+      "databases": [
+        "fix_dev_shared"
+      ],
+      "volumes": [
+        "pgdata-dev"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "sit",
+      "purpose": "system integration test across real modules",
+      "data_rule": "full TS-002 set, moving",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.sit.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5436,
+        6382,
+        8072
+      ],
+      "databases": [
+        "fix_sit_moving"
+      ],
+      "volumes": [
+        "pgdata-sit"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "uat",
+      "purpose": "business acceptance",
+      "data_rule": "full TS-002 set, frozen-for-cycle",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.uat.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5437,
+        6383,
+        8073
+      ],
+      "databases": [
+        "fix_uat_frozen"
+      ],
+      "volumes": [
+        "pgdata-uat"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "perf",
+      "purpose": "performance at 1.5x peak (DoD-14)",
+      "data_rule": "production-shaped volumes",
+      "residency_classified": "never-masked",
+      "compose_file": "docker-compose.perf.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5438,
+        6384,
+        8074
+      ],
+      "databases": [
+        "fix_perf_scaled"
+      ],
+      "volumes": [
+        "pgdata-perf"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "staging",
+      "purpose": "release-candidate rehearsal",
+      "data_rule": "production-clone-masked",
+      "residency_classified": "never-masked",
+      "compose_file": "docker-compose.staging.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5439,
+        6385,
+        8075
+      ],
+      "databases": [
+        "fix_staging_masked"
+      ],
+      "volumes": [
+        "pgdata-staging"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "training",
+      "purpose": "super-user and end-user training",
+      "data_rule": "curated scenario, resettable per cohort",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.training.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5440,
+        6386,
+        8076
+      ],
+      "databases": [
+        "fix_training_curated"
+      ],
+      "volumes": [
+        "pgdata-training"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "sandbox",
+      "purpose": "external partner certification",
+      "data_rule": "synthetic-only-externally-reachable",
+      "residency_classified": "never",
+      "compose_file": "docker-compose.sandbox.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5441,
+        6387,
+        8077
+      ],
+      "databases": [
+        "fix_sandbox_synthetic"
+      ],
+      "volumes": [
+        "pgdata-sandbox"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "migration-staging",
+      "purpose": "production-class migration rehearsal AT PRODUCTION VOLUME (not \"staging\")",
+      "data_rule": "production-volume clone",
+      "residency_classified": "masked",
+      "compose_file": "docker-compose.migration-staging.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5434
+      ],
+      "databases": [
+        "fix_migration"
+      ],
+      "volumes": [
+        "pgdata-migration"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "prod",
+      "purpose": "live",
+      "data_rule": "live",
+      "residency_classified": "yes-Z4-only",
+      "compose_file": "docker-compose.prod.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5442,
+        6388,
+        8078
+      ],
+      "databases": [
+        "fix_production"
+      ],
+      "volumes": [
+        "pgdata-prod"
+      ],
+      "has_healthcheck": true
+    },
+    {
+      "name": "dr",
+      "purpose": "warm standby, RPO<=15min, RTO<=2h",
+      "data_rule": "streaming replica",
+      "residency_classified": "yes-bangladesh-resident-standby",
+      "compose_file": "docker-compose.dr.yml",
+      "passed": true,
+      "details": [],
+      "ports": [
+        5443,
+        6389,
+        8079
+      ],
+      "databases": [
+        "fix_production"
+      ],
+      "volumes": [
+        "pgdata-dr"
+      ],
+      "has_healthcheck": true
+    }
+  ],
+  "passed": true,
+  "violations": []
+}

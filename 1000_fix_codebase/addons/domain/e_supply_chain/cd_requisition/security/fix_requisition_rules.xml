@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 record rules beyond the generated isolation set (A06 audit 2026-11-03).
+
+  Sealed bids (R7, finding M16-5): while an RFQ is draft or open for bids,
+  nobody but the person who recorded a bid may read it, so no buyer (and no
+  bidder's contact inside the company) can see a competitor's price before
+  the window closes. After close every internal user with access reads the
+  comparison. Superuser code (award checks) is not subject to rules.
+
+  Goods receipts carry the PO's company.
+-->
+<odoo>
+    <record id="rule_fix_procurement_bid_sealed" model="ir.rule">
+        <field name="name">fix.procurement.bid: sealed until the RFQ closes</field>
+        <field name="model_id" ref="model_fix_procurement_bid"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('rfq_id.state', 'not in', ('draft', 'open')), ('create_uid', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_purchase_receipt_company" model="ir.rule">
+        <field name="name">fix.purchase.receipt: allowed companies</field>
+        <field name="model_id" ref="model_fix_purchase_receipt"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- A06 P11: price amendments carry their order's company -->
+    <record id="rule_fix_purchase_price_amendment_company" model="ir.rule">
+        <field name="name">fix.purchase.price.amendment: allowed companies</field>
+        <field name="model_id" ref="model_fix_purchase_price_amendment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

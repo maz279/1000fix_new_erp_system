@@ -14,6 +14,7 @@ Every registered event schema must:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EVENTS_DIR = REPO_ROOT / "contracts" / "events"
-OUTBOX_MODEL = REPO_ROOT / "addons" / "platform" / "cd_event_outbox" / "models" / "fix_event_outbox.py"
+OUTBOX_MODEL = (
+    REPO_ROOT / "addons" / "platform" / "cd_event_outbox" / "models" / "fix_event_outbox.py"
+)
 
 REQUIRED_FIELDS = {"event_id", "event_type", "timestamp", "producer", "payload"}
 EVENT_TYPE_REGEX = re.compile(r"^[a-z0-9_]+(?:\.[a-z0-9_]+){2,}$")
@@ -66,10 +69,14 @@ def main() -> int:
         print(f"event-schemas: FAIL - {len(violations)} violation(s):")
         for err in violations:
             print(f"  {err}")
-        print("  remedy: schemas under contracts/events/ must declare standard CloudEvents envelope (AR-009 §5.5).")
+        print(
+            "  remedy: schemas under contracts/events/ must declare standard CloudEvents envelope (AR-009 §5.5)."
+        )
         return 1
 
-    print(f"event-schemas: OK - {schemas_checked} schema(s) conform to AR-009 event envelope specification; outbox model verified")
+    print(
+        f"event-schemas: OK - {schemas_checked} schema(s) conform to AR-009 event envelope specification; outbox model verified"
+    )
     return 0
 
 

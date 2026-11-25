@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hand-written isolation rules (A06 audit M15-14), alongside the generated
+  fix_isolation_rules.xml: the new ownership-class change document, and an
+  operating-unit rule for the M15 documents that carry no operating unit of
+  their own (lots, quarantine, RTV, van reconciliation): they follow their
+  location's operating unit.
+-->
+<odoo>
+    <record id="rule_fix_stock_class_change_company" model="ir.rule">
+        <field name="name">fix.stock.class.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_class_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_class_change_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.class.change: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_class_change"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_lot_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.lot: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_lot"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('location_id', '=', False), ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_quarantine_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.quarantine: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_quarantine"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_rtv_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.rtv: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_rtv"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!--
+      A06 final pass B5 (spec section 13, R10/R11/R12 "own van only"): a van
+      technician writes issues and reconciliations only on the van in their
+      own custody. GLOBAL on purpose: the operating-unit rule above is a group
+      rule on base.group_user, and group rules are OR'ed, so a group rule here
+      would be widened back to the whole operating unit. A storekeeper's
+      rights are unchanged. Reads keep following the company and OU rules.
+    -->
+    <record id="rule_fix_stock_consumption_own_van" model="ir.rule">
+        <field name="name">fix.stock.consumption: technicians write only on their own van</field>
+        <field name="model_id" ref="model_fix_stock_consumption"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_wms_structure.group_storekeeper') else [('location_id.technician_id.user_id', '=', user.id), ('location_id.location_type', '=', 'van')]</field>
+    </record>
+    <record id="rule_fix_stock_van_recon_own_van" model="ir.rule">
+        <field name="name">fix.stock.van.recon: technicians write only on their own van</field>
+        <field name="model_id" ref="model_fix_stock_van_recon"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_wms_structure.group_storekeeper') else [('location_id.technician_id.user_id', '=', user.id)]</field>
+    </record>
+    <!-- M41-13: slots and wave lines now carry their warehouse's / wave's company -->
+    <record id="rule_fix_wms_slot_company" model="ir.rule">
+        <field name="name">fix.wms.slot: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_slot"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_wave_line_company" model="ir.rule">
+        <field name="name">fix.wms.wave.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_wave_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_van_recon_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.van.recon: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_van_recon"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

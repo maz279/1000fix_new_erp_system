@@ -18,10 +18,18 @@
 [CmdletBinding()]
 param([string]$OutFile = '')
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # repo root
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # codebase root
 $yamlPath = Join-Path $root 'tooling\cd-register.yaml'
 if (-not (Test-Path $yamlPath)) { Write-Error 'tooling/cd-register.yaml not found - run generate-cd-register.ps1 first' }
-if ($OutFile -eq '') { $OutFile = Join-Path $root 'CODEOWNERS' }
+# R01 re-audit 2026-10-22: GitHub honours CODEOWNERS only at the REPOSITORY
+# root, .github/ or docs/. The git root is the workspace (the codebase is the
+# 1000_fix_codebase/ subdirectory), so the file goes to <workspace>/.github/
+# and every pattern carries the codebase prefix. The previous output
+# (<codebase>/CODEOWNERS, patterns like /addons/.../"cd_x") matched nothing.
+$workspace = Split-Path -Parent $root
+$prefix = (Split-Path -Leaf $root)
+if ($OutFile -eq '') { $OutFile = Join-Path $workspace '.github\CODEOWNERS' }
+New-Item -ItemType Directory -Force (Split-Path -Parent $OutFile) | Out-Null
 
 # Unit -> category directory (BE-004 section 4 layer-4 categories)
 $unitCategory = @{
@@ -55,7 +63,7 @@ $lines.Add('# Regenerate: powershell -File tooling/generators/generate-codeowner
 $lines.Add('# Hand edits will be overwritten. Ownership changes go through BE-005.')
 $lines.Add('')
 $lines.Add('# Root fallback until the programme tool names the leads (P01-M01-T06):')
-$lines.Add('/*                            @1000fix-platform-lead')
+$lines.Add('*                             @1000fix-platform-lead')
 $lines.Add('')
 
 $current = $null   # current item
@@ -64,7 +72,9 @@ foreach ($raw in [System.IO.File]::ReadAllLines($yamlPath)) {
     if ($raw -match '^- id: (CD-\S+)') { if ($current) { $items += $current }; $current = [ordered]@{ id = $Matches[1]; name = ''; type = ''; unit = '' } ; continue }
     if ($current) {
         if ($raw -match '^  unit: (\S+)') { $current.unit = $Matches[1] }
-        elseif ($raw -match '^  name: (.+)$') { $current.name = $Matches[1].Trim() -replace '`','' }
+        # YAML scalars are quoted in the register ("cd_x"); a quote inside a
+        # CODEOWNERS pattern is a literal character, so strip them.
+        elseif ($raw -match '^  name: (.+)$') { $current.name = $Matches[1].Trim().Trim('"').Trim("'") -replace '`','' }
         elseif ($raw -match '^  type: "(.+)"$') { $current.type = $Matches[1] }
     }
 }
@@ -73,7 +83,9 @@ if ($current) { $items += $current }
 $emitted = @{}
 foreach ($it in $items) {
     $unit = $it.unit; $tech = $it.name
-    if (-not $unit -or -not $tech -or $tech -eq '-') { continue }
+    # '-' / em-dash are the register's "no technical name yet" placeholders.
+    if (-not $unit -or -not $tech -or $tech -in @('-', [string][char]0x2014)) { continue }
+    if ($tech -notmatch '^[A-Za-z0-9_.-]+$') { continue }
     $dir = $null
     if ($it.type -match 'Odoo') {
         if ($unitCategory[$unit] -eq 'k_platform' -and $tech -match '^cd_') { $dir = "addons/platform/$tech" }
@@ -89,7 +101,7 @@ foreach ($it in $items) {
     if ($emitted[$dir]) { continue }
     $emitted[$dir] = $true
     $squad = if ($unitCategory[$unit] -and $categorySquad[$unitCategory[$unit]]) { $categorySquad[$unitCategory[$unit]] } else { 'platform' }
-    $lines.Add(("/{0,-52} @1000fix-{1}" -f $dir, $squad))
+    $lines.Add(("/{0,-70} @1000fix-{1}" -f "$prefix/$dir/", $squad))
 }
 [System.IO.File]::WriteAllLines($OutFile, $lines)
 Write-Host ("CODEOWNERS written: {0} ({1} ownership rows + fallback)" -f $OutFile, ($emitted.Keys.Count))

@@ -1,3 +1,16 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_tradein_request,fix.tradein.request,model_fix_tradein_request,base.group_user,1,1,1,0
 access_fix_refurbishment,fix.refurbishment,model_fix_refurbishment,base.group_user,1,1,1,0
+access_fix_tradein_valuation,fix.tradein.valuation,model_fix_tradein_valuation,base.group_user,1,1,1,0
+access_fix_tradein_provenance,fix.tradein.provenance,model_fix_tradein_provenance,base.group_user,1,1,1,0
+access_fix_tradein_grade,fix.tradein.grade,model_fix_tradein_grade,base.group_user,1,1,1,0
+access_fix_refurb_qa,fix.refurb.qa,model_fix_refurb_qa,base.group_user,1,1,1,0
+access_fix_tradein_harvest,fix.tradein.harvest,model_fix_tradein_harvest,base.group_user,1,1,1,0
+access_fix_tradein_warranty,fix.tradein.warranty,model_fix_tradein_warranty,base.group_user,1,1,1,0
+access_fix_tradein_price_grid,fix.tradein.price.grid,model_fix_tradein_price_grid,base.group_user,1,1,1,0
+access_fix_bulk_buyback,fix.bulk.buyback,model_fix_bulk_buyback,base.group_user,1,1,1,0
+access_fix_bulk_buyback_asset,fix.bulk.buyback.asset,model_fix_bulk_buyback_asset,base.group_user,1,1,1,1
+access_fix_tradein_intake_check,fix.tradein.intake.check,model_fix_tradein_intake_check,base.group_user,1,1,1,0
+access_fix_refurb_qa_test,fix.refurb.qa.test,model_fix_refurb_qa_test,base.group_user,1,1,1,1
+access_fix_refurb_return,fix.refurb.return,model_fix_refurb_return,base.group_user,1,1,1,0
+access_fix_refurb_writeoff,fix.refurb.writeoff,model_fix_refurb_writeoff,base.group_user,1,1,1,0

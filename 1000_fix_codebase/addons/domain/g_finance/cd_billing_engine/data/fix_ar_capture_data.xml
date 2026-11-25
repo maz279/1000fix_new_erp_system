@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine: M20 second capture pass (19 Nov 2026).
+     Numbering for the eight new registers and the four daily jobs that
+     keep promises, plans, unbilled exceptions and the worklist honest. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_ar_collection_case" model="ir.sequence">
+            <field name="name">Collection Case</field>
+            <field name="code">fix.ar.collection.case</field>
+            <field name="prefix">COL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_promise" model="ir.sequence">
+            <field name="name">Promise to Pay</field>
+            <field name="code">fix.ar.promise</field>
+            <field name="prefix">PTP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_payment_plan" model="ir.sequence">
+            <field name="name">Payment Plan</field>
+            <field name="code">fix.ar.payment.plan</field>
+            <field name="prefix">PPL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_invoice_delivery" model="ir.sequence">
+            <field name="name">Invoice Delivery</field>
+            <field name="code">fix.ar.invoice.delivery</field>
+            <field name="prefix">DLV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_statement" model="ir.sequence">
+            <field name="name">Customer Statement</field>
+            <field name="code">fix.ar.statement</field>
+            <field name="prefix">STM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_deposit" model="ir.sequence">
+            <field name="name">Customer Deposit</field>
+            <field name="code">fix.ar.deposit</field>
+            <field name="prefix">DEP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_refund" model="ir.sequence">
+            <field name="name">AR Refund</field>
+            <field name="code">fix.ar.refund</field>
+            <field name="prefix">RFD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_unbilled_exception" model="ir.sequence">
+            <field name="name">Unbilled Exception</field>
+            <field name="code">fix.ar.unbilled.exception</field>
+            <field name="prefix">UBX/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_ar_promise_check" model="ir.cron">
+            <field name="name">AR: promise-to-pay check (kept / broken)</field>
+            <field name="model_id" ref="model_fix_ar_promise"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_promises()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_plan_check" model="ir.cron">
+            <field name="name">AR: payment-plan instalment check</field>
+            <field name="model_id" ref="model_fix_ar_payment_plan"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_plans()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_unbilled_reconcile" model="ir.cron">
+            <field name="name">AR: delivered-but-unbilled reconciliation (AUT-ARB-17)</field>
+            <field name="model_id" ref="model_fix_ar_unbilled_exception"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_reconcile()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_case_refresh" model="ir.cron">
+            <field name="name">AR: collection worklist re-prioritisation</field>
+            <field name="model_id" ref="model_fix_ar_collection_case"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_refresh()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

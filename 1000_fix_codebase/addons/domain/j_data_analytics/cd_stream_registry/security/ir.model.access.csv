@@ -1,5 +1,38 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_iot_device,fix.iot.device,model_fix_iot_device,base.group_user,1,1,1,0
-access_fix_iot_telemetry,fix.iot.telemetry,model_fix_iot_telemetry,base.group_user,1,1,1,0
-access_fix_iot_alert,fix.iot.alert,model_fix_iot_alert,base.group_user,1,1,1,0
+access_fix_iot_device,fix.iot.device,model_fix_iot_device,base.group_user,1,0,0,0
+access_fix_iot_device_admin,fix.iot.device admin,model_fix_iot_device,group_iot_admin,1,1,1,0
+access_fix_iot_device_manager,fix.iot.device manager,model_fix_iot_device,group_iot_manager,1,1,1,1
+access_fix_iot_telemetry,fix.iot.telemetry,model_fix_iot_telemetry,base.group_user,1,0,0,0
+access_fix_iot_alert,fix.iot.alert,model_fix_iot_alert,base.group_user,1,0,0,0
+access_fix_iot_alert_operator,fix.iot.alert operator,model_fix_iot_alert,group_iot_operator,1,1,0,0
+access_fix_iot_alert_admin,fix.iot.alert admin,model_fix_iot_alert,group_iot_admin,1,1,1,0
 access_fix_predictive_maintenance,fix.predictive.maintenance,model_fix_predictive_maintenance,base.group_user,1,1,1,0
+access_fix_predictive_maintenance_manager,fix.predictive.maintenance manager,model_fix_predictive_maintenance,group_iot_manager,1,1,1,1
+access_fix_iot_stream,fix.iot.stream,model_fix_iot_stream,base.group_user,1,0,0,0
+access_fix_iot_stream_admin,fix.iot.stream admin,model_fix_iot_stream,group_iot_admin,1,1,1,0
+access_fix_iot_stream_manager,fix.iot.stream manager,model_fix_iot_stream,group_iot_manager,1,1,1,1
+access_fix_iot_adapter,fix.iot.adapter,model_fix_iot_adapter,base.group_user,1,0,0,0
+access_fix_iot_adapter_admin,fix.iot.adapter admin,model_fix_iot_adapter,group_iot_admin,1,1,1,0
+access_fix_iot_adapter_manager,fix.iot.adapter manager,model_fix_iot_adapter,group_iot_manager,1,1,1,1
+access_fix_iot_rule,fix.iot.rule,model_fix_iot_rule,base.group_user,1,0,0,0
+access_fix_iot_rule_admin,fix.iot.rule admin,model_fix_iot_rule,group_iot_admin,1,1,1,0
+access_fix_iot_rule_manager,fix.iot.rule manager,model_fix_iot_rule,group_iot_manager,1,1,1,1
+access_fix_iot_downsample,fix.iot.downsample,model_fix_iot_downsample,base.group_user,1,1,1,0
+access_fix_iot_downsample_manager,fix.iot.downsample manager,model_fix_iot_downsample,group_iot_manager,1,1,1,1
+access_fix_iot_action,fix.iot.action,model_fix_iot_action,base.group_user,1,1,1,0
+access_fix_iot_action_manager,fix.iot.action manager,model_fix_iot_action,group_iot_manager,1,1,1,1
+access_fix_iot_consent,fix.iot.consent,model_fix_iot_consent,base.group_user,1,1,1,0
+access_fix_iot_retention_change,fix.iot.retention.change,model_fix_iot_retention_change,base.group_user,1,1,1,0
+access_fix_iot_gap,fix.iot.gap,model_fix_iot_gap,base.group_user,1,0,0,0
+access_fix_iot_telemetry_rollup,fix.iot.telemetry.rollup,model_fix_iot_telemetry_rollup,base.group_user,1,0,0,0
+access_fix_iot_signal,fix.iot.signal,model_fix_iot_signal,base.group_user,1,0,0,0
+access_fix_iot_signal_admin,fix.iot.signal admin,model_fix_iot_signal,group_iot_admin,1,1,1,0
+access_fix_iot_monitoring_scope,fix.iot.monitoring.scope,model_fix_iot_monitoring_scope,base.group_user,1,0,0,0
+access_fix_iot_monitoring_scope_admin,fix.iot.monitoring.scope admin,model_fix_iot_monitoring_scope,group_iot_admin,1,1,1,0
+access_fix_iot_health,fix.iot.health,model_fix_iot_health,base.group_user,1,0,0,0
+access_fix_iot_file_batch,fix.iot.file.batch,model_fix_iot_file_batch,base.group_user,1,0,0,0
+access_fix_iot_file_batch_admin,fix.iot.file.batch admin,model_fix_iot_file_batch,group_iot_admin,1,1,1,1
+access_fix_iot_maintenance_window,fix.iot.maintenance.window,model_fix_iot_maintenance_window,base.group_user,1,0,0,0
+access_fix_iot_maintenance_window_operator,fix.iot.maintenance.window operator,model_fix_iot_maintenance_window,group_iot_operator,1,1,1,0
+access_fix_iot_action_part,fix.iot.action.part,model_fix_iot_action_part,base.group_user,1,1,1,1
+access_fix_iot_telemetry_aggregate,fix.iot.telemetry.aggregate,model_fix_iot_telemetry_aggregate,base.group_user,1,0,0,0

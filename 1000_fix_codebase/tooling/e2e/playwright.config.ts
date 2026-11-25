@@ -1,8 +1,8 @@
 // PP7-M01 — Journey E2E suite (J01–J10 · 54 steps, ARCHITECTURE_STATE §8).
 //
 // Runs headless Chromium against the LIVE local stack:
-//   P01 customer :3010 · P04 corporate :3001 · P05 vendor :3017 ·
-//   P07 seller :3013 · P08 brand :3014 · P03 back office :8069.
+//   P01 customer :3000 · P04 corporate :3001 · P05 vendor :3007 ·
+//   P07 seller :3003 · P08 brand :3004 · P03 back office :8090.
 // Mobile companion steps (P02/P09/P11) live in patrol/ for SDK machines —
 // this suite runs their web halves and records the split honestly.
 //

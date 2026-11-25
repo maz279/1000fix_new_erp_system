@@ -1,0 +1,84 @@
+# Shared shape of the 8 web portals (apps/web/Dockerfile.portal images).
+# Each portals/<name>/kustomization.yaml instantiates this with a name suffix
+# (portal-<name>), its own selector label and its own image. NEXT_PUBLIC_*
+# values are baked into each image at build time; only server-side settings
+# are runtime env here. Reached only through Kong (host-based route).
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal
+spec:
+  selector: { app.kubernetes.io/component: portal }
+  ports:
+    - { name: http, port: 3000, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+  labels: { app.kubernetes.io/component: portal }
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app.kubernetes.io/component: portal }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/component: portal }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: portal
+          image: 1000fix/portal:release
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: PORT, value: "3000" }
+            - { name: HOSTNAME, value: 0.0.0.0 }
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - name: FIX_API_BASE
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_API_BASE } }
+            # Rebuilt portals call Odoo only through their same-origin
+            # /api/odoo bridge; this is the in-cluster service, not the
+            # public API host.
+            - { name: ODOO_INTERNAL_URL, value: "http://odoo:8069" }
+            - name: CSP_CONNECT_SRC
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: CSP_CONNECT_SRC } }
+            - { name: FRAME_ANCESTORS, value: "'self'" }
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: "1", memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Next's runtime cache (.next/cache) is written next to server.js
+            readOnlyRootFilesystem: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portal
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/component: portal }

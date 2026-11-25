@@ -1,0 +1,361 @@
+# Kong - declarative STAGING / PRODUCTION config (authorization audit 2026-10-23;
+# production edge routes added 2026-10-23).
+#
+# NOT loaded by the local compose stack (that mounts kong.yml, which stays
+# auth-free so the local Odoo-session flow keeps working). This file is the
+# TEMPLATE the staging/prod deploy renders and mounts as
+# KONG_DECLARATIVE_CONFIG instead of kong.yml:
+#   - compose: the `kong-config` one-shot service of
+#     infra/compose/docker-compose.prod.full.yml
+#   - Kubernetes: the `render-config` initContainer of infra/k3s/base/kong
+# both run infra/compose/kong/render-kong-config.py, which fails closed on a
+# missing placeholder or a value that could alter the YAML.
+#
+# Kong is the ONLY published entry point. Routing is host-based:
+#   ${API_HOST}        Odoo JSON-RPC portal API + the /svc/* microservice APIs
+#   ${ERP_HOST}        the Odoo back office (staff UI + /websocket)
+#   ${AUTH_HOST}       Keycloak (realm endpoints only; /admin is NOT routed)
+#   ${PORTAL_HOST_*}   one host per web portal (8)
+#
+# The gateway REQUIRES a Keycloak-issued RS256 access token (OSS `jwt` plugin)
+# on every API route except the explicitly anonymous ones (OTP sign-in,
+# signed-token order tracking, session login). Defence in depth only - Odoo
+# still authorises every call itself (auth="user" + ACLs + record rules), and
+# the microservices keep their own checks; Kong rejects unauthenticated
+# traffic before it reaches them.
+#
+# Deploy-time placeholders (rendered by render-kong-config.py; Kong does not
+# expand environment variables in declarative files):
+#   ${KEYCLOAK_ISSUER}           https://<AUTH_HOST>/realms/<realm>
+#                                - must equal the token's `iss` claim exactly
+#   ${KEYCLOAK_REALM_PUBLIC_KEY} the realm's RS256 public key (PEM, or the bare
+#                                base64 body from the realm "Keys" tab; the
+#                                renderer wraps it). Rotate with the realm key.
+#                                Usually supplied as KEYCLOAK_REALM_PUBLIC_KEY_FILE.
+#   ${ODOO_UPSTREAM}             e.g. http://odoo:8069
+#   ${API_HOST} ${ERP_HOST} ${AUTH_HOST}
+#   ${PORTAL_HOST_CUSTOMER} ${PORTAL_HOST_CORPORATE} ${PORTAL_HOST_VENDOR}
+#   ${PORTAL_HOST_PARTNER} ${PORTAL_HOST_SELLER} ${PORTAL_HOST_BRAND}
+#   ${PORTAL_HOST_ANALYTICS} ${PORTAL_HOST_AGENT_CONSOLE}
+#                                bare host names (no scheme); the CORS origins
+#                                are https://<host>.
+# Upstream service names other than Odoo (keycloak, ml-gateway,
+# telemetry-collector, notification-dispatcher, portal-*) are FIXED: they are
+# the compose service names of docker-compose.prod.full.yml and the Service
+# names of infra/k3s/base - keep them in sync.
+#
+# NOT routed on purpose: identity-lifecycle (token-protected ops endpoints,
+# cluster-internal only), notification-dispatcher POST /consume/once (internal
+# drain), Keycloak /admin (administer through a port-forward / bastion).
+#
+# Kong Enterprise alternative: replace the `jwt` plugin blocks with
+#   - name: openid-connect
+#     config:
+#       issuer: ${KEYCLOAK_ISSUER}/.well-known/openid-configuration
+#       auth_methods: [bearer]
+#       bearer_token_param_type: [header]
+#       verify_claims: true
+#       consumer_optional: true
+# (discovery-based key rotation; `openid-connect` is not in Kong OSS).
+_format_version: "3.0"
+
+consumers:
+  # One consumer per trusted issuer: the jwt plugin matches the token's `iss`
+  # claim (key_claim_name) against jwt_secrets[].key.
+  - username: keycloak-realm
+    jwt_secrets:
+      - key: "${KEYCLOAK_ISSUER}"
+        algorithm: RS256
+        rsa_public_key: |
+          ${KEYCLOAK_REALM_PUBLIC_KEY}
+
+services:
+  # ------------------------------------------------------------------ Odoo API
+  - name: odoo-backend
+    url: "${ODOO_UPSTREAM}"
+    routes:
+      - name: odoo-api
+        hosts: ["${API_HOST}"]
+        paths: ["/api/odoo"]
+        strip_path: true
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              maximum_expiration: 3600   # reject tokens valid for > 1 h
+              header_names: [authorization]
+              uri_param_names: []        # never accept a token in the URL
+              cookie_names: []
+              run_on_preflight: false    # CORS preflight carries no token
+      # The customer portal's browser code calls the RELATIVE path /api/odoo on
+      # its own host (apps/web/customer/lib/api.ts). The portal's Next rewrite
+      # targets 127.0.0.1:8069, which does not exist inside its container, so
+      # the edge serves that path itself - same policy as odoo-api.
+      - name: odoo-api-customer-host
+        hosts: ["${PORTAL_HOST_CUSTOMER}"]
+        paths: ["/api/odoo"]
+        strip_path: true
+        # Odoo session auth (no jwt): the customer portal signs in with an Odoo
+        # session cookie (or OTP) and Odoo's own auth="user" routes and record
+        # rules enforce it; a Kong JWT here rejected every portal call.
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+      # Authenticated portal JSON-RPC surface (strip_path false: Odoo serves
+      # these paths verbatim - see kong.yml).
+      - name: odoo-portal-api
+        hosts: ["${API_HOST}"]
+        strip_path: false
+        paths:
+          - "/customer"
+          - "/vendor"
+          - "/analytics"
+          - "/brand"
+          - "/contact"
+          - "/partner"
+          - "/seller"
+          - "/corporate"
+          - "/technician"
+          - "/storefront"
+          - "/p03"
+        # Authenticated by ODOO, not by Kong: every route here is auth="user"
+        # (Odoo session cookie from the portal sign-in), auth="bearer" (Odoo
+        # API key - /technician) or an ownership-checked public route, and the
+        # P03 routes refuse non-staff. A Kong jwt plugin here rejected both
+        # the session cookies and the Odoo API keys. Kong keeps the edge
+        # duties: CORS, rate limit, size limit.
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 300
+              policy: local
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 8
+              size_unit: megabytes
+      # Anonymous by design (no jwt): OTP sign-in, signed-token tracking and
+      # the session endpoint. Longest-path match wins over "/customer".
+      - name: odoo-portal-public
+        hosts: ["${API_HOST}"]
+        strip_path: false
+        paths:
+          - "/customer/auth/otp/send"
+          - "/customer/auth/otp/verify"
+          - "/customer/tracking/public"
+          - "/web/session"
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 30
+              policy: local
+      # Staff back office: Odoo's own session login protects it (no bearer
+      # token in a browser session). Restrict ${ERP_HOST} further at the
+      # network edge (VPN / ip-restriction) where the operator can.
+      - name: odoo-backoffice
+        hosts: ["${ERP_HOST}"]
+        paths: ["/"]
+        strip_path: false
+        preserve_host: true
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 600
+              policy: local
+
+  # Odoo prefork mode serves the bus websocket on the gevent port (8072).
+  - name: odoo-websocket
+    url: http://odoo:8072
+    routes:
+      - name: odoo-websocket
+        hosts: ["${ERP_HOST}"]
+        paths: ["/websocket"]
+        strip_path: false
+        preserve_host: true
+
+  # ------------------------------------------------------------------ Keycloak
+  - name: keycloak
+    url: http://keycloak:8080
+    routes:
+      - name: keycloak-public
+        hosts: ["${AUTH_HOST}"]
+        # realm endpoints (OIDC discovery, auth, token, certs, login pages) and
+        # their static resources only - the admin console is not exposed.
+        paths: ["/realms", "/resources"]
+        strip_path: false
+        preserve_host: true
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 120
+              policy: local
+
+  # --------------------------------------------------------- microservice APIs
+  - name: ml-gateway
+    url: http://ml-gateway:8090
+    routes:
+      - name: ml-gateway
+        hosts: ["${API_HOST}"]
+        paths: ["/svc/ml"]
+        strip_path: true
+        methods: [GET, POST, OPTIONS]
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              maximum_expiration: 3600
+              header_names: [authorization]
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: false
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 1
+              size_unit: megabytes
+
+  # Only the collector's /api/* surface is reachable (not /health, /metrics):
+  # /svc/telemetry/api/v1/telemetry -> /api/v1/telemetry on the collector.
+  - name: telemetry-collector
+    url: http://telemetry-collector:8084/api
+    routes:
+      - name: telemetry-ingest
+        hosts: ["${API_HOST}"]
+        paths: ["/svc/telemetry/api"]
+        strip_path: true
+        methods: [GET, POST, OPTIONS]
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              maximum_expiration: 3600
+              header_names: [authorization]
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: false
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 1
+              size_unit: megabytes
+
+  # Operations READ surface only (GET /health /kpis /dlq /fallbacks);
+  # POST /consume/once stays cluster-internal.
+  - name: notification-dispatcher
+    url: http://notification-dispatcher:8110
+    routes:
+      - name: notification-ops-read
+        hosts: ["${API_HOST}"]
+        paths: ["/svc/notifications"]
+        strip_path: true
+        methods: [GET]
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              maximum_expiration: 3600
+              header_names: [authorization]
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: false
+
+  # --------------------------------------------------------------- web portals
+  # Each portal authenticates its own users (Odoo session / OIDC PKCE); the
+  # gateway only fronts them. preserve_host keeps the public host for the
+  # portals' redirect and cookie logic.
+  - name: portal-customer
+    url: http://portal-customer:3000
+    routes:
+      - name: portal-customer
+        hosts: ["${PORTAL_HOST_CUSTOMER}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-corporate
+    url: http://portal-corporate:3000
+    routes:
+      - name: portal-corporate
+        hosts: ["${PORTAL_HOST_CORPORATE}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-vendor
+    url: http://portal-vendor:3000
+    routes:
+      - name: portal-vendor
+        hosts: ["${PORTAL_HOST_VENDOR}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-partner
+    url: http://portal-partner:3000
+    routes:
+      - name: portal-partner
+        hosts: ["${PORTAL_HOST_PARTNER}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-seller
+    url: http://portal-seller:3000
+    routes:
+      - name: portal-seller
+        hosts: ["${PORTAL_HOST_SELLER}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-brand
+    url: http://portal-brand:3000
+    routes:
+      - name: portal-brand
+        hosts: ["${PORTAL_HOST_BRAND}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-analytics
+    url: http://portal-analytics:3000
+    routes:
+      - name: portal-analytics
+        hosts: ["${PORTAL_HOST_ANALYTICS}"]
+        paths: ["/"]
+        preserve_host: true
+  - name: portal-agent-console
+    url: http://portal-agent-console:3000
+    routes:
+      - name: portal-agent-console
+        hosts: ["${PORTAL_HOST_AGENT_CONSOLE}"]
+        paths: ["/"]
+        preserve_host: true
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "https://${PORTAL_HOST_CUSTOMER}"
+        - "https://${PORTAL_HOST_CORPORATE}"
+        - "https://${PORTAL_HOST_VENDOR}"
+        - "https://${PORTAL_HOST_PARTNER}"
+        - "https://${PORTAL_HOST_SELLER}"
+        - "https://${PORTAL_HOST_BRAND}"
+        - "https://${PORTAL_HOST_ANALYTICS}"
+        - "https://${PORTAL_HOST_AGENT_CONSOLE}"
+      credentials: true
+      methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD]
+      headers:
+        - Content-Type
+        - Authorization
+        - Accept-Language
+      max_age: 3600
+  - name: rate-limiting
+    config:
+      minute: 300
+      policy: local
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload"
+          - "X-Content-Type-Options: nosniff"
+          - "X-Frame-Options: DENY"
+          - "Referrer-Policy: strict-origin-when-cross-origin"
+          - "Cache-Control: no-store"
+      remove:
+        headers:
+          - "X-Powered-By"
+          - "Server"

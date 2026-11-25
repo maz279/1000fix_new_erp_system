@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M30 capture audit (2026-11-14): references for the configuration change,
+     restore-test and DR drill registers. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_config_change" model="ir.sequence">
+            <field name="name">Configuration Change</field>
+            <field name="code">fix.config.change</field>
+            <field name="prefix">CFG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_backup_verification" model="ir.sequence">
+            <field name="name">Backup Restore Test</field>
+            <field name="code">fix.backup.verification</field>
+            <field name="prefix">RST/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_dr_drill" model="ir.sequence">
+            <field name="name">DR Drill</field>
+            <field name="code">fix.dr.drill</field>
+            <field name="prefix">DRD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

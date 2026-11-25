@@ -1,17 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_attendance views — M55 (P08-M02). -->
+<!-- cd_attendance views — M55 (P08-M02 / R06-M02). -->
 <odoo>
+    <!-- ================================================================= -->
+    <!-- 1. fix.attendance.record Views                                     -->
+    <!-- ================================================================= -->
     <record id="view_fix_attendance_list" model="ir.ui.view">
         <field name="name">fix.attendance.record.list</field>
         <field name="model">fix.attendance.record</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-danger="compliance_status != 'compliant'">
                 <field name="employee_id"/>
                 <field name="check_in"/>
                 <field name="check_out"/>
                 <field name="worked_hours"/>
                 <field name="overtime_hours"/>
                 <field name="source"/>
+                <field name="device_ref"/>
+                <field name="approval_state" widget="badge" optional="show"
+                       decoration-warning="approval_state == 'pending'"
+                       decoration-danger="approval_state == 'rejected'"/>
+                <field name="compliance_status" widget="badge"
+                       decoration-success="compliance_status == 'compliant'"
+                       decoration-danger="compliance_status != 'compliant'"/>
             </list>
         </field>
     </record>
@@ -25,19 +35,40 @@
                     <button name="action_checkout" type="object"
                             string="Check Out" class="btn-primary"
                             invisible="check_out"/>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-success" invisible="approval_state != 'pending'"
+                            groups="hr_attendance.group_hr_attendance_user"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            class="btn-danger" invisible="approval_state != 'pending'"
+                            groups="hr_attendance.group_hr_attendance_user"/>
+                    <field name="compliance_status" widget="statusbar"/>
                 </header>
                 <sheet>
                     <group>
-                        <group>
+                        <group string="Punch Details">
                             <field name="employee_id"/>
                             <field name="check_in"/>
                             <field name="check_out"/>
                             <field name="source"/>
-                        </group>
-                        <group>
                             <field name="device_ref"/>
+                        </group>
+                        <group string="Working-Time &amp; Compliance (BLA 2006)">
                             <field name="worked_hours"/>
                             <field name="overtime_hours"/>
+                            <field name="compliance_status"/>
+                            <field name="statutory_notes"/>
+                            <field name="hr_attendance_id" readonly="1"/>
+                            <field name="geo_lat" invisible="source not in ('mobile', 'mobile_offline')"/>
+                            <field name="geo_long" invisible="source not in ('mobile', 'mobile_offline')"/>
+                        </group>
+                        <group string="Geofence &amp; Approval (M55 AUT-WFM-02)"
+                               invisible="source not in ('mobile', 'mobile_offline')">
+                            <field name="geofence_result"/>
+                            <field name="accuracy_m"/>
+                            <field name="approval_state"/>
+                            <field name="approval_reason"/>
+                            <field name="approved_by"/>
+                            <field name="approved_at"/>
                         </group>
                     </group>
                 </sheet>
@@ -51,11 +82,96 @@
     </record>
 
     <record id="action_fix_attendance" model="ir.actions.act_window">
-        <field name="name">Attendance</field>
+        <field name="name">Attendance Records</field>
         <field name="res_model">fix.attendance.record</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ================================================================= -->
+    <!-- 2. fix.biometric.device Views (INT-041)                           -->
+    <!-- ================================================================= -->
+    <record id="view_fix_biometric_device_list" model="ir.ui.view">
+        <field name="name">fix.biometric.device.list</field>
+        <field name="model">fix.biometric.device</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="device_id"/>
+                <field name="name"/>
+                <field name="model_type"/>
+                <field name="branch_id"/>
+                <field name="ip_address"/>
+                <field name="status" widget="badge"
+                       decoration-success="status == 'online'"
+                       decoration-warning="status == 'syncing'"
+                       decoration-danger="status == 'offline'"/>
+                <field name="last_sync_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_biometric_device_form" model="ir.ui.view">
+        <field name="name">fix.biometric.device.form</field>
+        <field name="model">fix.biometric.device</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Device Specification">
+                            <field name="device_id"/>
+                            <field name="name"/>
+                            <field name="model_type" readonly="1"/>
+                            <field name="branch_id"/>
+                        </group>
+                        <group string="Network &amp; Location">
+                            <field name="ip_address"/>
+                            <field name="location_desc"/>
+                            <field name="active"/>
+                            <field name="last_sync_at" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_biometric_device" model="ir.actions.act_window">
+        <field name="name">Biometric Devices (INT-041)</field>
+        <field name="res_model">fix.biometric.device</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================================================================= -->
+    <!-- 3. fix.shift.template Views                                       -->
+    <!-- ================================================================= -->
+    <record id="view_fix_shift_template_list" model="ir.ui.view">
+        <field name="name">fix.shift.template.list</field>
+        <field name="model">fix.shift.template</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="name"/>
+                <field name="start_hour" widget="float_time"/>
+                <field name="end_hour" widget="float_time"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_shift_template" model="ir.actions.act_window">
+        <field name="name">Shift Templates</field>
+        <field name="res_model">fix.shift.template</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================================================================= -->
+    <!-- 4. fix.roster.slot Views                                          -->
+    <!-- ================================================================= -->
     <record id="view_fix_roster_list" model="ir.ui.view">
         <field name="name">fix.roster.slot.list</field>
         <field name="model">fix.roster.slot</field>
@@ -71,11 +187,14 @@
     </record>
 
     <record id="action_fix_roster" model="ir.actions.act_window">
-        <field name="name">Roster</field>
+        <field name="name">Roster Planning</field>
         <field name="res_model">fix.roster.slot</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ================================================================= -->
+    <!-- 5. fix.attendance.lock Views                                      -->
+    <!-- ================================================================= -->
     <record id="view_fix_attendance_lock_form" model="ir.ui.view">
         <field name="name">fix.attendance.lock.form</field>
         <field name="model">fix.attendance.lock</field>
@@ -110,10 +229,19 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ================================================================= -->
+    <!-- 6. Menu Structure                                                 -->
+    <!-- ================================================================= -->
     <menuitem id="menu_fix_attendance" name="Attendance"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_attendance" sequence="40"/>
-    <menuitem id="menu_fix_roster" name="Roster"
+    <menuitem id="menu_fix_biometric_device" name="Biometric Devices"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_biometric_device" sequence="45"/>
+    <menuitem id="menu_fix_shift_template" name="Shift Templates"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_shift_template" sequence="48"/>
+    <menuitem id="menu_fix_roster" name="Roster Planning"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_roster" sequence="50"/>
     <menuitem id="menu_fix_attendance_lock" name="Attendance Locks"

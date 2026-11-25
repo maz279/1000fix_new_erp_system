@@ -1,4 +1,5 @@
 """services.evat-adapter package — INT-038 NBR e-VAT / IVAS interface adapter."""
+
 from .evat_client import (
     EvatError,
     EvatSubmissionResult,

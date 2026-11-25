@@ -1,0 +1,120 @@
+{
+  "schema": "1000fix-erp/doctor-results/1",
+  "passed": 10,
+  "skipped": 2,
+  "failed": 2,
+  "results": [
+    {
+      "id": 1,
+      "name": "Host prerequisites",
+      "status": "PASS",
+      "detail": "py3.12.10 / git version 2.56.0.windows.1 OK",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:45:58.442723+00:00"
+    },
+    {
+      "id": 2,
+      "name": "Repository integrity (FF-03)",
+      "status": "PASS",
+      "detail": "vendor clean, submodule integrity verified",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:45:59.351845+00:00"
+    },
+    {
+      "id": 3,
+      "name": "Compose health (DE-03)",
+      "status": "PASS",
+      "detail": "7 services, all healthy",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:45:59.682516+00:00"
+    },
+    {
+      "id": 4,
+      "name": "Database",
+      "status": "PASS",
+      "detail": "fix_dev reachable, UTF8",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:00.004215+00:00"
+    },
+    {
+      "id": 5,
+      "name": "addons_path (REPO-15)",
+      "status": "PASS",
+      "detail": "local.conf regenerates identically",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:00.092442+00:00"
+    },
+    {
+      "id": 6,
+      "name": "Odoo boot",
+      "status": "PASS",
+      "detail": "HTTP 200 /web/login",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:00.128169+00:00"
+    },
+    {
+      "id": 7,
+      "name": "Module install (OD-02)",
+      "status": "FAIL",
+      "detail": "only 68/71 cd_* modules installed",
+      "remedy": "odoo-init + install wave; upgrade on code changes",
+      "timestamp": "2026-10-21T14:46:00.572061+00:00"
+    },
+    {
+      "id": 8,
+      "name": "Smoke test",
+      "status": "PASS",
+      "detail": "test-smoke: 15/15 checks passed",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:09.015940+00:00"
+    },
+    {
+      "id": 9,
+      "name": "Quality gates",
+      "status": "FAIL",
+      "detail": "[INFO] Initializing environment for https://github.com/OCA/pylint-odoo.\nAn unexpected error has occurred: CalledProcessError: command: ('C:\\\\Program Files\\\\Git\\\\ucrt64\\\\bin\\\\git.EXE', 'checkout', 'v8.0.28')\nreturn code: 1\nstdout: (none)\nstderr:\n    error: pathspec 'v8.0.28' did not match any file(s) known to git\nCheck the log at C:\\Users\\DELL\\.cache\\pre-commit\\pre-commit.log",
+      "remedy": "fix findings; XS-20 governs --no-verify",
+      "timestamp": "2026-10-21T14:46:11.697585+00:00"
+    },
+    {
+      "id": 10,
+      "name": "Bengali rendering",
+      "status": "PASS",
+      "detail": "reference committed and valid; pixel comparison runs with the QWeb report render (Odoo runtime)",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:11.697585+00:00"
+    },
+    {
+      "id": 11,
+      "name": "Mail capture (DE-07)",
+      "status": "PASS",
+      "detail": "Mailpit reachable (127.0.0.1:8025)",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:11.705385+00:00"
+    },
+    {
+      "id": 12,
+      "name": "Data safety (DE-12/FF-09)",
+      "status": "PASS",
+      "detail": "pattern scan activates with kernel tables (residency stub is synthetic-only); never bring production data",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:12.033870+00:00"
+    },
+    {
+      "id": 13,
+      "name": "Debugger",
+      "status": "SKIP",
+      "detail": "debugpy attach activates with Phase-3 dev container",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:12.033870+00:00"
+    },
+    {
+      "id": 14,
+      "name": "Hot reload",
+      "status": "SKIP",
+      "detail": "hot reload volume-mount activates with dev container",
+      "remedy": "",
+      "timestamp": "2026-10-21T14:46:12.033870+00:00"
+    }
+  ]
+}

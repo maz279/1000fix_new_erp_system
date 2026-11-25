@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP audit pass 2 (20 Nov 2026): M03 switches and the COD hand-in alert. -->
+<odoo>
+    <data noupdate="1">
+        <!-- M03-04: a pickup leg of a service order needs the customer's
+             sign-off, a package photo, the scanned serial and the seal and
+             weight before transit (1 = on). -->
+        <record id="icp_pickup_proof_required" model="ir.config_parameter">
+            <field name="key">cd_consignment.pickup_proof_required</field>
+            <field name="value">1</field>
+        </record>
+        <!-- D20: business days a rider has to hand in cash on delivery. -->
+        <record id="icp_cod_handin_business_days" model="ir.config_parameter">
+            <field name="key">cd_consignment.cod_handin_business_days</field>
+            <field name="value">1</field>
+        </record>
+    </data>
+    <data>
+        <record id="ir_cron_consignment_overdue_cod" model="ir.cron">
+            <field name="name">M03: alert cash on delivery held past the hand-in deadline</field>
+            <field name="model_id" ref="model_fix_consignment"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_alert_overdue_cod()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

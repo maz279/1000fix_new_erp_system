@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers of the M01 hand-backs (A02 audit B2, B3).
+
+     A completed field job, a workshop release and a delivered consignment
+     now move their service order through its own transitions; a breached
+     SLA clock escalates to the branch's Service Supervisors. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_field_order_completed_service_order" model="fix.event.consumer">
+            <field name="name">M01: a completed field job sends its order to QC</field>
+            <field name="event_type">field.order.completed</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_field_order_completed</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <record id="consumer_workshop_job_delivered_service_order" model="fix.event.consumer">
+            <field name="name">M01: a workshop release sends its order to QC / Ready</field>
+            <field name="event_type">workshop.job.delivered</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_workshop_job_delivered</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <record id="consumer_consignment_delivered_service_order" model="fix.event.consumer">
+            <field name="name">M01: a delivered pickup or delivery leg moves its order</field>
+            <field name="event_type">consignment.delivered</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_consignment_delivered</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <record id="consumer_sla_instance_breached_escalation" model="fix.event.consumer">
+            <field name="name">M01: a breached service-order SLA escalates to the branch supervisors</field>
+            <field name="event_type">sla.instance_breached</field>
+            <field name="model">fix.sla.kpi.instance</field>
+            <field name="method">consume_sla_instance_breached</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <record id="consumer_bulletin_distributed_service_order" model="fix.event.consumer">
+            <field name="name">M01: a distributed recall bulletin flags the open orders holding affected devices</field>
+            <field name="event_type">bulletin.distributed</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_bulletin_distributed</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <!-- A02 ERP audit M01-F18: parts reserved for an order held for
+             parts lift its deferred hold (BRU-SRM-15). noupdate: a new record
+             in this file is still created on upgrade. -->
+        <record id="consumer_stock_reserved_service_order" model="fix.event.consumer">
+            <field name="name">M01: parts reserved for an order held for parts lift its hold</field>
+            <field name="event_type">stock.reserved</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_stock_reserved</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+    </data>
+</odoo>

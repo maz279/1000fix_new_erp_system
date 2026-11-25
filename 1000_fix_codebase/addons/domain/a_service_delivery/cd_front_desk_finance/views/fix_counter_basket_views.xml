@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_fix_counter_basket_form" model="ir.ui.view">
+        <field name="name">fix.counter.basket.form</field>
+        <field name="model">fix.counter.basket</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" type="object" string="Confirm Basket" class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
+                            <field name="customer_id"/>
+                        </group>
+                        <group>
+                            <field name="payment_method_id"/>
+                            <field name="transaction_ref"/>
+                            <field name="tendered_amount"/>
+                            <field name="total"/>
+                            <field name="change_due"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <list editable="bottom">
+                            <field name="product_id"/>
+                            <field name="quantity"/>
+                            <field name="unit_price"/>
+                            <field name="subtotal"/>
+                        </list>
+                    </field>
+                    <field name="sale_ids" readonly="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_counter_basket" model="ir.actions.act_window">
+        <field name="name">Counter Baskets</field>
+        <field name="res_model">fix.counter.basket</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

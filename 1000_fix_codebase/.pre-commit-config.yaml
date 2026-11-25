@@ -5,6 +5,19 @@
 # XS-20: --no-verify is permitted ONLY on hotfix/* branches, and the next
 # commit on that branch must pass.
 # =============================================================================
+# AS-05 / FF-03: vendor/ is read-only. Without this global exclude the
+# auto-fixing hooks (ruff --fix, ruff-format, end-of-file-fixer,
+# mixed-line-ending) rewrite upstream Odoo/OCA files on `pre-commit run -a`
+# (doctor check 9, CI stage 1) and FF-03 then fails on 200+ vendor edits.
+# Paths arrive relative to the git root (the workspace), so anchor on the
+# segment, not ^vendor/.
+# Signed governance records (DEP-31, Board minutes, SoW, ADRs) are immutable
+# artefacts: no formatter or fixer may rewrite them, even for whitespace.
+exclude: '(^|/)(vendor|node_modules|infra/odoo-data|htmlcov)/|(^|/)docs/(governance|decisions|p01-m02)/'
+# The git root is the workspace; restrict every hook to the codebase so
+# `pre-commit run -a` never rewrites business documents (../project_content,
+# ../marketing...) - mixed-line-ending --fix=lf had touched 119 of them.
+files: '^1000_fix_codebase/'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4            # pinned; line-pin rule per versions.lock [toolchain]
@@ -12,24 +25,69 @@ repos:
       - { id: ruff, args: [--fix] }        # PYS-01 lint
       - { id: ruff-format }                # PYS-01 format
 
-  - repo: https://github.com/OCA/pylint-odoo
-    rev: v8.0.28
+  # pylint-odoo exports no consumer pre-commit hook of its own; the supported
+  # pattern is a local python-env hook with the plugin as an additional dep.
+  - repo: local
     hooks:
-      - { id: pylint-odoo, files: ^addons/ }   # Odoo defect classes (SQL-02, XS-08)
+      - id: pylint-odoo
+        name: pylint-odoo (Odoo defect classes SQL-02, XS-08)
+        entry: python -m pylint --load-plugins=pylint_odoo
+        language: python
+        # git root is the PARENT of 1000_fix_codebase, so paths arrive as
+        # "1000_fix_codebase/addons/..." - anchor on the addons/ segment, not ^addons/
+        files: (^|/)addons/.*\.py$
+        args: [--rcfile=1000_fix_codebase/.pylintrc-odoo]
+        additional_dependencies: [pylint-odoo==8.0.22]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:
       - { id: gitleaks }                   # XS-06 / SE-01 - full history in CI
 
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  # pre-commit-hooks v5.0.0, run as `python -m pre_commit_hooks.<check>`
+  # instead of the package's generated console-script .exe launchers: on
+  # Windows workstations with Smart App Control / Defender reputation checks
+  # those fresh unsigned launchers block indefinitely (2026-10-24: every
+  # `end-of-file-fixer.exe` hung and could not be killed), while the venv's
+  # signed python.exe runs. Same package, version, checks and arguments.
+  - repo: local
     hooks:
-      - { id: end-of-file-fixer }
-      - { id: mixed-line-ending, args: [--fix=lf] }          # XS-01
-      - { id: check-merge-conflict }
-      - { id: check-added-large-files, args: [--maxkb=512] } # REPO-30
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: python -m pre_commit_hooks.end_of_file_fixer
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        types: [text]
+      # XS-01 LF everywhere EXCEPT what .gitattributes pins to CRLF (*.ps1,
+      # *.psm1, *.bat, *.cmd) - forcing LF there fought git's eol=crlf forever.
+      - id: mixed-line-ending
+        name: mixed line ending
+        entry: python -m pre_commit_hooks.mixed_line_ending
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        types: [text]
+        args: [--fix=lf]
+        exclude: '\.(ps1|psm1|bat|cmd)$'
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        entry: python -m pre_commit_hooks.check_merge_conflict
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        types: [text]
+      - id: check-added-large-files
+        name: check for added large files
+        entry: python -m pre_commit_hooks.check_added_large_files
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        args: [--maxkb=512] # REPO-30
 
+  # eslint / prettier / dart-analyze: R01 re-audit 2026-10-22 found NO ESLint
+  # or Prettier config or dependency in any app and no pnpm workspace (the
+  # portals are independent npm packages), and no fvm/dart toolchain - the
+  # three hooks could never pass and `pre-commit run -a` hung on them. They
+  # are parked on the manual stage (run: pre-commit run --hook-stage manual)
+  # until ESLint/Prettier are adopted per app and D-027 lands the Dart
+  # toolchain; CI's lint-type job runs `tsc --noEmit` per portal meanwhile.
   - repo: local
     hooks:
       - id: eslint
@@ -37,23 +95,26 @@ repos:
         entry: pnpm -w exec eslint --max-warnings=0
         language: system
         types: [ts]
+        stages: [manual]
       - id: prettier
         name: prettier --write
         entry: pnpm -w exec prettier --write
         language: system
         types_or: [ts, tsx, json, css]
+        stages: [manual]
       - id: dart-analyze
         name: dart analyze --fatal-infos
         entry: fvm dart analyze --fatal-infos
         language: system
         types: [dart]
+        stages: [manual]
       - id: no-vendor-edit
         name: FF-03 vendor clean
-        entry: bash tooling/scripts/check-vendor-clean.sh
+        entry: bash 1000_fix_codebase/tooling/scripts/check-vendor-clean.sh
         language: system
         pass_filenames: false
       - id: cd-id-check
         name: FF-16 CD identifier (form + membership) - Warning until G1
-        entry: python tooling/scripts/check-cd-id.py
+        entry: python 1000_fix_codebase/tooling/scripts/check-cd-id.py
         language: system
         types: [python, xml, markdown, yaml]

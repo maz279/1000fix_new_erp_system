@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M36 quotation document (A10 deep audit 2026-11-23, D-A10-4): the printable
+  quotation the customer signs. Until this report existed nothing rendered a
+  quotation to a file, so the M24 e-signature envelope (which seals BYTES)
+  had nothing to seal and the module signed through its own HMAC provider.
+-->
+<odoo>
+    <record id="action_report_fix_quotation" model="ir.actions.report">
+        <field name="name">Quotation</field>
+        <field name="model">fix.quotation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_quotation.report_quotation_document</field>
+        <field name="report_file">cd_quotation.report_quotation_document</field>
+        <field name="print_report_name">'Quotation - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="model_fix_quotation"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_quotation_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2 class="mt-0">Quotation <span t-field="doc.name"/></h2>
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <strong>Customer</strong>
+                                <div t-field="doc.customer_id"
+                                     t-options='{"widget": "contact", "fields": ["name", "phone", "email", "address"]}'/>
+                            </div>
+                            <div class="col-6 text-end">
+                                <div><strong>Version</strong> <span t-field="doc.version"/></div>
+                                <div><strong>Valid until</strong> <span t-field="doc.valid_until"/></div>
+                                <div><strong>Issued</strong> <span t-field="doc.sent_at"/></div>
+                            </div>
+                        </div>
+
+                        <table class="table table-sm mt-4">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Disc %</th>
+                                    <th class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.line_ids" t-as="line">
+                                    <td><span t-field="line.sequence"/></td>
+                                    <td><span t-field="line.description"/></td>
+                                    <td class="text-end"><span t-field="line.quantity"/></td>
+                                    <td class="text-end"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    <td class="text-end"><span t-field="line.discount_pct"/></td>
+                                    <td class="text-end"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="text-end"><strong>Total (incl. VAT)</strong></td>
+                                    <td class="text-end"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <div class="mt-3">
+                            <div t-if="doc.delivery_terms"><strong>Delivery terms:</strong> <span t-field="doc.delivery_terms"/></div>
+                            <div t-if="doc.warranty_terms"><strong>Warranty:</strong> <span t-field="doc.warranty_terms"/></div>
+                        </div>
+
+                        <div class="row mt-5">
+                            <div class="col-6">
+                                <div style="border-top: 1px solid #000; padding-top: 4px;">For <span t-field="doc.company_id.name"/></div>
+                            </div>
+                            <div class="col-6">
+                                <div style="border-top: 1px solid #000; padding-top: 4px;">Customer acceptance — <span t-field="doc.customer_id.name"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

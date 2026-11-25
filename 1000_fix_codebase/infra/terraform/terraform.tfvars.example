@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (git-ignored by convention) and adjust. No
+# credentials belong here - the provider reads DIGITALOCEAN_TOKEN and
+# SPACES_ACCESS_KEY_ID / SPACES_SECRET_ACCESS_KEY from the environment.
+name                      = "fix-erp-prod"
+region                    = "sgp1"
+vpc_ip_range              = "10.110.0.0/20"
+kubernetes_version_prefix = "1.33."
+node_size                 = "s-4vcpu-8gb"
+node_min                  = 3
+node_max                  = 6
+postgres_version          = "17"
+postgres_size             = "db-s-4vcpu-8gb"
+postgres_node_count       = 2
+odoo_database             = "fix_production"
+valkey_size               = "db-s-1vcpu-2gb"
+create_managed_kafka      = false
+spaces_region             = "sgp1"
+bucket_name               = "fix-erp-prod-objects"
+registry_name             = "fix-erp"

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A05 report "Cross-area follow-ups": the e-waste settlement money leg.
+     The routed M63 approval decides the settlement; this consumer raises the
+     money document - a pending M50 payout for incentives and recycler fees,
+     a draft M20 invoice for material-recovery income. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a05_ewaste_settlement_approved" model="fix.event.consumer">
+            <field name="name">M50/M20: an approved e-waste settlement raises its money document</field>
+            <field name="event_type">ewaste.settlement_approved</field>
+            <field name="model">fix.a05.settlement.consumers</field>
+            <field name="method">consume_ewaste_settlement_approved</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+
+    </data>
+</odoo>

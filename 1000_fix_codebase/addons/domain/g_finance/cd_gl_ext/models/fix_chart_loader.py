@@ -5,18 +5,51 @@ import hashlib
 import logging
 from decimal import Decimal
 from pathlib import Path
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
 from . import coa_logic
 
 _logger = logging.getLogger(__name__)
 
 
+# The COA unification map (FR-FIN-002): Odoo posting-chart code -> MD-035
+# statutory account code. Only semantically certain pairs are linked — an
+# arbitrary link is worse than none because it turns on the posting rules
+# (FR-FIN-011) for that account. Codes measured in fix_dev's generic
+# Bangladeshi chart template; extend as accounts are configured.
+ODOO_CHART_MAPPING = {
+    "101401": "1-10-20-010",  # Bank -> Operating bank account - BDT
+    "101402": "1-10-99-998",  # Bank suspense -> POS payment clearing
+    "121000": "1-20-10-010",  # Account Receivable -> Trade receivables - retail repair
+    "128000": "1-20-20-020",  # Prepaid Expenses -> Security deposits and prepayments
+    "211000": "2-10-10-010",  # Account Payable -> Trade payables - spare parts suppliers
+    "131000": "2-30-20-010",  # Tax Paid -> Input VAT credit deductible
+    "230000": "2-40-10-010",  # Salary Payable -> Accrued employee salaries and wages
+    "212000": "2-40-20-010",  # Deferred Revenue -> Customer advance repair deposits
+    "251000": "2-30-10-010",  # Tax Received -> VAT payable - output Mushak 6.3 15%
+    "252000": "2-30-30-010",  # Tax Payable -> TDS payable - supplier withholding
+    "400000": "4-10-10-010",  # Product Sales -> Service revenue - out of warranty repair
+    "450000": "4-90-10-010",  # Other Income -> Other income - scrap and e-waste
+    "500000": "5-10-10-010",  # Cost of Goods Sold -> Direct spare parts consumed
+    "612000": "5-20-10-010",  # Rent -> Branch rent and premises
+    "620000": "5-20-40-010",  # Bank Fees -> Bank and payment gateway fees
+    "630000": "5-20-20-010",  # Salary Expenses -> Office staff salaries and allowances
+    "962000": "5-20-30-010",  # Sales Expenses -> Marketing and customer outreach
+}
+
+
+def _split_dimensions(value: str | bool) -> set[str]:
+    """'branch;cost_centre' -> {'branch', 'cost_centre'} (blank items dropped)."""
+    return {d.strip() for d in (value or "").split(";") if d.strip()}
+
+
 class FixChartAccount(models.Model):
     """Statutory Bangladesh Chart of Accounts Account Model (MD-035 / CD-M19-01).
-    
+
     Represents an account in the standardized 4-block format T-GG-SS-NNN,
     tracking control subledger bindings and dimensional tagging rules.
     """
@@ -27,8 +60,7 @@ class FixChartAccount(models.Model):
     _order = "account_code, company_id"
 
     _unique_company_code = models.Constraint(
-        "UNIQUE (company_id, account_code)",
-        "Account code must be unique per company"
+        "UNIQUE (company_id, account_code)", "Account code must be unique per company"
     )
 
     company_id = fields.Many2one(
@@ -119,43 +151,142 @@ class FixChartAccount(models.Model):
         string="Linked Odoo Account",
         ondelete="set null",
     )
+    # ---- 2026-11-07 audit R7: professional account-master extensions ----
+    # bilingual estate rule (bn/en fully separated): account names too, not
+    # just UI labels — statutory reports and bilingual documents use name_bn.
+    name_bn = fields.Char(
+        string="Account Name (Bengali)",
+        help="Bengali legal name printed on statutory reports and bilingual documents",
+    )
+    # D365-style effective window: outside [from, to] the account is suspended
+    # for new postings (kept on reports for history).
+    active_from = fields.Date(
+        string="Active From",
+        help="Effective window start; combined with Active To it suspends new postings outside the window",
+    )
+    active_to = fields.Date(
+        string="Active To",
+        help="Effective window end",
+    )
+    # D365 "Do not allow manual entry" — subledger/system postings only.
+    manual_entry_blocked = fields.Boolean(
+        string="Block Manual Entry",
+        default=False,
+        help="Manual journal lines may not target this account — subledger and system postings only",
+    )
+    # Odoo-style deprecated: closed for new postings, kept for reporting.
+    is_deprecated = fields.Boolean(
+        string="Deprecated",
+        default=False,
+        help="Closed for new postings but retained for reporting history",
+    )
+    # Bangladesh VAT practice: tag which statutory register the account feeds
+    # so Mushak 6.1 / 6.3 / 6.6 registers produce straight from the GL.
+    vat_relevant = fields.Boolean(
+        string="VAT / Mushak Relevant",
+        default=False,
+        help="Account feeds a statutory VAT register (Mushak / VDS)",
+    )
+    mushak_register = fields.Selection(
+        [
+            ("purchase_61", "Mushak 6.1 — Purchase Register"),
+            ("sales_63", "Mushak 6.3 — Sales Register"),
+            ("vds_66", "Mushak 6.6 — VDS"),
+            ("tds", "TDS Withholding"),
+        ],
+        string="Mushak Register",
+    )
 
-    @api.constrains("account_code", "is_postable", "statutory_group")
+    @api.constrains("is_deprecated", "is_postable")
+    def _check_deprecated_not_postable(self):
+        for acc in self:
+            if acc.is_deprecated and acc.is_postable:
+                raise ValidationError(
+                    "A deprecated account cannot remain postable — clear Postable before deprecating"
+                )
+
+    @api.constrains("active_from", "active_to")
+    def _check_effective_window(self):
+        for acc in self:
+            if acc.active_from and acc.active_to and acc.active_from > acc.active_to:
+                raise ValidationError(
+                    "Effective window inverted: Active From must not be later than Active To"
+                )
+
+    # Every field the per-account rules read re-triggers them: a write of
+    # account_type / control flags / dimensions must not bypass validation.
+    @api.constrains(
+        "account_code",
+        "account_type",
+        "is_postable",
+        "is_control_account",
+        "control_subledger",
+        "requires_dimension",
+        "statutory_group",
+    )
     def _check_coa_rules(self):
         for acc in self:
             rec = coa_logic.AccountRecord(
                 account_code=acc.account_code,
-                entity_code=acc.company_id.code if hasattr(acc.company_id, "code") else "EN-01",
+                entity_code="EN-01",
                 account_name=acc.name,
                 account_type=acc.account_type,
                 account_subtype=acc.account_subtype or "",
                 is_postable=acc.is_postable,
                 is_control_account=acc.is_control_account,
-                control_subledger=acc.control_subledger,
-                requires_dimension=set(acc.requires_dimension.split(";")) if acc.requires_dimension else set(),
+                control_subledger=acc.control_subledger or None,
+                requires_dimension=_split_dimensions(acc.requires_dimension),
                 statutory_group=acc.statutory_group or "",
                 active=acc.active,
             )
             try:
                 coa_logic.validate_account_structure(rec)
-                if acc.is_postable:
-                    parts = acc.account_code.split("-")
-                    if len(parts) == 4 and parts[3] == "000":
-                        raise coa_logic.CoaValidationError(
-                            acc.account_code,
-                            "Non-leaf summary account cannot be postable (COA-01)",
-                            "ERR-COA-001"
-                        )
+                coa_logic.validate_leaf_postable(rec)
             except coa_logic.CoaValidationError as e:
-                raise ValidationError(str(e))
+                raise ValidationError(str(e)) from e
+
+    # Natural sign per account type: the ledger balance (debit - credit) is
+    # positive for assets/expenses, negated for liabilities/equity/income.
+    _NATURAL_SIGN = {"asset": 1, "expense": 1, "liability": -1, "equity": -1, "income": -1}
+
+    def _ledger_balances(self) -> dict:
+        """{statutory account id: natural-sign posted ledger balance} for the
+        accounts linked to an Odoo account (unlinked accounts are absent)."""
+        result = {}
+        for company in self.mapped("company_id"):
+            linked = self.filtered(lambda a, c=company: a.company_id == c and a.odoo_account_id)
+            if not linked:
+                continue
+            groups = (
+                self.env["account.move.line"]
+                .sudo()
+                ._read_group(
+                    [
+                        ("company_id", "=", company.id),
+                        ("parent_state", "=", "posted"),
+                        ("account_id", "in", linked.mapped("odoo_account_id").ids),
+                    ],
+                    ["account_id"],
+                    ["balance:sum"],
+                )
+            )
+            by_account = {account.id: balance or 0.0 for account, balance in groups}
+            for acc in linked:
+                raw = by_account.get(acc.odoo_account_id.id, 0.0)
+                result[acc.id] = round(raw * self._NATURAL_SIGN[acc.account_type], 2)
+        return result
 
     def action_archive(self):
-        """Archive account enforcing COA-04: zero-balance guard."""
+        """Archive account enforcing COA-04: zero-balance guard, on both the
+        recorded balance and the posted ledger balance of the linked account."""
+        ledger = self._ledger_balances()
         for acc in self:
-            if acc.balance != 0.0:
-                raise UserError(
-                    f"Cannot archive account {acc.account_code} with non-zero balance {acc.balance:.2f} BDT (COA-04)"
-                )
+            for label, value in (("balance", acc.balance), ("ledger balance", ledger.get(acc.id))):
+                if value:
+                    raise UserError(
+                        f"Cannot archive account {acc.account_code} with non-zero {label} "
+                        f"{value:.2f} BDT (COA-04)"
+                    )
             acc.write({"active": False})
 
 
@@ -164,7 +295,26 @@ class FixChartLoader(models.Model):
 
     _name = "fix.chart.loader"
     _description = "Chart of Accounts Loader"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    _LOADER_GUARDED = frozenset(
+        {
+            "state",
+            "loaded_at",
+            "account_count",
+            "postable_count",
+            "control_count",
+            "checksum",
+            "reconciled_at",
+            "recon_discrepancy",
+            "unmapped_ledger_count",
+            "unmapped_ledger_balance",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # the load and reconcile results are measured, never typed
+        return super()._fix_guarded_fields() | self._LOADER_GUARDED
 
     company_id = fields.Many2one(
         "res.company",
@@ -189,11 +339,44 @@ class FixChartLoader(models.Model):
         [("draft", "Draft"), ("loaded", "Loaded"), ("reconciled", "Reconciled")],
         default="draft",
         required=True,
+        tracking=True,
     )
+    name = fields.Char(compute="_compute_name")
+    currency_id = fields.Many2one(related="company_id.currency_id")
+    linked_count = fields.Integer(
+        string="Linked to Ledger",
+        readonly=True,
+        help="Statutory accounts linked to an Odoo account",
+    )
+    reconciled_at = fields.Datetime(string="Last Reconciliation", readonly=True)
+    recon_discrepancy = fields.Monetary(
+        string="Equation Discrepancy",
+        readonly=True,
+        help="Assets - (liabilities + equity + income - expense) over the linked ledger balances",
+    )
+    unmapped_ledger_count = fields.Integer(
+        string="Unmapped Ledger Accounts",
+        readonly=True,
+        help="Odoo accounts with a posted balance that no statutory account is linked to",
+    )
+    unmapped_ledger_balance = fields.Monetary(
+        string="Unmapped Ledger Balance (absolute)", readonly=True
+    )
+
+    @api.depends("company_id")
+    def _compute_name(self):
+        for loader in self:
+            loader.name = "MD-035 CoA - %s" % (loader.company_id.name or "")
 
     def action_load_from_csv(self, csv_text: str | None = None) -> dict:
         """Load Chart of Accounts from CSV text or file path."""
         self.ensure_one()
+        # The statutory master file is governed content (AF-09): an Accounting
+        # Administrator's reload of it may move control flags. A custom CSV
+        # never does; that change is a fix.chart.control.change (M19-8).
+        master_reload = not csv_text and (
+            self.env.su or self.env.user.has_group("account.group_account_manager")
+        )
         if not csv_text:
             candidates = [
                 Path(__file__).resolve().parents[4] / self.source_file,
@@ -207,14 +390,24 @@ class FixChartLoader(models.Model):
 
         sha256 = hashlib.sha256(csv_text.encode("utf-8")).hexdigest()
         records = coa_logic.parse_coa_csv(csv_text)
-        result = coa_logic.validate_coa_rules(records)
+        try:
+            result = coa_logic.validate_coa_rules(records)
+        except coa_logic.CoaValidationError as e:
+            # nothing is written: a chart that breaks MD-035 loads not at all
+            raise UserError(str(e)) from e
 
-        acc_model = self.env["fix.chart.account"]
+        # active_test=False: an account archived under COA-04 still owns its
+        # code (codes are never reused, MD-035 §3) — a reload must update it,
+        # not collide with it on the (company, code) unique key.
+        acc_model = self.env["fix.chart.account"].with_context(active_test=False)
         for rec in records:
-            existing = acc_model.search([
-                ("company_id", "=", self.company_id.id),
-                ("account_code", "=", rec.account_code),
-            ], limit=1)
+            existing = acc_model.search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("account_code", "=", rec.account_code),
+                ],
+                limit=1,
+            )
 
             vals = {
                 "company_id": self.company_id.id,
@@ -231,25 +424,37 @@ class FixChartLoader(models.Model):
                 "active": rec.active,
             }
             if existing:
+                if master_reload:
+                    from .fix_gl_posting_control import control_change_context
+
+                    existing = existing.with_context(**control_change_context())
                 existing.write(vals)
             else:
                 acc_model.create(vals)
 
-        self.write({
-            "state": "loaded",
-            "loaded_at": fields.Datetime.now(),
-            "account_count": result["account_count"],
-            "postable_count": result["postable_count"],
-            "control_count": result["control_count"],
-            "checksum": sha256,
-        })
+        self._guarded().write(
+            {
+                "state": "loaded",
+                "loaded_at": fields.Datetime.now(),
+                "account_count": result["account_count"],
+                "postable_count": result["postable_count"],
+                "control_count": result["control_count"],
+                "checksum": sha256,
+            }
+        )
 
-        publish(self.env, "coa.loaded", "fix.chart.loader", self.id, {
-            "company_id": self.company_id.id,
-            "account_count": result["account_count"],
-            "postable_count": result["postable_count"],
-            "sha256": sha256,
-        })
+        publish(
+            self.env,
+            "coa.loaded",
+            "fix.chart.loader",
+            self.id,
+            {
+                "company_id": self.company_id.id,
+                "account_count": result["account_count"],
+                "postable_count": result["postable_count"],
+                "sha256": sha256,
+            },
+        )
         return {
             "status": "loaded",
             "account_count": result["account_count"],
@@ -258,36 +463,127 @@ class FixChartLoader(models.Model):
         }
 
     def action_reconcile_chart(self) -> dict:
-        """Execute trial balance reconciliation check across loaded accounts."""
+        """Reconcile the statutory chart with the POSTED ledger (MD-035 s.6).
+
+        Balances are the posted ledger balances of the Odoo accounts each
+        statutory account is linked to (never a typed-in figure). The chart
+        is reconciled only when (a) the accounting equation holds over those
+        balances and (b) no posted ledger balance sits on an Odoo account the
+        chart does not cover. Otherwise it stays loaded and the result says
+        why."""
         self.ensure_one()
-        accounts = self.env["fix.chart.account"].search([
-            ("company_id", "=", self.company_id.id),
-        ])
+        accounts = self.env["fix.chart.account"].search([("company_id", "=", self.company_id.id)])
         if not accounts:
             raise UserError("No accounts loaded for company")
 
+        ledger = accounts._ledger_balances()
         acc_records = []
         balances = {}
         for a in accounts:
-            val = getattr(a, "balance", 0.0)
-            bal_dec = coa_logic.Decimal(str(val)) if isinstance(val, (int, float, Decimal)) else coa_logic.Decimal("0.00")
-            rec = coa_logic.AccountRecord(
-                account_code=a.account_code,
-                entity_code="EN-01",
-                account_name=a.name,
-                account_type=a.account_type,
-                account_subtype=a.account_subtype or "",
-                is_postable=a.is_postable,
-                is_control_account=a.is_control_account,
-                control_subledger=a.control_subledger,
-                requires_dimension=set(a.requires_dimension.split(";")) if a.requires_dimension else set(),
-                statutory_group=a.statutory_group,
-                active=a.active,
-                balance=bal_dec,
+            # Monetary is a float column: str() keeps the 2dp value exact
+            bal_dec = Decimal(str(ledger.get(a.id, 0.0)))
+            acc_records.append(
+                coa_logic.AccountRecord(
+                    account_code=a.account_code,
+                    entity_code="EN-01",
+                    account_name=a.name,
+                    account_type=a.account_type,
+                    account_subtype=a.account_subtype or "",
+                    is_postable=a.is_postable,
+                    is_control_account=a.is_control_account,
+                    control_subledger=a.control_subledger or None,
+                    requires_dimension=_split_dimensions(a.requires_dimension),
+                    statutory_group=a.statutory_group,
+                    active=a.active,
+                    balance=bal_dec,
+                )
             )
-            acc_records.append(rec)
             balances[a.account_code] = bal_dec
 
         recon_res = coa_logic.reconcile_trial_balance(balances, acc_records)
-        self.write({"state": "reconciled"})
+
+        # Posted balances on Odoo accounts outside the statutory chart.
+        linked_ids = accounts.mapped("odoo_account_id").ids
+        groups = (
+            self.env["account.move.line"]
+            .sudo()
+            ._read_group(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("parent_state", "=", "posted"),
+                    ("account_id", "not in", linked_ids),
+                ],
+                ["account_id"],
+                ["balance:sum"],
+            )
+        )
+        unmapped = [(account, balance) for account, balance in groups if round(balance or 0.0, 2)]
+        recon_res["linked_accounts"] = len(linked_ids)
+        recon_res["unmapped_ledger_accounts"] = len(unmapped)
+        recon_res["unmapped_ledger_balance"] = round(sum(abs(b) for _a, b in unmapped), 2)
+        recon_res["unmapped_codes"] = sorted(a.code for a, _b in unmapped)[:20]
+        recon_res["reconciled"] = bool(recon_res["reconciled"] and not unmapped)
+
+        vals = {
+            "reconciled_at": fields.Datetime.now(),
+            "linked_count": len(linked_ids),
+            "recon_discrepancy": recon_res["discrepancy"],
+            "unmapped_ledger_count": len(unmapped),
+            "unmapped_ledger_balance": recon_res["unmapped_ledger_balance"],
+        }
+        # An unbalanced or incomplete chart never earns the reconciled state.
+        if recon_res["reconciled"]:
+            vals["state"] = "reconciled"
+        elif self.state == "reconciled":
+            vals["state"] = "loaded"
+        self._guarded().write(vals)
         return recon_res
+
+    def action_link_odoo_accounts(self) -> dict:
+        """COA unification (FR-FIN-002): populate ``odoo_account_id`` on the
+        statutory chart from the ODOO_CHART_MAPPING pairs that exist in the
+        company's Odoo chart. The link is what turns on the MD-035 posting
+        rules (FR-FIN-011) and the live ledger balance on the CoA screen —
+        a statutory account is only ever linked to an account that EXISTS in
+        the company chart, never invented."""
+        self.ensure_one()
+        chart_model = self.env["fix.chart.account"].with_context(active_test=False)
+        Account = self.env["account.account"].with_company(self.company_id)
+        linked, missing = 0, []
+        for odoo_code, statutory_code in ODOO_CHART_MAPPING.items():
+            odoo_account = Account.search(
+                [
+                    *Account._check_company_domain(self.company_id),
+                    ("code", "=", odoo_code),
+                ],
+                limit=1,
+            )
+            if not odoo_account:
+                missing.append(odoo_code)
+                continue
+            statutory = chart_model.search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("account_code", "=", statutory_code),
+                ],
+                limit=1,
+            )
+            if not statutory:
+                missing.append(statutory_code)
+                continue
+            statutory.write({"odoo_account_id": odoo_account.id})
+            linked += 1
+        self._guarded().write(
+            {
+                "linked_count": chart_model.search_count(
+                    [("company_id", "=", self.company_id.id), ("odoo_account_id", "!=", False)]
+                )
+            }
+        )
+        _logger.info(
+            "COA unification: %d statutory accounts linked for %s (unmatched: %s)",
+            linked,
+            self.company_id.name,
+            missing or "none",
+        )
+        return {"status": "linked", "linked": linked, "unmatched": missing}

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "warranty_claim.decided",
+  "description": "Published by cd_warranty_claims through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "warranty_claim.decided"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_warranty_claims"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "claim_no",
+        "approved",
+        "decision",
+        "requested_amount",
+        "approved_amount",
+        "brand_id",
+        "company_id",
+        "currency",
+        "source"
+      ],
+      "properties": {
+        "claim_no": {
+          "type": "string"
+        },
+        "approved": {
+          "type": "boolean"
+        },
+        "decision": {
+          "description": "Type not statically derivable from `decision` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
+        },
+        "requested_amount": {
+          "type": "number"
+        },
+        "approved_amount": {
+          "description": "Type not statically derivable from `amount` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
+        },
+        "brand_id": {
+          "type": "integer"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "source": {
+          "description": "Type not statically derivable from `source` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_warranty_claims",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "1000fix-erp/milestone-summary/1",
+  "milestone": "R11-M04",
+  "name": "Commercial, benefits and financial closure",
+  "completed_at_utc": "2026-10-22T14:34:46.046444+00:00",
+  "total_tasks": 4,
+  "passed_tasks": 0,
+  "incomplete_tasks": 1,
+  "failed_tasks": 3,
+  "verdict": "FAIL",
+  "tasks": [
+    {
+      "task": "R11-M04-T01: Benefits Measurement against BM-002",
+      "script": "measure_benefits_realisation.py",
+      "exit_code": 2,
+      "elapsed_seconds": 0.06,
+      "status": "INCOMPLETE",
+      "output_tail": "  [UNMEASURED] KPI_PRODUCTION_ACTUALS: 0 of 95 registered KPIs have a measured production actual; production actuals come from the BI warehouse fact tables (fact_service_orders, fact_invoices, ...) on the production read-replica; production data never reaches a workstation (DE-12), so no actual can be measured here\n  [UNMEASURED] BENEFITS_SIGN_OFF: executive sign-off (CFO, CEO, Programme Director) is a human act a tool cannot observe\n\nExecutive verdict: INCOMPLETE\n[OK] Benefits evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m04-benefits-realisation-report.json\n[OK] Benefits realisation report written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m04-benefits-realisation-report.md"
+    },
+    {
+      "task": "R11-M04-T02: Commercial Closure against SoW Baseline",
+      "script": "execute_commercial_closure.py",
+      "exit_code": 1,
+      "elapsed_seconds": 0.07,
+      "status": "FAIL",
+      "output_tail": "  [UNMEASURED] VENDOR_SETTLEMENTS: vendor contract terminations, final invoices, retainage release and data-destruction certificates live in commercial/finance records, none of which are committed\n  [UNMEASURED] CONTRACT_SIGNATURES: execution of CO-003-AMD-01 and the closure sign-off are named-person acts a tool cannot observe (P01-M08 records the amendment signature as external)\n\nCommercial verdict: FAIL\n[OK] Commercial evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m04-commercial-closure-statement.json\n[OK] Commercial closure statement written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m04-commercial-closure-statement.md"
+    },
+    {
+      "task": "R11-M04-T03: Programme Financial Closure",
+      "script": "execute_financial_closure.py",
+      "exit_code": 1,
+      "elapsed_seconds": 0.18,
+      "status": "FAIL",
+      "output_tail": "  [UNMEASURED] IAS38_CAPITALISATION_SPLIT: the IAS 38 CapEx/OpEx split needs ledger cost classification and auditor review; neither is available to this tool\n  [UNMEASURED] FINANCIAL_SIGN_OFF: financial close sign-off (Finance Director, CEO, Audit Committee chair) is a named-person act a tool cannot observe\n\nFinancial verdict: FAIL\n[OK] Financial close evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m04-programme-financial-close.json\n[OK] Financial close statement written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m04-programme-financial-close.md"
+    },
+    {
+      "task": "R11-M04-T04: Operations Transition to Service Org",
+      "script": "execute_service_transition.py",
+      "exit_code": 1,
+      "elapsed_seconds": 0.07,
+      "status": "FAIL",
+      "output_tail": "  [PASS      ] CUSTODY_ALERT_RULES: infra/observability/prometheus/fix-alerts.yml present\n  [UNMEASURED] CUSTODY_ACCEPTED: requires each recipient's acknowledgement of operational custody\n  [UNMEASURED] HANDOVER_SIGNATURES: requires named human signatures; none has been recorded\nHandover verdict: FAIL\nEvidence JSON: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m04-service-transition-handover.json\nHandover record: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m04-service-transition-handover.md"
+    }
+  ]
+}

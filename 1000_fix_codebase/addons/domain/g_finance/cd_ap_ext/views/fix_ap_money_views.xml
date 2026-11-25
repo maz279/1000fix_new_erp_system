@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FR-APE-027 retention money and FR-APE-030 brand consignment settlement:
+     bill retention fields, the retention register and the settlement register. -->
+<odoo>
+
+    <!-- Bill retention fields -->
+    <record id="view_fix_vendor_invoice_form_money" model="ir.ui.view">
+        <field name="name">fix.vendor.invoice.form.retention</field>
+        <field name="model">fix.vendor.invoice</field>
+        <field name="inherit_id" ref="view_fix_vendor_invoice_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='vds_amount']" position="after">
+                <field name="company_currency_id" invisible="1"/>
+                <field name="retention_percent"/>
+                <field name="retention_amount"/>
+                <field name="retention_amount_bdt" invisible="not retention_percent"/>
+                <field name="retention_release_date" invisible="not retention_percent"/>
+                <field name="retention_contract_ref" invisible="not retention_percent"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Retention" invisible="not retention_percent and not retention_ids">
+                    <group>
+                        <group>
+                            <field name="retention_percent"/>
+                            <field name="retention_amount"/>
+                            <field name="retention_amount_bdt" invisible="currency_id == company_currency_id"/>
+                            <field name="retention_release_date"/>
+                            <field name="retention_contract_ref"/>
+                        </group>
+                    </group>
+                    <field name="retention_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="withheld_amount"/>
+                            <field name="released_amount"/>
+                            <field name="release_due_date"/>
+                            <field name="release_condition"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_vendor_invoice_tree_money" model="ir.ui.view">
+        <field name="name">fix.vendor.invoice.tree.retention</field>
+        <field name="model">fix.vendor.invoice</field>
+        <field name="inherit_id" ref="view_fix_vendor_invoice_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='total_payable']" position="after">
+                <field name="retention_amount" optional="hide" sum="Retention"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Retention register -->
+    <record id="view_fix_ap_retention_tree" model="ir.ui.view">
+        <field name="name">fix.ap.retention.tree</field>
+        <field name="model">fix.ap.retention</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="due_state == 'overdue'" decoration-success="state == 'released'">
+                <field name="name"/>
+                <field name="vendor_id"/>
+                <field name="invoice_ref"/>
+                <field name="contract_ref" optional="show"/>
+                <field name="withheld_amount" sum="Held"/>
+                <field name="released_amount" optional="show"/>
+                <field name="balance" sum="Outstanding"/>
+                <field name="release_due_date"/>
+                <field name="release_condition"/>
+                <field name="due_state" widget="badge"/>
+                <field name="state" widget="badge"/>
+                <field name="released_at" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ap_retention_form" model="ir.ui.view">
+        <field name="name">fix.ap.retention.form</field>
+        <field name="model">fix.ap.retention</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_request_release" type="object" string="Request Release"
+                            class="btn-primary" invisible="state != 'held'"/>
+                    <button name="action_release" type="object" string="Release Retention"
+                            class="btn-primary" invisible="state != 'release_requested'"/>
+                    <button name="action_reject_release" type="object" string="Reject Request"
+                            invisible="state != 'release_requested'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="held,release_requested,released"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="vendor_id"/>
+                            <field name="invoice_id"/>
+                            <field name="invoice_ref"/>
+                            <field name="contract_ref"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="withheld_amount"/>
+                            <field name="released_amount"/>
+                            <field name="balance"/>
+                            <field name="release_due_date"/>
+                            <field name="release_condition"/>
+                            <field name="certificate_ref" invisible="release_condition != 'certified'"/>
+                            <field name="due_state" widget="badge"/>
+                            <field name="age_days"/>
+                        </group>
+                        <group>
+                            <field name="release_requested_by_id"/>
+                            <field name="release_requested_at"/>
+                            <field name="released_by_id"/>
+                            <field name="released_at"/>
+                            <field name="release_move_id"/>
+                        </group>
+                        <group>
+                            <field name="note" colspan="2" nolabel="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_ap_retention_search" model="ir.ui.view">
+        <field name="name">fix.ap.retention.search</field>
+        <field name="model">fix.ap.retention</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="vendor_id"/>
+                <field name="invoice_ref"/>
+                <filter name="held" string="Held" domain="[('state', '=', 'held')]"/>
+                <filter name="requested" string="Release Requested"
+                        domain="[('state', '=', 'release_requested')]"/>
+                <filter name="released" string="Released" domain="[('state', '=', 'released')]"/>
+                <filter name="due_by_today" string="Release Due"
+                        domain="[('state', '=', 'held'), ('release_due_date', '&lt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <group>
+                    <filter name="group_vendor" string="Sub-contractor"
+                            context="{'group_by': 'vendor_id'}"/>
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fix_ap_retention" model="ir.actions.act_window">
+        <field name="name">Retention Register</field>
+        <field name="res_model">fix.ap.retention</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Consignment settlements -->
+    <record id="view_fix_ap_consignment_settlement_tree" model="ir.ui.view">
+        <field name="name">fix.ap.consignment.settlement.tree</field>
+        <field name="model">fix.ap.consignment.settlement</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'approved'" decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="brand_id"/>
+                <field name="partner_id"/>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="quantity_total" sum="Quantity"/>
+                <field name="value_untaxed" sum="Value"/>
+                <field name="vat_amount" optional="show"/>
+                <field name="total_payable" sum="Payable"/>
+                <field name="settlement_date" optional="show"/>
+                <field name="state" widget="badge"/>
+                <field name="approved_by_id" optional="hide"/>
+                <field name="move_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ap_consignment_settlement_form" model="ir.ui.view">
+        <field name="name">fix.ap.consignment.settlement.form</field>
+        <field name="model">fix.ap.consignment.settlement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_gather" type="object" string="Gather Consumptions"
+                            class="btn-primary" invisible="state not in ('draft', 'rejected')"/>
+                    <button name="action_submit" type="object" string="Submit for Approval"
+                            class="btn-primary" invisible="state not in ('draft', 'rejected')"/>
+                    <button name="action_approve" type="object" string="Approve and Post"
+                            class="btn-primary" invisible="state != 'submitted'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state != 'submitted'"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft"
+                            invisible="state != 'rejected'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state not in ('draft', 'rejected')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="brand_id"/>
+                            <field name="partner_id"/>
+                            <field name="tax_profile_id"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                            <field name="settlement_date"/>
+                            <field name="statement_ref"/>
+                            <field name="line_count"/>
+                            <field name="quantity_total"/>
+                        </group>
+                        <group>
+                            <field name="value_untaxed"/>
+                            <field name="vat_registered"/>
+                            <field name="vat_rate"/>
+                            <field name="vat_amount"/>
+                            <field name="total_payable"/>
+                            <field name="move_id"/>
+                        </group>
+                        <group>
+                            <field name="gathered_by_id"/>
+                            <field name="gathered_at"/>
+                            <field name="submitted_by"/>
+                            <field name="submitted_at"/>
+                            <field name="approved_by_id"/>
+                            <field name="approved_at"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Consumed Parts">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="consumption_id"/>
+                                    <field name="part_id"/>
+                                    <field name="part_number"/>
+                                    <field name="job_ref"/>
+                                    <field name="consumed_at"/>
+                                    <field name="quantity" sum="Quantity"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="rate"/>
+                                    <field name="value" sum="Value"/>
+                                    <field name="rate_source"/>
+                                    <field name="rate_reference"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Note">
+                            <field name="note" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_ap_consignment_settlement_search" model="ir.ui.view">
+        <field name="name">fix.ap.consignment.settlement.search</field>
+        <field name="model">fix.ap.consignment.settlement</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="brand_id"/>
+                <field name="partner_id"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="submitted" string="Submitted" domain="[('state', '=', 'submitted')]"/>
+                <filter name="approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+                <group>
+                    <filter name="group_brand" string="Brand" context="{'group_by': 'brand_id'}"/>
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fix_ap_consignment_settlement" model="ir.actions.act_window">
+        <field name="name">Consignment Settlements</field>
+        <field name="res_model">fix.ap.consignment.settlement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

@@ -11,21 +11,61 @@ master slice (cd_employee_core):
   basic salary (Monetary, AS-10); lifecycle with renewal escalation
 - fix.leave.type / fix.leave.request — statutory entitlements per the
   Bangladesh Labour Act 2006 (annual 20, sick 14, maternity 16 weeks,
-  festival 11) with earned-rate validation and encashment flag
+  festival 11; the 2026 amendment's 120 days / 13 days once the owner approves
+  them) with earned-rate validation and encashment flag
 - fix.org.position — reporting lines and position management
-- hr.employee extension — employee code + residency routing: NID/TIN live in
-  fix.identity.document (Z4-routed, SC-007); this module only references
-  the identity store, never duplicates PII
+- hr.employee extension — employee code + residency routing: the NID, birth
+  registration and e-TIN go to the Bangladesh-resident store (Z4) through
+  libs/py/fix_residency; hr_employee keeps a pointer and a keyed hash, and
+  every read is logged (A09 M21-A6, BRU-HCM-06/07)
 - joiner/mover/leaver events (AS-08) verified to drive M29 provisioning at
   full scale (P08-M01-T06)
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.7.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources",
-    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_employee_core",
-                 "cd_event_outbox", "cd_party_master"],
-    "data": ["security/ir.model.access.csv", "views/fix_hr_core_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "hr",
+        "hr_holidays",
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_document_core",
+        # M63 approval engine: every A09 approval is a routed request
+        "cd_workflow_engine",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
+        # M21 decision roles (A09 P0-b): legal, executive, finance, clearance owners
+        "security/fix_a09_m21_groups.xml",
+        "security/ir.model.access.csv",
+        "security/fix_a09_privacy_rules.xml",
+        # A09 round 2: the identity read log and the s.27(3A) case
+        "security/fix_a09_m21_r2_rules.xml",
+        # M21 capture audit: notice acknowledgement and exit interview
+        "security/fix_a09_m21_capture_rules.xml",
+        # M21 capture audit pass 2: probation review, knowledge handover,
+        # additional assignment
+        "security/fix_a09_m21_capture2_rules.xml",
+        # M55 leave controls (A09 P0-b/P1/P2); owned by the leave work package
+        "security/leave/ir.model.access.csv",
+        "data/fix_a09_leave_data.xml",
+        "data/statutory_leave_data.xml",
+        "data/hr_ops_sequences.xml",
+        "data/employment_contract_templates.xml",
+        "data/identity_lifecycle_cron.xml",
+        # A09 ERP audit (stream B2): the Form 7 clock's daily cron and its
+        # upgrade-time recompute (M21-F22)
+        "data/fix_a09_erp_b2_data.xml",
+        # M21 crons and the employee.left relay consumer (A09 C3/C5)
+        "data/fix_a09_m21_data.xml",
+        "views/fix_hr_core_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M21-01",

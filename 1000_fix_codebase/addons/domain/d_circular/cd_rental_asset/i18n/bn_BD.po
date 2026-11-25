@@ -3,6 +3,287 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_damage__category__accessory
+msgid "Accessory Missing"
+msgstr "অ্যাক্সেসরিজ অনুপস্থিত"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Activate Rental"
+msgstr "ভাড়া সক্রিয় করুন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__actual_return_date
+msgid "Actual Return Date"
+msgstr "প্রকৃত ফেরতের তারিখ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Confirm Reservation"
+msgstr "সংরক্ষণ নিশ্চিত করুন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_damage__category__cosmetic
+msgid "Cosmetic"
+msgstr "বাহ্যিক"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Create Delivery Dispatch"
+msgstr "ডেলিভারি প্রেরণ তৈরি করুন"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Create Return Logistics"
+msgstr "ফেরত লজিস্টিকস তৈরি করুন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Customer & Rental SKU"
+msgstr "গ্রাহক ও ভাড়ার SKU"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__daily_rate
+msgid "Daily Rate"
+msgstr "দৈনিক ভাড়া"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__damage_assess
+msgid "Damage Assessment"
+msgstr "ক্ষতি মূল্যায়ন"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Damage Assessment Records"
+msgstr "ক্ষতি মূল্যায়নের রেকর্ডসমূহ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_damage__cost
+msgid "Damage Cost"
+msgstr "ক্ষতির খরচ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_damage__evidence_url
+msgid "Damage Evidence Link / S3 Ref"
+msgstr "ক্ষতির প্রমাণ লিংক / S3 রেফারেন্স"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Damage Inspection"
+msgstr "ক্ষতি পরিদর্শন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__damage_ids
+msgid "Damage Records"
+msgstr "ক্ষতির রেকর্ডসমূহ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__damage_total
+msgid "Damage Total"
+msgstr "মোট ক্ষতি"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__delivered
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__deposit_collected
+msgid "Deposit Collected"
+msgstr "জামানত সংগৃহীত"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__deposit_refunded
+msgid "Deposit Refunded"
+msgstr "জামানত ফেরত দেওয়া হয়েছে"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_damage__disputed
+msgid "Disputed by Customer"
+msgstr "গ্রাহক কর্তৃক আপত্তিকৃত"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__duration_days
+msgid "Duration (Days)"
+msgstr "সময়কাল (দিন)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__excess_billed
+msgid "Excess Damage Billed"
+msgstr "অতিরিক্ত ক্ষতির বিল করা হয়েছে"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Financials & Deposit Settlement"
+msgstr "আর্থিক তথ্য ও জামানত নিষ্পত্তি"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__fixed_asset_id
+msgid "Fixed Asset (M49)"
+msgstr "স্থায়ী সম্পদ (M49)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_damage__category__functional
+msgid "Functional"
+msgstr "কার্যকরী"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_damage__inspector_id
+msgid "Inspector"
+msgstr "পরিদর্শক"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__late_fee
+msgid "Late Return Fee"
+msgstr "বিলম্বে ফেরতের ফি"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Logistics (M03 Consignment)"
+msgstr "লজিস্টিকস (M03 কনসাইনমেন্ট)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_damage__category__lost
+msgid "Lost/Stolen"
+msgstr "হারানো/চুরি"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Mark Delivered"
+msgstr "ডেলিভারি সম্পন্ন চিহ্নিত করুন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__monthly_rate
+msgid "Monthly Rate"
+msgstr "মাসিক ভাড়া"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_damage__operating_unit_id
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__service_order_id
+msgid "Origin Service Order (M01)"
+msgstr "মূল সার্ভিস অর্ডার (M01)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__delivery_consignment_id
+msgid "Outbound Delivery Consignment (M03)"
+msgstr "বহির্গামী ডেলিভারি কনসাইনমেন্ট (M03)"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Receive Return"
+msgstr "ফেরত গ্রহণ করুন"
+
+#. module: cd_rental_asset
 msgid "Rental & Equipment-as-a-Service"
-msgstr "Rental & Equipment-as-a-Service (বাংলা)"
+msgstr "ভাড়া ও ইকুইপমেন্ট-অ্যাজ-এ-সার্ভিস"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__device_id
+msgid "Rental Asset"
+msgstr "ভাড়ার সম্পদ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__contract_id
+msgid "Rental Contract"
+msgstr "ভাড়া চুক্তি"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_damage_list
+msgid "Rental Damage Assessments"
+msgstr "ভাড়ার ক্ষতি মূল্যায়নসমূহ"
+
+#. module: cd_rental_asset
+#: model:ir.ui.menu,name:cd_rental_asset.menu_fix_rental_damage
+msgid "Rental Damage Records"
+msgstr "ভাড়ার ক্ষতির রেকর্ডসমূহ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__rental_charge
+msgid "Rental Fee"
+msgstr "ভাড়ার ফি"
+
+#. module: cd_rental_asset
+#: model:ir.model,name:cd_rental_asset.model_fix_rental_reservation
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Rental Reservation"
+msgstr "ভাড়া সংরক্ষণ"
+
+#. module: cd_rental_asset
+#: model:ir.actions.act_window,name:cd_rental_asset.action_fix_rental_reservation
+#: model:ir.ui.menu,name:cd_rental_asset.menu_fix_rental_reservation
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_list
+msgid "Rental Reservations"
+msgstr "ভাড়া সংরক্ষণসমূহ"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__rental_sku_id
+msgid "Rental SKU (M37)"
+msgstr "ভাড়ার SKU (M37)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__subscription_id
+msgid "Rental Subscription (M39)"
+msgstr "ভাড়া সাবস্ক্রিপশন (M39)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__reserved
+msgid "Reserved"
+msgstr "সংরক্ষিত"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__return_consignment_id
+msgid "Return Consignment (M03)"
+msgstr "ফেরত কনসাইনমেন্ট (M03)"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields.selection,name:cd_rental_asset.selection__fix_rental_reservation__state__returned
+msgid "Returned"
+msgstr "ফেরতকৃত"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Schedule & Rates"
+msgstr "সময়সূচি ও ভাড়ার হার"
+
+#. module: cd_rental_asset
+#: model_terms:ir.ui.view,arch_db:cd_rental_asset.view_fix_rental_reservation_form
+msgid "Settle & Close"
+msgstr "নিষ্পত্তি ও বন্ধ করুন"
+
+#. module: cd_rental_asset
+#: model:ir.model.fields,field_description:cd_rental_asset.field_fix_rental_reservation__weekly_rate
+msgid "Weekly Rate"
+msgstr "সাপ্তাহিক ভাড়া"

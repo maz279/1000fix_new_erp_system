@@ -1,0 +1,23 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_bridge_exception_user,fix.bridge.exception user,model_fix_bridge_exception,base.group_user,1,0,0,0
+access_fix_bridge_exception_hse,fix.bridge.exception hse,model_fix_bridge_exception,cd_hse.group_hse_officer,1,1,0,0
+access_fix_bridge_exception_account,fix.bridge.exception account,model_fix_bridge_exception,account.group_account_user,1,1,0,0
+access_fix_asset_finance_request_readonly,fix.asset.finance.request readonly,model_fix_asset_finance_request,account.group_account_readonly,1,0,0,0
+access_fix_asset_finance_request_user,fix.asset.finance.request user,model_fix_asset_finance_request,account.group_account_user,1,1,0,0
+access_fix_asset_finance_request_manager,fix.asset.finance.request manager,model_fix_asset_finance_request,account.group_account_manager,1,1,0,0
+access_fix_lease_modification_item_readonly,fix.lease.modification.item readonly,model_fix_lease_modification_item,account.group_account_readonly,1,0,0,0
+access_fix_lease_modification_item_user,fix.lease.modification.item user,model_fix_lease_modification_item,account.group_account_user,1,1,0,0
+access_fix_lease_modification_item_manager,fix.lease.modification.item manager,model_fix_lease_modification_item,account.group_account_manager,1,1,0,0
+access_fix_asset_cost_entry_readonly,fix.asset.cost.entry readonly,model_fix_asset_cost_entry,account.group_account_readonly,1,0,0,0
+access_fix_asset_cost_entry_user,fix.asset.cost.entry user,model_fix_asset_cost_entry,account.group_account_user,1,1,0,0
+access_fix_asset_cost_entry_manager,fix.asset.cost.entry manager,model_fix_asset_cost_entry,account.group_account_manager,1,1,0,0
+access_fix_asset_recovery_readonly,fix.asset.recovery readonly,model_fix_asset_recovery,account.group_account_readonly,1,0,0,0
+access_fix_asset_recovery_user,fix.asset.recovery user,model_fix_asset_recovery,account.group_account_user,1,1,0,0
+access_fix_asset_recovery_manager,fix.asset.recovery manager,model_fix_asset_recovery,account.group_account_manager,1,1,0,0
+access_fix_asset_recovery_hr,fix.asset.recovery hr,model_fix_asset_recovery,hr.group_hr_manager,1,1,0,0
+access_fix_lease_remeasurement_readonly,fix.lease.remeasurement readonly,model_fix_lease_remeasurement,account.group_account_readonly,1,0,0,0
+access_fix_lease_remeasurement_user,fix.lease.remeasurement user,model_fix_lease_remeasurement,account.group_account_user,1,1,1,0
+access_fix_lease_remeasurement_manager,fix.lease.remeasurement manager,model_fix_lease_remeasurement,account.group_account_manager,1,1,1,0
+access_fix_asset_cost_entry_branch_lead,fix.asset.cost.entry branch lead (D16 release),model_fix_asset_cost_entry,cd_facility.group_branch_operations_lead,1,1,0,0
+access_fix_asset_cost_entry_logistics,fix.asset.cost.entry logistics manager (D16 release),model_fix_asset_cost_entry,cd_vehicle_ext.group_logistics_manager,1,1,0,0
+access_fix_asset_cost_entry_cfo,fix.asset.cost.entry CFO (D16 release),model_fix_asset_cost_entry,cd_entity_config.group_dofa_tier_4,1,1,0,0

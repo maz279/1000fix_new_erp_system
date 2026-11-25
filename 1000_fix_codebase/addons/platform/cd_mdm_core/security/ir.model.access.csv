@@ -1,5 +1,23 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_mdm_change_request,fix.mdm.change.request,model_fix_mdm_change_request,base.group_user,1,1,1,0
-access_fix_mdm_golden_rule,fix.mdm.golden.rule,model_fix_mdm_golden_rule,base.group_user,1,1,1,0
-access_fix_mdm_match_rule,fix.mdm.match.rule,model_fix_mdm_match_rule,base.group_user,1,1,1,0
-access_fix_mdm_stewardship,fix.mdm.stewardship,model_fix_mdm_stewardship,base.group_user,1,1,1,0
+access_fix_mdm_change_request_user,fix.mdm.change.request user,model_fix_mdm_change_request,base.group_user,1,1,1,0
+access_fix_mdm_change_request_steward,fix.mdm.change.request steward,model_fix_mdm_change_request,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_golden_rule_user,fix.mdm.golden.rule user,model_fix_mdm_golden_rule,base.group_user,1,0,0,0
+access_fix_mdm_golden_rule_steward,fix.mdm.golden.rule steward,model_fix_mdm_golden_rule,cd_entity_config.group_mdm_domain_steward,1,1,1,1
+access_fix_mdm_match_rule_user,fix.mdm.match.rule user,model_fix_mdm_match_rule,base.group_user,1,0,0,0
+access_fix_mdm_match_rule_steward,fix.mdm.match.rule steward,model_fix_mdm_match_rule,cd_entity_config.group_mdm_domain_steward,1,1,1,1
+access_fix_mdm_stewardship_user,fix.mdm.stewardship user,model_fix_mdm_stewardship,base.group_user,1,0,0,0
+access_fix_mdm_stewardship_steward,fix.mdm.stewardship steward,model_fix_mdm_stewardship,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_stewardship_admin,fix.mdm.stewardship platform admin,model_fix_mdm_stewardship,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_mdm_governed_attribute_user,fix.mdm.governed.attribute user,model_fix_mdm_governed_attribute,base.group_user,1,0,0,0
+access_fix_mdm_governed_attribute_admin,fix.mdm.governed.attribute platform admin,model_fix_mdm_governed_attribute,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_mdm_dq_remediation_user,fix.mdm.dq.remediation user,model_fix_mdm_dq_remediation,base.group_user,1,0,0,0
+access_fix_mdm_dq_remediation_steward,fix.mdm.dq.remediation steward,model_fix_mdm_dq_remediation,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_business_parameter_user,fix.mdm.business.parameter user,model_fix_mdm_business_parameter,base.group_user,1,0,0,0
+access_fix_mdm_business_parameter_steward,fix.mdm.business.parameter steward,model_fix_mdm_business_parameter,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_parameter_change_user,fix.mdm.parameter.change user,model_fix_mdm_parameter_change,base.group_user,1,1,1,0
+access_fix_mdm_hierarchy_user,fix.mdm.hierarchy user,model_fix_mdm_hierarchy,base.group_user,1,0,0,0
+access_fix_mdm_hierarchy_steward,fix.mdm.hierarchy steward,model_fix_mdm_hierarchy,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_hierarchy_node_user,fix.mdm.hierarchy.node user,model_fix_mdm_hierarchy_node,base.group_user,1,0,0,0
+access_fix_mdm_hierarchy_node_steward,fix.mdm.hierarchy.node steward,model_fix_mdm_hierarchy_node,cd_entity_config.group_mdm_domain_steward,1,1,1,1
+access_fix_mdm_change_batch_user,fix.mdm.change.batch user,model_fix_mdm_change_batch,base.group_user,1,1,1,0
+access_fix_mdm_change_batch_line_user,fix.mdm.change.batch.line user,model_fix_mdm_change_batch_line,base.group_user,1,1,1,1

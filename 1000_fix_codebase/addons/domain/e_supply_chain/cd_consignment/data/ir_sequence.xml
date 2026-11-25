@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The consignment-number sequence fix.consignment.create() has always
+         called. Without it every consignment of a day was named 'CSG/<today>'
+         (a custody chain cannot be traced by a shared number). -->
+    <data noupdate="1">
+        <record id="seq_fix_consignment" model="ir.sequence">
+            <field name="name">Consignment</field>
+            <field name="code">fix.consignment</field>
+            <field name="prefix">CSG/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

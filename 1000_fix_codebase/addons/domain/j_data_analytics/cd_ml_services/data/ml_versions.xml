@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M26 G7: one deployed BASELINE version per production model.
+
+  The serving gate refuses a model with no deployed version, so the six
+  engines that already serve production each get their incumbent version
+  registered here — grandfathered as deployed on the day the M63 promotion
+  regime was introduced (A11 audit, Nov 2026). These rows are the floor, not
+  a precedent: every version created after this point is born DRAFT and
+  reaches 'deployed' only through the routed promotion request decided by a
+  Model Owner who is not the registrant. The planned demand-forecast entry
+  gets no version on purpose — nothing serves until it is real.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="ml_version_dispatch_scoring_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="ml_model_dispatch_scoring"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">online</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "deterministic ranking, measured latency on record"}</field>
+            <field name="model_card">Baseline incumbent: explainable technician ranking (+30 rostered, +25 certification-eligible, +20 home zone, -5 per active job). Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7); every later version goes through the routed request.</field>
+        </record>
+
+        <record id="ml_version_fault_classifier_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="ml_model_fault_classifier"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">online</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "token-overlap match against the 26-code taxonomy"}</field>
+            <field name="model_card">Baseline incumbent: deterministic token-overlap classification against the fix.fault.code taxonomy. Not a neural classifier and never labelled as one. Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7).</field>
+        </record>
+
+        <record id="ml_version_predictive_maintenance_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="ml_model_predictive_maintenance"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">batch</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "aggregation of live M48 predictions"}</field>
+            <field name="model_card">Baseline incumbent: aggregates the live fix.predictive.maintenance stream (healthy / degrading / failure_predicted with days-to-failure). Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7).</field>
+        </record>
+
+        <record id="ml_version_tradein_valuation_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="ml_model_tradein_valuation"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">batch</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "aggregation of the real M14 grading pipeline"}</field>
+            <field name="model_card">Baseline incumbent: aggregates the real trade-in grading/valuation pipeline. Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7).</field>
+        </record>
+
+        <record id="ml_version_bi_aggregator_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="ml_model_bi_aggregator"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">batch</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "reads the newest measured M25 snapshot"}</field>
+            <field name="model_card">Baseline incumbent: reads the newest measured BI snapshot and its freshness — a measurement of a measurement, labelled as such. Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7).</field>
+        </record>
+
+        <record id="ml_version_lead_scoring_v1" model="fix.ml.model.version">
+            <field name="model_id" ref="cd_ml_services.ml_model_lead_scoring"/>
+            <field name="version">1.0.0</field>
+            <field name="deployment_mode">batch</field>
+            <field name="state">deployed</field>
+            <field name="approved_by" ref="base.user_admin"/>
+            <field name="deployed_at" eval="(DateTime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="metrics_json">{"basis": "deterministic weighted factor model; weights are chosen, not fitted"}</field>
+            <field name="model_card">Baseline incumbent: the M07 lead-scoring engine — a deterministic weighted factor model over live crm.lead records. Weights are a starting point for Sales to tune, never a fitted result; the engine says so with every score. Grandfathered as deployed when the M63 promotion regime was introduced (A11 G7).</field>
+        </record>
+
+    </data>
+</odoo>

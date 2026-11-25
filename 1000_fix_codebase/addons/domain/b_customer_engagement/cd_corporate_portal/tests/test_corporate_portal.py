@@ -1,6 +1,7 @@
 # cd_corporate_portal tests — P04 W4 (P07-M09).
-from pathlib import Path
 import unittest
+from pathlib import Path
+
 import yaml
 
 MODULE = Path(__file__).resolve().parents[1]
@@ -23,8 +24,10 @@ class TestEa05Scoping(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_corporate_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
         self.assertIn("/corporate/estate", spec["paths"])
         self.assertIn("/corporate/invoices/consolidated", spec["paths"])
         self.assertIn("/corporate/service-requests", spec["paths"])
@@ -33,10 +36,12 @@ class TestApiSurface(unittest.TestCase):
 class TestManifest(unittest.TestCase):
     def test_cd_id_is_register_member(self):
         import re
+
         manifest = (MODULE / "__manifest__.py").read_text(encoding="utf-8")
         cd_id = re.search(r'"x_cd_id":\s*"([^"]+)"', manifest).group(1)
-        register = yaml.safe_load((REPO / "tooling" / "cd-register.yaml"
-                                   ).read_text(encoding="utf-8"))
+        register = yaml.safe_load(
+            (REPO / "tooling" / "cd-register.yaml").read_text(encoding="utf-8")
+        )
         ids = {item["id"] for item in register["items"]}
         self.assertIn(cd_id, ids)
 

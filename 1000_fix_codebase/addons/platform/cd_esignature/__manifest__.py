@@ -12,13 +12,17 @@ CD-M24-03: e-signature envelopes.
   (a written OSS-alternative review is a governance item); the envelope is
   deliberately provider-independent
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Documents",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox",
-                 "cd_document_core"],
-    "data": ["security/ir.model.access.csv", "views/fix_esignature_views.xml"],
+    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_document_core"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/fix_esignature_views.xml",
+        "data/fix_esignature_cron.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M24-03",

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07: the date-driven events announced by the crons, each delivered to a person. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_alert_device_warranty_expiring" model="fix.event.consumer">
+            <field name="name">Asset alert: device.warranty_expiring reaches the role that must act</field>
+            <field name="event_type">device.warranty_expiring</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_device_warranty_expired" model="fix.event.consumer">
+            <field name="name">Asset alert: device.warranty_expired reaches the role that must act</field>
+            <field name="event_type">device.warranty_expired</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_device_neir_deregistration_required" model="fix.event.consumer">
+            <field name="name">Asset alert: device.neir_deregistration_required reaches the role that must act</field>
+            <field name="event_type">device.neir_deregistration_required</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_equipment_calibration_overdue" model="fix.event.consumer">
+            <field name="name">Asset alert: equipment.calibration.overdue reaches the role that must act</field>
+            <field name="event_type">equipment.calibration.overdue</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_equipment_custody_overdue" model="fix.event.consumer">
+            <field name="name">Asset alert: equipment.custody_overdue reaches the role that must act</field>
+            <field name="event_type">equipment.custody_overdue</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_equipment_out_of_tolerance" model="fix.event.consumer">
+            <field name="name">Asset alert: equipment.out_of_tolerance reaches the role that must act</field>
+            <field name="event_type">equipment.out_of_tolerance</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_vehicle_document_expiring" model="fix.event.consumer">
+            <field name="name">Asset alert: vehicle.document_expiring reaches the role that must act</field>
+            <field name="event_type">vehicle.document_expiring</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_vehicle_document_expired" model="fix.event.consumer">
+            <field name="name">Asset alert: vehicle.document_expired reaches the role that must act</field>
+            <field name="event_type">vehicle.document_expired</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_driver_licence_expiring" model="fix.event.consumer">
+            <field name="name">Asset alert: driver.licence_expiring reaches the role that must act</field>
+            <field name="event_type">driver.licence_expiring</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_driver_licence_expired" model="fix.event.consumer">
+            <field name="name">Asset alert: driver.licence_expired reaches the role that must act</field>
+            <field name="event_type">driver.licence_expired</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_vehicle_fuel_exception" model="fix.event.consumer">
+            <field name="name">Asset alert: vehicle.fuel_exception reaches the role that must act</field>
+            <field name="event_type">vehicle.fuel_exception</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_site_compliance_expiring" model="fix.event.consumer">
+            <field name="name">Asset alert: site.compliance_expiring reaches the role that must act</field>
+            <field name="event_type">site.compliance_expiring</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_site_compliance_expired" model="fix.event.consumer">
+            <field name="name">Asset alert: site.compliance_expired reaches the role that must act</field>
+            <field name="event_type">site.compliance_expired</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_site_risk_exception_raised" model="fix.event.consumer">
+            <field name="name">Asset alert: site.risk_exception_raised reaches the role that must act</field>
+            <field name="event_type">site.risk_exception_raised</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_site_utility_anomaly" model="fix.event.consumer">
+            <field name="name">Asset alert: site.utility_anomaly reaches the role that must act</field>
+            <field name="event_type">site.utility_anomaly</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_lease_critical_date_due" model="fix.event.consumer">
+            <field name="name">Asset alert: lease.critical_date_due reaches the role that must act</field>
+            <field name="event_type">lease.critical_date_due</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <!-- M47 capture audit (2026-11-17), BRU-FAC-10: a missed generator / UPS test
+             escalates to the Operations Director. -->
+        <record id="consumer_alert_site_power_test_overdue" model="fix.event.consumer">
+            <field name="name">Asset alert: site.power_test_overdue reaches the role that must act</field>
+            <field name="event_type">site.power_test_overdue</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_lease_renewal_decision_required" model="fix.event.consumer">
+            <field name="name">Asset alert: lease.renewal_decision_required reaches the role that must act</field>
+            <field name="event_type">lease.renewal_decision_required</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_iot_rule_alert_raised" model="fix.event.consumer">
+            <field name="name">Asset alert: iot.rule_alert_raised reaches the role that must act</field>
+            <field name="event_type">iot.rule_alert_raised</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_telemetry_stream_suspended" model="fix.event.consumer">
+            <field name="name">Asset alert: telemetry.stream_suspended reaches the role that must act</field>
+            <field name="event_type">telemetry.stream_suspended</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_alert_telemetry_consent_revoked" model="fix.event.consumer">
+            <field name="name">Asset alert: telemetry.consent_revoked reaches the role that must act</field>
+            <field name="event_type">telemetry.consent_revoked</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+    </data>
+</odoo>

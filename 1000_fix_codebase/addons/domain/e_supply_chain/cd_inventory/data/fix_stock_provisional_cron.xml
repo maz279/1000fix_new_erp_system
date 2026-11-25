@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A06 ERP audit M44-17 (BRU-ITC-01 / AC-08): imported stock received at a
+  provisional landed cost is escalated once to the Inventory Controllers when
+  its cost is still not final after cd_inventory.provisional_cost_escalation_days
+  (default 30) days.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_provisional_cost_escalation" model="ir.cron">
+            <field name="name">M15: escalate imported stock still at a provisional cost</field>
+            <field name="model_id" ref="model_fix_stock_receipt"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_escalate_provisional()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

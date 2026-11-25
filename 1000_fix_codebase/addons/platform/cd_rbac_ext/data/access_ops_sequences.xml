@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_access_request" model="ir.sequence">
+            <field name="name">Access Request</field>
+            <field name="code">fix.access.request</field>
+            <field name="prefix">AR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_sod_test" model="ir.sequence">
+            <field name="name">SoD Test Run</field>
+            <field name="code">fix.sod.test</field>
+            <field name="prefix">SODT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_sod_mitigation" model="ir.sequence">
+            <field name="name">SoD Exception</field>
+            <field name="code">fix.sod.mitigation</field>
+            <field name="prefix">SODX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_privileged_session" model="ir.sequence">
+            <field name="name">Privileged Session</field>
+            <field name="code">fix.privileged.session</field>
+            <field name="prefix">PS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

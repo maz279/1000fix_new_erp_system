@@ -10,6 +10,7 @@ import { useEffect, useState, useId } from "react";
 import { tokens, SectionHead } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
+import { RequireAuth } from "../../components/require-auth";
 import { useAuth } from "../../components/auth-modal";
 
 interface Device {
@@ -63,7 +64,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function BookingPage() {
+function BookingPageContent() {
   const { t, locale } = useLanguage();
   const { user, openLoginModal } = useAuth();
   
@@ -540,5 +541,13 @@ export default function BookingPage() {
         </p>
       )}
     </main>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <RequireAuth>
+      <BookingPageContent />
+    </RequireAuth>
   );
 }

@@ -1,0 +1,89 @@
+{
+  "drill": "GP-12: Build-Once-Promote & Rollback Rehearsal",
+  "task": "R10-M04-T04",
+  "tool": "tooling/scripts/drill_build_once_promote.py",
+  "timestamp": "2026-10-22T09:02:30.524004+00:00",
+  "release_tag": "v2.0.0-rc.1",
+  "immutable_digest": null,
+  "summary": {
+    "pass": 0,
+    "fail": 0,
+    "unmeasured": 9
+  },
+  "promotion_ladder": [
+    {
+      "id": "GP12_PROBE_DEV",
+      "status": "UNMEASURED",
+      "detail": "no health endpoint configured (set GP12_HEALTHZ_URL_DEV)",
+      "environment": "dev",
+      "probe_endpoint": null,
+      "probes_sent": 0,
+      "probes_passed": 0
+    },
+    {
+      "id": "GP12_PROBE_SIT",
+      "status": "UNMEASURED",
+      "detail": "no health endpoint configured (set GP12_HEALTHZ_URL_SIT)",
+      "environment": "sit",
+      "probe_endpoint": null,
+      "probes_sent": 0,
+      "probes_passed": 0
+    },
+    {
+      "id": "GP12_PROBE_UAT",
+      "status": "UNMEASURED",
+      "detail": "no health endpoint configured (set GP12_HEALTHZ_URL_UAT)",
+      "environment": "uat",
+      "probe_endpoint": null,
+      "probes_sent": 0,
+      "probes_passed": 0
+    },
+    {
+      "id": "GP12_PROBE_STAGING",
+      "status": "UNMEASURED",
+      "detail": "no health endpoint configured (set GP12_HEALTHZ_URL_STAGING)",
+      "environment": "staging",
+      "probe_endpoint": null,
+      "probes_sent": 0,
+      "probes_passed": 0
+    }
+  ],
+  "digest_checks": [
+    {
+      "id": "GP12_DIGEST_DEV",
+      "status": "UNMEASURED",
+      "detail": "the deployed image digest needs registry/cluster access, not available to this tool",
+      "environment": "dev",
+      "deployed_digest": null
+    },
+    {
+      "id": "GP12_DIGEST_SIT",
+      "status": "UNMEASURED",
+      "detail": "the deployed image digest needs registry/cluster access, not available to this tool",
+      "environment": "sit",
+      "deployed_digest": null
+    },
+    {
+      "id": "GP12_DIGEST_UAT",
+      "status": "UNMEASURED",
+      "detail": "the deployed image digest needs registry/cluster access, not available to this tool",
+      "environment": "uat",
+      "deployed_digest": null
+    },
+    {
+      "id": "GP12_DIGEST_STAGING",
+      "status": "UNMEASURED",
+      "detail": "the deployed image digest needs registry/cluster access, not available to this tool",
+      "environment": "staging",
+      "deployed_digest": null
+    }
+  ],
+  "rollback_rehearsal": {
+    "id": "GP12_ROLLBACK",
+    "status": "UNMEASURED",
+    "detail": "canary fault injection and automated rollback need a live staging cluster; this tool never injects faults or changes deployments",
+    "rollback_duration_seconds": null
+  },
+  "status": "INCOMPLETE",
+  "gp_12_discharged": false
+}

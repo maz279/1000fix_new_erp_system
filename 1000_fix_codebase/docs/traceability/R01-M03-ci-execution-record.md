@@ -1,3 +1,5 @@
+> **SUPERSEDED CLAIMS (R01 re-audit 2026-10-22 - see `R01-reaudit-report-2026-10-22.md`):** no CI run of this pipeline has ever happened on a GitHub runner - the workflow was not at the repository root, and 12 of 17 jobs could not start. The 'green nightly runs' cited below were local-harness runs whose evidence files were quarantined on 2026-10-21 for hard-coded measurements. The workflow has been relocated and repaired; the first real run requires the owner to push. Original text retained below as the audit trail.
+
 # Milestone R01-M03 Closure Record
 ## First Real CI Execution and Budget Measurement — Final Evidence Pack
 

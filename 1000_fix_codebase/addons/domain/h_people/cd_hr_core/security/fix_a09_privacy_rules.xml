@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 audit M21-4 / M56-8: every employee read every colleague's contract,
+     basic salary included. The rule is GLOBAL: contracts also carry the
+     generated operating-unit rule for internal users, and group rules combine
+     with OR, so a group rule here would not narrow anything. An employee reads
+     their own contract; the HR and payroll roles (res.users
+     fix_reads_all_people) read every row the other rules allow. -->
+<odoo>
+    <record id="rule_contract_own" model="ir.rule">
+        <field name="name">fix.employment.contract: own contract unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_employment_contract"/>
+        <!-- A09 P0-b: Legal Counsel reads the contracts it signs off (routed
+             approval, decided in the counsel's own environment). -->
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_hr_core.group_hr_legal_counsel')) else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- A sensitive master change (bank, NID, e-TIN) is read by HR and by the
+         employee it is about; nobody else sees another person's bank details. -->
+    <record id="rule_master_change_own" model="ir.rule">
+        <field name="name">fix.hr.master.change: own requests unless HR</field>
+        <field name="model_id" ref="model_fix_hr_master_change"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('create_uid', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_master_change_company" model="ir.rule">
+        <field name="name">fix.hr.master.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_master_change"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_disciplinary_case_company" model="ir.rule">
+        <field name="name">fix.hr.disciplinary.case: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_disciplinary_case"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- A09 audit M21-4 (C7, C8): every employee read colleagues' exit
+         reasons and settlements, NID scans, children's NIDs, qualifications,
+         references and promotion salaries. Global rules, as for contracts: the
+         subject reads their own; HR reads all; each decision role reads what
+         it decides; a line manager reads the movements of their reports. -->
+    <record id="rule_exit_own" model="ir.rule">
+        <field name="name">fix.hr.exit: own unless HR or a clearance / finance role</field>
+        <field name="model_id" ref="model_fix_hr_exit"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_hr_core.group_hr_finance') or user.has_group('cd_hr_core.group_clearance_it') or user.has_group('cd_hr_core.group_clearance_assets')) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_transfer_own" model="ir.rule">
+        <field name="name">fix.hr.transfer: own, the managers and evaluator on it, HR and the deciding roles</field>
+        <field name="model_id" ref="model_fix_hr_transfer"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), '|', ('employee_id.parent_id.user_id', '=', user.id), '|', ('to_manager_id.user_id', '=', user.id), '|', ('technical_evaluator_id.user_id', '=', user.id), '|', ('storekeeper_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_hr_core.group_hr_executive') or user.has_group('cd_hr_core.group_hr_finance') or user.has_group('cd_hr_core.group_clearance_assets')) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_document_own" model="ir.rule">
+        <field name="name">fix.hr.document: own unless HR</field>
+        <field name="model_id" ref="model_fix_hr_document"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people()) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_dependant_own" model="ir.rule">
+        <field name="name">fix.hr.dependant: own unless HR</field>
+        <field name="model_id" ref="model_fix_hr_dependant"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people()) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_education_own" model="ir.rule">
+        <field name="name">fix.hr.education: own unless HR</field>
+        <field name="model_id" ref="model_fix_hr_education"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people()) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_experience_own" model="ir.rule">
+        <field name="name">fix.hr.experience: own unless HR</field>
+        <field name="model_id" ref="model_fix_hr_experience"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people()) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_disciplinary_reader" model="ir.rule">
+        <field name="name">fix.hr.disciplinary.case: HR and the deciding executive</field>
+        <field name="model_id" ref="model_fix_hr_disciplinary_case"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_hr_core.group_hr_executive')) else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+</odoo>

@@ -26,6 +26,11 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_generate_charge" type="object" string="Generate Charge" class="btn-primary" invisible="state != 'active'"/>
+                    <button name="action_trigger_dunning" type="object" string="Run Dunning" invisible="state in ('cancelled', 'churned')"/>
+                    <button name="action_reinstate" type="object" string="Reinstate" invisible="state not in ('past_due', 'hold')"/>
+                    <button name="action_allocate_price" type="object" string="Allocate Price (IFRS 15)"/>
+                    <button name="action_request_refund" type="object" string="Cancel &amp; Refund" invisible="state in ('cancelled', 'churned')" confirm="Cancel this subscription and compute the pro-rata refund?"/>
                     <field name="state" widget="statusbar" statusbar_visible="trial,active,past_due,paused,cancelled"/>
                 </header>
                 <sheet>
@@ -43,8 +48,48 @@
                             <field name="start_date"/>
                             <field name="next_invoice_date"/>
                             <field name="consolidated"/>
+                            <field name="contract_value"/>
+                            <field name="contract_end_date"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Performance Obligations" name="obligations">
+                            <field name="obligation_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="obligation_type"/>
+                                    <field name="satisfaction"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="standalone_price"/>
+                                    <field name="allocated_amount"/>
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
+                                    <field name="recognized_amount"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Charges" name="charges">
+                            <field name="charge_ids" readonly="1">
+                                <list>
+                                    <field name="period_start"/>
+                                    <field name="period_end"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                    <field name="invoice_id"/>
+                                    <field name="invoice_state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Refund" name="refund" invisible="not last_refund_amount and not refund_credit_note_id">
+                            <group>
+                                <field name="last_refund_earned"/>
+                                <field name="last_refund_amount"/>
+                                <field name="refund_requires_approval"/>
+                                <field name="refund_credit_note_id"/>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -72,6 +117,99 @@
         </field>
     </record>
 
+    <record id="view_fix_revenue_schedule_form" model="ir.ui.view">
+        <field name="name">fix.revenue.schedule.form</field>
+        <field name="model">fix.revenue.schedule</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_recognize_period" type="object" string="Recognise to Today" class="btn-primary" invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="description"/>
+                            <field name="source_model"/>
+                            <field name="source_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_amount"/>
+                            <field name="recognized_amount"/>
+                            <field name="deferred_balance"/>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list>
+                            <field name="date"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount" sum="Recognised"/>
+                            <field name="move_id"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_performance_obligation_list" model="ir.ui.view">
+        <field name="name">fix.performance.obligation.list</field>
+        <field name="model">fix.performance.obligation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="subscription_id"/>
+                <field name="name"/>
+                <field name="obligation_type"/>
+                <field name="satisfaction"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="standalone_price"/>
+                <field name="allocated_amount" sum="Allocated"/>
+                <field name="recognized_amount"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_performance_obligation_form" model="ir.ui.view">
+        <field name="name">fix.performance.obligation.form</field>
+        <field name="model">fix.performance.obligation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_create_schedule" type="object" string="Create Revenue Schedule" class="btn-primary" invisible="state != 'allocated'"/>
+                    <button name="action_recognize" type="object" string="Recognise to Today" invisible="state != 'scheduled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,allocated,scheduled,satisfied"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="subscription_id"/>
+                            <field name="customer_id"/>
+                            <field name="name"/>
+                            <field name="obligation_type"/>
+                            <field name="satisfaction"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="standalone_price"/>
+                            <field name="allocated_amount"/>
+                            <field name="start_date" invisible="satisfaction != 'over_time'"/>
+                            <field name="end_date"/>
+                            <field name="schedule_id"/>
+                            <field name="recognized_amount"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_subscription" model="ir.actions.act_window">
         <field name="name">Subscriptions</field>
         <field name="res_model">fix.subscription</field>
@@ -87,8 +225,4 @@
     <menuitem id="menu_fix_subscription" name="Subscriptions"
               parent="cd_contract_core.menu_ws_contract"
               action="action_fix_subscription" sequence="30"/>
-    <menuitem id="menu_fix_revenue_schedule" name="Revenue Schedules"
-              parent="cd_gl_ext.menu_ws_finance"
-              action="action_fix_revenue_schedule" sequence="130"/>
-
 </odoo>

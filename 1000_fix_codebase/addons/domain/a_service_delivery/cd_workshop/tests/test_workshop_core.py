@@ -1,7 +1,8 @@
 # Tests for cd_workshop (M31, CD-M31-01, CD-M31-02, CD-M31-03).
 import inspect
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestWorkshopCore:
@@ -9,9 +10,9 @@ class TestWorkshopCore:
         """M31: verify all 5 core models are importable and defined."""
         from odoo.addons.cd_workshop.models.fix_workshop import FixWorkshop
         from odoo.addons.cd_workshop.models.fix_workshop_bench import FixWorkshopBench
+        from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
         from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
         from odoo.addons.cd_workshop.models.fix_workshop_part_line import FixWorkshopPartLine
-        from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
 
         assert FixWorkshop is not None
         assert FixWorkshopBench is not None
@@ -22,14 +23,19 @@ class TestWorkshopCore:
     def test_job_state_machine_declared(self):
         """AS-06 / DP-01: state transitions declared in one place with valid graph."""
         from odoo.addons.cd_workshop.models.fix_workshop_job import (
-            WORKSHOP_JOB_STATES, VALID_JOB_TRANSITIONS
+            VALID_JOB_TRANSITIONS,
+            WORKSHOP_JOB_STATES,
         )
-        assert len(WORKSHOP_JOB_STATES) == 11
-        assert len(VALID_JOB_TRANSITIONS) == 11
+
+        # 12 with the A02 audit's BER / scrap exit (M31-9); 13 with A02 pass 2
+        # M31-02's 'released' (the bench releases, M01's hand-over delivers)
+        assert len(WORKSHOP_JOB_STATES) == 13
+        assert len(VALID_JOB_TRANSITIONS) == 13
 
         # Terminal states
         assert VALID_JOB_TRANSITIONS["delivered"] == set()
         assert VALID_JOB_TRANSITIONS["cancelled"] == set()
+        assert VALID_JOB_TRANSITIONS["unrepairable"] == set()
 
         # Happy path transitions
         assert "intake" in VALID_JOB_TRANSITIONS["draft"]
@@ -37,7 +43,8 @@ class TestWorkshopCore:
         assert "burn_in" in VALID_JOB_TRANSITIONS["in_repair"]
         assert "qc_pending" in VALID_JOB_TRANSITIONS["burn_in"]
         assert "ready" in VALID_JOB_TRANSITIONS["qc_pending"]
-        assert "delivered" in VALID_JOB_TRANSITIONS["ready"]
+        assert "released" in VALID_JOB_TRANSITIONS["ready"]
+        assert "delivered" in VALID_JOB_TRANSITIONS["released"]
 
         # Rework loop exists
         assert "qc_failed" in VALID_JOB_TRANSITIONS["qc_pending"]
@@ -59,7 +66,9 @@ class TestWorkshopCore:
         job.name = "JOB-001"
         job.repair_level = "l2"  # Requires L2, bench is L1 -> should reject
 
-        with pytest.raises(UserError, match="requires L2 capability, but bench BENCH-TEST-L1 is only L1"):
+        with pytest.raises(
+            UserError, match="requires L2 capability, but bench BENCH-TEST-L1 is only L1"
+        ):
             FixWorkshopBench.action_assign_job(bench, job)
 
     def test_bench_capacity_limit_logic(self):
@@ -90,7 +99,7 @@ class TestWorkshopCore:
         assert 'self.env["fix.document"].attach' in source
         assert 'document_type="evidence_pack"' in source
         assert 'res_model="fix.workshop.job"' in source
-        assert 'isolation_tier=isolation_tier' in source
+        assert "isolation_tier=isolation_tier" in source
 
     def test_cross_wave_stub_m22_certification(self):
         """GV-005 / STUB-M31-M22-001: M31 -> M22 certification stub returns eligible with log until R06-M02."""
@@ -121,6 +130,13 @@ class TestWorkshopCore:
         mock_job.technician_id = mock_tech
         mock_job.qc_inspector_id = mock_tech  # Same person!
         mock_job.env.user.employee_id = mock_tech
+        # A02 audit M31-2: the check runs on the ACTING user (superuser here, so
+        # the role check is skipped), who is the repairing technician
+        mock_job.env.su = True
+        mock_job._m31_actor_is_technician.return_value = True
+        mock_job._m31_assert_qc_inspector = lambda: FixWorkshopJob._m31_assert_qc_inspector(
+            mock_job
+        )
 
         with pytest.raises(ValidationError, match="BRU-SRM-18 Violation"):
             FixWorkshopJob._run_qc_inspection(mock_job, passed=True)
@@ -143,7 +159,8 @@ class TestWorkshopCore:
         mock_job._validate_transition = MagicMock()
 
         with pytest.raises(UserError, match="requires burn-in test to pass before QC"):
-            FixWorkshopJob.action_transition(mock_job, "qc_pending")
+            # A02 audit M31-7: the gates live in the private _transition engine
+            FixWorkshopJob._transition(mock_job, "qc_pending")
 
     def test_monetary_costing_totals(self):
         """AS-10: Monetary total calculations."""
@@ -153,10 +170,17 @@ class TestWorkshopCore:
         mock_job.__iter__.return_value = [mock_job]
         line1 = MagicMock()
         line1.subtotal = 3500.0
+        line1.reservation_state = "consumed"
         line2 = MagicMock()
         line2.subtotal = 1200.0
-        mock_job.part_line_ids = [line1, line2]
+        line2.reservation_state = "consumed"
+        # A02 ERP audit M31-F12: a line that was never fitted costs nothing
+        line3 = MagicMock()
+        line3.subtotal = 999.0
+        line3.reservation_state = "reserved"
+        mock_job.part_line_ids = [line1, line2, line3]
         mock_job.labour_total = 800.0
+        mock_job._m31_fitted_parts_cost = lambda: FixWorkshopJob._m31_fitted_parts_cost(mock_job)
 
         FixWorkshopJob._compute_totals(mock_job)
         assert mock_job.parts_total == 4700.0
@@ -185,8 +209,8 @@ class TestWorkshopCore:
     def test_event_publish_sources(self):
         """AS-08: Events published from bench allocation, job transition, and evidence recording."""
         from odoo.addons.cd_workshop.models.fix_workshop_bench import FixWorkshopBench
-        from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
         from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
+        from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
 
         bench_src = inspect.getsource(FixWorkshopBench._emit_bench_assigned)
         assert "workshop.bench.assigned" in bench_src

@@ -1,2 +1,1 @@
-from . import test_workshop_core
-from . import test_workshop_security
+from . import test_workshop_core, test_workshop_security

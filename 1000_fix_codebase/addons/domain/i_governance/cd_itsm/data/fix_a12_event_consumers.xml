@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 D8 (FF-48): cd_itsm publishes its own lifecycle events; these
+     consumers relay them onto the record's chatter so the decision trail is
+     visible without opening the outbox. Methods live in the module's models
+     (consume_* must start with consume_ for the relay). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_itsm_ticket_created" model="fix.event.consumer">
+            <field name="name">M66: ticket created chatter relay</field>
+            <field name="event_type">itsm.ticket_created</field>
+            <field name="model">fix.itsm.ticket</field>
+            <field name="method">consume_ticket_created</field>
+            <field name="module">cd_itsm</field>
+        </record>
+        <record id="consumer_itsm_ticket_resolved" model="fix.event.consumer">
+            <field name="name">M66: ticket resolved chatter relay</field>
+            <field name="event_type">itsm.ticket_resolved</field>
+            <field name="model">fix.itsm.ticket</field>
+            <field name="method">consume_ticket_resolved</field>
+            <field name="module">cd_itsm</field>
+        </record>
+        <record id="consumer_itsm_change_implemented" model="fix.event.consumer">
+            <field name="name">M66: change implemented chatter relay</field>
+            <field name="event_type">itsm.change_implemented</field>
+            <field name="model">fix.itsm.change</field>
+            <field name="method">consume_change_implemented</field>
+            <field name="module">cd_itsm</field>
+        </record>
+        <record id="consumer_itsm_asset_retired" model="fix.event.consumer">
+            <field name="name">M66: asset retired chatter relay</field>
+            <field name="event_type">itsm.asset_retired</field>
+            <field name="model">fix.itsm.asset</field>
+            <field name="method">consume_asset_retired</field>
+            <field name="module">cd_itsm</field>
+        </record>
+    </data>
+</odoo>

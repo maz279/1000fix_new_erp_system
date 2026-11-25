@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumer of party.merged for M07 (A03 audit W1): open leads follow a
+     supervised party merge. Each re-point is logged in
+     fix.party.repoint.log, so a merge reversal moves it back. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_party_merged_crm_lead" model="fix.event.consumer">
+            <field name="name">M07: open leads follow the merged customer</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">crm.lead</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_crm_ext</field>
+        </record>
+
+    </data>
+</odoo>

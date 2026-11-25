@@ -13,6 +13,7 @@ Sweeps EVERY @http.route endpoint in the estate (enumerated from source,
 Loopback-pinned (SSRF guard), no redirects, no credential literals.
 Exit: 0 = all pass, 1 = failures printed with evidence.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,8 +33,7 @@ ADMIN = ("admin", "admin")  # dev-only database credentials
 
 def safe_url(path: str) -> str:
     parts = urllib.parse.urlsplit(BASE + path)
-    if (parts.scheme != "http" or parts.hostname != "127.0.0.1"
-            or parts.port != 8069):
+    if parts.scheme != "http" or parts.hostname != "127.0.0.1" or parts.port != 8069:
         raise ValueError(f"refusing non-loopback: {path!r}")
     return BASE + path
 
@@ -48,10 +48,14 @@ _OPENER = urllib.request.build_opener(_NoRedirect)
 
 def post(path, payload, cookie=""):
     req = urllib.request.Request(
-        safe_url(path), data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json",
-                 "Accept": "application/json",
-                 **({"Cookie": cookie} if cookie else {})})
+        safe_url(path),
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            **({"Cookie": cookie} if cookie else {}),
+        },
+    )
     try:
         with _OPENER.open(req, timeout=30) as r:
             return r.status, r.headers.get("set-cookie", ""), json.loads(r.read())
@@ -70,11 +74,11 @@ def enumerate_routes():
             continue
         try:
             src = f.read_text(encoding="utf-8")
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
         for m in re.finditer(
-                r'@http\.route\(\s*(\[[^\]]*\]|"[^"]*"|\'[^\']*\')\s*,?([^)]*)\)',
-                src, re.S):
+            r'@http\.route\(\s*(\[[^\]]*\]|"[^"]*"|\'[^\']*\')\s*,?([^)]*)\)', src, re.S
+        ):
             for p in re.findall(r'"([^"]+)"|\'([^\']+)\'', m.group(1)):
                 path = p[0] or p[1]
                 rest = m.group(2)
@@ -87,9 +91,10 @@ def main() -> int:
     deadline = time.time() + 90
     cookie = ""
     while time.time() < deadline:
-        code, sc, body = post("/web/session/authenticate", {
-            "jsonrpc": "2.0",
-            "params": {"db": DB, "login": ADMIN[0], "password": ADMIN[1]}})
+        code, sc, body = post(
+            "/web/session/authenticate",
+            {"jsonrpc": "2.0", "params": {"db": DB, "login": ADMIN[0], "password": ADMIN[1]}},
+        )
         if code == 200 and body.get("result", {}).get("uid"):
             cookie = sc.split(";")[0]
             break
@@ -104,19 +109,25 @@ def main() -> int:
     for path in sorted(routes):
         # --- unauthenticated probe -------------------------------------
         code, _, body = post(path, {"jsonrpc": "2.0", "params": {}})
-        crashed = isinstance(body, dict) and "error" in body and (
-            "Odoo Server Error" in str(body["error"].get("message", "")))
+        crashed = (
+            isinstance(body, dict)
+            and "error" in body
+            and ("Odoo Server Error" in str(body["error"].get("message", "")))
+        )
         if code >= 500 or crashed:
             fails.append(f"UNAUTH {path} -> {code} {str(body)[:120]}")
 
         # --- authenticated probe ---------------------------------------
         code, _, body = post(path, {"jsonrpc": "2.0", "params": {}}, cookie)
         server_err = (code >= 500) or (
-            isinstance(body, dict) and "error" in body and
-            "Odoo Server Error" in str(body["error"].get("message", "")) and
+            isinstance(body, dict)
+            and "error" in body
+            and "Odoo Server Error" in str(body["error"].get("message", ""))
+            and
             # a clean ValidationError/UserError refusal is a valid answer
             "ValidationError" not in str(body["error"].get("data", {}).get("name", ""))
-            and "UserError" not in str(body["error"].get("data", {}).get("name", "")))
+            and "UserError" not in str(body["error"].get("data", {}).get("name", ""))
+        )
         structured = isinstance(body, dict) and ("result" in body or "error" in body)
         if server_err or not structured:
             fails.append(f"AUTH {path} -> {code} {str(body)[:140]}")
@@ -125,11 +136,15 @@ def main() -> int:
         print("FAILURES:")
         for f in fails:
             print("  ", f)
-        print(f"\nendpoint sweep: {len(routes) - len(set(x.split()[1] for x in fails))}"
-              f" clean / {len(set(x.split()[1] for x in fails))} with failures")
+        print(
+            f"\nendpoint sweep: {len(routes) - len({x.split()[1] for x in fails})}"
+            f" clean / {len({x.split()[1] for x in fails})} with failures"
+        )
         return 1
-    print(f"endpoint sweep: {len(routes)}/{len(routes)} routes clean "
-          "(unauth refused properly; auth answers structured)")
+    print(
+        f"endpoint sweep: {len(routes)}/{len(routes)} routes clean "
+        "(unauth refused properly; auth answers structured)"
+    )
     return 0
 
 

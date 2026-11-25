@@ -7,83 +7,829 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Workshop & Depot Repair"
-msgstr "ওয়ার্কশপ ও ডিপো মেরামত"
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__active_job_ids
+msgid "Active Bench Jobs"
+msgstr "বেঞ্চের সক্রিয় জবসমূহ"
 
-msgid "WIP Operations Board"
-msgstr "ডব্লিউআইপি অপারেশন বোর্ড"
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+msgid "Active Jobs on Bench"
+msgstr "বেঞ্চে সক্রিয় জব"
 
-msgid "Repair Orders"
-msgstr "মেরামত অর্ডার"
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__active_job_count
+msgid "Active WIP Jobs"
+msgstr "সক্রিয় WIP জব"
 
-msgid "Bench Board & Stations"
-msgstr "বেঞ্চ বোর্ড ও স্টেশন"
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__technician_id
+msgid "Assigned Bench Technician"
+msgstr "নিয়োজিত বেঞ্চ টেকনিশিয়ান"
 
-msgid "Workshop Facilities"
-msgstr "ওয়ার্কশপ সুবিধাসমূহ"
-
-msgid "Job Reference"
-msgstr "কাজের রেফারেন্স"
-
-msgid "Parent Service Order"
-msgstr "মূল সার্ভিস অর্ডার"
-
-msgid "Workshop Facility"
-msgstr "ওয়ার্কশপ সুবিধা"
-
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__bench_id
 msgid "Assigned Repair Bench"
 msgstr "নির্ধারিত মেরামত বেঞ্চ"
 
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__technician_id
 msgid "Assigned Technician"
-msgstr "নির্ধারিত টেকনিশিয়ান"
+msgstr "নিয়োজিত টেকনিশিয়ান"
 
-msgid "QC Inspector"
-msgstr "কিউসি পরিদর্শক"
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__branch_id
+msgid "Associated Branch Hub"
+msgstr "সংশ্লিষ্ট শাখা হাব"
 
-msgid "Repair Level"
-msgstr "মেরামত স্তর"
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__state__available
+msgid "Available"
+msgstr "উপলব্ধ"
 
-msgid "Reported Fault"
-msgstr "রিপোর্টকৃত ত্রুটি"
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__available_bench_count
+msgid "Available Benches"
+msgstr "উপলব্ধ বেঞ্চ"
 
-msgid "Diagnosis & Defect Coding"
-msgstr "ডায়াগনোসিস ও ত্রুটি কোডিং"
+#. module: cd_workshop
+#: model:ir.ui.menu,name:cd_workshop.menu_fix_workshop_benches
+msgid "Bench Board & Stations"
+msgstr "বেঞ্চ বোর্ড ও স্টেশন"
 
-msgid "Repair Actions Taken"
-msgstr "গৃহীত মেরামত পদক্ষেপ"
-
-msgid "Burn-In Duration (Hours)"
-msgstr "বার্ন-ইন সময়কাল (ঘণ্টা)"
-
-msgid "Burn-In Passed"
-msgstr "বার্ন-ইন উত্তীর্ণ"
-
-msgid "QC Passed"
-msgstr "কিউসি উত্তীর্ণ"
-
-msgid "Parts Consumed"
-msgstr "ব্যবহৃত যন্ত্রাংশ"
-
-msgid "Total Repair Cost"
-msgstr "মোট মেরামত ব্যয়"
-
-msgid "Internal Rework"
-msgstr "অভ্যন্তরীণ রিওয়ার্ক"
-
-msgid "Legacy Reference"
-msgstr "পূর্ববর্তী রেফারেন্স"
-
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__code
 msgid "Bench Code"
 msgstr "বেঞ্চ কোড"
 
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__name
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
 msgid "Bench Name"
 msgstr "বেঞ্চের নাম"
 
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__state
 msgid "Bench Status"
 msgstr "বেঞ্চের অবস্থা"
 
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__bench_utilization
+msgid "Bench Utilization (%)"
+msgstr "বেঞ্চ ব্যবহারের হার (%)"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "Benches"
+msgstr "বেঞ্চসমূহ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Burn-In & Quality Control"
+msgstr "বার্ন-ইন ও মান নিয়ন্ত্রণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__burn_in
+msgid "Burn-In & Stress Testing"
+msgstr "বার্ন-ইন ও স্ট্রেস টেস্টিং"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__burn_in_completed_at
+msgid "Burn-In Completed At"
+msgstr "বার্ন-ইন সম্পন্নের সময়"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__burn_in_duration_hours
+msgid "Burn-In Duration (Hours)"
+msgstr "বার্ন-ইন সময়কাল (ঘণ্টা)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__burn_in_passed
+msgid "Burn-In Passed"
+msgstr "বার্ন-ইন উত্তীর্ণ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Burn-In Protocol (CD-M31-03)"
+msgstr "বার্ন-ইন প্রোটোকল (CD-M31-03)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__burn_in_started_at
+msgid "Burn-In Started At"
+msgstr "বার্ন-ইন শুরুর সময়"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__calibration_expiry_date
+msgid "Calibration Expiry"
+msgstr "ক্যালিব্রেশনের মেয়াদ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Cancel Job"
+msgstr "জব বাতিল করুন"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__captured_by_id
+msgid "Captured By"
+msgstr "সংগ্রহকারী"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop__workshop_type__central
+msgid "Central Depot (L1/L2/L3 Advanced Cleanroom)"
+msgstr "কেন্দ্রীয় ডিপো (L1/L2/L3 উন্নত ক্লিনরুম)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__certification_waiver
+msgid "Certification Waiver"
+msgstr "সার্টিফিকেশন মওকুফ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__burn_in_temp_celsius
+msgid "Chamber Temp (°C)"
+msgstr "চেম্বারের তাপমাত্রা (°C)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__city
+msgid "City"
+msgstr "শহর"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__company_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__company_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__company_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__company_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__completed_at
+msgid "Completed Date"
+msgstr "সম্পন্নের তারিখ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__diagnostic
+msgid "Component Diagnosis"
+msgstr "উপাদান ডায়াগনোসিস"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__diagnostic_report
+msgid "Component Diagnostic Report & Electrical Measurements"
+msgstr "উপাদান ডায়াগনস্টিক রিপোর্ট ও বৈদ্যুতিক পরিমাপ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__currency_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__current_job_count
+msgid "Current Active Jobs"
+msgstr "বর্তমান সক্রিয় জব"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Deliver / Release"
+msgstr "ডেলিভার / হস্তান্তর করুন"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__delivered
+msgid "Delivered / Handed Over"
+msgstr "ডেলিভারি সম্পন্ন / হস্তান্তরিত"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "Details"
+msgstr "বিবরণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__serial_verification
+msgid "Device Serial / IMEI Barcode Scan Proof"
+msgstr "ডিভাইস সিরিয়াল / IMEI বারকোড স্ক্যানের প্রমাণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__diagnostic_findings
+msgid "Diagnosis & Defect Coding"
+msgstr "ডায়াগনোসিস ও ত্রুটি কোডিং"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__phone
+msgid "Direct Phone"
+msgstr "সরাসরি ফোন"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__during_repair_photo
+msgid "During-Repair Micro-Soldering / Component Replacement"
+msgstr "মেরামতকালীন মাইক্রো-সোল্ডারিং / উপাদান প্রতিস্থাপন"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__priority__emergency
+msgid "Emergency"
+msgstr "জরুরি"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+msgid "Equipment Specifications"
+msgstr "যন্ত্রপাতির বিবরণী"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__is_esd_certified
+msgid "ESD Protected Area (EPA)"
+msgstr "ESD সুরক্ষিত এলাকা (EPA)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__is_esd_safe
 msgid "ESD Safe Station"
 msgstr "ইএসডি নিরাপদ স্টেশন"
 
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__evidence_type
+msgid "Evidence Category"
+msgstr "প্রমাণের শ্রেণি"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__description
+msgid "Evidence Notes / Observations"
+msgstr "প্রমাণ নোট / পর্যবেক্ষণ"
+
+#. module: cd_workshop
 msgid "Evidence Pack"
-msgstr "প্রমাণ নথি প্যাকেজ"
+msgstr "প্রমাণ প্যাক"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Evidence Pack (cd_document_core)"
+msgstr "প্রমাণ প্যাক (cd_document_core)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__evidence_ids
+msgid "Evidence Pack Records"
+msgstr "প্রমাণ প্যাকের রেকর্ডসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__name
+msgid "Evidence Title"
+msgstr "প্রমাণের শিরোনাম"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop__workshop_type__express
+msgid "Express Branch Workshop (L1 Modular Quick-Fix)"
+msgstr "এক্সপ্রেস শাখা ওয়ার্কশপ (L1 মডিউলার দ্রুত মেরামত)"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "Facility Name"
+msgstr "সুবিধার নাম"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__workshop_type
+msgid "Facility Type"
+msgstr "সুবিধার ধরন"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Fail QC (Rework)"
+msgstr "QC অনুত্তীর্ণ (পুনঃকাজ)"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Fault & Diagnosis"
+msgstr "ত্রুটি ও ডায়াগনোসিস"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__notes
+msgid "Fitment Notes"
+msgstr "সংযোজন নোট"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__document_id
+msgid "Governed Document"
+msgstr "নিয়ন্ত্রিত দলিল"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__priority__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+msgid "Identity & Classification"
+msgstr "পরিচয় ও শ্রেণিবিভাগ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__in_repair
+msgid "In Repair on Bench"
+msgstr "বেঞ্চে মেরামতাধীন"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Intake"
+msgstr "ইনটেক"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__intake
+msgid "Intake & Routing"
+msgstr "ইনটেক ও রাউটিং"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__intake_date
+msgid "Intake Date"
+msgstr "গ্রহণের তারিখ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__is_rework
+msgid "Internal Rework"
+msgstr "অভ্যন্তরীণ রিওয়ার্ক"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__isolation_tier
+msgid "Isolation Tier"
+msgstr "আইসোলেশন স্তর"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__name
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Job Reference"
+msgstr "কাজের রেফারেন্স"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__labour_total
+msgid "Labour Cost"
+msgstr "শ্রম খরচ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__legacy_reference
+msgid "Legacy Reference"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__repair_level__l1
+msgid "Level 1 — Modular / Quick Fix"
+msgstr "স্তর ১ — মডিউলার / দ্রুত মেরামত"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__repair_level__l1
+msgid "Level 1 — Modular / Quick Fix (Screen, Battery, Housing)"
+msgstr "স্তর ১ — মডিউলার / দ্রুত মেরামত (স্ক্রিন, ব্যাটারি, হাউজিং)"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__repair_level__l2
+msgid "Level 2 — Component / Soldering"
+msgstr "স্তর ২ — উপাদান / সোল্ডারিং"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__repair_level__l2
+msgid "Level 2 — Component / Soldering (Power IC, Sub-PCB, Charging Port)"
+msgstr "স্তর ২ — উপাদান / সোল্ডারিং (পাওয়ার IC, সাব-PCB, চার্জিং পোর্ট)"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__repair_level__l3
+msgid "Level 3 — Chip-Level / Advanced Depot"
+msgstr "স্তর ৩ — চিপ-স্তর / উন্নত ডিপো"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__repair_level__l3
+msgid "Level 3 — Chip-Level / Advanced Depot (BGA Reballing, Cleanroom, Motherboard)"
+msgstr "স্তর ৩ — চিপ-স্তর / উন্নত ডিপো (BGA রিবলিং, ক্লিনরুম, মাদারবোর্ড)"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "Location & Capacity"
+msgstr "অবস্থান ও ধারণক্ষমতা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__max_concurrent_jobs
+msgid "Max Concurrent Jobs"
+msgstr "সর্বোচ্চ একযোগে জব"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__multi_job_group_id
+msgid "Multi-Job Group ID"
+msgstr "মাল্টি-জব গ্রুপ আইডি"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__ncr_id
+msgid "NCR (M23)"
+msgstr "NCR — অসঙ্গতি রেকর্ড (M23)"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__priority__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__notes
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__state__occupied
+msgid "Occupied"
+msgstr "ব্যস্ত"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__state__offline
+msgid "Offline / Closed"
+msgstr "অফলাইন / বন্ধ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__parts_verification
+msgid "Old vs New Parts Verification Photograph"
+msgstr "পুরনো বনাম নতুন যন্ত্রাংশ যাচাইয়ের ছবি"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__operating_unit_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__operating_unit_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__operating_unit_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__operating_unit_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__notes
+msgid "Operational Notes"
+msgstr "পরিচালনগত নোট"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__order_reference
+msgid "Order Ref"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__order_id
+msgid "Parent Service Order"
+msgstr "মূল সার্ভিস অর্ডার"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__part_name
+msgid "Part Description"
+msgstr "যন্ত্রাংশের বিবরণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__part_line_ids
+msgid "Parts Consumed"
+msgstr "ব্যবহৃত যন্ত্রাংশ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__parts_total
+msgid "Parts Total"
+msgstr "যন্ত্রাংশের মোট খরচ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Pass Burn-In"
+msgstr "বার্ন-ইন উত্তীর্ণ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Pass QC"
+msgstr "QC উত্তীর্ণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__post_repair_photo
+msgid "Post-Repair Finished Product Photograph"
+msgstr "মেরামত-পরবর্তী সম্পন্ন পণ্যের ছবি"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__pre_repair_photo
+msgid "Pre-Repair Physical Condition Photo"
+msgstr "মেরামত-পূর্ব ভৌত অবস্থার ছবি"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__qc_failed
+msgid "QC Failed — Rework Loop"
+msgstr "QC অনুত্তীর্ণ — পুনঃকাজ চক্র"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__qc_notes
+msgid "QC Inspection Notes"
+msgstr "QC পরিদর্শন নোট"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__qc_inspector_id
+msgid "QC Inspector"
+msgstr "কিউসি পরিদর্শক"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__qc_passed
+msgid "QC Passed"
+msgstr "কিউসি উত্তীর্ণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__qc_pending
+msgid "QC Pending"
+msgstr "QC অপেক্ষমাণ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Quality Control & Rework"
+msgstr "মান নিয়ন্ত্রণ ও পুনঃকাজ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__quantity
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__ready
+msgid "Ready for Release / Handover"
+msgstr "হস্তান্তরের জন্য প্রস্তুত"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop__workshop_type__regional
+msgid "Regional Hub Workshop (L1/L2 Board Repair)"
+msgstr "আঞ্চলিক হাব ওয়ার্কশপ (L1/L2 বোর্ড মেরামত)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__repair_action_summary
+msgid "Repair Actions Taken"
+msgstr "গৃহীত মেরামত পদক্ষেপ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+msgid "Repair Bench"
+msgstr "মেরামত বেঞ্চ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__bench_ids
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_tree
+msgid "Repair Benches"
+msgstr "মেরামত বেঞ্চসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__repair_level
+msgid "Repair Level"
+msgstr "মেরামত স্তর"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__repair_level
+msgid "Repair Level Capability"
+msgstr "মেরামত স্তরের সক্ষমতা"
+
+#. module: cd_workshop
+#: model:ir.ui.menu,name:cd_workshop.menu_fix_workshop_jobs
+msgid "Repair Orders"
+msgstr "মেরামত অর্ডারসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__fault_description
+msgid "Reported Fault"
+msgstr "রিপোর্টকৃত ত্রুটি"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__rework_count
+msgid "Rework Count"
+msgstr "পুনঃকাজের সংখ্যা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__rework_of_id
+msgid "Rework Of Job"
+msgstr "যে জবের পুনঃকাজ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__rework_reason
+msgid "Rework Reason"
+msgstr "পুনঃকাজের কারণ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Routing & Facility Allocation"
+msgstr "রাউটিং ও সুবিধা বরাদ্দ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__lot_serial_number
+msgid "Serial / Lot Number"
+msgstr "সিরিয়াল / লট নম্বর"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__device_serial
+msgid "Serial Number"
+msgstr "সিরিয়াল নম্বর"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Service Order & Device"
+msgstr "সার্ভিস অর্ডার ও ডিভাইস"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__part_number
+msgid "SKU / Part Number"
+msgstr "SKU / যন্ত্রাংশ নম্বর"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__product_id
+msgid "Spare Part"
+msgstr "খুচরা যন্ত্রাংশ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Spare Parts Consumed"
+msgstr "ব্যবহৃত খুচরা যন্ত্রাংশ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Start Burn-In Testing"
+msgstr "বার্ন-ইন পরীক্ষা শুরু করুন"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Start Diagnosis"
+msgstr "ডায়াগনোসিস শুরু করুন"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Start Repair on Bench"
+msgstr "বেঞ্চে মেরামত শুরু করুন"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__equipment_specs
+msgid "Station Equipment Specs"
+msgstr "স্টেশনের যন্ত্রপাতির বিবরণ"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+msgid "Status & Capacity"
+msgstr "অবস্থা ও ধারণক্ষমতা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__consumption_ref
+msgid "Stock Consumption Ref"
+msgstr "মজুদ ব্যবহারের রেফারেন্স"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__street
+msgid "Street Address"
+msgstr "রাস্তার ঠিকানা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__subtotal
+msgid "Subtotal"
+msgstr "উপমোট"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__technician_certification
+msgid "Technician Calibration & Competency Sign-Off"
+msgstr "টেকনিশিয়ান ক্যালিব্রেশন ও দক্ষতা অনুমোদন"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__equipment_id
+msgid "Test Equipment Used"
+msgstr "ব্যবহৃত পরীক্ষা যন্ত্রপাতি"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_evidence__evidence_type__burn_in_log
+msgid "Thermal Chamber & Stress Test Telemetry Log"
+msgstr "থার্মাল চেম্বার ও স্ট্রেস টেস্ট টেলিমেট্রি লগ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__captured_at
+msgid "Timestamp"
+msgstr "টাইমস্ট্যাম্প"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__bench_count
+msgid "Total Benches"
+msgstr "মোট বেঞ্চ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__total_repair_cost
+msgid "Total Repair Cost"
+msgstr "মোট মেরামত ব্যয়"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_bench__state__maintenance
+msgid "Under Maintenance / Tool Calibration"
+msgstr "রক্ষণাবেক্ষণাধীন / সরঞ্জাম ক্যালিব্রেশন"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__attachment_id
+msgid "Underlying File"
+msgstr "মূল ফাইল"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__unit_cost
+msgid "Unit Cost"
+msgstr "একক ব্যয়"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__priority__urgent
+msgid "Urgent"
+msgstr "জরুরি"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Wait for Parts"
+msgstr "যন্ত্রাংশের অপেক্ষা করুন"
+
+#. module: cd_workshop
+#: model:ir.model.fields.selection,name:cd_workshop.selection__fix_workshop_job__state__waiting_parts
+msgid "Waiting for Spare Parts"
+msgstr "খুচরা যন্ত্রাংশের অপেক্ষায়"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__certification_waiver_reason
+msgid "Waiver Justification"
+msgstr "মওকুফের যৌক্তিকতা"
+
+#. module: cd_workshop
+#: model:ir.actions.act_window,name:cd_workshop.action_fix_workshop_job_wip_board
+#: model:ir.ui.menu,name:cd_workshop.menu_fix_workshop_wip
+msgid "WIP Operations Board"
+msgstr "ডব্লিউআইপি অপারেশন বোর্ড"
+
+#. module: cd_workshop
+#: model:ir.ui.menu,name:cd_workshop.menu_fix_workshop_root
+msgid "Workshop & Depot Repair"
+msgstr "ওয়ার্কশপ ও ডিপো মেরামত"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__code
+msgid "Workshop Code"
+msgstr "ওয়ার্কশপ কোড"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__email
+msgid "Workshop Email"
+msgstr "ওয়ার্কশপ ইমেইল"
+
+#. module: cd_workshop
+#: model:ir.actions.act_window,name:cd_workshop.action_fix_workshop
+#: model:ir.ui.menu,name:cd_workshop.menu_fix_workshop_facilities
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_tree
+msgid "Workshop Facilities"
+msgstr "ওয়ার্কশপ সুবিধাসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__workshop_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__workshop_id
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "Workshop Facility"
+msgstr "ওয়ার্কশপ সুবিধা"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_evidence__job_id
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_part_line__job_id
+msgid "Workshop Job"
+msgstr "ওয়ার্কশপ জব"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__job_ids
+msgid "Workshop Jobs"
+msgstr "ওয়ার্কশপ জবসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__name
+msgid "Workshop Name"
+msgstr "ওয়ার্কশপের নাম"
+
+#. module: cd_workshop
+#: model:ir.model,name:cd_workshop.model_fix_workshop_job
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "Workshop Repair Job"
+msgstr "ওয়ার্কশপ মেরামত জব"
+
+#. module: cd_workshop
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_tree
+msgid "Workshop Repair Jobs"
+msgstr "ওয়ার্কশপ মেরামত জবসমূহ"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__manager_id
+msgid "Workshop Supervisor / Manager"
+msgstr "ওয়ার্কশপ সুপারভাইজার / ব্যবস্থাপক"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_job__name_bn
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_job_form
+msgid "নথি নম্বর (বাংলা)"
+msgstr "নথি নম্বর (বাংলা)"
+
+#. module: cd_workshop
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop__name_bn
+#: model:ir.model.fields,field_description:cd_workshop.field_fix_workshop_bench__name_bn
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_bench_form
+#: model_terms:ir.ui.view,arch_db:cd_workshop.view_fix_workshop_form
+msgid "নাম (বাংলা)"
+msgstr "নাম (বাংলা)"

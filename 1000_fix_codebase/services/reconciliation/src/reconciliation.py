@@ -20,8 +20,10 @@ auto_match uses):
 
 Anything unmatched falls to manual review — never guessed.
 """
+
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -35,6 +37,7 @@ TARGET_MATCH_RATE = 90  # G3-02, percent
 @dataclass(frozen=True)
 class OpenItem:
     """An unpaid invoice awaiting settlement."""
+
     ref: str
     customer: str
     amount: Decimal
@@ -52,9 +55,12 @@ class StatementLine:
 @dataclass
 class Match:
     line_index: int
-    rule: str          # R1..R4 | manual
+    rule: str  # R1..R4 | manual
     item_ref: str
     detail: str = ""
+    # Every open item this line settles. R4 batch lines settle SEVERAL
+    # invoices at once; empty means just `item_ref`.
+    item_refs: tuple[str, ...] = ()
 
 
 @dataclass
@@ -74,6 +80,12 @@ def _amount_eq(a: Decimal, b: Decimal) -> bool:
 
 def _within(line_date: date, item_date: date, days: int) -> bool:
     return abs((line_date - item_date).days) <= days
+
+
+def _ref_in(ref: str, text: str) -> bool:
+    """`ref` appears in `text` as a whole token: "AR/1" must not match
+    inside "AR/10" or "AR/101" (that settles the wrong invoice)."""
+    return re.search(rf"(?<![A-Z0-9]){re.escape(ref.upper())}(?![A-Z0-9])", text) is not None
 
 
 def reconcile(lines: list[StatementLine], items: list[OpenItem]) -> ReconResult:
@@ -96,36 +108,56 @@ def reconcile(lines: list[StatementLine], items: list[OpenItem]) -> ReconResult:
         match = None
 
         if any(upper_ref.startswith(p) or narration.startswith(p) for p in GATEWAY_PREFIXES):
-            # R4: settlement batches — sum of open items equal to the batch
-            batch_sum = sum((i.amount for i in items if i.ref not in taken), Decimal("0"))
-            if _amount_eq(batch_sum, line.amount):
-                for item in items:
-                    if item.ref not in taken and _within(line.date, item.due_date, WINDOW_DAYS_LOOSE):
-                        match = Match(line_index, "R4", item.ref,
-                                      detail="gateway settlement batch")
-                        break
+            # R4: settlement batches — the open items inside the settlement
+            # window whose SUM equals the batch line. The batch settles ALL
+            # of them (each is taken), not only the first.
+            batch = [
+                i
+                for i in items
+                if i.ref not in taken and _within(line.date, i.due_date, WINDOW_DAYS_LOOSE)
+            ]
+            batch_sum = sum((i.amount for i in batch), Decimal("0"))
+            if batch and _amount_eq(batch_sum, line.amount):
+                refs = tuple(i.ref for i in batch)
+                match = Match(
+                    line_index,
+                    "R4",
+                    refs[0],
+                    detail=f"gateway settlement batch: {', '.join(refs)}",
+                    item_refs=refs,
+                )
         if match is None:
-            match = find("R1", lambda it: (
-                _amount_eq(it.amount, line.amount)
-                and (it.ref.upper() in upper_ref or it.ref.upper() in narration)))
+            match = find(
+                "R1",
+                lambda it: (
+                    _amount_eq(it.amount, line.amount)  # noqa: B023 - find() calls it now, same iteration
+                    and (_ref_in(it.ref, upper_ref) or _ref_in(it.ref, narration))  # noqa: B023 - find() calls it now
+                ),
+            )
         if match is None:
             candidates = [
-                it for it in items
-                if it.ref not in taken and _amount_eq(it.amount, line.amount)
+                it
+                for it in items
+                if it.ref not in taken
+                and _amount_eq(it.amount, line.amount)
                 and _within(line.date, it.due_date, WINDOW_DAYS_EXACT)
             ]
             if len(candidates) == 1:  # uniqueness — ambiguity goes to manual
                 match = Match(line_index, "R2", candidates[0].ref)
         if match is None:
             tokens = {t for t in narration.split() if len(t) >= 4}
-            match = find("R3", lambda it: (
-                _amount_eq(it.amount, line.amount)
-                and _within(line.date, it.due_date, WINDOW_DAYS_LOOSE)
-                and any(tok in it.customer.upper() for tok in tokens)))
+            match = find(
+                "R3",
+                lambda it: (
+                    _amount_eq(it.amount, line.amount)  # noqa: B023 - find() calls it now, same iteration
+                    and _within(line.date, it.due_date, WINDOW_DAYS_LOOSE)  # noqa: B023 - find() calls it now
+                    and any(tok in it.customer.upper() for tok in tokens)  # noqa: B023 - find() calls it now
+                ),
+            )
 
         if match:
             result.matches.append(match)
-            taken.add(match.item_ref)
+            taken.update(match.item_refs or (match.item_ref,))
         else:
             result.manual.append(line_index)
 
@@ -149,8 +181,10 @@ def main() -> None:
         StatementLine(today, Decimal("99.00"), narration="BANK CHARGE"),
     ]
     result = reconcile(lines, items)
-    print(f"matched={len(result.matches)} manual={result.manual} rate={result.match_rate}% "
-          f"gate={'PASS' if result.meets_gate else 'FAIL'}")
+    print(
+        f"matched={len(result.matches)} manual={result.manual} rate={result.match_rate}% "
+        f"gate={'PASS' if result.meets_gate else 'FAIL'}"
+    )
 
 
 if __name__ == "__main__":

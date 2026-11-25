@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "warranty_claim.approved",
+  "description": "Event emitted when brand reimburses approved warranty repair costs (Journey 4)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "warranty_claim.approved"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_warranty_claims"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "claim_id",
+        "claim_number",
+        "reimbursed_amount",
+        "approved_at"
+      ],
+      "properties": {
+        "claim_id": {
+          "type": "integer"
+        },
+        "claim_number": {
+          "type": "string"
+        },
+        "reimbursed_amount": {
+          "type": "number"
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

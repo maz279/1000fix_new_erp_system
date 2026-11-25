@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M39 capture audit (2026-11-19): an approved pause, resume, cancellation or
+     renewal dated in the future takes effect on its date, and a pause ends on
+     its "paused until" date (FR-SUB-018). Daily and idempotent. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_subscription_lifecycle" model="ir.cron">
+            <field name="name">M39: apply due subscription pause / cancel / renew requests</field>
+            <field name="model_id" ref="model_fix_subscription_lifecycle"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A04 ERP M39-F7 (20 Nov 2026): an approved price / plan change dated
+             ahead applies on its effective date, priced on the cycle billed then. -->
+        <record id="ir_cron_subscription_proration_due" model="ir.cron">
+            <field name="name">M39: apply approved price changes on their effective date</field>
+            <field name="model_id" ref="model_fix_subscription_proration"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due_prorations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

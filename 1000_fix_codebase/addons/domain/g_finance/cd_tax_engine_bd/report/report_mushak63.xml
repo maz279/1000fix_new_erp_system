@@ -7,7 +7,9 @@
   discount, VAT shown SEPARATELY per line, total in figures and words.
   Bengali rendering with correct conjunct shaping is a STATUTORY
   requirement (TR-07): this report renders through the reference-checked
-  Bengali font path (doctor check 10).
+  Bengali font path (doctor check 10) — the .fix-statutory-bn class
+  (static/src/css/statutory_bn.css, registered in web.report_assets_common)
+  applies the design-token family typography.font.bengali.family.
 -->
 <odoo>
 
@@ -37,7 +39,13 @@
     <template id="report_mushak63">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
-                <div class="page mushak63">
+                <!-- div.article: Odoo renders each article through web.minimal_layout
+                     (<meta charset="utf-8"> + web.report_assets_common, which carries
+                     statutory_bn.css). Without it the body reached wkhtmltopdf bare:
+                     decoded as Latin-1 (Bengali mojibake) and unstyled (R01 re-audit). -->
+                <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id"
+                     t-att-data-oe-lang="doc.env.context.get('lang')">
+                <div class="page fix-statutory-bn mushak63">
                     <div class="mushak-header">
                         <h1>মুশক ৬.৩ — কর চালানপত্র</h1>
                         <h2>Mushak 6.3 — Tax Invoice</h2>
@@ -70,6 +78,7 @@
                     <table class="mushak-lines">
                         <thead>
                             <tr>
+                                <th class="sl">ক্রমিক নং / SL</th>
                                 <th>বিবরণ / Description</th>
                                 <th>করযোগ্য মূল্য / Taxable Value</th>
                                 <th>ভ্যাট / VAT</th>
@@ -78,13 +87,16 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td class="sl">1</td>
                                 <td t-esc="doc.invoice_ref"/>
-                                <td class="numeric" t-field="doc.taxable_amount"
-                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                <td class="numeric" t-field="doc.vat_amount"
-                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                <td class="numeric" t-field="doc.total_payable"
-                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                <!-- Odoo 19 QWeb refuses a field widget ON a <td>
+                                     (the invoice failed to render): the widget sits in a span -->
+                                <td class="numeric"><span t-field="doc.taxable_amount"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                <td class="numeric"><span t-field="doc.vat_amount"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                <td class="numeric"><span t-field="doc.total_payable"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
                             </tr>
                         </tbody>
                     </table>
@@ -97,6 +109,7 @@
                     <div class="mushak-footer">
                         এই চালানপত্র ভ্যাট ও সম্পূরক শুল্ক আইন ২০১২ এর অধীনে ইস্যুকৃত।
                     </div>
+                </div>
                 </div>
             </t>
         </t>

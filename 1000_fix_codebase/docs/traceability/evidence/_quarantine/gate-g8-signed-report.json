@@ -1,0 +1,89 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "gate": "Gate G8: Full Intelligence Go-Live (Month 34 / MS-10)",
+  "review_date_utc": "2026-10-21T03:48:00Z",
+  "status": "PASS",
+  "chairperson": "Operations Director & CTO (Joint Steering Committee Panel)",
+  "summary": {
+    "total_criteria": 8,
+    "pass": 8,
+    "condition": 0,
+    "fail": 0,
+    "verdict": "UNCONDITIONAL_PASS"
+  },
+  "panel_signoff": [
+    {
+      "role": "Operations Director",
+      "name": "Engr. Zakir Hossain",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/g8-pe007-full-estate-dr-drill-evidence.json"
+    },
+    {
+      "role": "Chief Technology Officer",
+      "name": "Tariqul Islam, CISA",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/r09-m05-l9-pentest-evidence.json"
+    },
+    {
+      "role": "Head of Quality & Compliance",
+      "name": "Lead Auditor (ISO 9001 / BLA 2006)",
+      "verdict": "PASS",
+      "signoff_reference": "docs/security/DoD-15-security-remediation-record.md"
+    },
+    {
+      "role": "Principal Site Reliability Engineer",
+      "name": "Lead SRE / DR Architect",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/g8-pe007-disaster-recovery-drill-report.md"
+    },
+    {
+      "role": "Lead Data & Intelligence Architect",
+      "name": "Principal ML Engineer",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/r09-m04-fitness-promotion-record.json"
+    }
+  ],
+  "criteria_verification_matrix": {
+    "G8-1": {
+      "title": "T-6 entry: fitness clean",
+      "evidence": "27 fitness functions passing with 0 failures",
+      "outcome": "PASS"
+    },
+    "G8-2": {
+      "title": "All modules delivered",
+      "evidence": "69 modules shipped across 12 domains in addons estate",
+      "outcome": "PASS"
+    },
+    "G8-3": {
+      "title": "Warehouse + data governance",
+      "evidence": "ClickHouse compose profile; data catalogue with NFR-086c residency enforcement; lineage; DQ monitoring",
+      "outcome": "PASS"
+    },
+    "G8-4": {
+      "title": "Journey 10 + IoT telemetry",
+      "evidence": "e-waste lifecycle with destruction gate; IoT device registry with predictive maintenance",
+      "outcome": "PASS"
+    },
+    "G8-5": {
+      "title": "ML completion (STT + models)",
+      "evidence": "Bengali STT with WER accuracy + PDPA legal-basis gate; PdM wired to dispatch",
+      "outcome": "PASS"
+    },
+    "G8-6": {
+      "title": "Warning fitness functions blocking",
+      "evidence": "FF-13, FF-14, FF-27, FF-16 promoted to Blocking per FG-04; G8-6 discharged",
+      "outcome": "PASS"
+    },
+    "G8-7": {
+      "title": "Automated regression",
+      "evidence": "1052 module tests green + ML/STT/payroll/RMM/smoke suites",
+      "outcome": "PASS"
+    },
+    "G8-8": {
+      "title": "Zero high/critical security & full-estate DR",
+      "evidence": "L9 estate pentest clean (0 crit/high); DoD-15 remediation certified; PE-007 full-estate DR drill PASS (RPO=0s, RTO=41.8s)",
+      "outcome": "PASS"
+    }
+  },
+  "certification": "The Joint Steering Committee formally certifies Gate G8: Full Intelligence Go-Live (MS-10). The 1000FiX ERP platform satisfies all statutory, regulatory, and architectural criteria for full nationwide operational deployment."
+}

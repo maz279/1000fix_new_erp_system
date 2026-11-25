@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The five governed metric definitions of the platform's semantic layer.
+
+  A11 deep audit 2026-11-23 (A3-F01/A3-F04, A5-F01): the live and reference estates
+  carried these five rows as HAND-MADE data (no external ids), and a fresh database
+  carried none — so the registry — the module's headline promise, "one certified
+  number" — shipped with nothing in it. This file makes them product data.
+
+  They load as DRAFT. A definition reaches `published` only when one of its versions
+  is published through the governed route (steward review -> M63 request -> decision
+  by a second officer), so shipping them published would forge a governance act.
+
+  No consumer row is registered. The BI metric bank (M25) computes five overlapping
+  figures its own way today; whether M25 should be bound to THESE definitions, and
+  which formula is the business number where they disagree (AR-overdue ratio vs the
+  AR sum, SLA-attainment over completed orders vs the open-order count), is the
+  owner's decision D6 in audit_analysis/A11_ERP_AUDIT_DECISIONS_2026-11-23.md.
+  Registering M25 as a consumer before that decision would assert a binding that
+  does not exist yet — the defect this audit is removing, not adding.
+
+  Adopted on estates that already hold the hand-made rows: see
+  migrations/19.0.0.4.0/pre-migrate.py (inserts the ir_model_data links so this
+  load updates the existing rows instead of hitting the unique code).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="metric_def_met_wip_age" model="fix.metric.definition">
+            <field name="code">MET-WIP-AGE</field>
+            <field name="name">WIP ageing (days)</field>
+            <field name="domain_area">service</field>
+            <field name="grain">day</field>
+            <field name="owner_role">R-05</field>
+            <field name="definition">Mean of (now - order opened_at) over orders in an open state; numerator = sum of ages, denominator = open order count.</field>
+        </record>
+
+        <record id="metric_def_met_sla_attain" model="fix.metric.definition">
+            <field name="code">MET-SLA-ATTAIN</field>
+            <field name="name">SLA attainment %</field>
+            <field name="domain_area">service</field>
+            <field name="grain">month</field>
+            <field name="owner_role">R-05</field>
+            <field name="definition">Breached-free orders / all completed orders in the period; a breach is any stage exceeding its SLA clock.</field>
+        </record>
+
+        <record id="metric_def_met_ar_overdue" model="fix.metric.definition">
+            <field name="code">MET-AR-OVERDUE</field>
+            <field name="name">AR overdue %</field>
+            <field name="domain_area">finance</field>
+            <field name="grain">month</field>
+            <field name="owner_role">R-26</field>
+            <field name="definition">Open receivable overdue / total open receivable at period end; overdue = due date passed by more than the grace days.</field>
+        </record>
+
+        <record id="metric_def_met_bench_util" model="fix.metric.definition">
+            <field name="code">MET-BENCH-UTIL</field>
+            <field name="name">Bench utilisation %</field>
+            <field name="domain_area">service</field>
+            <field name="grain">week</field>
+            <field name="owner_role">R-09</field>
+            <field name="definition">Booked technician hours / available technician hours for the same workshop and week.</field>
+        </record>
+
+        <record id="metric_def_met_nps" model="fix.metric.definition">
+            <field name="code">MET-NPS</field>
+            <field name="name">Net promoter score</field>
+            <field name="domain_area">customer</field>
+            <field name="grain">quarter</field>
+            <field name="owner_role">R-34</field>
+            <field name="definition">(Promoters - detractors) / responses; promoter = 9-10, detractor = 0-6.</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_partner security: P12 Partner Portal group + cross-tenant record rules (R08-M04-T01, G7-6).
+     Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <record id="group_fix_partner_portal" model="res.groups">
+        <field name="name">P12 Partner Portal</field>
+        <field name="privilege_id" ref="cd_rbac_ext.privilege_fix_portal"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="comment">P12 access: channel and referral partners see their own profile, referrals, and commission status only (EA-05 cross-tenant isolation).</field>
+    </record>
+
+    <!-- A08 B4 (M53-4, spec M40 R21): the role that converts a referral and
+         earns its commission. Shipped EMPTY: the business appoints its members
+         (A08 report §7, B1). -->
+    <record id="group_fix_referral_manager" model="res.groups">
+        <field name="name">Referral Conversion Manager (R21 Sales Manager)</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Converts a referral from the referred customer's paid invoice and earns its commission (spec M40 §11 R21; A08 M53-4).</field>
+    </record>
+
+    <!-- Partner sees only their own partner profile -->
+    <record id="rule_fix_partner_self" model="ir.rule">
+        <field name="name">P12 Partner: own partner profile only</field>
+        <field name="model_id" ref="model_fix_partner"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_partner_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Partner sees only their own referrals -->
+    <record id="rule_fix_referral_partner_self" model="ir.rule">
+        <field name="name">P12 Partner: own referrals only</field>
+        <field name="model_id" ref="model_fix_referral"/>
+        <field name="domain_force">[('partner_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_partner_portal'))]"/>
+        <!-- A04 ERP audit M40-F8: a partner submits a LEAD (with consent);
+             the company converts it. The portal only reads its referrals. -->
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

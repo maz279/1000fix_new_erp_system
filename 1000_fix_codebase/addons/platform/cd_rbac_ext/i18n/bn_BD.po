@@ -7,93 +7,230 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_rbac_ext
+#: model:ir.ui.menu,name:cd_rbac_ext.menu_ws_administration
 msgid "Administration"
 msgstr "প্রশাসন"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_sod_control__conflict_action__block
+msgid "Block Assignment"
+msgstr "নিয়োগ আটকে দিন"
+
+#. module: cd_rbac_ext
+#: model:ir.model,name:cd_rbac_ext.model_fix_role
+#: model_terms:ir.ui.view,arch_db:cd_rbac_ext.view_fix_role_form
 msgid "Business Role"
 msgstr "ব্যবসায়িক ভূমিকা"
 
+#. module: cd_rbac_ext
+#: model:ir.actions.act_window,name:cd_rbac_ext.action_fix_role
+#: model_terms:ir.ui.view,arch_db:cd_rbac_ext.view_fix_role_tree
 msgid "Business Roles"
 msgstr "ব্যবসায়িক ভূমিকাসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__company_id
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__company_id
 msgid "Company"
 msgstr "কোম্পানি"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__tier_ids
 msgid "Data Isolation Tiers"
 msgstr "ডেটা আইসোলেশন স্তর"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_isolation_tier__description
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__description
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__name
 msgid "Description"
 msgstr "বিবরণ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_feature_flag__role_ids
+msgid "Enabled Roles"
+msgstr "সক্রিয় ভূমিকাসমূহ"
+
+#. module: cd_rbac_ext
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_entity_root
 msgid "Entity Configuration"
 msgstr "প্রতিষ্ঠান কনফিগারেশন"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_field_rule__field_id
 msgid "Field"
 msgstr "ফিল্ড"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_field_rule__permission__hidden
+msgid "Hidden"
+msgstr "লুকানো"
+
+#. module: cd_rbac_ext
+#: model:ir.actions.act_window,name:cd_rbac_ext.action_fix_isolation_tier
+#: model:ir.ui.menu,name:cd_rbac_ext.menu_fix_isolation_tier
 msgid "Isolation Tiers"
 msgstr "আইসোলেশন স্তরসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__keycloak_role
 msgid "Keycloak Realm Role"
 msgstr "Keycloak রিয়েল্ম ভূমিকা"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_sod_control__conflict_action__log
+msgid "Log Only"
+msgstr "কেবল লগ"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_field_rule__permission__masked
+msgid "Masked (shows ***)"
+msgstr "মাস্ক করা (*** দেখায়)"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_field_rule__model_id
 msgid "Model"
 msgstr "মডেল"
 
+#. module: cd_rbac_ext
 msgid "NID Number"
 msgstr "NID নম্বর"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__group_id
 msgid "Odoo Group"
 msgstr "Odoo গ্রুপ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__operating_unit_ids
 msgid "Operating Units"
 msgstr "পরিচালন ইউনিটসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_field_rule__permission__write
+msgid "Read + Write"
+msgstr "পড়া + লেখা"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_field_rule__permission__read
+msgid "Read Only"
+msgstr "কেবল পড়া"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_isolation_tier__record_rule_domain
 msgid "Record Rule Domain"
 msgstr "রেকর্ড রুল ডোমেইন"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_residency_mixin__residency_ref
 msgid "Residency Reference"
 msgstr "রেসিডেন্সি রেফারেন্স"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__role_a_id
 msgid "Role A"
 msgstr "ভূমিকা ক"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__role_b_id
 msgid "Role B"
 msgstr "ভূমিকা খ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__code
 msgid "Role Code (R-nn)"
 msgstr "ভূমিকা কোড (R-nn)"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__name
 msgid "Role Name"
 msgstr "ভূমিকার নাম"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_role__name_bn
 msgid "Role Name (Bengali)"
 msgstr "ভূমিকার নাম (বাংলা)"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_field_rule__role_ids
+#: model:ir.ui.menu,name:cd_rbac_ext.menu_fix_role
 msgid "Roles"
 msgstr "ভূমিকাসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_isolation_tier__role_ids
 msgid "Roles with Access"
 msgstr "অ্যাক্সেসপ্রাপ্ত ভূমিকাসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_field_rule__operating_unit_ids
 msgid "Scope (OUs)"
 msgstr "পরিসর (OU)"
 
+#. module: cd_rbac_ext
+#: model:ir.ui.menu,name:cd_rbac_ext.menu_fix_security_root
 msgid "Security & Access"
 msgstr "নিরাপত্তা ও অ্যাক্সেস"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__code
 msgid "SoD Code"
 msgstr "SoD কোড"
 
+#. module: cd_rbac_ext
+#: model:ir.actions.act_window,name:cd_rbac_ext.action_fix_sod
+#: model:ir.ui.menu,name:cd_rbac_ext.menu_fix_sod
+#: model_terms:ir.ui.view,arch_db:cd_rbac_ext.view_fix_sod_control_tree
 msgid "SoD Controls"
 msgstr "SoD নিয়ন্ত্রণসমূহ"
 
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t0
+msgid "T0 - Public"
+msgstr "T0 - উন্মুক্ত"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t1
+msgid "T1 - Internal"
+msgstr "T1 - অভ্যন্তরীণ"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t2
+msgid "T2 - Branch-scoped"
+msgstr "T2 - শাখাভিত্তিক"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t3
+msgid "T3 - Role-scoped"
+msgstr "T3 - ভূমিকাভিত্তিক"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t4
+msgid "T4 - Management (Z5)"
+msgstr "T4 - ব্যবস্থাপনা (Z5)"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_isolation_tier__code__t5
+msgid "T5 - Residency-classified (Z4)"
+msgstr "T5 - রেসিডেন্সি-শ্রেণিভুক্ত (Z4)"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_isolation_tier__code
+msgid "Tier"
+msgstr "স্তর"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields.selection,name:cd_rbac_ext.selection__fix_sod_control__conflict_action__warn
+msgid "Warn + Require Approval"
+msgstr "সতর্ক করুন + অনুমোদন আবশ্যক"
+
+#. module: cd_rbac_ext
+#: model:ir.model.fields,field_description:cd_rbac_ext.field_fix_sod_control__rationale
 msgid "Why these roles conflict"
 msgstr "কেন এই ভূমিকাগুলো দ্বন্দ্ব করে"
-
-msgid "Enabled Roles"
-msgstr "সক্রিয় ভূমিকাসমূহ"

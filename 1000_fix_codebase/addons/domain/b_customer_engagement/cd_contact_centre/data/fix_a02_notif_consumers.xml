@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers (A02 ERP review, 20 Nov 2026): the customer is told of the
+     A02 service milestones the specs name (NT-001, AUT-FSM-04, FR-FSM-037,
+     AUT-LOG-03/05/06), through fix.notif.delivery.queue(). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_service_order_intake_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer the order number when an M01 order is booked</field>
+            <field name="event_type">service_order.intake</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_service_order_intake</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_service_order_cancelled_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M01 order is cancelled</field>
+            <field name="event_type">service_order.cancelled</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_service_order_cancelled</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_field_order_en_route_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when the M02 technician is on the way</field>
+            <field name="event_type">field.order.en_route</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_field_order_en_route</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_visit_failed_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M02 visit could not be completed</field>
+            <field name="event_type">visit.failed</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_visit_failed</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_consignment_delivered_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M03 pickup or delivery leg is delivered</field>
+            <field name="event_type">consignment.delivered</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_consignment_delivered</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_consignment_returned_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M03 delivery returns to the branch</field>
+            <field name="event_type">consignment.returned</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_consignment_returned</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

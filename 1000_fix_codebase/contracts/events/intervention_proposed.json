@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "intervention.proposed",
+  "description": "Published by cd_stream_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "intervention.proposed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_stream_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "action",
+        "prediction",
+        "equipment_id",
+        "action_type",
+        "skill",
+        "parts",
+        "commercial_route"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "prediction": {
+          "description": "Type not statically derivable from `rec.prediction_id.sudo().name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_capture.py:1364)."
+        },
+        "equipment_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "action_type": {
+          "type": "string"
+        },
+        "skill": {
+          "description": "Type not statically derivable from `_text(rec.skill_code)` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_capture.py:1364)."
+        },
+        "parts": {
+          "type": "array"
+        },
+        "commercial_route": {
+          "type": "string"
+        },
+        "entitlement_state": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_stream_registry",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_capture.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

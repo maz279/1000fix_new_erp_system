@@ -3,99 +3,729 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "MSP Contract"
-msgstr "এমএসপি চুক্তি"
-
-msgid "Monitored Asset"
-msgstr "পর্যবেক্ষিত সম্পদ"
-
-msgid "MSP Alert"
-msgstr "এমএসপি সতর্কতা"
-
-msgid "Remote Session"
-msgstr "রিমোট সেশন"
-
-msgid "MSP Service Report"
-msgstr "এমএসপি সার্ভিস রিপোর্ট"
-
-msgid "Contract (M08)"
-msgstr "চুক্তি (M08)"
-
-msgid "Covered Devices"
-msgstr "আচ্ছাদিত ডিভাইস"
-
-msgid "Endpoints Only"
-msgstr "শুধু এন্ডপয়েন্ট"
-
-msgid "Endpoints + Network"
-msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
-
-msgid "Full Stack"
-msgstr "ফুল স্ট্যাক"
-
-msgid "Per-Device Monthly"
-msgstr "প্রতি ডিভাইস মাসিক"
-
-msgid "Monitored Assets"
-msgstr "পর্যবেক্ষিত সম্পদসমূহ"
-
-msgid "Service Reports"
-msgstr "সার্ভিস রিপোর্টসমূহ"
-
-msgid "Healthy"
-msgstr "সুস্থ"
-
-msgid "Degraded"
-msgstr "খারাপ"
-
-msgid "Offline"
-msgstr "অফলাইন"
-
-msgid "Raised"
-msgstr "উত্থাপিত"
-
-msgid "Acknowledged"
-msgstr "স্বীকৃত"
-
-msgid "Ticketed"
-msgstr "টিকেটকৃত"
-
-msgid "Resolved"
-msgstr "সমাধানকৃত"
-
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
 msgid "Acknowledge"
 msgstr "স্বীকার করুন"
 
-msgid "Create Ticket"
-msgstr "টিকেট তৈরি করুন"
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__acked
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
 
-msgid "MeshCentral"
-msgstr "মেশসেন্ট্রাল"
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_oncall_shift_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
 
-msgid "RustDesk"
-msgstr "রাস্টডেস্ক"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_policy__active
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__active
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_maintenance_window__state__active
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__state__active
+msgid "Active"
+msgstr "সক্রিয়"
 
-msgid "Technician"
-msgstr "কারিগর"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook_run__alert_id
+msgid "Alert"
+msgstr "সতর্কতা"
 
-msgid "Period"
-msgstr "পিরিয়ড"
-
-msgid "SLA Attainment (0-1)"
-msgstr "এসএলএ অর্জন (০-১)"
-
-msgid "সারসংক্ষেপ (Bengali)"
-msgstr "সারসংক্ষেপ (বাংলা)"
-
-msgid "Summary (English)"
-msgstr "সারসংক্ষেপ (ইংরেজি)"
-
-msgid "Managed Services"
-msgstr "পরিচালিত সেবা"
-
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__alert_ids
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_alerts
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_monitored_asset_form
 msgid "Alerts"
 msgstr "সতর্কতাসমূহ"
 
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_sla_credit__state__applied
+msgid "Applied to Billing"
+msgstr "বিলিংয়ে প্রয়োগকৃত"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_sla_credit_form
+msgid "Apply to Billing"
+msgstr "বিলিংয়ে প্রয়োগ করুন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_change_form
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_patch_update_form
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_sla_credit_form
+msgid "Approve"
+msgstr "অনুমোদন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__state__approved
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__state__approved
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_sla_credit__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__asset_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__asset_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_update__asset_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook_run__asset_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__asset_id
+msgid "Asset"
+msgstr "অ্যাসেট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook__trigger__asset_offline
+msgid "Asset Offline"
+msgstr "অ্যাসেট অফলাইন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__attainment_pct
+msgid "Attainment %"
+msgstr "অর্জন %"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__auto_run
+msgid "Auto-Run"
+msgstr "অটো-রান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__breach_count
+msgid "Breaches"
+msgstr "লঙ্ঘন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__kind__change
+msgid "Change"
+msgstr "পরিবর্তন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_change_form
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_oncall_shift_form
+msgid "Close"
+msgstr "বন্ধ করুন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_maintenance_window_form
+msgid "Close Window"
+msgstr "উইন্ডো বন্ধ করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__state__closed
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_maintenance_window__state__closed
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Compute SLA Credits"
+msgstr "এসএলএ ক্রেডিট হিসাব করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__msp_contract_id
+msgid "Contract"
+msgstr "চুক্তি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__contract_id
+msgid "Contract (M08)"
+msgstr "চুক্তি (M08)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__device_count
+msgid "Covered Devices"
+msgstr "আচ্ছাদিত ডিভাইস"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
+msgid "Create Ticket"
+msgstr "টিকেট তৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__credit_amount
+msgid "Credit Amount"
+msgstr "ক্রেডিটের পরিমাণ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__severity__critical
+msgid "Critical"
+msgstr "ক্রিটিক্যাল"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_patch_update_form
+msgid "Defer 7 Days"
+msgstr "৭ দিন স্থগিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__state__deferred
+msgid "Deferred"
+msgstr "স্থগিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__degraded
+msgid "Degraded"
+msgstr "অবনমিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__state__draft
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_sla_credit__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__change_type__emergency
+msgid "Emergency"
+msgstr "ইমার্জেন্সি"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_remote_session_form
+msgid "End Session"
+msgstr "সেশন শেষ করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints_network
+msgid "Endpoints + Network"
+msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints
+msgid "Endpoints Only"
+msgstr "শুধু এন্ডপয়েন্ট"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
+msgid "Escalate"
+msgstr "এসকেলেট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__run_count
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__run_ids
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_runbook_form
+msgid "Executions"
+msgstr "নির্বাহনসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__state__failed
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook_run__state__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_update__fail_note
+msgid "Failure Note"
+msgstr "ব্যর্থতার নোট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_policy__category__firmware
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__category__firmware
+msgid "Firmware"
+msgstr "ফার্মওয়্যার"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__full
+msgid "Full Stack"
+msgstr "ফুল স্ট্যাক"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Generate Report"
+msgstr "রিপোর্ট তৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook__trigger__health_degraded
+msgid "Health Degraded"
+msgstr "স্বাস্থ্য হ্রাস"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__health_score
+msgid "Health Score"
+msgstr "হেলথ স্কোর"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__healthy
+msgid "Healthy"
+msgstr "স্বাভাবিক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__risk__high
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__severity__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__state__implemented
+msgid "Implemented"
+msgstr "বাস্তবায়িত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__state__installed
+msgid "Installed"
+msgstr "ইনস্টলড"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__last_run_at
+msgid "Last Execution"
+msgstr "সর্বশেষ নির্বাহন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_runbook_form
+msgid "Log Execution"
+msgstr "নির্বাহন লগ করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__risk__low
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__severity__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_maintenance_window
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_windows
+msgid "Maintenance Windows"
+msgstr "মেইনটেন্যান্স উইন্ডোসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__major
+msgid "Major"
+msgstr "গুরুতর"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook__trigger__alert_major
+msgid "Major Alert"
+msgstr "মেজর সতর্কতা"
+
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_ws_msp
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__level__manager
+msgid "Manager"
+msgstr "ম্যানেজার"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook__trigger__manual
+msgid "Manual"
+msgstr "ম্যানুয়াল"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_patch_update_form
+msgid "Mark Failed"
+msgstr "ব্যর্থ চিহ্নিত করুন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_change_form
+msgid "Mark Implemented"
+msgstr "বাস্তবায়ন চিহ্নিত করুন"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_patch_update_form
+msgid "Mark Installed"
+msgstr "ইনস্টল চিহ্নিত করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_policy__max_defer_days
+msgid "Max Defer Days"
+msgstr "সর্বোচ্চ স্থগিত দিন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__risk__medium
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__severity__medium
+msgid "Medium"
+msgstr "মাঝারি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__meshcentral
+msgid "MeshCentral"
+msgstr "মেশসেন্ট্রাল"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__minor
+msgid "Minor"
+msgstr "সামান্য"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__state__missing
+msgid "Missing"
+msgstr "অনুপস্থিত"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_monitored_asset
+msgid "Monitored Asset"
+msgstr "পর্যবেক্ষিত সম্পদ"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_monitored_asset
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__asset_ids
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_assets
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Monitored Assets"
+msgstr "পর্যবেক্ষিত সম্পদসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_service_report
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_reports
+msgid "Monthly Reports"
+msgstr "মাসিক রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__monthly_value
+msgid "Monthly Value"
+msgstr "মাসিক মূল্য"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_alert
+msgid "MSP Alert"
+msgstr "এমএসপি সতর্কতা"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_contract
+msgid "MSP Contract"
+msgstr "এমএসপি চুক্তি"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_contracts
 msgid "MSP Contracts"
 msgstr "এমএসপি চুক্তিসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_service_report
+msgid "MSP Service Report"
+msgstr "এমএসপি সার্ভিস রিপোর্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__change_type__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__offline
+msgid "Offline"
+msgstr "অফলাইন"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_oncall_shift
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_oncall
+msgid "On-Call Rota"
+msgstr "অন-কল রোটা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__open_alert_count
+msgid "Open Alerts"
+msgstr "খোলা সতর্কতা"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_maintenance_window_form
+msgid "Open Window"
+msgstr "উইন্ডো খুলুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_maintenance_window__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_oncall_shift__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_policy__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_update__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook_run__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_policy__category__os
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__category__os
+msgid "OS"
+msgstr "ওএস"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook_run__output_note
+msgid "Output / Note"
+msgstr "আউটপুট / নোট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_update__identifier
+msgid "Patch ID"
+msgstr "প্যাচ আইডি"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_patch_policy
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_patch_policies
+msgid "Patch Policies"
+msgstr "প্যাচ পলিসিসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_patching
+msgid "Patching"
+msgstr "প্যাচিং"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__per_device_monthly
+msgid "Per-Device Monthly"
+msgstr "প্রতি ডিভাইস মাসিক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__period_label
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__period_label
+msgid "Period"
+msgstr "পিরিয়ড"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_maintenance_window__state__planned
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__level__primary
+msgid "Primary"
+msgstr "প্রাইমারি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__kind__problem
+msgid "Problem"
+msgstr "সমস্যা"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_change
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_changes
+msgid "Problems & Changes"
+msgstr "সমস্যা ও পরিবর্তনসমূহ"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_monitored_asset_form
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_list
+msgid "Raised"
+msgstr "উত্থাপিত"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_service_report_form
+msgid "Regenerate Bilingual Summary"
+msgstr "দ্বিভাষিক সারসংক্ষেপ পুনঃতৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__device_id
+msgid "Registered Device"
+msgstr "নিবন্ধিত ডিভাইস"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_change_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__script
+msgid "Remediation Steps"
+msgstr "প্রতিকারের ধাপ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_remote_session
+msgid "Remote Session"
+msgstr "রিমোট সেশন"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_remote_session
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_remote_session
+msgid "Remote Sessions"
+msgstr "রিমোট সেশনসমূহ"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Reports"
+msgstr "রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__requested_by
+msgid "Requested By"
+msgstr "অনুরোধকারী"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__resolution_note
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__resolution_note
+msgid "Resolution Note"
+msgstr "সমাধানের নোট"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
+msgid "Resolve"
+msgstr "সমাধান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__auto_resolve_alert
+msgid "Resolve Alert on Success"
+msgstr "সফল হলে সতর্কতা সমাধান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__resolved
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__resolved_at
+msgid "Resolved At"
+msgstr "সমাধানের সময়"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_runbook_run
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_runbook_runs
+msgid "Runbook Executions"
+msgstr "রানবুক নির্বাহন"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_runbook
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_runbooks
+msgid "Runbooks"
+msgstr "রানবুকসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook_run__state__running
+msgid "Running"
+msgstr "চলমান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__rustdesk
+msgid "RustDesk"
+msgstr "রাস্টডেস্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_maintenance_window__msp_contract_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_policy__msp_contract_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_runbook__scope_contract_id
+msgid "Scoped To Contract"
+msgstr "চুক্তিভুক্ত সীমা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_oncall_shift__level__secondary
+msgid "Secondary"
+msgstr "সেকেন্ডারি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__service_report_id
+msgid "Service Report"
+msgstr "সার্ভিস রিপোর্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__report_ids
+msgid "Service Reports"
+msgstr "সার্ভিস রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__sla_attainment_pct
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_service_report_form
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_service_report_list
+msgid "SLA Attainment %"
+msgstr "এসএলএ অর্জন %"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__sla_attainment
+msgid "SLA Attainment (0-1)"
+msgstr "এসএলএ অর্জন (০-১)"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_sla_credit
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__credit_ids
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_credits
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "SLA Credits"
+msgstr "এসএলএ ক্রেডিট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__sla_target_pct
+msgid "SLA Target %"
+msgstr "এসএলএ লক্ষ্য %"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_change_record__change_type__standard
+msgid "Standard"
+msgstr "স্ট্যান্ডার্ড"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_remote_session_form
+msgid "Start Session"
+msgstr "সেশন শুরু করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__started
+msgid "Started"
+msgstr "শুরু হয়েছে"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_runbook_run__state__success
+msgid "Success"
+msgstr "সফল"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_en
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_service_report_form
+msgid "Summary (English)"
+msgstr "সারসংক্ষেপ (ইংরেজি)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_maintenance_window__suppress_alerts
+msgid "Suppress Alerting"
+msgstr "সতর্কতা দমন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_sla_credit__target_pct
+msgid "Target %"
+msgstr "লক্ষ্য %"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_oncall_shift__technician_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_runbook_form
+msgid "The remediation steps, in order…"
+msgstr "প্রতিকারের ধাপগুলো, ক্রমানুসারে…"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_policy__category__third_party
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_patch_update__category__third_party
+msgid "Third-Party"
+msgstr "থার্ড-পার্টি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__ticketed
+msgid "Ticketed"
+msgstr "টিকেটকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_change_record__name
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_patch_update__title
+msgid "Title"
+msgstr "শিরোনাম"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_change_form
+msgid "What changes, why, and the rollback plan…"
+msgstr "কী পরিবর্তন হবে, কেন, এবং রোলব্যাক পরিকল্পনা…"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_bn
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_service_report_form
+msgid "সারসংক্ষেপ (Bengali)"
+msgstr "সারসংক্ষেপ (বাংলা)"

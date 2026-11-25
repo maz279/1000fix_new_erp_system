@@ -1,0 +1,63 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M02",
+  "task": "R10-M02-T02",
+  "title": "M26 AI/ML Services & Model Operations Traceability Matrix",
+  "timestamp": "2026-10-22T09:13:18.645578+00:00",
+  "module_id": "M26",
+  "cr_id": "CR-R10M02-02",
+  "requirements_seeded": 42,
+  "requirements_in_cr_register": 42,
+  "requirements_count": 40,
+  "requirements_range": "FR-AIM-001 ... FR-AIM-042",
+  "untraced_requirements": [
+    "FR-AIM-027",
+    "FR-AIM-033"
+  ],
+  "broken_path_references": {
+    "FR-AIM-027": [
+      "addons/domain/d_service_commerce/cd_tradein"
+    ],
+    "FR-AIM-033": [
+      "infra/observability/ollama"
+    ]
+  },
+  "seeded_not_in_cr_register": [],
+  "delivery_units": [
+    {
+      "unit": "FastAPI inference gateway",
+      "path": "services/ml-gateway",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "MLflow model registry",
+      "path": "infra/compose/docker-compose.asset-ml.yml",
+      "requires": "mlflow:",
+      "present": true
+    },
+    {
+      "unit": "Ollama local LLM runtime",
+      "path": "infra/compose/docker-compose.asset-ml.yml",
+      "requires": "ollama:",
+      "present": true
+    },
+    {
+      "unit": "Bengali speech-to-text & drift monitoring",
+      "path": "services/stt",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "dispatch ML",
+      "path": "addons/domain/a_service_delivery/cd_field_service",
+      "requires": null,
+      "present": true
+    }
+  ],
+  "failures": [
+    "2 CR row(s) untraced (not seeded / no unit / broken path)"
+  ],
+  "verdict": "FAIL",
+  "status": "FAIL"
+}

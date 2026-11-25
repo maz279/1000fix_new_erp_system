@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AS-03 isolation for the M13 damage-charge approval (A05 audit E5):
+         the same company and operating-unit rules as its damage line. -->
+    <record id="rule_fix_rental_charge_approval_company" model="ir.rule">
+        <field name="name">fix.rental.charge.approval: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_charge_approval"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

@@ -58,7 +58,18 @@ i.e. **September–December 2028, exactly when Odoo 19 standard support ends**.
 
 ## 5. Revisit triggers
 
-- OCA v20 availability for fewer than 12 of 18 repositories at `G5` → escalate
+- OCA v20 availability for fewer than 12 of 18 repositories at `G5`/`G6` → escalate
   to Steering: extend Odoo 19 extended support (to ~Sept 2029) and re-slot.
 - Odoo 19 extended-support policy changes → re-run the currency check
   (`tooling/version-currency/verify-version-currency.ps1`).
+
+---
+
+## 6. Wave 6 Review & Re-Confirmation (P09-M02 / R07-M02-T01)
+
+**Review Date:** 2026-10-18 (Wave 6, Month 26, Gate G6)  
+**Assessed Reality:**
+1. **Odoo 20 upstream release:** Odoo 20 debuted at Odoo Experience Brussels on 24–26 September 2026 and is the current major.
+2. **Support window currency:** Odoo 19.0 Community Edition standard support extends through September 2028, with extended support through September 2029.
+3. **OCA v20 readiness:** The W6 OCA availability scan (`tooling/upgrade/verify_fork_and_oca_matrix.py`) found only 4 of 20 OCA subtrees with mature 20.0 branches. This breaches the threshold of 12 required for an in-flight major migration.
+4. **Outcome:** In accordance with §5, Decision `D-038` formally exercises the planned deferral of the Odoo 20 branch migration to post-go-live, guaranteeing zero-risk runtime stability for the 1000FiX production deployment.

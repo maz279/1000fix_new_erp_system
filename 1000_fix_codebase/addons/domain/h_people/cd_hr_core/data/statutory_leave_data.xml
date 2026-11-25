@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Statutory Bangladesh Leave Types with Citations Verified Current (DoD-17) -->
+        <record id="leave_type_casual" model="fix.leave.type">
+            <field name="code">casual</field>
+            <field name="name">Casual Leave</field>
+            <field name="name_bn">নৈমিত্তিক ছুটি</field>
+            <field name="entitlement_days">10</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <!-- Bangladesh Labour Rules 2015 r.106: a weekly or festival holiday
+                 that falls inside casual leave is included in the leave (it is
+                 charged, not excluded) - A09 M21-F6. -->
+            <field name="excludes_holidays" eval="False"/>
+            <field name="labour_act_section">Section 115</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006 (Act No. XLII of 2006), Section 115: Casual leave with full wages for 10 days in a calendar year. Labour Rules 2015 r.106: a weekly or festival holiday falling inside casual leave is included in that leave.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_sick" model="fix.leave.type">
+            <field name="code">sick</field>
+            <field name="name">Sick Leave</field>
+            <field name="name_bn">পীড়া ছুটি</field>
+            <field name="entitlement_days">14</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <!-- Bangladesh Labour Rules 2015 r.106: a weekly or festival holiday
+                 that falls inside sick leave is included in the leave (it is
+                 charged, not excluded) - A09 M21-F6. -->
+            <field name="excludes_holidays" eval="False"/>
+            <field name="labour_act_section">Section 116 / 148</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 116: Sick leave with full wages for 14 days in a calendar year upon registered medical practitioner certification. Labour Rules 2015 r.106: a weekly or festival holiday falling inside sick leave is included in that leave.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_annual" model="fix.leave.type">
+            <field name="code">annual</field>
+            <field name="name">Annual / Earned Leave</field>
+            <field name="name_bn">বার্ষিক / অর্জিত ছুটি</field>
+            <field name="entitlement_days">20</field>
+            <field name="encashable" eval="True"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">40</field>
+            <field name="labour_act_section">Section 117</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 117: Annual leave with wages at the rate of one day for every 18 days of work performed; cumulative up to 40 days per s. 117(7); encashable upon separation per s. 118.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_festival" model="fix.leave.type">
+            <field name="code">festival</field>
+            <field name="name">Festival Holidays</field>
+            <field name="name_bn">উৎসব ছুটি</field>
+            <!-- Labour (Amendment) Act 2026 (Act No. 43 of 2026), s.118(1): 13
+                 days of festival holidays per calendar year (was 11) - A09
+                 M21-F5 / M55-F2. -->
+            <field name="entitlement_days">13</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 118 / 146</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 118 as amended by the Labour (Amendment) Act 2026 (Act No. 43 of 2026): every worker is allowed 13 days of paid festival holidays in a calendar year; compensatory holiday with double wages if required to work.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on" eval="False"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_maternity" model="fix.leave.type">
+            <field name="code">maternity</field>
+            <field name="name">Maternity Benefit</field>
+            <field name="name_bn">প্রসূতি কল্যাণ সুবিধা</field>
+            <!-- Labour (Amendment) Act 2026 (Act No. 43 of 2026), s.46: 120
+                 days = 60 days before + 60 days after the delivery (was 112:
+                 8 weeks + 8 weeks) - A09 M21-F5 / M55-F2. -->
+            <field name="entitlement_days">120</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="True"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 46-48</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 46 &amp; 47 as amended by the Labour (Amendment) Act 2026 (Act No. 43 of 2026): 120 days maternity leave with full average daily wage (60 days pre-natal, 60 days post-natal).</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on" eval="False"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_paternity" model="fix.leave.type">
+            <field name="code">paternity</field>
+            <field name="name">Paternity Leave</field>
+            <field name="name_bn">পিতৃত্বকালীন ছুটি</field>
+            <field name="entitlement_days">10</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="False"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Policy Floor</field>
+            <field name="legal_citation">1000FiX Corporate HR Policy Floor: 10 days paid paternity leave for male employees upon childbirth.</field>
+            <field name="amendment_ref">1000FiX HR Policy Handbook 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- A09 M55-F4: the unpaid leave type. Not a statutory entitlement:
+             no per-year entitlement figure exists (the approval decision
+             governs), so entitlement_days is 0 and the calendar-year cap is
+             skipped for it. Every approved day is tracked for payroll through
+             fix.leave.request._fix_unpaid_days_between. Holidays inside it are
+             charged (excludes_holidays False). -->
+        <record id="leave_type_unpaid" model="fix.leave.type">
+            <field name="code">unpaid</field>
+            <field name="name">Leave Without Pay</field>
+            <field name="name_bn">অবৈতনিক ছুটি</field>
+            <field name="entitlement_days">0</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="False"/>
+            <field name="is_unpaid" eval="True"/>
+            <field name="excludes_holidays" eval="False"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Not statutory</field>
+            <field name="legal_citation">Not a statutory entitlement: approved unpaid absence, tracked per employee per period so payroll can withhold pay for exactly the days taken (A09 M55-F4). No per-year entitlement figure exists; the approval decision governs.</field>
+            <field name="amendment_ref">A09 ERP audit M55-F4</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo>

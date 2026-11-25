@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "subscription.dunning_reminder_sms",
+  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "subscription.dunning_reminder_sms"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_subscription"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "customer_id",
+        "days_overdue",
+        "step"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": "integer"
+        },
+        "days_overdue": {
+          "description": "Type not statically derivable from `overdue` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:351)."
+        },
+        "step": {
+          "description": "Type not statically derivable from `'service_lock' if step == 'escalate' else step` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:351)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_subscription",
+  "x-publishers": [
+    "addons/domain/c_commercial/cd_subscription/models/fix_subscription.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

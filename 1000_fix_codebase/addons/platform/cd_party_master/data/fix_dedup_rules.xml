@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Corporate dedup rules (readiness report G8, 2026-11-09): organisations
+     match on fuzzy name (edit distance <= 3), not only exact phone/BIN —
+     the source estate carries MSF-style two-vintage and multi-branch rows
+     where the phone differs but the name repeats. Flag for steward review,
+     never hard-block a legitimate customer. -->
+<odoo>
+    <record id="dedup_rule_corp_name_fuzzy" model="fix.dedup.rule">
+        <field name="name">Corporate name fuzzy (edit distance 3)</field>
+        <field name="match_fields">name</field>
+        <field name="scope">fuzzy</field>
+        <field name="threshold">3</field>
+        <field name="action">flag</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="dedup_rule_phone_exact" model="fix.dedup.rule">
+        <field name="name">Phone exact (any class)</field>
+        <field name="match_fields">phone</field>
+        <field name="scope">exact</field>
+        <field name="action">flag</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

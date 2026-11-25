@@ -7,6 +7,7 @@ Any direct Z4 access path fails this check.
 
 Exit: 0 pass / 1 violations (blocking — a residency leak is a notifiable event).
 """
+
 from __future__ import annotations
 
 import re
@@ -17,16 +18,21 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCAN_ROOTS = [REPO_ROOT / "addons", REPO_ROOT / "services"]
 
 BYPASS_PATTERNS = [
-    (re.compile(r"127\.0\.0\.1:8100|residency[-_]stub"),
-     "direct residency-service URL reference"),
-    (re.compile(r"psycopg[^\n]*8100|5433"),
-     "direct database connection on the residency port"),
-    (re.compile(r"from\s+(?!libs\.py\.fix_residency)\S*fix_residency\s+import"),
-     "fix_residency imported from a non-canonical path"),
+    (re.compile(r"127\.0\.0\.1:8100|residency[-_]stub"), "direct residency-service URL reference"),
+    (re.compile(r"psycopg[^\n]*8100|5433"), "direct database connection on the residency port"),
+    (
+        re.compile(r"from\s+(?!libs\.py\.fix_residency)\S*fix_residency\s+import"),
+        "fix_residency imported from a non-canonical path",
+    ),
 ]
 
 EXEMPT = {
     "services/local-residency-stub/app.py",
+    # Tests of the CANONICAL client against the live local stub: the loopback
+    # literal here is the probe target, not a classified-field access path
+    # (R01 re-audit 2026-10-22 - every src-level hit routes through
+    # libs/py/fix_residency).
+    "services/dsr-orchestrator/tests/test_dsr_residency_client.py",
 }
 
 

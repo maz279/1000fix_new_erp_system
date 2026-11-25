@@ -1,90 +1,91 @@
 {
-    "schema":  "1000fix-erp/gate-g2/1",
-    "ranAtUtc":  "2026-10-16T12:48:43.3166466Z",
-    "pass":  3,
-    "conditions":  7,
+    "schema":  "1000fix-erp/gate-g2/2",
+    "ranAtUtc":  "2026-10-22T13:28:29.7753071Z",
+    "verdict":  "RED-OPEN",
+    "pass":  0,
+    "conditions":  9,
+    "open":  1,
     "failures":  0,
-    "verdict":  "CONDITION",
     "criteria":  [
                      {
                          "Id":  "G2-01",
                          "Criterion":  "Technician app in daily use by all Dhaka technicians",
                          "Status":  "CONDITION",
-                         "Evidence":  "cd_service_order models on disk; daily active usage across Dhaka field technicians is measured in production",
-                         "Remedy":  "Deploy technician companion app and verify daily active usage telemetry",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2583220Z"
+                         "Evidence":  "app models on disk: True; rollout report present: True (repo-authored narrative claiming 42 technicians / 100% DAU for an app this repo has never deployed - not evidence); no machine telemetry evidence (docs/traceability/evidence/g2-01-telemetry*.json)",
+                         "Remedy":  "Deploy the technician app and export daily-active-usage telemetry as machine evidence",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6337089Z"
                      },
                      {
                          "Id":  "G2-02",
                          "Criterion":  "24-hour offline operation with zero data loss (AR-010, TS-015)",
                          "Status":  "CONDITION",
-                         "Evidence":  "Offline sync protocol and event outbox models defined; 24h disconnected field trial is a live operational demonstration",
-                         "Remedy":  "Execute 24h disconnected tablet simulation with zero sync conflict loss",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2745581Z"
+                         "Evidence":  "protocol doc: True; L12 offline suite: True; report present: True (repo-authored narrative); a suite on disk is not a 24-hour field demonstration; no machine telemetry evidence (docs/traceability/evidence/g2-02-telemetry*.json)",
+                         "Remedy":  "Run and record a 24-hour offline field demonstration (device logs + server reconciliation)",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6337089Z"
                      },
                      {
                          "Id":  "G2-03",
                          "Criterion":  "Route optimisation reducing travel time \u003e= 15%",
                          "Status":  "CONDITION",
-                         "Evidence":  "Dispatch routing heuristics \u0026 zone clustering modelled; 15% reduction is evaluated against the historical Dhaka route baseline",
-                         "Remedy":  "Compare real-world technician trip durations against pre-dispatch baseline",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2772343Z"
+                         "Evidence":  "route model: True; optimizer: True; report present: True (a single synthetic 5-stop benchmark claiming 18.86% - not fleet-measured travel time); no machine telemetry evidence (docs/traceability/evidence/g2-03-telemetry*.json)",
+                         "Remedy":  "Measure fleet GPS travel time before/after optimisation over a representative period",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6458324Z"
                      },
                      {
                          "Id":  "G2-04",
                          "Criterion":  "Inventory accuracy \u003e= 95% at migrated locations",
                          "Status":  "CONDITION",
-                         "Evidence":  "Warehouse WMS structure and consignment models on disk; \u003e=95% accuracy requires physical cycle-count audit at pilot branches",
-                         "Remedy":  "Conduct 100-part blind physical audit at Dhanmondi \u0026 Motijheel service hubs",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2804617Z"
+                         "Evidence":  "inventory model: True; sign-off (repo-authored, not countersigned): location rows (10) sum to 4115 counted / 4095 reconciled / variance 20; totals row states 4115 / 4095 / 20; no machine telemetry evidence (docs/traceability/evidence/g2-04-telemetry*.json)",
+                         "Remedy":  "Re-issue the reconciliation from an executed cycle count (machine export) with consistent totals; countersign",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6835867Z"
                      },
                      {
                          "Id":  "G2-05",
                          "Criterion":  "Online booking rate \u003e= 60% at pilot sites",
                          "Status":  "CONDITION",
-                         "Evidence":  "P01 Customer Portal booking wizard and J01 E2E tests fully operational; \u003e=60% intake share is measured against pilot walk-in volumes",
-                         "Remedy":  "Measure web/app intake proportion over first 30 days of branch pilot",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2838354Z"
+                         "Evidence":  "booking portal: True; journey spec: True; report present: True (repo-authored narrative claiming 68.40%; no pilot-site intake data); no machine telemetry evidence (docs/traceability/evidence/g2-05-telemetry*.json)",
+                         "Remedy":  "Measure web/app intake proportion over the first 30 days of the branch pilot (machine export)",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6835867Z"
                      },
                      {
                          "Id":  "G2-06",
                          "Criterion":  "Paper service forms withdrawn in Dhaka",
                          "Status":  "CONDITION",
-                         "Evidence":  "Digital e-signature \u0026 customer work-order signoff model implemented; physical paper withdrawal is an operational policy confirmation",
-                         "Remedy":  "Executive operational order withdrawing physical triplicate job cards",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2868089Z"
+                         "Evidence":  "e-signature model: True; withdrawal order present: True (repo-authored; not a countersigned executive order, operational compliance unaudited); no machine telemetry evidence (docs/traceability/evidence/g2-06-telemetry*.json)",
+                         "Remedy":  "Issue the executive order (countersigned) and audit e-signature job-card share in Dhaka",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6976935Z"
                      },
                      {
                          "Id":  "G2-07",
                          "Criterion":  "T-6 entry criteria check complete",
-                         "Status":  "PASS",
-                         "Evidence":  "T-6 prerequisite register and coverage baseline established in docs/traceability/coverage-baseline-register.md",
-                         "Remedy":  "Maintain green pre-requisite status",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2905461Z"
+                         "Status":  "CONDITION",
+                         "Evidence":  "no G2 T-6 entry-criteria record under docs/ (a coverage-baseline register is not a T-6 check; G1 has gate-g1-t6-entry-criteria-review.md, G2 has none)",
+                         "Remedy":  "Hold the T-6 entry-criteria review for G2 and record it",
+                         "CheckedUtc":  "2026-10-22T13:28:29.6986816Z"
                      },
                      {
                          "Id":  "G2-08",
                          "Criterion":  "L6 E2E journeys 1-3 running nightly",
-                         "Status":  "PASS",
-                         "Evidence":  "Journeys 1, 2, and 3 automated and passing in tooling/e2e/journeys/ (integrated into nightly pipeline profile)",
-                         "Remedy":  "pnpm.cmd --dir tooling/e2e test journeys/j01* journeys/j02* journeys/j03*",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2946515Z"
+                         "Status":  "CONDITION",
+                         "Evidence":  "journey specs j01/j02/j03 on disk: True; latest ci-nightly-run-20261021T144612Z.json: runner \u0027local-harness\u0027, journeys passed 15 / failed 2, stage FAIL - a local-harness run is not a scheduled nightly CI run",
+                         "Remedy":  "Run the nightly profile on a real CI runner (scheduled) and archive its evidence",
+                         "CheckedUtc":  "2026-10-22T13:28:29.7498108Z"
                      },
                      {
                          "Id":  "G2-09",
                          "Criterion":  "Gate pipeline profile \u0026 DR drill evidence (PE-004 stages 16-17)",
-                         "Status":  "PASS",
-                         "Evidence":  ".github/workflows/ci.yml defines gate profiles; Ceph + PostgreSQL multi-service compose provides local DR failover baseline",
-                         "Remedy":  "Execute stage 16-17 gate profile verification",
-                         "CheckedUtc":  "2026-10-16T12:48:43.2975921Z"
+                         "Status":  "CONDITION",
+                         "Evidence":  "../.github/workflows/ci.yml present: True (workflow existence is not a gate run); no 1.5x-peak performance result read; no G2-scoped DR drill evidence; 4 drill JSON(s) for other gates exist (g5-pe007-dr-drill-evidence.json, g6-pe007-dr-drill-evidence.json, g7-pe007-dr-drill-evidence.json, g8-pe007-full-estate-dr-drill-evidence.json), all repo-authored",
+                         "Remedy":  "Execute the stage 16-17 gate profile and a DR drill on target infrastructure; archive runner-produced evidence",
+                         "CheckedUtc":  "2026-10-22T13:28:29.7693003Z"
                      },
                      {
                          "Id":  "G2-10",
                          "Criterion":  "Steering sign-off \u0026 residual register published",
-                         "Status":  "CONDITION",
-                         "Evidence":  "Foundation gate G0b exit criteria verified; formal G2 Steering Committee sign-off occurs at Month 8 milestone review",
+                         "Status":  "OPEN",
+                         "Evidence":  "no signed G2 report (docs/traceability/evidence/gate-g2-signed-report.json); Steering sign-off pending (human execution)",
                          "Remedy":  "Convene Steering Committee for formal MS-04 Gate G2 review",
-                         "CheckedUtc":  "2026-10-16T12:48:43.3007016Z"
+                         "CheckedUtc":  "2026-10-22T13:28:29.7713070Z"
                      }
                  ]
 }

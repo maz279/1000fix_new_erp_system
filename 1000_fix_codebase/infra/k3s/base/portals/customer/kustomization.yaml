@@ -1,0 +1,28 @@
+# portal-customer (apps/web/customer) - instance of ../_template.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../_template
+nameSuffix: -customer
+labels:
+  - pairs:
+      app.kubernetes.io/name: portal-customer
+    includeSelectors: true
+images:
+  - name: 1000fix/portal
+    newName: 1000fix/portal-customer
+# server-side settings of the customer portal's technician relay
+# (apps/web/customer/lib/technician-relay.ts)
+patches:
+  - target: { kind: Deployment, name: portal }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: FIX_ODOO_DB
+          valueFrom: { configMapKeyRef: { name: fix-platform, key: ODOO_DB } }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: FIX_TECHNICIAN_API_KEY
+          valueFrom: { secretKeyRef: { name: fix-portal-customer, key: technician-api-key } }

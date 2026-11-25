@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M56-F19 (A09 ERP audit 2026-11-23): the generated operating-unit rule on
+     fix.payslip filtered `operating_unit_id`, a column the calculation never
+     sets (the cost unit lands in `cost_operating_unit_id`), so the rule always
+     passed and gave false assurance. Two explicit rules replace it:
+
+       * payroll's real scope is the COMPANY - its roles run every unit's
+         payroll (in production 503 of 504 employees sit outside the payroll
+         users' own operating unit), so they read every slip of their
+         companies;
+       * any other internal user who is ever granted read sees the slips of
+         their own cost units (and the unassigned ones) - a restriction on the
+         column that actually holds the unit.
+
+     A hand-written rule that restricts on the same column makes the isolation
+     generator skip the model (tooling/generators/generate-isolation-rules.py),
+     so the dead rule is not regenerated. -->
+<odoo>
+    <record id="rule_payslip_payroll_company_scope" model="ir.rule">
+        <field name="name">fix.payslip: payroll runs the whole company</field>
+        <field name="model_id" ref="model_fix_payslip"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field
+            name="groups"
+            eval="[(4, ref('cd_payroll_bd.group_payroll_officer')), (4, ref('cd_payroll_bd.group_payroll_manager')), (4, ref('cd_payroll_bd.group_payroll_release'))]"
+        />
+    </record>
+
+    <record id="rule_payslip_cost_unit_internal" model="ir.rule">
+        <field name="name">fix.payslip: other internal users see their cost units</field>
+        <field name="model_id" ref="model_fix_payslip"/>
+        <field
+            name="domain_force"
+        >['|', ('cost_operating_unit_id', '=', False), ('cost_operating_unit_id', 'in', operating_unit_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>

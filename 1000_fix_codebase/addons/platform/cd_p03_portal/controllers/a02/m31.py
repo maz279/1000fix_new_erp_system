@@ -1,0 +1,600 @@
+# A02 · M31 Workshop & Depot Repair — models the generic workspace screens
+# may read, the workflow methods they may call (/p03/model/records,
+# /p03/model/action), the module KPI payload (/p03/workshop/kpis) and the
+# built-in reports (/p03/model/report). Same contract as a02/m01 + m02.
+import logging
+
+from odoo import fields, http
+from odoo.http import request
+
+from ..p03_service_order_api import _require_internal
+from .m05 import _period_domain, _period_note
+
+_logger = logging.getLogger(__name__)
+
+# a booked-in device that is physically in the workshop (capture pass 2)
+_OPEN_HELD_STATES = (
+    "intake",
+    "diagnostic",
+    "waiting_parts",
+    "in_repair",
+    "burn_in",
+    "qc_pending",
+    "qc_failed",
+    "ready",
+    "released",
+)
+# A02 pass 2 M31-02: a job is complete when the bench released it; the
+# customer hand-over (delivered) is M01's
+_COMPLETED_STATES = ("released", "delivered")
+
+SURFACES = {
+    "fix.workshop.job": {
+        "order": "priority desc, create_date desc, id desc",
+        "limit": 200,
+        # A07 M45: the QC instrument. Retired, missing and out-of-service items are
+        # not offered; the fitness gate at QC pass still judges the one named.
+        "pickers": {
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+            # M31 audit 14 Nov: a bench under maintenance or closed takes no job
+            "bench_id": [("state", "in", ("available", "occupied"))],
+        },
+        # A02 audit M31-7 / P31-06: the generic action_transition is NOT
+        # offered — it reached qc_failed with no NCR and no rework count. Only
+        # the named actions, each carrying its own gates and side-effects.
+        "actions": {
+            "action_intake",
+            "action_diagnostic",
+            "action_wait_parts",
+            "action_auto_assign_bench",
+            # sub-module 3 "Bench Allocation & Queue": the job to a bench and
+            # a technician, with the hand-over note (FR-WSR-011/015)
+            "action_allocate_bench",
+            "action_start_repair",
+            "action_submit_qc",
+            "action_start_burn_in",
+            "action_log_thermal_crash",
+            "action_pass_burn_in",
+            "action_fail_burn_in",
+            "action_pass_qc",
+            "action_fail_qc",
+            # A02 pass 2 M31-02: the bench RELEASES to the front desk; the
+            # customer hand-over (Deliver) is M01's and closes the job
+            "action_release",
+            "action_cancel",
+            # A02 pass 2 M31-01: the supervisor's level revision
+            "action_revise_level",
+            # A02 audit B1: the waiver is a routed request; the BER write-off
+            # is requested by Confirm BER and approved from the M63 inbox, so
+            # neither action_dofa_approve nor a direct grant is offered.
+            "action_request_certification_waiver",
+            "action_grant_certification_waiver",
+            "action_propose_ber",
+            "action_confirm_ber",
+            "action_recall_approval",
+            # capture pass 2, sub-module 9: the cost build-up (FR-WSR-043/044)
+            "action_build_cost_sheet",
+            # A02 ERP audit M31-F14: the labour figure where no rate is set
+            "action_record_labour",
+        },
+    },
+    "fix.workshop.bench": {
+        "order": "code",
+        "limit": 100,
+        "actions": {
+            "action_log_daily_esd",
+            "action_set_maintenance",
+            "action_set_offline",
+            "action_return_to_service",
+        },
+    },
+    "fix.workshop": {
+        "order": "code",
+        "limit": 50,
+        # A02 audit M31 step 1: receive a device from M01 on the M31 side
+        "actions": {"action_receive_service_order"},
+    },
+    "fix.workshop.part.line": {
+        "order": "id desc",
+        "limit": 200,
+        # Part Fitment form: a closed job takes no new parts (the model refuses
+        # it), so it is not offered
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
+        # A02 audit B1: a part beyond the approved estimate is fitted after a
+        # routed extra-part approval (Request Approval), decided in M63
+        "actions": {
+            "action_reserve",
+            "action_consume_part",
+            "action_release_reservation",
+            "action_request_approval",
+            "action_recall_approval",
+        },
+    },
+    "fix.workshop.evidence": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    # sub-module 7 "Testing & Burn-In" (M31 audit 14 Nov 2026): the protocol
+    # library (FR-WSR-031, workshop managers) and the measured test results
+    # recorded against it (FR-WSR-032); a result is judged by its limits
+    "fix.workshop.test.protocol": {"order": "code", "limit": 200, "actions": set()},
+    "fix.workshop.test.result": {
+        "order": "tested_at desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [
+                ("state", "not in", ("delivered", "unrepairable", "cancelled")),
+                ("qc_passed", "=", False),
+            ],
+            "step_id": [("protocol_id.active", "=", True)],
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+        },
+        "actions": set(),
+    },
+    # ---- M31 capture pass 2 (19 Nov 2026): the spec's own records per page ----
+    # 1/2/3: where a device is in the workshop (FR-WSR-005/042/053)
+    "fix.workshop.location": {"order": "workshop_id, kind, code", "limit": 200, "actions": set()},
+    "fix.workshop.custody.move": {
+        "order": "moved_at desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [("state", "in", _OPEN_HELD_STATES)],
+            "location_id": [("active", "=", True)],
+        },
+        "actions": set(),
+    },
+    # 2: the daily ESD check (FR-WSR-050) and burn-in stations (FR-WSR-034)
+    "fix.workshop.esd.check": {
+        "order": "checked_at desc, id desc",
+        "limit": 300,
+        "pickers": {"bench_id": [("state", "!=", "offline")]},
+        "actions": set(),
+    },
+    "fix.workshop.burnin.station": {"order": "workshop_id, code", "limit": 100, "actions": set()},
+    # 3: hand-overs (written by Allocate to Bench) and the shift close
+    "fix.workshop.bench.handover": {
+        "order": "occurred_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.workshop.shift.close": {
+        "order": "shift_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_close"},
+    },
+    # 4: escalation to a specialist (FR-WSR-029)
+    "fix.workshop.escalation": {
+        "order": "requested_at desc, id desc",
+        "limit": 200,
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
+        "actions": {"action_accept", "action_decline"},
+    },
+    # 5: teardown (FR-WSR-019) and instrument use (FR-WSR-025/040)
+    "fix.workshop.teardown": {
+        "order": "id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [
+                ("state", "not in", ("delivered", "unrepairable", "cancelled")),
+                ("qc_passed", "=", False),
+            ]
+        },
+        "actions": set(),
+    },
+    "fix.workshop.instrument.use": {
+        "order": "used_from desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))],
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+        },
+        "actions": set(),
+    },
+    # 6: consumables (FR-WSR-024)
+    "fix.workshop.consumable.usage": {
+        "order": "id desc",
+        "limit": 300,
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
+        "actions": set(),
+    },
+    # 7: burn-in runs at a station (FR-WSR-033, BRU-WSR-07)
+    "fix.workshop.burnin.session": {
+        "order": "started_at desc, id desc",
+        "limit": 200,
+        "pickers": {
+            # A02 pass 2 M31-04: an L1 job whose protocol sets a burn-in runs too
+            "job_id": [("state", "in", ("in_repair", "qc_failed"))],
+            "station_id": [("active", "=", True)],
+        },
+        "actions": {"action_extend"},
+    },
+    # 8: internal rework (written by the fail actions) and workshop transfers
+    "fix.workshop.rework": {"order": "raised_at desc, id desc", "limit": 300, "actions": set()},
+    "fix.workshop.transfer": {
+        "order": "requested_at desc, id desc",
+        "limit": 200,
+        "pickers": {
+            "job_id": [
+                ("state", "in", ("draft", "intake", "diagnostic", "waiting_parts", "qc_failed"))
+            ]
+        },
+        "actions": {"action_confirm", "action_receive", "action_decline", "action_cancel"},
+    },
+    # 9: the work clock (FR-WSR-026) and the cost build-up (FR-WSR-043/044)
+    "fix.workshop.time.log": {
+        "order": "started_at desc, id desc",
+        "limit": 300,
+        "pickers": {"job_id": [("state", "in", _OPEN_HELD_STATES)]},
+        # A02 pass 2 M31-06: a supervisor corrects a segment with the reason
+        "actions": {"action_stop", "action_correct"},
+    },
+    "fix.workshop.cost.line": {"order": "job_id, sequence", "limit": 500, "actions": set()},
+}
+
+_WIP_STATES = (
+    "intake",
+    "diagnostic",
+    "waiting_parts",
+    "in_repair",
+    "burn_in",
+    "qc_pending",
+    "qc_failed",
+)
+
+
+def _jobs(env):
+    return env["fix.workshop.job"].sudo().with_context(lang="en_US")
+
+
+def _scope(env, date_from=None, date_to=None, field="create_date"):
+    """A02 ERP audit M31-F21: the reports read as the system; they are held
+    to the caller's companies and to the period asked."""
+    return [
+        ("company_id", "in", env.companies.ids),
+        *_period_domain(env, field, date_from, date_to),
+    ]
+
+
+def _first_pass(job) -> bool:
+    """A02 ERP audit M31-F20: first pass = no QC failure AND no failed burn-in
+    (a burn-in failure is a rework loop too; FPY counted it as first pass)."""
+    return not job.is_rework and not job.rework_count and not job.rework_ids
+
+
+def kpis(env):
+    """The M31 module-tile KPI row (registry-canonical metrics)."""
+    Job = _jobs(env)
+    domain = [("company_id", "in", env.companies.ids)]
+    # UTC, like create_date (datetime.now() was the server's local clock)
+    now = fields.Datetime.now()
+
+    on_bench = Job.search_count([*domain, ("bench_id", "!=", False), ("state", "in", _WIP_STATES)])
+    completed = Job.search([*domain, ("state", "in", _COMPLETED_STATES)])
+    passed_first = sum(1 for j in completed if _first_pass(j))
+    first_pass_yield = round(100.0 * passed_first / len(completed), 1) if completed else None
+
+    l3_waiting = Job.search(
+        [
+            *domain,
+            ("repair_level", "=", "l3"),
+            ("state", "in", ("intake", "diagnostic", "waiting_parts")),
+        ],
+    )
+    l3_over_48h = sum(
+        1 for j in l3_waiting if j.create_date and (now - j.create_date).total_seconds() > 48 * 3600
+    )
+
+    durations_days = [
+        (j.completed_at - j.create_date).total_seconds() / 86400.0
+        for j in completed
+        if j.completed_at and j.create_date
+    ]
+    avg_bench_days = round(sum(durations_days) / len(durations_days), 1) if durations_days else None
+
+    # A02 ERP audit M31-F21: the caller's companies, fitted lines only
+    Line = env["fix.workshop.part.line"].sudo()
+    fitted = [("company_id", "in", env.companies.ids), ("reservation_state", "=", "consumed")]
+    lines_with_serial = Line.search_count([*fitted, ("lot_serial_number", "!=", False)])
+    lines_total = Line.search_count(fitted)
+    parts_fitment = round(100.0 * lines_with_serial / lines_total, 1) if lines_total else None
+
+    internal_rework = Job.search_count([*domain, ("is_rework", "=", True)])
+
+    return {
+        "on_bench": on_bench,
+        "first_pass_yield": first_pass_yield,
+        "l3_queue_48h": l3_over_48h,
+        "avg_bench_days": avg_bench_days,
+        "parts_fitment": parts_fitment,
+        "internal_rework": internal_rework,
+    }
+
+
+# ---------------------------------------------------------------- reports
+
+
+def _bench_utilisation_report(env, **params):
+    Workshop = env["fix.workshop"].sudo()
+    rows = []
+    for w in Workshop.search([("company_id", "in", env.companies.ids)]):
+        rows.append(
+            {
+                "workshop": w.name,
+                "type": w.workshop_type,
+                "benches": w.bench_count,
+                "available": w.available_bench_count,
+                "utilisation_pct": w.bench_utilization,
+                "active_jobs": w.active_job_count,
+            }
+        )
+    return {
+        "title": "Bench Utilisation by Workshop",
+        "cols": ["workshop", "type", "benches", "available", "utilisation_pct", "active_jobs"],
+        "labels": {
+            "workshop": "Workshop",
+            "type": "Type",
+            "benches": "Benches",
+            "available": "Available",
+            "utilisation_pct": "Utilisation %",
+            "active_jobs": "Active Jobs",
+        },
+        "rows": rows,
+        "notes": ["Live reads of the workshop/bench masters with their stored computes."],
+    }
+
+
+def _cycle_time_report(env, date_from=None, date_to=None, **params):
+    """Repair Cycle Time by Level: draft→completed days per L1/L2/L3."""
+    Job = _jobs(env)
+    scope = _scope(env, date_from, date_to, "completed_at")
+    rows = []
+    for level in ("l1", "l2", "l3"):
+        done = Job.search(
+            [*scope, ("repair_level", "=", level), ("state", "in", _COMPLETED_STATES)]
+        )
+        durations = [
+            (j.completed_at - j.create_date).total_seconds() / 86400.0
+            for j in done
+            if j.completed_at and j.create_date
+        ]
+        rows.append(
+            {
+                "level": level.upper(),
+                "released": len(done),
+                "avg_days": round(sum(durations) / len(durations), 1) if durations else None,
+                "max_days": round(max(durations), 1) if durations else None,
+            }
+        )
+    return {
+        "title": "Repair Cycle Time by Level",
+        "cols": ["level", "released", "avg_days", "max_days"],
+        "labels": {
+            "level": "Repair Level",
+            "released": "Released Jobs",
+            "avg_days": "Avg Days",
+            "max_days": "Max Days",
+        },
+        "rows": rows,
+        "notes": [
+            "Cycle time runs from the creation of the repair job to its completion; "
+            "jobs released by the bench (or since delivered) are counted.",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+def _rework_loop_report(env, date_from=None, date_to=None, **params):
+    """A02 pass 2 M31-11: the rework loops are the fix.workshop.rework rows
+    (QC failures AND failed burn-ins, each loop counted), against the jobs
+    QC'd in the period; it read the is_rework flag, so a failed burn-in and
+    a second loop on the same job were missed."""
+    Rework = env["fix.workshop.rework"].sudo().with_context(lang="en_US")
+    loops = Rework.search(_scope(env, date_from, date_to, "raised_at"))
+    Job = _jobs(env)
+    qcd = Job.search_count(
+        [*_scope(env, date_from, date_to, "qc_inspected_at"), ("qc_inspected_at", "!=", False)]
+    )
+    by_key = {}
+    for loop in loops:
+        key = (loop.failed_at_state or "qc", (loop.reason or "unspecified").strip()[:80])
+        by_key[key] = by_key.get(key, 0) + 1
+    stages = dict(Rework._fields["failed_at_state"].selection)
+    rows = [
+        {"stage": stages.get(stage, stage), "reason": reason, "loops": count}
+        for (stage, reason), count in sorted(by_key.items(), key=lambda kv: -kv[1])
+    ]
+    rate = round(100.0 * len(loops) / qcd, 1) if qcd else None
+    return {
+        "title": "Internal Rework Loop Analysis",
+        "cols": ["stage", "reason", "loops"],
+        "labels": {"stage": "Failed At", "reason": "Reason", "loops": "Loops"},
+        "rows": rows,
+        "notes": [
+            "%d rework loop(s) over %d job(s) QC'd: %s loops per 100 QC'd jobs."
+            % (len(loops), qcd, rate if rate is not None else "-"),
+            "Each failed QC and each failed burn-in run is one loop (BRU-WSR-10).",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+def _cost_variance_report(env, date_from=None, date_to=None, **params):
+    """A02 pass 2 M31-07 (D14): the repair cost against what the approved
+    estimate expected it to cost, per released job with a built cost sheet."""
+    Job = _jobs(env)
+    jobs = Job.search(
+        [
+            *_scope(env, date_from, date_to, "completed_at"),
+            ("state", "in", ("ready", *_COMPLETED_STATES)),
+        ]
+    )
+    rows = []
+    for job in jobs:
+        if not job.cost_line_ids:
+            continue
+        rows.append(
+            {
+                "job": job.name,
+                "level": (job.repair_level or "").upper(),
+                "estimated": round(job.estimated_cost or 0.0, 2),
+                "actual": round(job.full_cost or 0.0, 2),
+                "variance": round(job.cost_variance or 0.0, 2),
+                "flag": "over tolerance" if job.cost_variance_flag else "",
+            }
+        )
+    return {
+        "title": "Repair Cost Variance (actual vs estimated cost)",
+        "cols": ["job", "level", "estimated", "actual", "variance", "flag"],
+        "labels": {
+            "job": "Job",
+            "level": "Level",
+            "estimated": "Estimated Cost",
+            "actual": "Full Cost",
+            "variance": "Variance",
+            "flag": "Flag",
+        },
+        "rows": rows,
+        "notes": [
+            "Jobs with a built cost sheet; the estimated cost is the estimate's parts at "
+            "standard cost and its labour hours at the workshop rate.",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+def _cost_report(env, date_from=None, date_to=None, **params):
+    Job = _jobs(env)
+    scope = _scope(env, date_from, date_to, "completed_at")
+    rows = []
+    for level in ("l1", "l2", "l3"):
+        done = Job.search(
+            [*scope, ("repair_level", "=", level), ("state", "in", ("ready", *_COMPLETED_STATES))]
+        )
+        if not done:
+            rows.append(
+                {
+                    "level": level.upper(),
+                    "jobs": 0,
+                    "avg_parts": None,
+                    "avg_labour": None,
+                    "avg_total": None,
+                }
+            )
+            continue
+        n = len(done)
+        rows.append(
+            {
+                "level": level.upper(),
+                "jobs": n,
+                "avg_parts": round(sum(done.mapped("parts_total")) / n, 2),
+                "avg_labour": round(sum(done.mapped("labour_cost")) / n, 2),
+                "avg_total": round(sum(done.mapped("total_repair_cost")) / n, 2),
+            }
+        )
+    return {
+        "title": "Workshop Cost per Repair (BDT)",
+        "cols": ["level", "jobs", "avg_parts", "avg_labour", "avg_total"],
+        "labels": {
+            "level": "Level",
+            "jobs": "Jobs",
+            "avg_parts": "Avg Parts",
+            "avg_labour": "Avg Labour",
+            "avg_total": "Avg Total",
+        },
+        "rows": rows,
+        "notes": [
+            "Parts from fitted (consumed) part lines at their issue cost; labour from the work "
+            "clock at the workshop rate (the supervisor-recorded figure where a workshop has "
+            "no rate); the total adds the consumables.",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+def _genealogy_report(env, date_from=None, date_to=None, **params):
+    Line = env["fix.workshop.part.line"].sudo()
+    lines = Line.search(
+        [*_scope(env, date_from, date_to), ("lot_serial_number", "!=", False)],
+        order="id desc",
+    )
+    rows = [
+        {
+            "job": ln.job_id.name,
+            "part": ln.part_number or (ln.product_id.display_name or ""),
+            "qty": ln.quantity,
+            "lot_serial": ln.lot_serial_number,
+        }
+        for ln in lines
+    ]
+    return {
+        "title": "Parts Genealogy Trace",
+        "cols": ["job", "part", "qty", "lot_serial"],
+        "labels": {"job": "Job", "part": "Part", "qty": "Qty", "lot_serial": "Lot / Serial"},
+        "rows": rows,
+        "notes": ["Part lines carrying a lot/serial — the genealogy the swap recorded."],
+    }
+
+
+def _burnin_report(env, date_from=None, date_to=None, **params):
+    """A02 ERP audit M31-F20: 'failed' was started - passed, so a run still
+    going counted as a failure and a job that failed twice counted once.
+    Failed runs are the burn-in rework records; running is the live state."""
+    Job = _jobs(env)
+    tested = Job.search(
+        [
+            *_scope(env, date_from, date_to, "burn_in_started_at"),
+            ("burn_in_started_at", "!=", False),
+        ]
+    )
+    passed = sum(1 for j in tested if j.burn_in_passed)
+    running = sum(1 for j in tested if j.state == "burn_in")
+    failed_runs = (
+        env["fix.workshop.rework"]
+        .sudo()
+        .search_count([("job_id", "in", tested.ids), ("failed_at_state", "=", "burn_in")])
+    )
+    judged = passed + failed_runs
+    rows = [
+        {"measure": "Jobs burn-in tested", "value": len(tested)},
+        {"measure": "Still running", "value": running},
+        {"measure": "Burn-in passed", "value": passed},
+        {"measure": "Failed runs (back to the bench)", "value": failed_runs},
+        {
+            "measure": "Pass rate % (passed / passed + failed runs)",
+            "value": round(100.0 * passed / judged, 1) if judged else None,
+        },
+    ]
+    return {
+        "title": "Burn-In Failure Report",
+        "cols": ["measure", "value"],
+        "labels": {"measure": "Measure", "value": "Jobs"},
+        "rows": rows,
+        "notes": [
+            "L2/L3 jobs are burn-in gated before QC — these are the recorded outcomes. Each "
+            "failed run is counted (a job may fail more than once).",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+REPORTS = {
+    "bench_utilisation": _bench_utilisation_report,
+    "cycle_time": _cycle_time_report,
+    "rework_loops": _rework_loop_report,
+    "cost_per_repair": _cost_report,
+    "parts_genealogy": _genealogy_report,
+    "burn_in": _burnin_report,
+    "cost_variance": _cost_variance_report,
+}
+
+
+class P03M31Controller(http.Controller):
+    @http.route("/p03/workshop/kpis", type="jsonrpc", auth="user", readonly=True)
+    def workshop_kpis(self, **kw):
+        _require_internal(request.env)
+        try:
+            return {"M31": kpis(request.env)}
+        except Exception:
+            _logger.exception("p03 workshop_kpis failed")
+            return {"error": "KPI computation failed"}

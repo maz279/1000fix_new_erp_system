@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M42 Supplier roles (A06 workflow audit 2026-11-03, S1 / S7).
+
+  cd_vendor_portal declared only the P05 portal group: every M42 model granted
+  base.group_user read/write/create, so the supplier's own buyer scored it 0,
+  approved the qualification and activated it alone, and a flagged sanctions
+  hit was erased by a write.
+
+  - Supplier Steward: keeps the supplier register: documents, qualification
+    files, screening, risk, re-qualification, scorecards, CARs; suspends or
+    blocks a supplier; proposes bank-detail changes and verifies documents
+    another user recorded.
+  - Supplier Approver: approves qualifications, activates suppliers, approves
+    reinstatement, clears a screening hit and confirms bank-detail changes.
+    Never on a record they prepared or proposed. Reinstating a blocked
+    (deactivated) supplier additionally needs the DOFA Tier 4 (CFO) group.
+
+  The steward carries the development admin so the workspace keeps working
+  (segregation of duties still applies to it). The approver group ships
+  EMPTY: who approves suppliers is a business appointment (A06 §7 B4).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_supplier" model="res.groups.privilege">
+            <field name="name">Supplier Relationship</field>
+            <field name="description">Stewardship and approval roles of the M42 supplier register.</field>
+            <field name="sequence">43</field>
+        </record>
+
+        <record id="group_fix_supplier_steward" model="res.groups">
+            <field name="name">Supplier Steward</field>
+            <field name="privilege_id" ref="privilege_fix_supplier"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Keeps the supplier register (documents, qualification files, screening, risk, re-qualification, scorecards, CARs), suspends or blocks suppliers, verifies documents another user recorded and proposes bank-detail changes.</field>
+        </record>
+
+        <record id="group_fix_supplier_approver" model="res.groups">
+            <field name="name">Supplier Approver</field>
+            <field name="privilege_id" ref="privilege_fix_supplier"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves qualifications, activates and reinstates suppliers, clears screening hits and confirms bank-detail changes; never on a record they prepared or proposed.</field>
+        </record>
+
+    </data>
+</odoo>

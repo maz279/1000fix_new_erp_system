@@ -12,6 +12,18 @@ wave: 1
 
 checks:
   # --- BLOCKING (14): the Wave 1 set ---------------------------------------
+  - id: FF-48
+    name: deployment wiring - crons scheduled, events consumed, surface actions and buttons real (A03 audit R10)
+    blocking: true
+    stage: model-registry
+    script: check_deployment_wiring.py
+    rationale: a cron with no ir.cron, an event with no consumer and a button the surface refuses all pass unit tests and never run; ratchet baseline in evidence/deployment_wiring_baseline.json
+  - id: FF-49
+    name: KPI and report reads scoped to the user's companies (A05 audit E14)
+    blocking: true
+    stage: model-registry
+    script: check_kpi_company_scope.py
+    rationale: a figure read with sudo().search([]) counts every company's records (A05 M18-11 ESG and DoE); ratchet baseline in evidence/kpi_company_scope_baseline.json, A05 held to zero
   - id: FF-02
     name: module naming convention (AS-04)
     blocking: true
@@ -85,24 +97,30 @@ checks:
     stage: model-registry
     script: check_code_lists.py
     rationale: Wave 1 for exactly this reason - the first module shipping a state field must register it first
+  - id: FF-28
+    name: downstream read-only analytics invariant (LB-06 / AR-001)
+    blocking: true
+    stage: architecture
+    script: check-lb06-analytics-readonly.py
+    rationale: AR-001 LB-06 - analytics modules must NEVER mutate OLTP operational models or tables
 
-  # --- WARNING (3): burn-down targets ---------------------------------------
+  # --- PROMOTED TO BLOCKING (R09-M04-T03 / FG-04 / Gate G8) ----------------
   - id: FF-13
     name: API response-time budget
-    blocking: false
-    target: burn to zero by G3
+    blocking: true
+    target: zero latency budget violations (p95 <= 200ms)
     stage: performance
     script: check_api_budget.py
   - id: FF-14
     name: dependency reciprocity (R-03; extractor)
-    blocking: false
-    target: 53 known failures burn to zero by G2
+    blocking: true
+    target: zero reciprocity failures across module manifests
     stage: architecture
     script: ../architecture-baseline/extract-dependency-graph.ps1
   - id: FF-27
     name: portal contract test coverage (PS-11)
-    blocking: false
-    target: rising
+    blocking: true
+    target: zero portal contract / view integrity violations
     stage: contract
     script: check_portal_contract.py
   - id: FF-38
@@ -160,11 +178,25 @@ checks:
     script: check_perf_peak.py
     rationale: Gate G3 activation - system must sustain 150 req/s with transactional p95 <= 200ms, reporting p95 <= 500ms, and >= 99% correlation-id preservation
 
-  # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
+  - id: FF-46
+    name: clean-install dependency closure (every referenced model reachable via declared depends)
+    blocking: true
+    stage: architecture
+    script: check_manifest_depends.py
+    rationale: R01 re-audit 2026-10-22 - an undeclared dependency (cd_gl_ext -> account.fiscal.year) made a fresh install of the first-party estate fail at registry load while incrementally-built databases kept working
+
+  - id: FF-47
+    name: record-rule isolation (multi-company + operating-unit ir.rule on every transactional model)
+    blocking: true
+    stage: architecture
+    script: check_isolation_rules.py
+    rationale: R01 re-audit 2026-10-22 (pentest A01-05) - 174 transactional models carried company_id/operating_unit_id columns but 167 had no multi-company rule and none an operating-unit rule; the columns isolated nothing
+
+  # --- PROMOTED TO BLOCKING (R09-M04-T03) -----------------------------------
   - id: FF-16
     name: CD identifier form + membership
-    blocking: false
-    enabled: true            # runs in Warning mode
+    blocking: true
+    enabled: true            # promoted to Blocking
     promote_to_blocking_at: G1
     promotion_flag: FF16_BLOCKING
     stage: architecture

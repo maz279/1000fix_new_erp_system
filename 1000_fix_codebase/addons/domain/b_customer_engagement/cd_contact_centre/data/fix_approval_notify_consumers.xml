@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A11 audit P2: the M63 engine publishes approval.* events; these
+         subscriptions queue an e-mail and an SMS to the approver (and the
+         closing notice to the requester) through fix.notif.delivery. -->
+    <data noupdate="1">
+
+        <record id="consumer_approval_requested_notify_approvers" model="fix.event.consumer">
+            <field name="name">M63: e-mail and SMS the approvers when an approval is requested</field>
+            <field name="event_type">approval.requested</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_approval_requested</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_approval_reminder_notify_approvers" model="fix.event.consumer">
+            <field name="name">M63: remind the approvers whose inbox task is overdue</field>
+            <field name="event_type">approval.reminder</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_approval_reminder</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_approval_escalated_notify_targets" model="fix.event.consumer">
+            <field name="name">M63: e-mail and SMS the escalation targets</field>
+            <field name="event_type">approval.escalated</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_approval_escalated</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_approval_decided_notify_requester" model="fix.event.consumer">
+            <field name="name">M63: tell the requester the decision</field>
+            <field name="event_type">approval.decided</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_approval_decided</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

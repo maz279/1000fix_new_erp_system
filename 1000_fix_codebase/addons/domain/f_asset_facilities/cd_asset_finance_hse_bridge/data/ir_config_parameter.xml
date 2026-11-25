@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 business switches (B2: the business confirms each default). -->
+<odoo>
+    <data noupdate="1">
+        <!-- M49: the capitalisation threshold (BDT). 0 queues every costed item and
+             finance rejects the ones below its policy: nothing is left out silently. -->
+        <record id="param_capitalisation_min_bdt" model="ir.config_parameter">
+            <field name="key">cd_asset_finance_hse_bridge.capitalisation_min_bdt</field>
+            <field name="value">0</field>
+        </record>
+        <!-- M59: the severity an M46 accident with injuries opens its HSE case at
+             (M46 records no severity). medium = Form 27 deadline + statutory register. -->
+        <record id="param_vehicle_injury_severity" model="ir.config_parameter">
+            <field name="key">cd_asset_finance_hse_bridge.vehicle_injury_severity</field>
+            <field name="value">medium</field>
+        </record>
+    </data>
+</odoo>

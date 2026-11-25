@@ -1,7 +1,9 @@
 # fix.isolation.tier — the six data isolation tiers T0-T5 (P03-M02-T03).
-# Each tier carries the record-rule domain that enforces it; every tier is
-# negative-tested per role (DoD-07).
-from odoo import fields, models
+# A documented REGISTER (A12 finish E28): it states what each tier is meant to mean.
+# No gate reads role.tier_ids or copies record_rule_domain into an ir.rule; row
+# scoping is enforced by the ordinary ir.rule rows (Record Rules screen) and T5 by
+# residency_mixin. Do not read this table as enforcement.
+from odoo import api, fields, models
 
 
 class FixIsolationTier(models.Model):
@@ -14,33 +16,62 @@ class FixIsolationTier(models.Model):
     T4 = management zone Z5 (no standing access, privileged sessions recorded)
     T5 = residency-classified (Z4 only, step-up auth, per-read logged)
     """
+
     _name = "fix.isolation.tier"
     _description = "Data Isolation Tier"
     _order = "code"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'Tier code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "Tier code must be unique")
 
     code = fields.Selection(
-        [("T0", "T0 - Public"), ("T1", "T1 - Internal"),
-         ("T2", "T2 - Branch-scoped"), ("T3", "T3 - Role-scoped"),
-         ("T4", "T4 - Management (Z5)"), ("T5", "T5 - Residency-classified (Z4)")],
-        required=True, string="Tier")
+        [
+            ("T0", "T0 - Public"),
+            ("T1", "T1 - Internal"),
+            ("T2", "T2 - Branch-scoped"),
+            ("T3", "T3 - Role-scoped"),
+            ("T4", "T4 - Management (Z5)"),
+            ("T5", "T5 - Residency-classified (Z4)"),
+        ],
+        required=True,
+        string="Tier",
+    )
     name = fields.Char(compute="_compute_name", store=True)
     description = fields.Text()
     record_rule_domain = fields.Char(
         string="Record Rule Domain",
-        help="The domain filter that enforces this tier; empty for T0 (no filter). "
-             "T2: [('operating_unit_id','in',user.branch_ids.operating_unit_id.ids)]")
+        help="The domain this tier is meant to apply, recorded as text: no ir.rule is generated "
+        "from it. T2: [('operating_unit_id','in',user.branch_ids.operating_unit_id.ids)]",
+    )
     requires_step_up = fields.Boolean(
-        default=False,
-        help="T5 only: human access requires step-up authentication (NFR-065)")
+        default=False, help="T5 only: human access requires step-up authentication (NFR-065)"
+    )
     requires_audit = fields.Boolean(
-        default=False,
-        help="T4/T5: every access is logged (NFR-070/SC-010)")
+        default=False, help="T4/T5: every access is logged (NFR-070/SC-010)"
+    )
     role_ids = fields.Many2many("fix.role", string="Roles with Access")
 
+    @api.depends("code")
     def _compute_name(self):
         mapping = dict(self._fields["code"].selection)
         for rec in self:
             rec.name = mapping.get(rec.code, rec.code)
+
+
+class FixIsolationTierDisplayRoll(models.Model):
+    """Read-only role-name roll for the D365 Isolation Tier form (M29 wiring
+    pass, 2026-11-05) — the role m2m itself has no workspace editor."""
+
+    _inherit = "fix.isolation.tier"
+    _description = "Fix Isolation Tier M29 Display Roll"
+
+    fix_role_roll = fields.Char(
+        string="Roles with Access",
+        compute="_compute_display_rolls",
+        help="The roles that may reach data on this tier.",
+    )
+
+    def _compute_display_rolls(self):
+        for rec in self:
+            codes = rec.role_ids.mapped("code")
+            rec.fix_role_roll = ", ".join(sorted(codes)) if codes else "—"

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- M12 platform commission rate (0-1). Configuration, not code: change it
+         in Settings > Technical > System Parameters; an order copies it into
+         its own commission_rate when created. -->
+    <record id="param_platform_commission_rate" model="ir.config_parameter">
+        <field name="key">cd_marketplace.platform_commission_rate</field>
+        <field name="value">0.10</field>
+    </record>
+    <!-- BRU-MKP-02 (M12 capture audit, 19 Nov 2026): the evidence a
+         marketplace job needs before it completes, the same as an owned job.
+         Comma-separated: before_photo, after_photo, diagnostic, qc_checklist,
+         parts_declaration. The Quality Manager owns this rule. -->
+    <record id="param_completion_evidence" model="ir.config_parameter">
+        <field name="key">cd_marketplace.completion_evidence</field>
+        <field name="value">before_photo,after_photo,qc_checklist,parts_declaration</field>
+    </record>
+</odoo>

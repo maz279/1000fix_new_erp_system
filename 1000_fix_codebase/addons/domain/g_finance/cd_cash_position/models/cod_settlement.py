@@ -1,0 +1,1157 @@
+# cd_cash_position — Rider COD Settlement (A08 · M50, finance side only).
+#
+# Source of truth for what a rider collected: storefront orders paid "Cash on
+# Delivery" (fix.storefront.order.payment_rail = cod) whose logistics
+# consignment (fix.consignment) was delivered by that rider. The rider app
+# and the collection itself belong to Logistics; finance settles the
+# rider's remittance against the expected COD and books any shortage.
+# Service-order cash collected by field technicians is NOT a COD source yet
+# (no model records it) — the settlement says so instead of guessing.
+#
+# A02 pass 2 (owner decision D1, 20 Nov 2026): a repaired device may go home on
+# a cash-on-delivery leg. The rider collects the service order's amount due
+# (fix.consignment.cod_amount on the order's delivery leg); the order records
+# it with tender "cod" and its M20 receipt debits COD clearing at once. The
+# rider's settlement now loads those legs beside the storefront orders, credits
+# COD clearing for both, and verifies each order's COD settlement when it is
+# settled. D20 / M03-08: a rider whose delivered COD is not in a settlement by
+# the end of the next business day gets no new COD and logistics + finance are
+# told every day (cron).
+#
+# A08 workflow audit (M50-10): the submitter / settler stamps, the order set
+# and the state are guarded (one manager rewrote submitted_by_id and settled
+# his own COD; a bKash-paid order was written onto a rider's COD); the order
+# set is re-checked at submit and settle; a shortage above the configured
+# tolerance needs a second Accounting Administrator's approval before the
+# settlement posts it to the rider receivable, and the rider then carries an
+# open variance until recovered (BRU-TRE-04: `_fix_rider_has_open_variance`).
+#
+# A08 finish (M50-10): the block has a caller (a blocked rider cannot be given
+# a COD consignment or COD order, below); a booked shortage is handed to HR /
+# payroll (cod.shortage_recovery_requested + an activity for the payroll
+# manager); and a shortage falls in one of the two tiers of BRU-TRE-03 /
+# FR-TRE-018. The spec names two thresholds and gives no value (M50 Q-04 is
+# open, owner CFO / HR Manager), so both are configuration defaulting to 0:
+# with nothing configured every shortage takes the strictest path.
+from __future__ import annotations
+
+from datetime import timedelta
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
+
+from libs.py.fix_events import publish
+
+from .courier_remittance import live_cod_orders
+from .treasury_common import (
+    GROUP_ACCOUNTANT,
+    GROUP_ADMIN,
+    bank_account_of,
+    float_param,
+    post_treasury_move,
+    require_other_person,
+    require_role,
+    treasury_account,
+    treasury_alert,
+)
+
+# Shortage a single settler may book (BDT). The spec leaves the variance
+# thresholds open (M50 Q-04), so the default is 0: every shortage has a
+# second approver.
+PARAM_COD_TOLERANCE = "cd_cash_position.cod_shortage_tolerance"
+# BRU-TRE-03 second threshold: above it the shortage is escalated (the approver
+# states why it is accepted and every Accounting Administrator is alerted).
+PARAM_COD_ESCALATION = "cd_cash_position.cod_shortage_escalation_threshold"
+# Who receives the recovery hand-off; the payroll addon is not a dependency.
+PAYROLL_MANAGER_GROUP = "cd_payroll_bd.group_payroll_manager"
+# A02 ERP audit M03-F8: a shortage recovered by payroll deduction is debited
+# to this role's account (cd_cash_position.account_code.rider_shortage_payroll,
+# e.g. the salaries-payable clearing account). OWNER: the account is the
+# finance team's choice; unset, a payroll recovery is refused (fail closed).
+PAYROLL_RECOVERY_ROLE = "rider_shortage_payroll"
+# D20: the business days a rider has to hand delivered COD in skip these
+# weekdays (Python numbers, comma separated; Bangladesh: Friday = 4)
+PARAM_WEEKEND_DAYS = "cd_cash_position.cod_weekend_days"
+# who hears of an overdue hand-in besides finance
+LOGISTICS_MANAGER_GROUP = "cd_consignment.group_fix_logistics_manager"
+SUMMARY_OVERDUE = "Rider COD hand-in overdue"
+
+
+class FixCodSettlement(models.Model):
+    _name = "fix.cod.settlement"
+    _description = "Rider COD Settlement"
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    _order = "settlement_date desc, id desc"
+
+    name = fields.Char(string="Settlement Ref", readonly=True, copy=False, index=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
+    branch_id = fields.Many2one("fix.branch", string="Receiving Branch", index=True)
+    rider_id = fields.Many2one("hr.employee", string="Rider", required=True, index=True)
+    settlement_date = fields.Date(required=True, default=fields.Date.context_today)
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    order_ids = fields.Many2many(
+        "fix.storefront.order",
+        "fix_cod_settlement_order_rel",
+        "settlement_id",
+        "order_id",
+        string="COD Orders",
+        readonly=True,
+    )
+    # D1: service-order delivery legs whose rider collected the amount due
+    consignment_ids = fields.Many2many(
+        "fix.consignment",
+        "fix_cod_settlement_consignment_rel",
+        "settlement_id",
+        "consignment_id",
+        string="Service-Order COD Legs",
+        readonly=True,
+    )
+    order_count = fields.Integer(compute="_compute_amounts", store=True, string="Orders")
+    expected_amount = fields.Monetary(
+        string="COD Expected", currency_field="currency_id", compute="_compute_amounts", store=True
+    )
+    remittance_method = fields.Selection(
+        [("cash", "Cash to Branch"), ("bank", "Bank Deposit"), ("mfs", "bKash / Nagad")],
+        default="cash",
+        required=True,
+    )
+    remittance_journal_id = fields.Many2one(
+        "account.journal",
+        string="Received Into",
+        domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
+    )
+    remitted_amount = fields.Monetary(
+        string="Remitted", currency_field="currency_id", tracking=True
+    )
+    remittance_ref = fields.Char(string="Remittance Ref / TrxID")
+    variance = fields.Monetary(
+        currency_field="currency_id",
+        compute="_compute_amounts",
+        store=True,
+        help="Remitted less expected: negative = rider short",
+    )
+    state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("submitted", "Submitted"),
+            ("settled", "Settled"),
+            ("disputed", "Disputed"),
+        ],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+    submitted_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    settled_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    dispute_reason = fields.Char(tracking=True)
+    move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
+    shortage_approved_by_id = fields.Many2one(
+        "res.users", string="Shortage Approved By", readonly=True, copy=False
+    )
+    shortage_approved_at = fields.Datetime(readonly=True, copy=False)
+    shortage_tier = fields.Selection(
+        [
+            ("none", "No Shortage"),
+            ("tolerated", "Within Tolerance"),
+            ("second_approver", "Second Approver"),
+            ("escalated", "Escalated"),
+        ],
+        compute="_compute_shortage_tier",
+        help="Which BRU-TRE-03 threshold this shortage is above "
+        "(cd_cash_position.cod_shortage_tolerance / cod_shortage_escalation_threshold).",
+    )
+    shortage_approval_note = fields.Char(
+        string="Why the Shortage Is Accepted", readonly=True, copy=False, tracking=True
+    )
+    recovery_requested_at = fields.Datetime(
+        string="Recovery Handed to HR", readonly=True, copy=False
+    )
+    recovery_state = fields.Selection(
+        [("none", "No Shortage"), ("open", "Recovery Open"), ("recovered", "Recovered")],
+        default="none",
+        required=True,
+        readonly=True,
+        copy=False,
+        tracking=True,
+        help="A booked shortage stays open against the rider until HR / the rider repays it "
+        "(BRU-TRE-04).",
+    )
+    recovery_ref = fields.Char(string="Recovery Reference", tracking=True)
+    # A02 ERP audit M03-F8: the recovery is a ledger entry, not a label
+    recovery_method = fields.Selection(
+        [("cash", "Repaid by the Rider"), ("payroll", "Payroll Deduction")],
+        string="Recovered By",
+        readonly=True,
+        copy=False,
+    )
+    recovery_move_id = fields.Many2one(
+        "account.move", string="Recovery GL Entry", readonly=True, copy=False
+    )
+    recovered_by_id = fields.Many2one(
+        "res.users", string="Recovery Posted By", readonly=True, copy=False
+    )
+    recovered_at = fields.Datetime(string="Recovered At", readonly=True, copy=False)
+
+    _COD_GUARDED = frozenset(
+        {
+            "name",
+            "state",
+            "submitted_by_id",
+            "settled_by_id",
+            "move_id",
+            "order_ids",
+            "consignment_ids",
+            "shortage_approved_by_id",
+            "shortage_approved_at",
+            "shortage_approval_note",
+            "recovery_requested_at",
+            "recovery_state",
+            "recovery_method",
+            "recovery_move_id",
+            "recovered_by_id",
+            "recovered_at",
+        }
+    )
+    _COD_TERMS = (
+        "rider_id",
+        "remitted_amount",
+        "remittance_method",
+        "remittance_journal_id",
+        "remittance_ref",
+        "settlement_date",
+        "company_id",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self._COD_GUARDED
+
+    def unlink(self):
+        # T-14 immutable audit: a settlement that left draft carries the
+        # rider's hand-in, the countersigns and the recovery decision.
+        if not (self.env.su or self._fix_guard_has_token()):
+            locked = self.filtered(lambda s: s.state != "draft")
+            if locked:
+                raise UserError(
+                    "COD settlements that left draft are evidence and are never "
+                    "deleted. Dispute or recover through the workflow instead."
+                )
+        return super().unlink()
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self._COD_TERMS)
+        return locked
+
+    def write(self, vals):
+        if self and not (self.env.su or self._fix_guard_has_token()):
+            terms = set(self._COD_TERMS) & set(vals)
+            for rec in self.filtered(lambda r: r.state != "draft"):
+                changed = [f for f in terms if rec._fix_guard_differs(f, vals[f], rec[f])]
+                if changed:
+                    raise UserError(
+                        "%s was submitted: %s cannot change." % (rec.name, ", ".join(changed))
+                    )
+        return super().write(vals)
+
+    @api.depends("order_ids.total_amount", "consignment_ids.cod_amount", "remitted_amount")
+    def _compute_amounts(self):
+        for rec in self:
+            rec.order_count = len(rec.order_ids) + len(rec.consignment_ids)
+            rec.expected_amount = round(
+                sum(rec.order_ids.mapped("total_amount"))
+                + sum(rec.consignment_ids.mapped("cod_amount")),
+                2,
+            )
+            rec.variance = round(rec.remitted_amount - rec.expected_amount, 2)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("name"):
+                vals["name"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("fix.cod.settlement") or "COD"
+                )
+        if self.env.su or self._fix_guard_has_token():
+            return super().create(vals_list)
+        guarded = self._fix_guarded_fields() - {"name"}
+        for vals in vals_list:
+            bad = [k for k in guarded & set(vals) if vals[k] not in (False, None, "", 0, [])]
+            if vals.get("state", "draft") != "draft":
+                bad.append("state")
+            if bad:
+                self._fix_guard_refuse(set(bad))
+        return super(FixCodSettlement, self._guarded()).create(vals_list).with_env(self.env)
+
+    def _shortage(self) -> float:
+        self.ensure_one()
+        return round(max(-self.variance, 0.0), 2)
+
+    def _needs_shortage_approval(self) -> bool:
+        self.ensure_one()
+        tolerance = float_param(self.env, PARAM_COD_TOLERANCE, 0.0)
+        return self._shortage() > tolerance + 0.005
+
+    def _shortage_tier(self) -> str:
+        self.ensure_one()
+        shortage = self._shortage()
+        if shortage <= 0.005:
+            return "none"
+        if not self._needs_shortage_approval():
+            return "tolerated"
+        if shortage > float_param(self.env, PARAM_COD_ESCALATION, 0.0) + 0.005:
+            return "escalated"
+        return "second_approver"
+
+    @api.depends("variance")
+    def _compute_shortage_tier(self):
+        for rec in self:
+            rec.shortage_tier = rec._shortage_tier()
+
+    def _rider_partner(self):
+        """The rider as a ledger party (A02 ERP audit M03-F8: the shortage
+        line carried no partner, so nobody's balance ever showed it)."""
+        self.ensure_one()
+        partner = self.rider_id.sudo().work_contact_id
+        if not partner:
+            raise UserError(
+                "Rider %s has no work contact: the shortage is booked against the rider, so "
+                "give the employee a work contact first." % self.rider_id.name
+            )
+        return partner
+
+    # ------------------------------------------- staff cash shortage ledger
+    # A08 B13 (FR-TRE-017, M50-F5): the field-technician reconciliation needs
+    # the same shortage receivable the rider settlement books (A02 pass 2
+    # M03-F8). The ledger path was embedded in action_settle /
+    # action_mark_recovered; it is exposed here for any staff cash model so
+    # field cash does not invent a second treatment.
+    @api.model
+    def _fix_staff_cash_partner(self, employee):
+        """The employee as a ledger party (a shortage with no partner is
+        nobody's balance)."""
+        if not employee:
+            raise UserError("Name the staff member who owes the cash shortage.")
+        employee = employee.sudo()
+        partner = employee.work_contact_id or employee.user_id.partner_id
+        if not partner:
+            raise UserError(
+                "%s has no work contact: the shortfall is booked against the employee, so "
+                "give the employee a work contact first." % employee.name
+            )
+        return partner
+
+    @api.model
+    def _fix_book_staff_cash_shortage(
+        self,
+        employee,
+        amount,
+        company,
+        entry_date,
+        reference,
+        debit_account,
+        credit_account,
+        branch=None,
+    ):
+        """Dr debit_account (employee as partner) / Cr credit_account.
+
+        The rider-COD settlement's shortage pattern, exposed for other staff
+        cash controls: the caller names the receivable and the account the
+        money should have reached (for field cash, the drawer cash the M20
+        field receipts debited). The caller keeps its own shortfall stamps."""
+        amount = round(float(amount or 0.0), 2)
+        if amount <= 0:
+            raise UserError("A staff cash shortage is a positive amount.")
+        ref = str(reference or "").strip()
+        if not ref:
+            raise UserError("A staff cash shortage carries the reference of its reconciliation.")
+        if not debit_account or not credit_account:
+            raise UserError("A staff cash shortage needs both GL accounts.")
+        partner = self._fix_staff_cash_partner(employee)
+        return post_treasury_move(
+            self.env,
+            company,
+            entry_date,
+            "Staff cash shortage %s — %s" % (ref, employee.name),
+            [
+                (
+                    debit_account,
+                    "Staff cash short %s (%s)" % (employee.name, ref),
+                    amount,
+                    0.0,
+                    partner,
+                ),
+                (
+                    credit_account,
+                    "Cash not handed in (%s)" % ref,
+                    0.0,
+                    amount,
+                    None,
+                ),
+            ],
+            branch=branch,
+            source="treasury",
+        )
+
+    @api.model
+    def _fix_recover_staff_cash_shortage(
+        self,
+        employee,
+        amount,
+        company,
+        entry_date,
+        reference,
+        debit_account,
+        credit_account,
+        branch=None,
+        partner_on_debit=False,
+    ):
+        """Dr debit_account / Cr credit_account (the employee as partner on
+        the credit, and on the debit for a payroll deduction). The recovery
+        leg of action_mark_recovered, exposed for other staff cash controls."""
+        amount = round(float(amount or 0.0), 2)
+        if amount <= 0:
+            raise UserError("A staff cash recovery is a positive amount.")
+        ref = str(reference or "").strip()
+        if not ref:
+            raise UserError("A staff cash recovery carries its reference.")
+        if not debit_account or not credit_account:
+            raise UserError("A staff cash recovery needs both GL accounts.")
+        partner = self._fix_staff_cash_partner(employee)
+        return post_treasury_move(
+            self.env,
+            company,
+            entry_date,
+            "Staff cash shortage recovered %s — %s" % (ref, employee.name),
+            [
+                (
+                    debit_account,
+                    "Staff cash shortage recovered %s" % ref,
+                    amount,
+                    0.0,
+                    partner if partner_on_debit else None,
+                ),
+                (
+                    credit_account,
+                    "Staff cash shortage recovered %s" % ref,
+                    0.0,
+                    amount,
+                    partner,
+                ),
+            ],
+            branch=branch,
+            source="treasury",
+        )
+
+    @staticmethod
+    def _cod_receipt_pending(order) -> bool:
+        """A02 ERP audit M03-F9: the order's cash-on-delivery receipt is not
+        booked yet (the courier remittance already refused these)."""
+        return "posting_state" in order._fields and order.posting_state == "pending"
+
+    def _check_orders(self):
+        """Every order is a delivered COD order of THIS rider in this company,
+        not in another live settlement."""
+        for rec in self:
+            pending = rec.order_ids.sudo().filtered(rec._cod_receipt_pending)
+            if pending:
+                raise UserError(
+                    "%s carries orders whose cash-on-delivery receipt is not booked yet: %s. "
+                    "Settle them once their receipt is posted."
+                    % (rec.name, ", ".join(pending.mapped("name")))
+                )
+            bad = rec.order_ids.sudo().filtered(
+                lambda o, r=rec: (
+                    o.payment_rail != "cod"
+                    or o.company_id != r.company_id
+                    or o.carrier_consignment_id.rider_id != r.rider_id
+                    or o.carrier_consignment_id.state != "delivered"
+                    or o.state in ("cancelled", "draft")
+                )
+            )
+            if bad:
+                raise UserError(
+                    "%s carries orders that are not this rider's delivered COD orders: %s."
+                    % (rec.name, ", ".join(bad.mapped("name")))
+                )
+            # G2: the order's receivable was closed by money that never sat in
+            # COD clearing; settling it here would count that money twice
+            elsewhere = rec.order_ids.sudo().filtered(lambda o: o._fix_cod_paid_elsewhere())
+            if elsewhere:
+                raise UserError(
+                    "%s carries orders already paid other than by the rider's cash on delivery "
+                    "(prepaid or settled by another receipt): %s. Remove them from the settlement."
+                    % (rec.name, ", ".join(elsewhere.mapped("name")))
+                )
+            other = self.sudo().search(
+                [
+                    ("id", "!=", rec.id),
+                    ("company_id", "=", rec.company_id.id),
+                    ("state", "!=", "disputed"),
+                    ("order_ids", "in", rec.order_ids.ids),
+                ],
+                limit=1,
+            )
+            if other:
+                raise UserError("Some orders of %s are already in %s." % (rec.name, other.name))
+            # G10: nor in a live courier remittance (one order, one settlement)
+            taken = rec.order_ids & live_cod_orders(self.env, rec.company_id, exclude=rec)
+            if taken:
+                raise UserError(
+                    "%s carries orders already in another COD settlement or courier "
+                    "remittance: %s." % (rec.name, ", ".join(taken.mapped("name")))
+                )
+            rec._check_service_order_legs()
+
+    def _check_service_order_legs(self):
+        """D1: every service-order leg is a delivered COD leg of THIS rider in
+        this company, in no other live settlement, whose order recorded the
+        collection (tender cod) and booked its receipt to COD clearing."""
+        self.ensure_one()
+        legs = self.consignment_ids.sudo()
+        bad = legs.filtered(
+            lambda c: (
+                not c.service_order_id
+                or (c.cod_amount or 0.0) <= 0.005
+                or c.company_id != self.company_id
+                or c.rider_id != self.rider_id
+                or c.state != "delivered"
+                or not _pod_verified(c)
+                or (_cod_remitted(c) and self.state == "draft")
+            )
+        )
+        if bad:
+            raise UserError(
+                "%s carries legs that are not this rider's delivered service-order COD legs: %s."
+                % (self.name, ", ".join(bad.mapped("name")))
+            )
+        unrecorded = legs.filtered(lambda c: not _cod_recorded(c))
+        if unrecorded:
+            raise UserError(
+                "%s: the rider's collection is not recorded on %s (the order's cash-on-delivery "
+                "settlement and its receipt). Record it before the rider's cash is settled."
+                % (
+                    self.name,
+                    ", ".join(
+                        "%s (%s)" % (c.name, c.service_order_id.name or "-") for c in unrecorded
+                    ),
+                )
+            )
+        other = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "!=", "disputed"),
+                ("consignment_ids", "in", legs.ids),
+            ],
+            limit=1,
+        )
+        if other:
+            raise UserError("Some legs of %s are already in %s." % (self.name, other.name))
+
+    def _fix_verify_service_order_cod(self):
+        """D1 (interface contract, 20 Nov): the settled rider cash marks each
+        leg's COD remitted (cd_consignment's own method) and verifies the
+        order's COD settlement as the settling user."""
+        for leg in self.consignment_ids:
+            sleg = leg.sudo()
+            mark = getattr(sleg, "_m03_mark_cod_remitted", None)
+            if mark:
+                mark()
+            order = sleg.service_order_id.with_env(self.env)
+            if order.sudo().payment_settlement_state == "settled" and not (
+                order.sudo().settlement_verified
+            ):
+                if order.sudo().settlement_source == "cod":
+                    # the settled rider cash is the remittance: M01's own COD
+                    # confirmation, as the system (the settling user is
+                    # finance, not a counter cashier)
+                    order.sudo().action_confirm_cod_remitted()
+                else:
+                    order.action_verify_settlement()
+                order.sudo().message_post(
+                    body="Cash on delivery of BDT %.2f verified: rider %s's COD settlement %s."
+                    % (sleg.cod_amount, self.rider_id.name, self.name)
+                )
+
+    @api.model
+    def _fix_rider_has_open_variance(self, rider) -> bool:
+        """BRU-TRE-04: a rider with an unrecovered COD shortage (or one awaiting
+        settlement / in dispute) is blocked from further cash collection.
+        Logistics asks this before assigning a COD consignment.
+
+        D20 (A02 pass 2, M03-08): so is a rider holding delivered COD that is
+        not in a settlement by the end of the next business day."""
+        if self.sudo().search_count(
+            [
+                ("rider_id", "=", rider.id),
+                "|",
+                ("recovery_state", "=", "open"),
+                "&",
+                ("state", "in", ("submitted", "disputed")),
+                ("variance", "<", -0.005),
+            ]
+        ):
+            return True
+        orders, legs = self._fix_overdue_cod(rider)
+        return bool(orders or legs)
+
+    # ------------------------------------------------ D20: hand-in deadline
+    @api.model
+    def _fix_handin_deadline(self, delivered_day):
+        """The last day the rider may hand in COD delivered on
+        ``delivered_day``: the next business day (the weekend days are
+        cd_cash_position.cod_weekend_days, Python weekday numbers, default
+        Friday)."""
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_WEEKEND_DAYS, "4")
+        try:
+            weekend = {int(x) for x in str(raw).split(",") if str(x).strip()}
+        except ValueError:
+            weekend = {4}
+        if len(weekend) >= 7:
+            weekend = {4}
+        day = delivered_day + timedelta(days=1)
+        while day.weekday() in weekend:
+            day += timedelta(days=1)
+        return day
+
+    @api.model
+    def _fix_overdue_cod(self, rider):
+        """(storefront orders, service-order legs) this rider delivered as COD,
+        in no settlement, past the hand-in deadline (Dhaka days)."""
+        today = _dhaka_day(self.env, fields.Datetime.now())
+
+        def overdue(consignment):
+            day = _dhaka_day(self.env, consignment.delivered_at or consignment.write_date)
+            return bool(day) and today > self._fix_handin_deadline(day)
+
+        settlements = self.sudo()
+        companies = self.env["res.company"].sudo().search([])
+        orders = self.env["fix.storefront.order"].sudo()
+        legs = self.env["fix.consignment"].sudo()
+        for company in companies:
+            orders |= settlements._open_cod_orders(rider, company)
+            legs |= settlements._open_cod_legs(rider, company, recorded_only=False)
+        orders = orders.filtered(lambda o: overdue(o.carrier_consignment_id))
+        return orders, legs.filtered(overdue)
+
+    @api.model
+    def _cron_cod_handin_overdue(self):
+        """Daily (D20): every rider holding COD past the hand-in deadline is
+        blocked (above), and the logistics managers and finance are told."""
+        riders = (
+            self.env["fix.consignment"]
+            .sudo()
+            .search([("state", "=", "delivered"), ("rider_id", "!=", False)])
+            .mapped("rider_id")
+        )
+        group = self.env.ref(LOGISTICS_MANAGER_GROUP, raise_if_not_found=False)
+        managers = (
+            group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+            if group
+            else self.env["res.users"]
+        )
+        late = 0
+        for rider in riders:
+            orders, legs = self._fix_overdue_cod(rider)
+            if not (orders or legs):
+                continue
+            late += 1
+            amount = sum(orders.mapped("total_amount")) + sum(legs.mapped("cod_amount"))
+            refs = ", ".join((orders.mapped("name") + legs.mapped("name"))[:20])
+            note = (
+                "Rider %s holds BDT %.2f of delivered cash on delivery not handed in by the end "
+                "of the next business day (%s). The rider gets no new COD until it is settled."
+                % (rider.name, amount, refs)
+            )
+            # finance: every Accounting Administrator of the rider's company
+            treasury_alert(rider, SUMMARY_OVERDUE, note)
+            for user in managers:
+                open_one = rider.sudo().activity_ids.filtered(
+                    lambda a, u=user: a.summary == SUMMARY_OVERDUE and a.user_id == u
+                )
+                if not open_one:
+                    rider.sudo().activity_schedule(
+                        "mail.mail_activity_data_todo",
+                        summary=SUMMARY_OVERDUE,
+                        note=note,
+                        user_id=user.id,
+                    )
+        return late
+
+    @api.model
+    def _open_cod_orders(self, rider, company):
+        """Delivered COD orders of this rider not yet in a live settlement."""
+        orders = self.env["fix.storefront.order"].search(
+            [
+                ("company_id", "=", company.id),
+                ("payment_rail", "=", "cod"),
+                ("state", "not in", ("cancelled", "draft")),
+                ("carrier_consignment_id.rider_id", "=", rider.id),
+                ("carrier_consignment_id.state", "=", "delivered"),
+            ]
+        )
+        settled = self.search(
+            [("company_id", "=", company.id), ("state", "!=", "disputed")]
+        ).mapped("order_ids")
+        # G10: an order in a live courier remittance is the courier's
+        settled |= live_cod_orders(self.env, company)
+        return (orders - settled).filtered(
+            lambda o: not o.sudo()._fix_cod_paid_elsewhere()
+            and not self._cod_receipt_pending(o.sudo())
+        )
+
+    @api.model
+    def _open_cod_legs(self, rider, company, recorded_only=True):
+        """D1: delivered service-order COD legs of this rider in no live
+        settlement (by default only those whose order recorded the collection:
+        an unrecorded one cannot be settled yet)."""
+        legs = (
+            self.env["fix.consignment"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("rider_id", "=", rider.id),
+                    ("state", "=", "delivered"),
+                    ("service_order_id", "!=", False),
+                    ("cod_amount", ">", 0.005),
+                ]
+            )
+        )
+        settled = (
+            self.sudo()
+            .search([("company_id", "=", company.id), ("state", "!=", "disputed")])
+            .mapped("consignment_ids")
+        )
+        # interface contract: POD verified and not yet remitted (a courier
+        # remittance or an earlier settlement marked it)
+        legs = (legs - settled).filtered(lambda c: _pod_verified(c) and not _cod_remitted(c))
+        return legs.filtered(_cod_recorded) if recorded_only else legs
+
+    def action_load_orders(self):
+        """Pull every delivered, unsettled COD order of the rider (storefront
+        orders and service-order delivery legs)."""
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Orders are loaded on a draft settlement only.")
+            orders = self._open_cod_orders(rec.rider_id, rec.company_id) | rec.order_ids
+            legs = self._open_cod_legs(rec.rider_id, rec.company_id) | rec.consignment_ids
+            rec._guarded().write(
+                {"order_ids": [(6, 0, orders.ids)], "consignment_ids": [(6, 0, legs.ids)]}
+            )
+        return True
+
+    def action_submit(self):
+        require_role(self.env, GROUP_ACCOUNTANT, "Submitting a COD settlement")
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft settlement is submitted.")
+            if not (rec.order_ids or rec.consignment_ids):
+                raise UserError(
+                    "No delivered COD orders for %s — nothing to settle." % rec.rider_id.name
+                )
+            if rec.remitted_amount < 0:
+                raise UserError("The remitted amount cannot be negative.")
+            if not rec.remittance_journal_id:
+                raise UserError("Select the cash/bank account the remittance was received into.")
+            if rec.remittance_method != "cash" and not (rec.remittance_ref or "").strip():
+                raise UserError("A bank/MFS remittance needs its reference (TrxID / slip no).")
+            rec._check_orders()
+            rec._guarded().write({"state": "submitted", "submitted_by_id": self.env.uid})
+        return True
+
+    def action_approve_shortage(self, note=None):
+        """A second Accounting Administrator accepts a shortage above the
+        tolerance before it is booked against the rider. Above the second
+        threshold they state why, and every Accounting Administrator is told."""
+        require_role(self.env, GROUP_ADMIN, "Approving a rider COD shortage")
+        for rec in self:
+            if rec.state != "submitted":
+                raise UserError("Only a submitted settlement's shortage is approved.")
+            if not rec._needs_shortage_approval():
+                raise UserError("%s has no shortage above the tolerance." % rec.name)
+            require_other_person(
+                self.env,
+                rec.submitted_by_id | rec.create_uid,
+                "Approving the shortage of %s" % rec.name,
+            )
+            tier = rec._shortage_tier()
+            why = (note or "").strip()
+            if tier == "escalated" and not why:
+                raise UserError(
+                    "%s is %.2f short, above the escalation threshold (%s): state why the "
+                    "shortage is accepted." % (rec.name, rec._shortage(), PARAM_COD_ESCALATION)
+                )
+            rec._guarded().write(
+                {
+                    "shortage_approved_by_id": self.env.uid,
+                    "shortage_approved_at": fields.Datetime.now(),
+                    "shortage_approval_note": why or False,
+                }
+            )
+            rec.message_post(
+                body="Shortage of %.2f approved by %s." % (rec._shortage(), self.env.user.name)
+            )
+            if tier == "escalated":
+                treasury_alert(
+                    rec,
+                    "Escalated COD shortage",
+                    "%s: rider %s is %.2f short. Accepted by %s: %s"
+                    % (rec.name, rec.rider_id.name, rec._shortage(), self.env.user.name, why),
+                )
+        return True
+
+    def action_settle(self):
+        """Approve and post: Dr cash/bank (remitted) + Dr rider shortage
+        (short) / Cr COD clearing (expected) [+ Cr rider shortage if over].
+        The approver must not be the submitter (SoD)."""
+        for rec in self:
+            if rec.state != "submitted":
+                raise UserError("Only a submitted settlement is settled.")
+            if not self.env.su and rec.submitted_by_id == self.env.user:
+                raise UserError("Segregation of duties: the submitter cannot settle their own COD.")
+            require_role(self.env, GROUP_ADMIN, "Settling COD")
+            rec._check_orders()
+            if rec._needs_shortage_approval():
+                if not rec.shortage_approved_by_id:
+                    raise UserError(
+                        "%s is %.2f short (tolerance %.2f, %s): a second Accounting "
+                        "Administrator approves the shortage before it is settled."
+                        % (
+                            rec.name,
+                            rec._shortage(),
+                            float_param(self.env, PARAM_COD_TOLERANCE, 0.0),
+                            PARAM_COD_TOLERANCE,
+                        )
+                    )
+                require_other_person(
+                    self.env, rec.shortage_approved_by_id, "Settling the shortage of %s" % rec.name
+                )
+            cash = bank_account_of(rec.remittance_journal_id)
+            clearing = treasury_account(self.env, rec.company_id, "cod_clearing")
+            lines = [(cash, "COD remitted %s" % rec.name, rec.remitted_amount, 0.0, None)]
+            if rec.variance < -0.005:
+                shortage = treasury_account(self.env, rec.company_id, "rider_shortage")
+                lines.append(
+                    (
+                        shortage,
+                        "Rider short %s" % rec.rider_id.name,
+                        -rec.variance,
+                        0.0,
+                        rec._rider_partner(),
+                    )
+                )
+            elif rec.variance > 0.005:
+                shortage = treasury_account(self.env, rec.company_id, "rider_shortage")
+                lines.append(
+                    (
+                        shortage,
+                        "Rider over %s" % rec.rider_id.name,
+                        0.0,
+                        rec.variance,
+                        rec._rider_partner(),
+                    )
+                )
+            lines.append((clearing, "COD collected %s" % rec.name, 0.0, rec.expected_amount, None))
+            move = post_treasury_move(
+                self.env,
+                rec.company_id,
+                rec.settlement_date,
+                "COD %s — %s" % (rec.name, rec.rider_id.name),
+                lines,
+                branch=rec.branch_id,
+                source="treasury",
+            )
+            rec._guarded().write(
+                {
+                    "state": "settled",
+                    "settled_by_id": self.env.uid,
+                    "move_id": move.id,
+                    "recovery_state": "open" if rec.variance < -0.005 else "none",
+                }
+            )
+            if rec.recovery_state == "open":
+                rec._fix_request_recovery()
+            rec._fix_verify_service_order_cod()
+        return True
+
+    def _fix_request_recovery(self):
+        """Hand a booked shortage to HR / payroll: the event a payroll consumer
+        takes (the same contract as advance.recovery_requested) and a to-do for
+        the payroll managers. The block stays until action_mark_recovered."""
+        self.ensure_one()
+        amount = self._shortage()
+        publish(
+            self.env,
+            "cod.shortage_recovery_requested",
+            "fix.cod.settlement",
+            self.id,
+            {
+                "employee_id": self.rider_id.id,
+                "amount": amount,
+                "currency": self.currency_id.name,
+                "company_id": self.company_id.id,
+                "settlement": self.name,
+            },
+        )
+        self._guarded().write({"recovery_requested_at": fields.Datetime.now()})
+        note = "Recover %.2f from %s (COD settlement %s), then record the reference on it." % (
+            amount,
+            self.rider_id.name,
+            self.name,
+        )
+        self.sudo().message_post(body="Recovery handed to HR / payroll. %s" % note)
+        group = self.env.ref(PAYROLL_MANAGER_GROUP, raise_if_not_found=False)
+        users = (
+            group.sudo().all_user_ids.filtered(
+                lambda u, c=self.company_id: u.active and not u.share and c in u.company_ids
+            )
+            if group
+            else self.env["res.users"]
+        )
+        if not users:
+            treasury_alert(self, "Recover rider COD shortage", note)
+        for user in users:
+            self.sudo().activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Recover rider COD shortage",
+                note=note,
+                user_id=user.id,
+            )
+
+    def action_mark_recovered(self, reference=None, method=None, journal_id=None):
+        """The rider's shortage was recovered: post it (A02 ERP audit M03-F8).
+
+        The settlement debited the shortage to the rider; this closed the
+        variance with a label and posted nothing, so the rider_shortage
+        account only ever grew. The recovery now credits rider_shortage with
+        the rider as partner, against
+          - cash: the cash / bank journal the rider repaid into, or
+          - payroll: the payroll-deduction account (setting, fail closed).
+        It is posted by an Accounting Administrator other than the one who
+        settled the shortage (maker-checker)."""
+        require_role(self.env, GROUP_ADMIN, "Closing a rider shortage")
+        method = (method or "").strip() or "cash"
+        if method not in ("cash", "payroll"):
+            raise UserError("A shortage is recovered by cash repayment or payroll deduction.")
+        for rec in self:
+            if rec.recovery_state != "open":
+                raise UserError("%s has no open shortage." % rec.name)
+            require_other_person(
+                self.env, rec.settled_by_id, "Posting the recovery of %s" % rec.name
+            )
+            ref = (reference or rec.recovery_ref or "").strip()
+            if not ref:
+                raise UserError("Record the recovery reference (HR deduction / receipt) first.")
+            amount = rec._shortage()
+            if method == "cash":
+                journal = (
+                    self.env["account.journal"].browse(int(journal_id)).exists()
+                    if journal_id
+                    else rec.remittance_journal_id
+                )
+                if journal and journal.company_id != rec.company_id:
+                    raise UserError(
+                        "Journal %s belongs to %s; settlement %s is %s's money."
+                        % (
+                            journal.display_name,
+                            journal.company_id.name,
+                            rec.name,
+                            rec.company_id.name,
+                        )
+                    )
+                debit_account = bank_account_of(journal)
+                label = "Rider repaid shortage %s (%s)" % (rec.name, ref)
+            else:
+                debit_account = treasury_account(self.env, rec.company_id, PAYROLL_RECOVERY_ROLE)
+                label = "Payroll deduction for shortage %s (%s)" % (rec.name, ref)
+            shortage_account = treasury_account(self.env, rec.company_id, "rider_shortage")
+            partner = rec._rider_partner()
+            move = post_treasury_move(
+                self.env,
+                rec.company_id,
+                fields.Date.context_today(rec),
+                "COD shortage recovered %s — %s" % (rec.name, rec.rider_id.name),
+                [
+                    (debit_account, label, amount, 0.0, partner if method == "payroll" else None),
+                    (
+                        shortage_account,
+                        "Rider shortage recovered %s" % rec.name,
+                        0.0,
+                        amount,
+                        partner,
+                    ),
+                ],
+                branch=rec.branch_id,
+                source="treasury",
+            )
+            rec._guarded().write(
+                {
+                    "recovery_state": "recovered",
+                    "recovery_ref": ref,
+                    "recovery_method": method,
+                    "recovery_move_id": move.id,
+                    "recovered_by_id": self.env.uid,
+                    "recovered_at": fields.Datetime.now(),
+                }
+            )
+            rec.sudo().activity_ids.filtered(
+                lambda a: a.summary == "Recover rider COD shortage"
+            ).action_feedback(feedback="Recovered (%s): %s" % (method, ref))
+        return True
+
+    def action_dispute(self, reason=None):
+        for rec in self:
+            if rec.state not in ("draft", "submitted"):
+                raise UserError("A settled COD is not disputed — reverse its entry instead.")
+            why = (reason or rec.dispute_reason or "").strip()
+            if not why:
+                raise UserError("Record the dispute reason first.")
+            rec._guarded().write({"state": "disputed", "dispute_reason": why})
+        return True
+
+
+def _dhaka_day(env, stamp):
+    if not stamp:
+        return None
+    return fields.Date.context_today(
+        env["res.users"].with_context(tz="Asia/Dhaka"), timestamp=stamp
+    )
+
+
+def _pod_verified(consignment) -> bool:
+    """The hand-over to the customer was verified (POD); without the field
+    (an older cd_consignment) a delivered leg counts."""
+    if "pod_verified_at" not in consignment._fields:
+        return True
+    return bool(consignment.pod_verified_at)
+
+
+def _cod_remitted(consignment) -> bool:
+    """cd_consignment marks a leg's COD remitted (_m03_mark_cod_remitted)."""
+    return "cod_remitted_at" in consignment._fields and bool(consignment.cod_remitted_at)
+
+
+def _cod_recorded(consignment) -> bool:
+    """D1: the leg's order recorded the rider's collection as its settlement
+    (source cod) and holds a confirmed receipt for it (COD clearing).
+
+    A02 pass 2 review (N1): this read the order's tender, which keeps the
+    first payment's tender once part of the money is verified (a part payment
+    taken on site and accepted by a cashier). The COD balance then never
+    counted as recorded: the leg was never loaded into a settlement, the
+    rider stayed blocked and the order never closed. The settlement source is
+    the last payment's."""
+    order = consignment.service_order_id.sudo()
+    if not order or order.payment_settlement_state != "settled":
+        return False
+    source = order.settlement_source if "settlement_source" in order._fields else False
+    tender = order.settlement_tender if "settlement_tender" in order._fields else False
+    if "cod" not in (source, tender):
+        return False
+    Receipt = order.env["fix.ar.receipt"].sudo()
+    if "source_order_id" not in Receipt._fields:
+        return True
+    return bool(
+        Receipt.search_count(
+            [
+                ("source_order_id", "=", order.id),
+                ("method", "=", "cod"),
+                ("state", "=", "confirmed"),
+            ]
+        )
+    )
+
+
+def _refuse_blocked_riders(env, riders, what):
+    """BRU-TRE-04: refuses even trusted service code; the block is lifted only
+    by settling or recovering the variance, never by who is asking."""
+    Settlement = env["fix.cod.settlement"]
+    for rider in riders:
+        if Settlement._fix_rider_has_open_variance(rider):
+            raise UserError(
+                "%s: rider %s has an unresolved COD variance and is blocked from further cash "
+                "collection until it is settled and recovered (BRU-TRE-04)." % (what, rider.name)
+            )
+
+
+class FixConsignmentCodBlock(models.Model):
+    """A consignment carrying COD orders cannot be given to a blocked rider."""
+
+    _inherit = "fix.consignment"
+
+    # D1 (A02 pass 2): what the rider collects on a service order's delivery
+    # leg. The field is cd_consignment's (fix_consignment_release, which owns
+    # the leg's rules and sets it); it is declared here too with the same type
+    # and only the attributes the settlement needs, so the two definitions
+    # merge and the rider settlement reads it whichever module loads first.
+    currency_id = fields.Many2one(
+        "res.currency", default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+    )
+    cod_amount = fields.Monetary(currency_field="currency_id", copy=False)
+
+    def write(self, vals):
+        if vals.get("rider_id") and any(
+            (c.cod_amount or 0.0) > 0.005 and c.service_order_id for c in self
+        ):
+            rider = self.env["hr.employee"].sudo().browse(vals["rider_id"])
+            _refuse_blocked_riders(self.env, rider, "Assigning a COD delivery leg")
+        if vals.get("rider_id"):
+            cod_orders = (
+                self.env["fix.storefront.order"]
+                .sudo()
+                .search_count(
+                    [
+                        ("carrier_consignment_id", "in", self.ids),
+                        ("payment_rail", "=", "cod"),
+                        ("state", "not in", ("cancelled", "delivered")),
+                    ]
+                )
+            )
+            if cod_orders:
+                rider = self.env["hr.employee"].sudo().browse(vals["rider_id"])
+                _refuse_blocked_riders(self.env, rider, "Assigning a COD consignment")
+        return super().write(vals)
+
+
+class FixStorefrontOrderCodBlock(models.Model):
+    """A COD order cannot go out on a blocked rider's consignment."""
+
+    _inherit = "fix.storefront.order"
+
+    def _fix_cod_paid_elsewhere(self) -> bool:
+        """G2: money for this order that did not reach the rider: a payment
+        confirmed before delivery (gateway or M20 receipt), or, with the
+        storefront finance bridge, a receivable closed by a receipt that is
+        not the courier's cash on delivery. The rider's COD settlement credits
+        COD clearing, which only the bridge's cod receipt debits."""
+        self.ensure_one()
+        if self.payment_date:
+            return True
+        # the bridge (cd_storefront_finance) is not a dependency: ask if present
+        other = getattr(self, "_sfb_cod_receipt_elsewhere", None)
+        return bool(other and other())
+
+    def _fix_check_cod_rider(self, consignment_id, rail=None):
+        rider = self.env["fix.consignment"].sudo().browse(consignment_id).rider_id
+        cod = rail == "cod" if rail else any(o.payment_rail == "cod" for o in self)
+        if rider and cod:
+            _refuse_blocked_riders(self.env, rider, "Dispatching a COD order")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("carrier_consignment_id") and vals.get("payment_rail") == "cod":
+                self._fix_check_cod_rider(vals["carrier_consignment_id"], "cod")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get("carrier_consignment_id"):
+            self._fix_check_cod_rider(vals["carrier_consignment_id"], vals.get("payment_rail"))
+        return super().write(vals)

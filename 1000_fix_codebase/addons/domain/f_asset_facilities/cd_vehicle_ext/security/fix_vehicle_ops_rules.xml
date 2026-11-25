@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04) M46-15 [probe 60]: 8 of the 10 M46 models had no
+     company or operating-unit isolation (only the assignment had rules, in
+     the generated fix_isolation_rules.xml, which is not edited by hand).
+     The ops models carry no company_id: they are fenced through their
+     vehicle (fleet.vehicle.company_id / operating_unit_id), the driver
+     through its employee. Same shape as the generated rules: a global
+     company rule, and an operating-unit rule for internal users. A vehicle
+     with no company or unit is visible to all, as on the assignment. The
+     dispatch gate and the reports read as superuser and re-apply the company
+     fence themselves (cd_p03_portal a07/m46.py). -->
+<odoo>
+    <record id="rule_fix_driver_company" model="ir.rule">
+        <field name="name">fix.driver: allowed companies</field>
+        <field name="model_id" ref="model_fix_driver"/>
+        <field name="domain_force">['|', ('employee_id.company_id', '=', False), ('employee_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_document_company" model="ir.rule">
+        <field name="name">fix.vehicle.document: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_document"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_document_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.document: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_document"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_offroad_company" model="ir.rule">
+        <field name="name">fix.vehicle.offroad: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_offroad"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_offroad_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.offroad: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_offroad"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_check_company" model="ir.rule">
+        <field name="name">fix.vehicle.check: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_check"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_check_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.check: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_check"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_pm_company" model="ir.rule">
+        <field name="name">fix.vehicle.pm: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_pm"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_pm_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.pm: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_pm"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_fuel_company" model="ir.rule">
+        <field name="name">fix.vehicle.fuel: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_fuel"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_fuel_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.fuel: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_fuel"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_telemetry_company" model="ir.rule">
+        <field name="name">fix.vehicle.telemetry: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_telemetry"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_telemetry_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.telemetry: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_telemetry"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_accident_company" model="ir.rule">
+        <field name="name">fix.vehicle.accident: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_accident"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_accident_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.accident: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_accident"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- capture audit 2026-11-17: fenced through the vehicle, like the ops models -->
+    <record id="rule_fix_vehicle_document_renewal_company" model="ir.rule">
+        <field name="name">fix.vehicle.document.renewal: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_document_renewal"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_document_renewal_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.document.renewal: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_document_renewal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- capture audit 2026-11-17: fenced through the vehicle, like the ops models -->
+    <record id="rule_fix_vehicle_defect_company" model="ir.rule">
+        <field name="name">fix.vehicle.defect: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_defect"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_defect_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.defect: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_defect"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- capture audit 2026-11-17: fenced through the vehicle, like the ops models.
+         A device in stock has no vehicle, and a null many2one path matches no
+         ('vehicle_id.company_id', '=', False) clause: it is admitted explicitly. -->
+    <record id="rule_fix_telematics_device_company" model="ir.rule">
+        <field name="name">fix.telematics.device: allowed companies</field>
+        <field name="model_id" ref="model_fix_telematics_device"/>
+        <field name="domain_force">['|', '|', ('vehicle_id', '=', False), ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_telematics_device_operating_unit" model="ir.rule">
+        <field name="name">fix.telematics.device: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_telematics_device"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('vehicle_id', '=', False), ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- capture audit 2026-11-17: fenced through the vehicle, like the ops models -->
+    <record id="rule_fix_vehicle_penalty_company" model="ir.rule">
+        <field name="name">fix.vehicle.penalty: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_penalty"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_penalty_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.penalty: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_penalty"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 ERP audit (2026-11-20): FIN-26 / M46-17 the register itself is
+         fenced by operating unit (it had the company rule only), and the
+         disposal follows its vehicle. A vehicle with no unit stays visible. -->
+    <record id="rule_fleet_vehicle_operating_unit" model="ir.rule">
+        <field name="name">fleet.vehicle: allowed operating units (internal users)</field>
+        <field name="model_id" ref="fleet.model_fleet_vehicle"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_disposal_company" model="ir.rule">
+        <field name="name">fix.vehicle.disposal: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_disposal"/>
+        <field name="domain_force">['|', ('vehicle_id.company_id', '=', False), ('vehicle_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_disposal_operating_unit" model="ir.rule">
+        <field name="name">fix.vehicle.disposal: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vehicle_disposal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('vehicle_id.operating_unit_id', '=', False), ('vehicle_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vehicle_class_profile_company" model="ir.rule">
+        <field name="name">fix.vehicle.class.profile: allowed companies</field>
+        <field name="model_id" ref="model_fix_vehicle_class_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

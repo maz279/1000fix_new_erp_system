@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 report §6 C7: the warranty claim money leg. The claim's own M09
+     controls decide it; this consumer turns an approved decision into the
+     draft M20 receivable on the OEM brand partner (matched by the brand
+     code on res.partner). A rejection is acknowledged as a no-op. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a04_warranty_claim_decided" model="fix.event.consumer">
+            <field name="name">M20: an approved warranty claim raises its draft OEM invoice</field>
+            <field name="event_type">warranty_claim.decided</field>
+            <field name="model">fix.a04.claim.consumers</field>
+            <field name="method">consume_warranty_claim_decided</field>
+            <field name="module">cd_billing_engine</field>
+        </record>
+
+    </data>
+</odoo>

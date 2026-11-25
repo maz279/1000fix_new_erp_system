@@ -7,36 +7,92 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__active
+msgid "Active"
+msgstr "সক্রিয়"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__additional_role_ids
 msgid "Additional Roles"
 msgstr "অতিরিক্ত ভূমিকা"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__branch_id
 msgid "Assigned Branch"
 msgstr "নিযুক্ত শাখা"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_fix_branch__employee_manager_id
+msgid "Branch Manager (Employee)"
+msgstr "শাখা ব্যবস্থাপক (কর্মী)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__employee_code
 msgid "Employee Code"
 msgstr "কর্মী কোড"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__joined_date
 msgid "Joined Date"
 msgstr "যোগদানের তারিখ"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__joining
+msgid "Joining (Pre-Start)"
+msgstr "যোগদান (শুরুর আগে)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__keycloak_user_id
 msgid "Keycloak User ID"
 msgstr "Keycloak ব্যবহারকারী আইডি"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__leaving
+msgid "Leaving"
+msgstr "চাকরি ছাড়ছেন"
+
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__left
+msgid "Left"
+msgstr "চাকরি ছেড়েছেন"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__left_date
 msgid "Left Date"
 msgstr "ত্যাগের তারিখ"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__legacy_reference
+msgid "Legacy Reference"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__partner_id
 msgid "Linked Party"
 msgstr "সংযুক্ত পার্টি"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__notice_period
+msgid "Notice Period"
+msgstr "নোটিশ মেয়াদ"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__party_role_id
 msgid "Party Role (Employee)"
 msgstr "পার্টি ভূমিকা (কর্মী)"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__primary_role_id
 msgid "Primary Business Role (M29)"
 msgstr "প্রধান ব্যবসায়িক ভূমিকা (M29)"
 
-msgid "Branch Manager (Employee)"
-msgstr "শাখা ব্যবস্থাপক (কর্মী)"
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__prospect
+msgid "Prospect"
+msgstr "সম্ভাব্য"

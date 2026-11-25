@@ -4,7 +4,17 @@
 Every string below is authored once, here; the file it writes is the
 deliverable. Re-run is idempotent (same input -> same output). After this
 run, FF-25 enforces 100% on every module shipping a template.
+
+RETIRED (2026-10-22, TR-07/DoD-08): this one-shot wrote the platform bn_BD.po files in a form
+Odoo 19 cannot load - no `#. module:` comment and no `#:` references, so
+odoo.tools.translate.PoFileReader raises AttributeError and the whole bn_BD
+load aborts. The files it produced have since been completed and rewritten
+in Odoo form; re-running it would overwrite them. It now exits without
+writing anything. Maintain i18n/bn_BD.po directly and refresh templates and
+references with tooling/scripts/extract-translations.py
+(docs/guides/bn-terminology-glossary.md). The tables below are kept as history.
 """
+
 from __future__ import annotations
 
 import re
@@ -250,7 +260,7 @@ T: dict[str, str] = {
     "Token Queue": "টোকেন কিউ",
 }
 
-HEADER = '''# Bengali (Bangladesh) translation for {module}.
+HEADER = """# Bengali (Bangladesh) translation for {module}.
 # 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
@@ -259,7 +269,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\\n"
 
-'''
+"""
 
 
 def po_escape(text: str) -> str:
@@ -267,10 +277,7 @@ def po_escape(text: str) -> str:
 
 
 def module_dir(module: str) -> Path:
-    return next(
-        p for p in ADDONS.rglob(module)
-        if p.is_dir() and (p / "__manifest__.py").is_file()
-    )
+    return next(p for p in ADDONS.rglob(module) if p.is_dir() and (p / "__manifest__.py").is_file())
 
 
 def upsert_po(module: str) -> tuple[int, int]:
@@ -279,8 +286,12 @@ def upsert_po(module: str) -> tuple[int, int]:
     msgids = [m for m in re.findall(r'^msgid "((?:[^"\\]|\\.)*)"', pot, re.M) if m]
     po_path = base / "i18n" / "bn_BD.po"
     existing = dict(
-        re.findall(r'msgid "((?:[^"\\]|\\.)*)"\s*\nmsgstr "((?:[^"\\]|\\.)*)"',
-                   po_path.read_text(encoding="utf-8")) if po_path.exists() else []
+        re.findall(
+            r'msgid "((?:[^"\\]|\\.)*)"\s*\nmsgstr "((?:[^"\\]|\\.)*)"',
+            po_path.read_text(encoding="utf-8"),
+        )
+        if po_path.exists()
+        else []
     )
     lines = [HEADER.format(module=module)]
     untranslated = []
@@ -298,10 +309,16 @@ def upsert_po(module: str) -> tuple[int, int]:
 
 def main() -> int:
     modules = [
-        "cd_catalogue", "cd_document_core", "cd_employee_core",
-        "cd_entity_config", "cd_event_outbox", "cd_mdm_core",
-        "cd_party_master", "cd_rbac_ext",
-        "cd_device_registry", "cd_front_desk",  # top-ups
+        "cd_catalogue",
+        "cd_document_core",
+        "cd_employee_core",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_mdm_core",
+        "cd_party_master",
+        "cd_rbac_ext",
+        "cd_device_registry",
+        "cd_front_desk",  # top-ups
     ]
     total_missing = 0
     for module in modules:
@@ -309,11 +326,13 @@ def main() -> int:
         total_missing += missing
         flag = " OK" if not missing else f" MISSING {missing}"
         print(f"{module}: {count} strings{flag}")
-        for m in ([m for m in missing] if False else []):
-            pass
     print("all translated" if not total_missing else f"{total_missing} strings still untranslated")
     return 1 if total_missing else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    print(
+        "generate-platform-po.py: RETIRED - it would overwrite the Odoo-loadable i18n/bn_BD.po files; "
+        "use tooling/scripts/extract-translations.py (see the module docstring)."
+    )
+    raise SystemExit(2)

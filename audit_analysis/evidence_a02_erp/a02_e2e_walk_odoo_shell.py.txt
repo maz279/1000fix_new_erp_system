@@ -1,0 +1,402 @@
+# End-to-end A02 repair journey on a copy of fix_real (real chart, branches,
+# stock), driven through the modules' own actions. Superuser: the role and SoD
+# gates are covered by the unit suites; this proves the business chain and the
+# ledger across M04 -> M01 -> M31 -> M15 -> M04 drawer -> M20 -> M51 -> M19 ->
+# M50 -> M09/M27. Every step is reported; the walk commits nothing.
+import base64, traceback
+from odoo import fields
+from odoo.addons.cd_service_order.models import fix_otp_util
+
+env = env(user=env.ref("base.user_admin").id, su=True)
+P = env["ir.config_parameter"].sudo()
+sent = {}
+fix_otp_util.dispatch_otp = lambda phone, code, ttl, language="bn": sent.update({phone: code})
+results = []
+ctx = {}
+
+
+def step(name):
+    def deco(fn):
+        try:
+            with env.cr.savepoint():
+                out = fn()
+            results.append(("OK  ", name, out))
+            return out
+        except Exception as e:  # noqa: BLE001
+            results.append(("FAIL", name, "%s: %s" % (type(e).__name__, str(e)[:300])))
+            ctx["tb_" + name] = traceback.format_exc()[-1500:]
+            return None
+    return deco
+
+
+def acc(code):
+    return env["account.account"].search([("code", "=", code)], limit=1)
+
+
+def bal(account, partner=None):
+    env.flush_all()
+    dom = [("account_id", "=", account.id), ("parent_state", "=", "posted")]
+    if partner:
+        dom.append(("partner_id", "=", partner.id))
+    return round(sum(env["account.move.line"].search(dom).mapped("balance")), 2)
+
+
+company = env.company
+branch = env["fix.branch"].search(
+    [("operating_unit_id", "!=", False), ("name", "ilike", "Shewrapara")], limit=1
+)
+drawer = acc(P.get_param("cd_cash_position.account_code.branch_cash"))
+ar = acc(P.get_param("cd_billing_engine.account_code.ar"))
+rev = acc(P.get_param("cd_billing_engine.account_code.revenue"))
+vat = acc(P.get_param("cd_billing_engine.account_code.vat_output"))
+d0, rev0, vat0 = bal(drawer), bal(rev), bal(vat)
+cust = env["res.partner"].create({"name": "E2E Customer Rahim", "phone": "01711999888"})
+brand = env["fix.brand"].search([], limit=1)
+model = env["fix.device.model"].search([("brand_id", "=", brand.id)], limit=1) or env[
+    "fix.device.model"
+].create({"brand_id": brand.id, "name": "E2E Laptop 15", "device_type": "laptop"})
+emp = env["hr.employee"].search([("company_id", "=", company.id)], limit=1)
+tech = env["hr.employee"].search([("company_id", "=", company.id), ("user_id", "!=", False)], limit=1)
+for comp in env["fix.competency"].search([("required_for_dispatch", "=", True)]):
+    cert = env["fix.certification"].create({"employee_id": tech.id, "competency_id": comp.id,
+        "brand_id": comp.brand_id.id or False, "repair_tier": "l3",
+        "issued_on": fields.Date.today(), "expires_on": fields.Date.add(fields.Date.today(), years=1)})
+    if cert.state != "valid":
+        (cert._guarded() if hasattr(cert, "_guarded") else cert).write({"state": "valid"})
+
+
+@step("M04 open the branch cash shift")
+def _():
+    Shift = env["fix.cash.shift"]
+    s = Shift._fd_open_shift_for(branch, company) or Shift.create(
+        {"branch_id": branch.id, "company_id": company.id,
+         "operating_unit_id": branch.operating_unit_id.id, "operator_id": emp.id,
+         "opening_float": 0.0})
+    ctx["shift"] = s
+    return "shift #%s %s" % (s.id, s.state)
+
+
+@step("M17 register the customer's device")
+def _():
+    dev = env["fix.device"].create(
+        {"device_model_id": model.id, "owner_id": cust.id, "serial_number": "E2E-SN-0001"})
+    ctx["device"] = dev
+    return dev.display_name
+
+
+@step("M04 walk-in intake with a BDT 300 cash diagnostic fee, hand-over")
+def _():
+    vals = {"branch_id": branch.id, "operating_unit_id": branch.operating_unit_id.id,
+            "customer_id": cust.id, "device_id": ctx["device"].id,
+            "fault_description": "No display after drop", "diagnostic_fee_bdt": 300.0,
+            "payment_channel": "cash"}
+    it = env["fix.walkin.intake"].create(vals)
+    # the customer signs the intake receipt at the counter (BRU-FRD-05)
+    sig = env["ir.attachment"].create({"name": "signed-intake.png", "raw": b"signed by Rahim",
+                                       "res_model": it._name, "res_id": it.id})
+    it.write({"handover_method": "signature", "customer_signature_attachment_id": sig.id,
+              "accessory_bag_barcode": "BAG-E2E-1"})
+    it.action_complete_handover()
+    ctx["intake"] = it
+    ctx["order"] = it.service_order_id
+    r = it.diagnostic_fee_receipt_id
+    return "order %s, fee receipt %s %s on %s" % (it.service_order_id.name, r.name, r.state, r.account_id.code)
+
+
+@step("M01 diagnose and estimate (part + labour), customer approves")
+def _():
+    o = ctx["order"]
+    o.action_start_diagnostic()
+    part = env["product.product"].search([("default_code", "!=", False), ("type", "!=", "service")], limit=1)
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [
+        (0, 0, {"description": part.name or "Display", "product_id": part.id, "quantity": 1,
+                "unit_price": 2000.0, "line_type": "part"}),
+        (0, 0, {"description": "Display replacement labour", "quantity": 1,
+                "unit_price": 1000.0, "line_type": "labour"})]})
+    o.action_request_estimate() if o.state == "diagnostic" else None
+    est.action_send()
+    est.action_approve()
+    o.invalidate_recordset()
+    ctx["estimate"] = est
+    return "estimate %s total %.2f, order %s, due %.2f" % (est.state, est.grand_total, o.state, o._fix_amount_due())
+
+
+@step("M31 book into the workshop, repair, QC pass -> order Ready")
+def _():
+    o = ctx["order"]
+    if o.state == "approved":
+        o.action_start_repair()
+    o.action_submit_qc()
+    chk = env["fix.qc.checklist"].create({"order_id": o.id, "item_ids": [
+        (0, 0, {"name": n, "passed": True}) for n in ("Power on", "Display", "Charging")]})
+    if hasattr(chk, "action_complete"):
+        chk.action_complete()
+    o.action_ready()
+    return "order %s" % o.state
+
+
+@step("M04 counter takes the balance in cash (drawer + M20 receipt)")
+def _():
+    o = ctx["order"]
+    due = o._fix_amount_due()
+    o.action_mark_settled(amount_bdt=due, reference="E2E-CTR-1", source="counter", tender="cash")
+    r = o.settlement_receipt_id
+    return "due %.2f, receipt %s %s Dr %s, customer AR %.2f" % (due, r.name, r.state, r.account_id.code, bal(ar, cust))
+
+
+@step("M01 hand-over: OTP, recipient, signed report -> delivered, tax invoice")
+def _():
+    o = ctx["order"]
+    o.action_send_delivery_otp()
+    o.action_verify_delivery_otp(otp=sent[fix_otp_util.bd_mobile(cust)])
+    rep = env["ir.attachment"].create({"name": "service-report.pdf",
+                                       "datas": base64.b64encode(b"%PDF-1.4 e2e"),
+                                       "res_model": o._name, "res_id": o.id})
+    o.write({"recipient_name": cust.name, "service_report_attachment_id": rep.id})
+    o.action_deliver()
+    inv = env["fix.ar.invoice"].search([("source_model", "=", o._name), ("source_id", "=", o.id)])
+    ctx["invoice"] = inv
+    return "order %s, invoice %s %s total %.2f residual %.2f, warranty until %s" % (
+        o.state, inv.name, inv.state, inv.total_payable, inv.amount_residual, o.service_warranty_until)
+
+
+@step("M19 ledger after delivery")
+def _():
+    return "drawer +%.2f, customer AR %.2f, revenue %+.2f, VAT %+.2f" % (
+        bal(drawer) - d0, bal(ar, cust), bal(rev) - rev0, bal(vat) - vat0)
+
+
+@step("M01 close -> M27/M34 events")
+def _():
+    o = ctx["order"]
+    o.action_close()
+    ev = env["fix.event.outbox"].search([("aggregate", "=", o._name), ("aggregate_id", "=", o.id)]).mapped("event_type")
+    return "order %s; events: %s" % (o.state, ", ".join(sorted(set(ev))))
+
+
+@step("M04 count and close the drawer; M50 deposit dispatch")
+def _():
+    s = ctx["shift"]
+    s.action_close_shift()
+    rest = round(s.expected_closing, 2)
+    notes = (("denom_1000_count", 1000), ("denom_500_count", 500), ("denom_200_count", 200),
+             ("denom_100_count", 100), ("denom_50_count", 50), ("denom_20_count", 20), ("denom_10_count", 10))
+    count = {}
+    for n, v in notes:
+        count[n], rest = int(rest // v), round(rest % v, 2)
+    count["coins_amount"] = rest
+    s.write(count)
+    s.action_submit_blind_count()
+    s.action_confirm_closed()
+    bank = env["account.journal"].search([("type", "=", "bank"), ("company_id", "=", company.id)], limit=1)
+    Dep = env["fix.cash.deposit"]
+    dep = Dep.create({"operating_unit_id": branch.operating_unit_id.id, "branch_id": branch.id,
+                      "journal_id": bank.id, "business_date": s.shift_date,
+                      "amount": s.closing_counted - s.opening_float,
+                      "carrier": Dep._fields["carrier"].selection[0][0], "slip_no": "E2E-SLIP-1"})
+    dep.action_dispatch()
+    return "shift %s expected %.2f counted %.2f; deposit %.2f; drawer net %+.2f" % (
+        s.state, s.expected_closing, s.closing_counted, dep.amount, bal(drawer) - d0)
+
+
+# ---------------------------------------------------------------- scenario 2
+# a depot repair: the workshop job, a part issued from real M15 stock at its
+# cost, QC on the bench, and the order follows the job to Ready
+@step("S2 M01 order approved for a depot repair")
+def _():
+    dev = env["fix.device"].create({"device_model_id": model.id, "owner_id": cust.id,
+                                    "serial_number": "E2E-SN-0002"})
+    o = env["fix.service.order"].create({"device_id": dev.id, "customer_id": cust.id,
+        "branch_id": branch.id, "fault_description": "Camera fault", "service_type": "walk_in",
+        "order_category": "standard"})
+    o.action_intake()
+    o.action_start_diagnostic()
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [
+        (0, 0, {"description": "Camera module", "quantity": 1, "unit_price": 2500.0, "line_type": "part"}),
+        (0, 0, {"description": "Bench labour", "quantity": 1, "unit_price": 800.0, "line_type": "labour"})]})
+    if o.state == "diagnostic":
+        o.action_request_estimate()
+    est.action_send()
+    est.action_approve()
+    o.invalidate_recordset()
+    ctx["o2"] = o
+    return "order %s %s" % (o.name, o.state)
+
+
+@step("S2 M31 book the job into a workshop")
+def _():
+    o = ctx["o2"]
+    ws = env["fix.workshop"].search([("name", "ilike", "Tejgaon")], limit=1)
+    o.action_create_workshop_job(repair_level="l1", workshop_id=ws.id)
+    job = o.workshop_job_ids[:1]
+    ctx["job"] = job
+    return "job %s at %s, state %s" % (job.name, ws.name, job.state)
+
+
+@step("S2 M31/M15 issue a stocked part to the job at its stock cost")
+def _():
+    job = ctx["job"]
+    # the workshop draws from its own store (owner: Warranty HO/Stock); watch
+    # a part that store actually holds
+    store = job.workshop_id._a06_m15_store()
+    dom = [("qty", ">", 0), ("unit_cost", ">", 0), ("unit_cost", "<", 1500)] + ([("location_id", "=", store.id)] if store else [])
+    onhand = env["fix.stock.onhand"].search(dom, limit=1)
+    part = onhand.part_id
+    if not store:
+        job.workshop_id.sudo().write({"m15_location_id": onhand.location_id.id})
+    before = onhand.qty
+    PL = env["fix.workshop.part.line"]
+    vals = {"job_id": job.id, "quantity": 1}
+    for f, v in (("spare_part_id", part.id), ("part_id", part.id),
+                 ("product_id", part.product_id.id if part.product_id else False),
+                 ("location_id", onhand.location_id.id)):
+        if f in PL._fields and v:
+            vals[f] = v
+    line = PL.create(vals)
+    if "technician_id" in job._fields and not job.technician_id:
+        (job._guarded() if hasattr(job, "_guarded") else job).write({"technician_id": tech.id})
+    for st in ("action_intake", "action_diagnostic", "action_auto_assign_bench", "action_start_repair"):
+        if job.state != "in_repair":
+            try:
+                with env.cr.savepoint():
+                    getattr(job, st)()
+            except Exception as e:  # noqa: BLE001
+                ctx.setdefault("job_gates", []).append("%s: %s" % (st, str(e)[:220]))
+    if job.state != "in_repair":
+        raise RuntimeError("job is %s; gates: %s" % (job.state, " | ".join(ctx.get("job_gates", []))))
+    if hasattr(line, "action_reserve"):
+        line.action_reserve()
+    line.action_consume_part()
+    onhand.invalidate_recordset()
+    job.invalidate_recordset()
+    ctx["line"] = line
+    return "part %s line cost %.2f (bucket %.2f), stock %s -> %s, job parts_total %.2f, job %s" % (
+        part.part_number, line.unit_cost, onhand.unit_cost, before, onhand.qty, job.parts_total, job.state)
+
+
+@step("S2 M31 QC on the bench -> job and order Ready")
+def _():
+    job, o = ctx["job"], ctx["o2"]
+    # the release evidence the technician files on the bench
+    Ev = env["fix.workshop.evidence"]
+    for kind, title in (("post_repair_photo", "Finished device"), ("test_log", "Functional test")):
+        Ev.create({"job_id": job.id, "name": title, "evidence_type": kind,
+                   "upload_file": base64.b64encode(b"PNG evidence"), "upload_filename": kind + ".png"})
+    job.action_submit_qc()
+    if job.state == "burn_in" or (hasattr(job, "burn_in_required") and job.burn_in_required):
+        job.action_start_burn_in()
+        job.action_pass_burn_in()
+    if job.state == "qc_pending":
+        job.action_pass_qc(notes="All functions tested")
+    job.invalidate_recordset()
+    o.invalidate_recordset()
+    return "job %s (labour cost %.2f, total cost %.2f), order %s" % (
+        job.state, getattr(job, "labour_cost", 0.0), getattr(job, "total_repair_cost", 0.0), o.state)
+
+
+@step("S2 M04/M20 bKash at the counter, hand-over, invoice paid")
+def _():
+    o = ctx["o2"]
+    Shift = env["fix.cash.shift"]
+    if not Shift._fd_open_shift_for(branch, company):
+        Shift.create({"branch_id": branch.id, "company_id": company.id,
+                      "operating_unit_id": branch.operating_unit_id.id, "operator_id": emp.id,
+                      "opening_float": 0.0})
+    due = o._fix_amount_due()
+    o.action_mark_settled(amount_bdt=due, reference="BKX-E2E-2", source="counter", tender="bkash")
+    o.action_send_delivery_otp()
+    o.action_verify_delivery_otp(otp=sent[fix_otp_util.bd_mobile(cust)])
+    rep = env["ir.attachment"].create({"name": "report2.pdf", "datas": base64.b64encode(b"%PDF-1.4 e2e2"),
+                                       "res_model": o._name, "res_id": o.id})
+    o.write({"recipient_name": cust.name, "service_report_attachment_id": rep.id})
+    o.action_deliver()
+    inv = env["fix.ar.invoice"].search([("source_model", "=", o._name), ("source_id", "=", o.id)])
+    return "receipt %s Dr %s; invoice %s %s %.2f residual %.2f; warranty %s days until %s" % (
+        o.settlement_receipt_id.name, o.settlement_receipt_id.account_id.code, inv.name, inv.state,
+        inv.total_payable, inv.amount_residual, o.service_warranty_days, o.service_warranty_until)
+
+
+# ---------------------------------------------------------------- scenario 3
+# on-site repair: dispatch, arrival on GPS, cash on site, the cashier accepts
+# it into the branch drawer and the books
+@step("S3 M01 on-site order -> M02 field order dispatched")
+def _():
+    lap = env["fix.competency"].search([("device_type", "=", "laptop")], limit=1)
+    m3 = env["fix.device.model"].search([("brand_id", "=", lap.brand_id.id), ("device_type", "=", "laptop")], limit=1)         or env["fix.device.model"].create({"brand_id": lap.brand_id.id, "name": "E2E Brand Laptop", "device_type": "laptop"})
+    dev = env["fix.device"].create({"device_model_id": m3.id, "owner_id": cust.id,
+                                    "serial_number": "E2E-SN-0003"})
+    o = env["fix.service.order"].create({"device_id": dev.id, "customer_id": cust.id,
+        "branch_id": branch.id, "fault_description": "AC not cooling", "service_type": "onsite",
+        "order_category": "standard"})
+    o.action_intake()
+    o.action_start_diagnostic()
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [
+        (0, 0, {"description": "Gas refill and service", "quantity": 1, "unit_price": 1500.0,
+                "line_type": "labour"})]})
+    if o.state == "diagnostic":
+        o.action_request_estimate()
+    est.action_send()
+    est.action_approve()
+    o.action_create_field_order()
+    fo = env["fix.field.order"].search([("order_id", "=", o.id)], limit=1)
+    fo.action_request_dispatch()
+    fo.action_dispatch(technician_id=tech.id)
+    ctx.update(o3=o, fo=fo, tech=tech)
+    return "order %s, field order %s %s to %s" % (o.name, fo.name, fo.state, tech.name)
+
+
+@step("S3 M02 accept, travel, arrive on GPS (no fence: position recorded), work")
+def _():
+    fo = ctx["fo"]
+    fo.action_accept()
+    fo.action_start_travel()
+    fo.action_arrive(position="23.7905, 90.3735")
+    fo.action_start_work()
+    return "field order %s, arrival %.4f, %.4f" % (fo.state, fo.arrival_latitude, fo.arrival_longitude)
+
+
+@step("S3 M02 cash collected on site, technician declares, cashier accepts")
+def _():
+    fo, o = ctx["fo"], ctx["o3"]
+    due = o._fix_amount_due()
+    fo.action_record_collection(amount=due, method="cash")
+    sig = env["ir.attachment"].create({"name": "sign.png", "raw": b"customer signature",
+                                       "mimetype": "image/png", "res_model": fo._name, "res_id": fo.id})
+    fo._fix_attach_field_evidence(sig, "signature", signer=cust.name)
+    pic = env["ir.attachment"].create({"name": "after.jpg", "raw": b"JPEG after",
+                                       "mimetype": "image/jpeg", "res_model": fo._name, "res_id": fo.id})
+    fo._fix_attach_field_evidence(pic, "post_work_photo")
+    fo.write({"work_summary": "Gas refilled, filters cleaned, cooling tested"})
+    fo.action_complete()
+    fo.action_handover_field_cash()
+    Shift = env["fix.cash.shift"]
+    shift = Shift._fd_open_shift_for(branch, company) or Shift.create(
+        {"branch_id": branch.id, "company_id": company.id,
+         "operating_unit_id": branch.operating_unit_id.id, "operator_id": emp.id,
+         "opening_float": 0.0})
+    # the branch cashier (a different person from the technician who collected)
+    cashier = env["res.users"].with_context(no_reset_password=True).create({
+        "name": "E2E Branch Cashier", "login": "e2e.cashier@test",
+        "group_ids": [(6, 0, [env.ref("base.group_user").id, env.ref("cd_front_desk.group_fd_cashier").id,
+                              env.ref("cd_service_order.group_so_cashier").id])],
+        "company_ids": [(6, 0, company.ids)], "company_id": company.id})
+    env["hr.employee"].create({"name": "E2E Branch Cashier", "user_id": cashier.id, "company_id": company.id})
+    if "assigned_operating_unit_ids" in cashier._fields:
+        cashier.write({"assigned_operating_unit_ids": [(6, 0, branch.operating_unit_id.ids)],
+                       "default_operating_unit_id": branch.operating_unit_id.id})
+    fo.with_user(cashier).action_accept_field_cash(shift_id=shift.id)
+    o.invalidate_recordset()
+    r = env["fix.ar.receipt"].search([("source_order_id", "=", o.id)], limit=1)
+    return "collected %.2f; field %s / %s; order settled %s verified %s; receipt %s Dr %s; drawer field cash %.2f" % (
+        due, fo.state, fo.onsite_payment_state, o.payment_settlement_state, o.settlement_verified,
+        r.name, r.account_id.code, shift.field_cash_deposited)
+
+
+print("\n=== A02 END-TO-END WALK (fix_real copy) ===")
+for status, name, out in results:
+    print(status, name, "->", out)
+for k, v in ctx.items():
+    if k.startswith("tb_"):
+        print("\n---", k, "\n", v)
+env.cr.rollback()
+print("ROLLED BACK")

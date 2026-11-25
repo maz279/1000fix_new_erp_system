@@ -11,7 +11,49 @@ dependencies = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "coverage>=7.5.0",
+    # Real Kafka transport for libs/py/fix_events (FF-28 / R07): kafka-python-ng
+    # is the maintained pure-Python fork of kafka-python with Python 3.12
+    # support; libs/py/fix_events/kafka_backend.py talks to the 3-broker
+    # asset-ml cluster through it.
+    "kafka-python-ng>=2.2.3",
 ]
+
+# R01 re-audit 2026-10-22: CI runs every tool through `uv run`, but the lock
+# held only pytest/coverage - ruff, mypy, pre-commit and pip-audit were not
+# installable on a runner, and the service tests import fastapi/pydantic/yaml.
+# `uv sync` installs the dev group by default. ruff is pinned to the SAME
+# version as .pre-commit-config.yaml (line-pin rule, versions.lock [toolchain]).
+[dependency-groups]
+dev = [
+    "ruff==0.8.4",
+    "mypy>=1.13",
+    # psycopg2 stubs: the ORM-boundary migration scripts and finance/libs code
+    # import psycopg2; without stubs mypy flags every import (issue #7).
+    "types-psycopg2>=2.9",
+    "pre-commit>=4.0",
+    "pip-audit>=2.7",
+    "pyyaml>=6.0",
+    "pydantic>=2.7",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    # corporate-sso SAML XML-DSig verification (INT-046, R01-AUDIT): signxml
+    # (Apache-2.0, permissive - no D-030 entry needed). signxml >= 4 verifies with
+    # `cryptography` directly - pyOpenSSL is no longer needed. Floors are the
+    # pip-audit-clean versions (signxml 3.x / cryptography < 49 / lxml < 6.1 carry
+    # known advisories); the module imports cryptography and lxml directly.
+    "signxml==5.2.0",
+    "cryptography>=49",
+    "lxml>=6.1,<7",
+    # Windows has no system tz database: zoneinfo (Odoo, pytz-free paths) needs it.
+    "tzdata; sys_platform == 'win32'",
+]
+
+# The repository is an application monorepo, not a distributable package:
+# without this, `uv sync` tried to build the project with hatchling, which
+# cannot find a package to ship, and EVERY CI job failed at `uv sync --frozen`
+# (R01 re-audit 2026-10-22). uv installs the dependencies only.
+[tool.uv]
+package = false
 
 # =============================================================================
 # Root Python configuration - P02-M08-T02/T03 (BE-002 4.1-4.6)
@@ -27,29 +69,40 @@ target-version = "py312"
 exclude = ["vendor/**", "infra/odoo-data/**"]
 
 [tool.ruff.lint]
+# R01 re-audit 2026-10-22: R01-M03 (commit cd107153d5) had cut this list to
+# E/W/F and ignored F401/F841/E722/E402/E741 so the lint stage would pass -
+# the security (S, SQL-02 companion) and bug (B) classes stopped being
+# checked at all. The original PYS-01 rule families are restored; every
+# ignore below is a documented, narrow exception, never a blanket one.
 select = [
     "E", "W",   # pycodestyle
     "F",        # pyflakes
+    "I",        # import order
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "S",        # bandit-lite security (SQL-02 companion)
+    "C4",       # comprehensions
+    "SIM",      # simplification
+    "RUF",
 ]
 ignore = [
     "E501",     # formatter owns line length
-    "E402",     # module level import not at top
-    "E741",     # ambiguous variable name
-    "E722",     # bare except
-    "W291",     # trailing whitespace
-    "W292",     # no newline at end of file
-    "W293",     # blank line contains whitespace
-    "F401",     # imported but unused
-    "F841",     # unused local variable
+    # Bengali/en-dash text is product content (TR-07, bilingual UI) - the
+    # "ambiguous unicode" family flags exactly the characters we must ship.
+    "RUF001", "RUF002", "RUF003",
 ]
 
-
 [tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]   # package / Odoo addon re-exports
+"**/__manifest__.py" = ["B018"]   # an Odoo manifest IS a bare dict literal
 "db/seeds/**" = ["S311"]   # deterministic random is the point (fixed seed)
-"tooling/**" = ["S603", "S607", "S101", "S108", "S310", "S110", "S608", "C414", "UP031", "E501"]
-"tests/**" = ["S101", "S603", "S607"]
-
-
+# Odoo idioms: class-level _inherit/_sql lists (RUF012) and %-formatting on
+# translated strings - _("...") % x keeps the msgid translatable (UP031).
+"addons/**" = ["RUF012", "UP031"]
+"tooling/**" = ["S101", "S603", "S607", "S108", "S310", "S110", "S608", "C414", "UP031", "E501", "E402", "S311"]
+"tests/**" = ["S101", "S105", "S106", "S311", "S603", "S607", "B018", "E402"]
+"**/tests/**" = ["S101", "S105", "S106", "S311", "S608", "B018", "E402"]
+"migrations/tests/**" = ["S101", "S608"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -57,7 +110,14 @@ strict = true                       # PYS-07/10/11
 warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_untyped_decorators = false  # Odoo decorators are untyped upstream
-exclude = "vendor/"
+# R01 re-audit 2026-10-22: `mypy --strict addons services libs` (ci.yml stage 2)
+# had never run - it died at start-up ("corporate-sso is not a valid Python
+# package name"). Module names now come from the paths; services/ are checked
+# one service at a time by tooling/ci/run-mypy.py (hyphenated dirs and several
+# services each own a top-level `src` package, which collide in one run).
+explicit_package_bases = true
+namespace_packages = true
+exclude = ["vendor/", "^services/", "infra/odoo-data/", "node_modules/"]
 # Odoo's ORM is untyped upstream; strictness holds on OUR code, with a
 # per-file opt-out that must carry a TODO(DBT-nnn) - review-only rule PYS-22
 # pattern applies.
@@ -65,6 +125,53 @@ exclude = "vendor/"
 [[tool.mypy.overrides]]
 module = ["odoo.*", "odoo.addons.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# ORM-BOUNDARY POLICY (owner-approved 2026-11-25, issue #7). Odoo's Model /
+# AbstractModel / Controller are Any (untyped upstream): subclassing them is
+# the only way to write an addon, and idiomatic model/controller methods
+# (`def action_x(self):`) are untyped by convention. Requiring annotations on
+# every such method produced 16,389 no-untyped-def + 11,575 no-untyped-call
+# errors that are STRUCTURAL, not bugs. Annotation requirements are therefore
+# relaxed for addons.* exactly as for tests below - but bodies ARE still
+# type-checked (check_untyped_defs), so genuine errors (attr-defined,
+# arg-type, union-attr, assignment, ...) still fail the gate. libs/ and
+# services/ stay FULLY strict (the pure engines live there). This is a
+# documented policy change with owner sign-off, not a silent lowering to pass;
+# per-file opt-outs still carry TODO(DBT-nnn) (PYS-22).
+module = ["addons.*"]
+disallow_subclassing_any = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Migration scripts (ORM-boundary policy, issue #7): the version-dotted dirs
+# (19.0.1.1.0) are unimportable, so mypy maps each script to a top-level module
+# name (post-migrate / pre-migrate). They are Odoo-idiom one-shot ORM scripts -
+# the same relaxation as addons.* applies, bodies still checked. The runner
+# checks each in isolation so the duplicate-module start-up failure cannot
+# block the gate (tooling/ci/run-mypy.py).
+module = ["post-migrate", "pre-migrate", "post-a12_finish_m30"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Tests: bodies ARE type-checked (check_untyped_defs), but pytest functions and
+# fixtures need no annotations - strict annotation is required of product code.
+module = ["*.tests.*", "tests.*", "*.conftest", "conftest"]   # tests live in tests/ (FF-39)
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+check_untyped_defs = true
 
 [tool.pylint.messages_control]
 # pylint-odoo profile over addons/ (P02-M08-T03). Odoo-specific plugins:
@@ -89,6 +196,8 @@ markers = [
     "financial: 100% coverage mandatory (DoD-03)",
     "tax: 100% coverage mandatory (DoD-03) - Mushak paths",
     "residency: touches residency-classified fields (FF-09 review)",
+    "integration: full-stack integration tests (ci.yml nightly stage 13 profile)",
+    "isolation: live ir.rule isolation proofs against the test database (R01 re-audit)",
 ]
 
 [tool.coverage.run]
@@ -97,6 +206,8 @@ source = ["addons", "services", "libs"]
 omit = [
     "*/tests/*",
     "*/test_*",
+    "*/conftest.py",          # pytest fixtures/bootstrap, not product code (D5)
+    "*/__manifest__.py",      # Odoo manifests are data (a dict literal), never executed by tests
     "vendor/*",
     "infra/*",
     "tooling/*",
@@ -104,6 +215,10 @@ omit = [
 ]
 
 [tool.coverage.report]
+# D6/D9: report never-imported files in non-package (hyphenated) service
+# folders too, so the estate denominator is every source file, not only the
+# importable ones. measure-coverage.py cross-checks and back-fills at 0%.
+include_namespace_packages = true
 show_missing = true
 precision = 2
 exclude_lines = [
@@ -113,4 +228,6 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
+    # typing.Protocol classes are contracts: their `...` bodies never run
+    'class .*\(Protocol(\[.*\])?\):',
 ]

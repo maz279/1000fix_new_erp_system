@@ -10,6 +10,7 @@ import { tokens, SectionHead, DataTable, Loading, LoadError, Pill } from "../../
 import type { Column } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 import { useLanguage } from "../../components/language";
+import { RequireAuth } from "../../components/require-auth";
 import { useAuth } from "../../components/auth-modal";
 
 interface Estimate {
@@ -19,6 +20,7 @@ interface Estimate {
   version: number;
   parts_total_bdt: string;
   labour_total_bdt: string;
+  diagnostic_total_bdt: string;
   discount_bdt: string;
   vat_rate: number;
   vat_amount_bdt: string;
@@ -47,7 +49,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function EstimatesPage() {
+function EstimatesPageContent() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const [rows, setRows] = useState<Estimate[]>([]);
@@ -264,6 +266,9 @@ export default function EstimatesPage() {
               <span>{t.estimatesLabourTotal}:</span>
               <strong style={{ fontVariantNumeric: "tabular-nums" }}>৳ {approvingEstimate.labour_total_bdt || "0.00"}</strong>
 
+              <span>{t.estimatesDiagnosticTotal}:</span>
+              <strong style={{ fontVariantNumeric: "tabular-nums" }}>৳ {approvingEstimate.diagnostic_total_bdt || "0.00"}</strong>
+
               <span>{t.estimatesDiscount}:</span>
               <span style={{ color: tokens["color.status.success"], fontVariantNumeric: "tabular-nums" }}>
                 - ৳ {approvingEstimate.discount_bdt || "0.00"}
@@ -336,5 +341,13 @@ export default function EstimatesPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function EstimatesPage() {
+  return (
+    <RequireAuth>
+      <EstimatesPageContent />
+    </RequireAuth>
   );
 }

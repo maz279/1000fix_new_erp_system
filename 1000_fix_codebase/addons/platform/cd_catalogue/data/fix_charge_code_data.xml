@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The generic service & charge codes (17 Nov 2026): one per charge line type.
+  A charge line typed without a code takes its type's generic code, so every
+  estimate / quotation / proforma / invoice line carries a code. Rates are 0:
+  the price is entered on the line, or set on the code / an M11 rate card by
+  the commercial team. Specific codes (e.g. "AC gas refill 1.5 ton") are added
+  on the M37 Service & Charge Codes page.
+-->
+<odoo noupdate="1">
+    <record id="charge_code_service" model="fix.charge.code">
+        <field name="code">CHG-SERVICE</field>
+        <field name="name">Service Charge</field>
+        <field name="name_bn">সার্ভিস চার্জ</field>
+        <field name="charge_type">service</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_labour" model="fix.charge.code">
+        <field name="code">CHG-LABOUR</field>
+        <field name="name">Labour Charge</field>
+        <field name="name_bn">শ্রম চার্জ</field>
+        <field name="charge_type">labour</field>
+        <field name="uom_id" ref="uom.product_uom_hour"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_support" model="fix.charge.code">
+        <field name="code">CHG-SUPPORT</field>
+        <field name="name">Technical Support Charge</field>
+        <field name="name_bn">টেকনিক্যাল সাপোর্ট চার্জ</field>
+        <field name="charge_type">support</field>
+        <field name="uom_id" ref="uom.product_uom_hour"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_diagnostic" model="fix.charge.code">
+        <field name="code">CHG-DIAG</field>
+        <field name="name">Diagnostic / Inspection Fee</field>
+        <field name="name_bn">ডায়াগনস্টিক / পরিদর্শন ফি</field>
+        <field name="charge_type">diagnostic</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_callout" model="fix.charge.code">
+        <field name="code">CHG-CALLOUT</field>
+        <field name="name">Call-out / Visit Charge</field>
+        <field name="name_bn">কল-আউট / ভিজিট চার্জ</field>
+        <field name="charge_type">callout</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_transport" model="fix.charge.code">
+        <field name="code">CHG-TRANSPORT</field>
+        <field name="name">Transport / Delivery Charge</field>
+        <field name="name_bn">পরিবহন / ডেলিভারি চার্জ</field>
+        <field name="charge_type">transport</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_installation" model="fix.charge.code">
+        <field name="code">CHG-INSTALL</field>
+        <field name="name">Installation / Commissioning Charge</field>
+        <field name="name_bn">ইনস্টলেশন চার্জ</field>
+        <field name="charge_type">installation</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_recurring" model="fix.charge.code">
+        <field name="code">CHG-AMC</field>
+        <field name="name">AMC / Maintenance Contract Charge</field>
+        <field name="name_bn">এএমসি / রক্ষণাবেক্ষণ চুক্তি চার্জ</field>
+        <field name="charge_type">recurring</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_subscription" model="fix.charge.code">
+        <field name="code">CHG-SUBSCRIPTION</field>
+        <field name="name">Subscription Plan Charge</field>
+        <field name="name_bn">সাবস্ক্রিপশন চার্জ</field>
+        <field name="charge_type">subscription</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_rental" model="fix.charge.code">
+        <field name="code">CHG-RENTAL</field>
+        <field name="name">Rental Charge</field>
+        <field name="name_bn">ভাড়া চার্জ</field>
+        <field name="charge_type">rental</field>
+        <field name="uom_id" ref="uom.product_uom_day"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_subcontract" model="fix.charge.code">
+        <field name="code">CHG-SUBCONTRACT</field>
+        <field name="name">Third-Party / Subcontract Service</field>
+        <field name="name_bn">তৃতীয় পক্ষের সেবা</field>
+        <field name="charge_type">subcontract</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_warranty_ext" model="fix.charge.code">
+        <field name="code">CHG-WARRANTY</field>
+        <field name="name">Extended Warranty</field>
+        <field name="name_bn">বর্ধিত ওয়ারেন্টি</field>
+        <field name="charge_type">warranty_ext</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+    <record id="charge_code_fee" model="fix.charge.code">
+        <field name="code">CHG-FEE</field>
+        <field name="name">Other Charge / Fee</field>
+        <field name="name_bn">অন্যান্য চার্জ / ফি</field>
+        <field name="charge_type">fee</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+        <field name="is_generic" eval="True"/>
+    </record>
+</odoo>

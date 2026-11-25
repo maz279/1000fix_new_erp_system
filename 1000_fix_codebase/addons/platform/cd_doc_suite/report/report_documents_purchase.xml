@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — PURCHASE documents (QWeb, A4 portrait, web.external_layout letterhead).
+
+  - Purchase Order    fix.purchase.order   (cd_requisition)
+  - RFQ               fix.procurement.rfq  (cd_requisition)
+  - Vendor Bill       fix.vendor.invoice   (cd_ap_ext — 3-way-match AP document)
+
+  The purchase order and vendor bill print the commercial document standard
+  (report_commercial_layout.xml, 18 Nov 2026): SL / item code / description /
+  qty / unit / unit price / discount / amount lines, the totals box and the
+  amount in words, from the payload in models/fix_doc_print.py.
+-->
+<odoo>
+
+    <!-- ======================== PURCHASE ORDER ======================== -->
+    <record id="action_report_po" model="ir.actions.report">
+        <field name="name">Purchase Order (1000FiX)</field>
+        <field name="model">fix.purchase.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_po</field>
+        <field name="report_file">cd_doc_suite.report_po</field>
+        <field name="print_report_name">'PO %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_requisition.model_fix_purchase_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_po">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ============================== RFQ ============================== -->
+    <record id="action_report_rfq" model="ir.actions.report">
+        <field name="name">RFQ</field>
+        <field name="model">fix.procurement.rfq</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_rfq</field>
+        <field name="report_file">cd_doc_suite.report_rfq</field>
+        <field name="print_report_name">'RFQ %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_requisition.model_fix_procurement_rfq"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_rfq">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>REQUEST FOR QUOTATION <span class="cds-chip" t-esc="{'draft':'DRAFT','open':'OPEN','closed':'CLOSED','awarded':'AWARDED'}.get(doc.state, doc.state)"/></h1>
+                            <div class="cds-title-sub">
+                                RFQ No. <b t-esc="doc.name"/>
+                                <t t-if="doc.opened_at"> · Opened <b t-field="doc.opened_at" t-options='{"widget": "date"}'/></t>
+                                <t t-if="doc.closed_at"> · Closes <b t-field="doc.closed_at" t-options='{"widget": "date"}'/></t>
+                                <t t-if="doc.required_by"> · Required by <b t-field="doc.required_by"/></t>
+                            </div>
+                        </div>
+
+                        <table class="cds-meta">
+                            <tr><td class="cds-meta-label">Item</td><td t-esc="doc.product_id.name or doc.description or ''"/></tr>
+                            <tr><td class="cds-meta-label">Description</td><td t-esc="doc.description or ''"/></tr>
+                            <tr><td class="cds-meta-label">Quantity</td><td t-esc="str(doc.qty or 0)"/></tr>
+                            <tr t-if="doc.target_price"><td class="cds-meta-label">Target Price</td><td><span t-field="doc.target_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.requisition_id"><td class="cds-meta-label">Requisition</td><td t-esc="doc.requisition_id.display_name"/></tr>
+                        </table>
+
+                        <div class="cds-notes" t-if="doc.notes">
+                            <b>Notes</b><br/>
+                            <span t-field="doc.notes"/>
+                        </div>
+
+                        <div class="cds-notes">
+                            <b>Submission instructions</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li>Quote unit price in <t t-esc="doc.currency_id.name"/> with VAT shown separately (Mushak 6.3 compliant).</li>
+                                <li>Include lead time, warranty and payment terms.</li>
+                                <li>Quotes received after the closing date will not be evaluated.</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Issued by<br/>Procurement, 1000FiX Services Ltd.</td>
+                                <td class="cds-sign-pad">Bidder Acknowledgement<br/>Signature &amp; Date</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ========================== VENDOR BILL ========================== -->
+    <record id="action_report_vendor_bill" model="ir.actions.report">
+        <field name="name">Vendor Bill (1000FiX)</field>
+        <field name="model">fix.vendor.invoice</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_vendor_bill</field>
+        <field name="report_file">cd_doc_suite.report_vendor_bill</field>
+        <field name="print_report_name">'Bill %s' % object.invoice_ref</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_ap_ext.model_fix_vendor_invoice"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_vendor_bill">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

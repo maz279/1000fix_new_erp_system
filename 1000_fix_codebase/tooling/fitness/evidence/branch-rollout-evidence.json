@@ -1,0 +1,527 @@
+{
+  "milestone": "R08-M05",
+  "task": "R08-M05-T02",
+  "tool": "tooling/scripts/execute-branch-rollout.py",
+  "timestamp": "2026-10-22T09:02:30.192667+00:00",
+  "verdict": "FAIL",
+  "branch_register": "localhost:5433/fix_dev",
+  "total_service_centres_registered": 53,
+  "total_service_centres_live": null,
+  "required_centres_target": 51,
+  "super_user_training_model": "D-002 Option C Phased Model",
+  "d002_roster_named_ids": 85,
+  "governance_runbook": "docs/runbooks/RB-51-branch-rollout-runbook.md",
+  "summary": {
+    "pass": 7,
+    "fail": 4,
+    "unmeasured": 48
+  },
+  "checks": [
+    {
+      "id": "ROLLOUT_REGISTER_TARGET",
+      "status": "PASS",
+      "detail": "53 active BR-* centres registered (required >= 51)",
+      "registered": 53
+    },
+    {
+      "id": "ROLLOUT_WAVE_PLAN",
+      "status": "PASS",
+      "detail": "53 planned centres == registered centres",
+      "planned": 53
+    },
+    {
+      "id": "D002_ROSTER",
+      "status": "PASS",
+      "detail": "24/24 cohort leads named in D-002-super-user-named-roster.md"
+    }
+  ],
+  "waves": {
+    "wave_1": {
+      "wave": 1,
+      "cohort_name": "Wave 1 Pilot & Flagship Cohort (Dhaka Central, CTG, SYL)",
+      "branches_planned": 4,
+      "branches_verified_in_db": 4,
+      "floor_walkers_ratio": "1 per 8 users (3 per site)",
+      "super_user_leads": [
+        {
+          "id": "FX-00312",
+          "name": "Kazi Fahim Ahmed",
+          "role": "Lead Service Engineer",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00318",
+          "name": "Tanvir Hossain",
+          "role": "Senior Tech Lead",
+          "course": "TR-012"
+        },
+        {
+          "id": "FX-00288",
+          "name": "Shamsul Huda",
+          "role": "Workshop Superintendent",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00294",
+          "name": "Kamrul Hasan",
+          "role": "Master Diagnostics Tech",
+          "course": "TR-012"
+        },
+        {
+          "id": "FX-00412",
+          "name": "Asif Iqbal",
+          "role": "Field Dispatch Lead (CTG)",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00610",
+          "name": "Rumana Islam",
+          "role": "Front Desk Supervisor",
+          "course": "TR-002"
+        }
+      ],
+      "readiness_checks": {
+        "RB-03_operating_unit": {
+          "id": "RB-03_operating_unit",
+          "status": "PASS",
+          "detail": "4/4 centres registered with an operating unit"
+        },
+        "RB-04_staff_roster": {
+          "id": "RB-04_staff_roster",
+          "status": "FAIL",
+          "detail": "4/4 centres have no active employee: ['BR-0001', 'BR-0004', 'BR-0040', 'BR-0043']"
+        },
+        "RB-01_network_power": {
+          "id": "RB-01_network_power",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (dual ISP + online UPS)"
+        },
+        "RB-02_hardware_terminals": {
+          "id": "RB-02_hardware_terminals",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (POS printers, QR scanners)"
+        },
+        "RB-03_gps_bounds": {
+          "id": "RB-03_gps_bounds",
+          "status": "UNMEASURED",
+          "detail": "requires branch GPS coordinates, which fix_branch does not store"
+        },
+        "RB-05_superuser_training": {
+          "id": "RB-05_superuser_training",
+          "status": "UNMEASURED",
+          "detail": "requires training completion / exam records (cohort leads named: D002_ROSTER)"
+        },
+        "RB-06_cash_drawer": {
+          "id": "RB-06_cash_drawer",
+          "status": "UNMEASURED",
+          "detail": "requires site cash count"
+        },
+        "RB-07_stock_count": {
+          "id": "RB-07_stock_count",
+          "status": "UNMEASURED",
+          "detail": "requires physical stock count and locked opening journals"
+        },
+        "RB-08_device_custody": {
+          "id": "RB-08_device_custody",
+          "status": "UNMEASURED",
+          "detail": "requires site device custody audit"
+        },
+        "RB-09_branding_signage": {
+          "id": "RB-09_branding_signage",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-10_emergency_paper_forms": {
+          "id": "RB-10_emergency_paper_forms",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-11_cctv_security": {
+          "id": "RB-11_cctv_security",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-12_director_approval": {
+          "id": "RB-12_director_approval",
+          "status": "UNMEASURED",
+          "detail": "requires a named director's signed approval"
+        },
+        "GO_LIVE": {
+          "id": "GO_LIVE",
+          "status": "UNMEASURED",
+          "detail": "requires production go-live of the centre (production event)"
+        }
+      },
+      "status": "FAIL"
+    },
+    "wave_2": {
+      "wave": 2,
+      "cohort_name": "Wave 2 Greater Dhaka Metro Commercial Cohort",
+      "branches_planned": 15,
+      "branches_verified_in_db": 15,
+      "floor_walkers_ratio": "1 per 12 users (2 per site)",
+      "super_user_leads": [
+        {
+          "id": "FX-00201",
+          "name": "Nazmul Huda",
+          "role": "Diagnostic Specialist (Motijheel)",
+          "course": "TR-012"
+        },
+        {
+          "id": "FX-00366",
+          "name": "Shahriar Kabir",
+          "role": "Senior Estimator",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00155",
+          "name": "Jahangir Alam",
+          "role": "Central Warehouse Manager (Gazipur)",
+          "course": "TR-024"
+        },
+        {
+          "id": "FX-00162",
+          "name": "Mustafizur Rahman",
+          "role": "Inventory Controller",
+          "course": "TR-024"
+        },
+        {
+          "id": "FX-00615",
+          "name": "Sharmin Sultana",
+          "role": "Customer Experience Specialist",
+          "course": "TR-002"
+        },
+        {
+          "id": "FX-00460",
+          "name": "Rashedul Islam",
+          "role": "Lead Field Tech",
+          "course": "TR-011"
+        }
+      ],
+      "readiness_checks": {
+        "RB-03_operating_unit": {
+          "id": "RB-03_operating_unit",
+          "status": "PASS",
+          "detail": "15/15 centres registered with an operating unit"
+        },
+        "RB-04_staff_roster": {
+          "id": "RB-04_staff_roster",
+          "status": "FAIL",
+          "detail": "15/15 centres have no active employee: ['BR-0002', 'BR-0003', 'BR-0005', 'BR-0006', 'BR-0007', 'BR-0008', 'BR-0009', 'BR-0010', 'BR-0011', 'BR-0012', 'BR-0013', 'BR-0014', 'BR-0015', 'BR-0052', 'BR-0053']"
+        },
+        "RB-01_network_power": {
+          "id": "RB-01_network_power",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (dual ISP + online UPS)"
+        },
+        "RB-02_hardware_terminals": {
+          "id": "RB-02_hardware_terminals",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (POS printers, QR scanners)"
+        },
+        "RB-03_gps_bounds": {
+          "id": "RB-03_gps_bounds",
+          "status": "UNMEASURED",
+          "detail": "requires branch GPS coordinates, which fix_branch does not store"
+        },
+        "RB-05_superuser_training": {
+          "id": "RB-05_superuser_training",
+          "status": "UNMEASURED",
+          "detail": "requires training completion / exam records (cohort leads named: D002_ROSTER)"
+        },
+        "RB-06_cash_drawer": {
+          "id": "RB-06_cash_drawer",
+          "status": "UNMEASURED",
+          "detail": "requires site cash count"
+        },
+        "RB-07_stock_count": {
+          "id": "RB-07_stock_count",
+          "status": "UNMEASURED",
+          "detail": "requires physical stock count and locked opening journals"
+        },
+        "RB-08_device_custody": {
+          "id": "RB-08_device_custody",
+          "status": "UNMEASURED",
+          "detail": "requires site device custody audit"
+        },
+        "RB-09_branding_signage": {
+          "id": "RB-09_branding_signage",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-10_emergency_paper_forms": {
+          "id": "RB-10_emergency_paper_forms",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-11_cctv_security": {
+          "id": "RB-11_cctv_security",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-12_director_approval": {
+          "id": "RB-12_director_approval",
+          "status": "UNMEASURED",
+          "detail": "requires a named director's signed approval"
+        },
+        "GO_LIVE": {
+          "id": "GO_LIVE",
+          "status": "UNMEASURED",
+          "detail": "requires production go-live of the centre (production event)"
+        }
+      },
+      "status": "FAIL"
+    },
+    "wave_3": {
+      "wave": 3,
+      "cohort_name": "Wave 3 Major Regional Hubs Cohort (CTG, SYL, KHU, RAJ)",
+      "branches_planned": 22,
+      "branches_verified_in_db": 22,
+      "floor_walkers_ratio": "1 per 14 users (2 per site)",
+      "super_user_leads": [
+        {
+          "id": "FX-00405",
+          "name": "Mahbubur Rahman",
+          "role": "Regional Field Ops Manager",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00250",
+          "name": "Habibur Rahman",
+          "role": "Branch Operations Coordinator",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00256",
+          "name": "Shafiqul Islam",
+          "role": "Network Infrastructure Lead",
+          "course": "TR-002"
+        },
+        {
+          "id": "FX-00430",
+          "name": "Kazi Nurul Islam",
+          "role": "Regional Logistics Lead",
+          "course": "TR-024"
+        },
+        {
+          "id": "FX-00445",
+          "name": "Sohail Ahmed",
+          "role": "Regional Retail Network Ops",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00550",
+          "name": "Sumona Barua",
+          "role": "Master Data Steward (CTG Hub)",
+          "course": "TR-002"
+        }
+      ],
+      "readiness_checks": {
+        "RB-03_operating_unit": {
+          "id": "RB-03_operating_unit",
+          "status": "PASS",
+          "detail": "22/22 centres registered with an operating unit"
+        },
+        "RB-04_staff_roster": {
+          "id": "RB-04_staff_roster",
+          "status": "FAIL",
+          "detail": "22/22 centres have no active employee: ['BR-0020', 'BR-0021', 'BR-0022', 'BR-0023', 'BR-0024', 'BR-0025', 'BR-0026', 'BR-0032', 'BR-0033', 'BR-0034', 'BR-0035', 'BR-0036', 'BR-0041', 'BR-0042', 'BR-0044', 'BR-0045', 'BR-0046', 'BR-0047', 'BR-0048', 'BR-0049', 'BR-0050', 'BR-0051']"
+        },
+        "RB-01_network_power": {
+          "id": "RB-01_network_power",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (dual ISP + online UPS)"
+        },
+        "RB-02_hardware_terminals": {
+          "id": "RB-02_hardware_terminals",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (POS printers, QR scanners)"
+        },
+        "RB-03_gps_bounds": {
+          "id": "RB-03_gps_bounds",
+          "status": "UNMEASURED",
+          "detail": "requires branch GPS coordinates, which fix_branch does not store"
+        },
+        "RB-05_superuser_training": {
+          "id": "RB-05_superuser_training",
+          "status": "UNMEASURED",
+          "detail": "requires training completion / exam records (cohort leads named: D002_ROSTER)"
+        },
+        "RB-06_cash_drawer": {
+          "id": "RB-06_cash_drawer",
+          "status": "UNMEASURED",
+          "detail": "requires site cash count"
+        },
+        "RB-07_stock_count": {
+          "id": "RB-07_stock_count",
+          "status": "UNMEASURED",
+          "detail": "requires physical stock count and locked opening journals"
+        },
+        "RB-08_device_custody": {
+          "id": "RB-08_device_custody",
+          "status": "UNMEASURED",
+          "detail": "requires site device custody audit"
+        },
+        "RB-09_branding_signage": {
+          "id": "RB-09_branding_signage",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-10_emergency_paper_forms": {
+          "id": "RB-10_emergency_paper_forms",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-11_cctv_security": {
+          "id": "RB-11_cctv_security",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-12_director_approval": {
+          "id": "RB-12_director_approval",
+          "status": "UNMEASURED",
+          "detail": "requires a named director's signed approval"
+        },
+        "GO_LIVE": {
+          "id": "GO_LIVE",
+          "status": "UNMEASURED",
+          "detail": "requires production go-live of the centre (production event)"
+        }
+      },
+      "status": "FAIL"
+    },
+    "wave_4": {
+      "wave": 4,
+      "cohort_name": "Wave 4 National Frontier Completion Cohort (MYM, RAN, BAR)",
+      "branches_planned": 12,
+      "branches_verified_in_db": 12,
+      "floor_walkers_ratio": "1 per 15 users (1-2 per site)",
+      "super_user_leads": [
+        {
+          "id": "FX-00195",
+          "name": "Engr. Zakir Hossain",
+          "role": "Chief Operations Superintendent",
+          "course": "TR-011"
+        },
+        {
+          "id": "FX-00371",
+          "name": "Mizanur Rahman",
+          "role": "Regional Service Desk Lead",
+          "course": "TR-002"
+        },
+        {
+          "id": "FX-00380",
+          "name": "Enamul Haque",
+          "role": "Pricing & Service Kit Specialist",
+          "course": "TR-012"
+        },
+        {
+          "id": "FX-00386",
+          "name": "Badrul Alam",
+          "role": "Service Kits Regional Engineer",
+          "course": "TR-012"
+        },
+        {
+          "id": "FX-00810",
+          "name": "Tahmina Khatun",
+          "role": "Workforce Deployment Partner",
+          "course": "TR-002"
+        },
+        {
+          "id": "FX-00816",
+          "name": "Zahidul Islam",
+          "role": "HR Field Enablement Lead",
+          "course": "TR-002"
+        }
+      ],
+      "readiness_checks": {
+        "RB-03_operating_unit": {
+          "id": "RB-03_operating_unit",
+          "status": "PASS",
+          "detail": "12/12 centres registered with an operating unit"
+        },
+        "RB-04_staff_roster": {
+          "id": "RB-04_staff_roster",
+          "status": "FAIL",
+          "detail": "12/12 centres have no active employee: ['BR-0016', 'BR-0017', 'BR-0018', 'BR-0019', 'BR-0027', 'BR-0028', 'BR-0029', 'BR-0030', 'BR-0031', 'BR-0037', 'BR-0038', 'BR-0039']"
+        },
+        "RB-01_network_power": {
+          "id": "RB-01_network_power",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (dual ISP + online UPS)"
+        },
+        "RB-02_hardware_terminals": {
+          "id": "RB-02_hardware_terminals",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection (POS printers, QR scanners)"
+        },
+        "RB-03_gps_bounds": {
+          "id": "RB-03_gps_bounds",
+          "status": "UNMEASURED",
+          "detail": "requires branch GPS coordinates, which fix_branch does not store"
+        },
+        "RB-05_superuser_training": {
+          "id": "RB-05_superuser_training",
+          "status": "UNMEASURED",
+          "detail": "requires training completion / exam records (cohort leads named: D002_ROSTER)"
+        },
+        "RB-06_cash_drawer": {
+          "id": "RB-06_cash_drawer",
+          "status": "UNMEASURED",
+          "detail": "requires site cash count"
+        },
+        "RB-07_stock_count": {
+          "id": "RB-07_stock_count",
+          "status": "UNMEASURED",
+          "detail": "requires physical stock count and locked opening journals"
+        },
+        "RB-08_device_custody": {
+          "id": "RB-08_device_custody",
+          "status": "UNMEASURED",
+          "detail": "requires site device custody audit"
+        },
+        "RB-09_branding_signage": {
+          "id": "RB-09_branding_signage",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-10_emergency_paper_forms": {
+          "id": "RB-10_emergency_paper_forms",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-11_cctv_security": {
+          "id": "RB-11_cctv_security",
+          "status": "UNMEASURED",
+          "detail": "requires site inspection"
+        },
+        "RB-12_director_approval": {
+          "id": "RB-12_director_approval",
+          "status": "UNMEASURED",
+          "detail": "requires a named director's signed approval"
+        },
+        "GO_LIVE": {
+          "id": "GO_LIVE",
+          "status": "UNMEASURED",
+          "detail": "requires production go-live of the centre (production event)"
+        }
+      },
+      "status": "FAIL"
+    }
+  },
+  "rollout_blockers": [
+    "W1:RB-04_staff_roster",
+    "W2:RB-04_staff_roster",
+    "W3:RB-04_staff_roster",
+    "W4:RB-04_staff_roster"
+  ],
+  "hypercare_status": "UNMEASURED",
+  "signoff": {
+    "status": "UNMEASURED",
+    "designated_approvers": {
+      "branch_operations_lead": "Habibur Rahman (FX-00250)",
+      "change_lead": "Rumana Islam (FX-00610)",
+      "operations_director": "Engr. Zakir Hossain (FX-00195)"
+    }
+  }
+}

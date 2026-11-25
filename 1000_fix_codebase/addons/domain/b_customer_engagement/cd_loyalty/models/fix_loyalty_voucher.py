@@ -1,5 +1,6 @@
 # fix_loyalty_voucher — M10 Customer Privilege Vouchers (CD-M10-01).
 import secrets
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -32,6 +33,10 @@ class FixLoyaltyVoucher(models.Model):
         copy=False,
         index=True,
         default=lambda self: f"VCH-{secrets.token_hex(4).upper()}",
+    )
+    name_bn = fields.Char(
+        string="Voucher Name (Bengali)",
+        help="DE-17: what the customer is shown when they are offered or redeem this voucher.",
     )
     account_id = fields.Many2one(
         "fix.loyalty.account",
@@ -78,7 +83,8 @@ class FixLoyaltyVoucher(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     points_cost = fields.Integer(
@@ -132,7 +138,9 @@ class FixLoyaltyVoucher(models.Model):
             if rec.discount_type == "percentage" and rec.discount_value > 100.0:
                 raise ValidationError("Percentage discount cannot exceed 100%.")
             if rec.valid_until < rec.valid_from:
-                raise ValidationError("Voucher validity window is inverted: Valid Until is before Valid From.")
+                raise ValidationError(
+                    "Voucher validity window is inverted: Valid Until is before Valid From."
+                )
 
     def action_activate(self):
         for rec in self:
@@ -141,20 +149,33 @@ class FixLoyaltyVoucher(models.Model):
             rec.state = "active"
 
     def action_redeem(self, service_order):
-        """Redeem voucher against a service order with strict validity checks."""
+        """Redeem voucher against a service order with strict validity checks and row locking (FLAW-10.1 / HS-06)."""
         self.ensure_one()
-        if self.state != "active":
-            raise UserError(f"Voucher {self.name} cannot be redeemed: status is '{self.state}'.")
+        # FLAW-10.1: Pessimistic row locking to eliminate concurrent double-spending race conditions
+        self.env.cr.execute(
+            "SELECT state FROM fix_loyalty_voucher WHERE id = %s FOR UPDATE", (self.id,)
+        )
+        locked_state = self.env.cr.fetchone()
+        current_state = locked_state[0] if locked_state else self.state
+        if current_state != "active":
+            raise UserError(
+                f"Voucher {self.name} cannot be redeemed: status is '{current_state}' (FLAW-10.1)."
+            )
         today = fields.Date.today()
         if today < self.valid_from or today > self.valid_until:
-            self.state = "expired"
-            raise UserError(f"Voucher {self.name} is outside its validity window ({self.valid_from} to {self.valid_until}).")
+            if today > self.valid_until:
+                self.state = "expired"
+            raise UserError(
+                f"Voucher {self.name} is outside its validity window ({self.valid_from} to {self.valid_until})."
+            )
 
-        self.write({
-            "state": "redeemed",
-            "service_order_id": service_order.id,
-            "redeemed_at": fields.Datetime.now(),
-        })
+        self.write(
+            {
+                "state": "redeemed",
+                "service_order_id": service_order.id,
+                "redeemed_at": fields.Datetime.now(),
+            }
+        )
 
         publish(
             self.env,
@@ -175,3 +196,28 @@ class FixLoyaltyVoucher(models.Model):
             if rec.state == "redeemed":
                 raise UserError("Cannot cancel an already-redeemed voucher.")
             rec.state = "cancelled"
+
+    @api.model
+    def cron_expire_vouchers(self) -> int:
+        """Daily: a voucher past its Valid Until date becomes 'expired'.
+
+        Nothing ever expired a voucher: action_redeem set 'expired' and then
+        raised, so the rollback undid it, and a lapsed voucher sat 'active'
+        in the liability and fraud counts for ever (A03 audit M10-10)."""
+        lapsed = self.search(
+            [("state", "in", ("draft", "active")), ("valid_until", "<", fields.Date.today())]
+        )
+        for voucher in lapsed:
+            voucher.write({"state": "expired"})
+            publish(
+                self.env,
+                "loyalty.voucher_expired",
+                "fix.loyalty.voucher",
+                voucher.id,
+                {
+                    "voucher_code": voucher.name,
+                    "partner_id": voucher.partner_id.id,
+                    "valid_until": str(voucher.valid_until),
+                },
+            )
+        return len(lapsed)

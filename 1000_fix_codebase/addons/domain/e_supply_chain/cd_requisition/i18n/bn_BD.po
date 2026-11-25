@@ -7,57 +7,158 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__acknowledged
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__converted
+msgid "Converted to PO"
+msgstr "ক্রয় আদেশে রূপান্তরিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__branch_id
 msgid "Deliver-to Branch"
-msgstr "ডেলিভি শাখা"
+msgstr "ডেলিভারির শাখা"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__draft
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__emergency
+msgid "Emergency (job-stopped)"
+msgstr "জরুরি (কাজ বন্ধ)"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__estimate_amount
 msgid "Estimated Amount"
 msgstr "আনুমানিক পরিমাণ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__line_total
 msgid "Line Total"
 msgstr "লাইন মোট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__line_ids
 msgid "Lines"
 msgstr "লাইনসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__date_order
 msgid "Order Date"
 msgstr "অর্ডারের তারিখ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__qty_ordered
 msgid "Ordered"
-msgstr "অর্ডিত"
+msgstr "অর্ডারকৃত"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__partially_received
+msgid "Partially Received"
+msgstr "আংশিক গৃহীত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__name
 msgid "PO Reference"
 msgstr "PO রেফারেন্স"
 
+#. module: cd_requisition
+#: model:ir.ui.menu,name:cd_requisition.menu_ws_procurement
 msgid "Procurement"
 msgstr "প্রকিউরমেন্ট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__product_id
 msgid "Product"
 msgstr "পণ্য"
 
+#. module: cd_requisition
+#: model:ir.model,name:cd_requisition.model_fix_purchase_order
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__purchase_order_id
 msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
+#. module: cd_requisition
+#: model:ir.actions.act_window,name:cd_requisition.action_fix_purchase_order
+#: model:ir.ui.menu,name:cd_requisition.menu_fix_purchase_orders
 msgid "Purchase Orders"
 msgstr "ক্রয় আদেশসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__qty_received
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__received
 msgid "Received"
 msgstr "গৃহীত"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__requested_by
 msgid "Requested By"
 msgstr "অনুরোধকারী"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__branch_id
 msgid "Requesting Branch"
 msgstr "অনুরোধকারী শাখা"
 
+#. module: cd_requisition
+#: model:ir.actions.act_window,name:cd_requisition.action_fix_requisition
+#: model:ir.ui.menu,name:cd_requisition.menu_fix_requisitions
 msgid "Requisitions"
 msgstr "ক্রয় অনুরোধসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__sent
+msgid "Sent"
+msgstr "প্রেরিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__amount_total
+#: model_terms:ir.ui.view,arch_db:cd_requisition.view_fix_purchase_order_form
 msgid "Total"
 msgstr "মোট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__unit_price
 msgid "Unit Price"
 msgstr "একক মূল্য"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__urgent
+msgid "Urgent (stock-out)"
+msgstr "জরুরি (মজুদ শেষ)"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__vendor_id
 msgid "Vendor"
 msgstr "ভেন্ডর"

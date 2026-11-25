@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M33 decision groups (A03 audit M33-1, M33-6).
+
+     Merge execution, KYC verification and data-subject-rights fulfilment were
+     open to every internal user with Contact write, and the two registration
+     steps had no group at all, so one person approved both.
+
+     - Registration line manager / administrator: the two steps of BRU-CPM-02.
+       The M63 engine routes each step to its own group and never routes the
+       administrator step to whoever acted on the line-manager step. Neither
+       group implies the other.
+     - Data steward: duplicate decisions, merge execution and reversal, KYC.
+     - Data Protection Officer: data-subject rights requests and the 30-day
+       clock's reminders and escalations. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_party_master" model="res.groups.privilege">
+            <field name="name">Party Master Governance</field>
+            <field name="description">Registration approval, data stewardship and data-protection decisions on the party master (M33).</field>
+            <field name="sequence">23</field>
+        </record>
+
+        <record id="group_party_registration_lm" model="res.groups">
+            <field name="name">Party Registration — Client Line Manager Approver</field>
+            <field name="privilege_id" ref="privilege_party_master"/>
+            <field name="comment">Gives the first (line-manager) approval of a dealer, corporate or government registration (BRU-CPM-02).</field>
+        </record>
+
+        <record id="group_party_registration_admin" model="res.groups">
+            <field name="name">Party Registration — 1000FiX Administrator</field>
+            <field name="privilege_id" ref="privilege_party_master"/>
+            <field name="comment">Gives the second (administrator) approval of a registration, after the line manager and never by the same person (BRU-CPM-02).</field>
+        </record>
+
+        <record id="group_party_data_steward" model="res.groups">
+            <field name="name">Party Data Steward</field>
+            <field name="privilege_id" ref="privilege_party_master"/>
+            <field name="comment">Decides duplicate candidates, executes and reverses supervised merges (SOD-15) and verifies identity documents (KYC).</field>
+        </record>
+
+        <record id="group_party_dpo" model="res.groups">
+            <field name="name">Data Protection Officer</field>
+            <field name="privilege_id" ref="privilege_party_master"/>
+            <field name="comment">Verifies, works, fulfils and rejects data-subject rights requests; receives the 30-day clock reminders and escalations (PDPA).</field>
+        </record>
+
+    </data>
+</odoo>

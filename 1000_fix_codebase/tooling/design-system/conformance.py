@@ -20,6 +20,7 @@ P04-M07-T08 (UX-001 §11). Five checks, one executable:
 Realisations may differ in code and are forbidden to differ in rendered
 result beyond PID-01…PID-07 (UX-001 §3.2). Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,19 +64,20 @@ def flatten(node: dict, prefix: str = "") -> dict[str, str]:
 
 # --------------------------------------------------------------------- CFM-01
 
+
 def check_cfm01(tokens: dict[str, str]) -> list[str]:
     violations: list[str] = []
     scss_vars = {m.removeprefix("$") for m in TOKEN_REF.findall(SCSS.read_text(encoding="utf-8"))}
     for partial in sorted(COMPONENTS.glob("*.scss")):
-        for line_no, line in enumerate(
-            partial.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        for line_no, line in enumerate(partial.read_text(encoding="utf-8").splitlines(), start=1):
             code = line.split("//")[0]
             if RAW_COLOR.search(code):
                 violations.append(f"CFM-01 {partial.name}:{line_no}: raw colour literal")
             for hit in RAW_SIZE.finditer(code):
                 # Unit literals are allowed ONLY where no token exists yet.
-                violations.append(f"CFM-01 {partial.name}:{line_no}: raw size literal {hit.group()}")
+                violations.append(
+                    f"CFM-01 {partial.name}:{line_no}: raw size literal {hit.group()}"
+                )
             for ref in TOKEN_REF.findall(code):
                 if ref.removeprefix("$") not in scss_vars:
                     violations.append(f"CFM-01 {partial.name}:{line_no}: unknown token {ref}")
@@ -83,6 +85,7 @@ def check_cfm01(tokens: dict[str, str]) -> list[str]:
 
 
 # --------------------------------------------------------------------- CFM-02
+
 
 def check_cfm02(tokens: dict[str, str]) -> list[str]:
     violations: list[str] = []
@@ -109,12 +112,15 @@ def check_cfm02(tokens: dict[str, str]) -> list[str]:
         return violations
     for path, blob in before.items():
         if path.read_bytes() != blob:
-            violations.append(f"CFM-02 {path.name} was stale (regenerated now) — "
-                              "realisations must be regenerated in the same commit as the source")
+            violations.append(
+                f"CFM-02 {path.name} was stale (regenerated now) — "
+                "realisations must be regenerated in the same commit as the source"
+            )
     return violations
 
 
 # --------------------------------------------------------------------- CFM-03
+
 
 def _rel_luminance(hex_color: str) -> float:
     hex_color = hex_color.lstrip("#")
@@ -133,13 +139,13 @@ def check_cfm03(tokens: dict[str, str]) -> list[str]:
     violations: list[str] = []
     pairs = [
         # (foreground token, background token, minimum ratio)
-        ("color.text.primary", "color.surface.primary", 4.5),   # body text, light
+        ("color.text.primary", "color.surface.primary", 4.5),  # body text, light
         ("color.text.secondary", "color.surface.primary", 4.5),
         ("color.text.primary", "color.surface.secondary", 4.5),
-        ("color.text.inverse", "color.status.brand", 4.5),      # primary button
-        ("color.text.inverse", "color.status.error", 4.5),      # danger button
-        ("color.text.inverse", "color.status.urgent", 4.5),     # urgent surfaces
-        ("color.text.inverse", "color.surface.dark", 4.5),      # dark theme
+        ("color.text.inverse", "color.status.brand", 4.5),  # primary button
+        ("color.text.inverse", "color.status.error", 4.5),  # danger button
+        ("color.text.inverse", "color.status.urgent", 4.5),  # urgent surfaces
+        ("color.text.inverse", "color.surface.dark", 4.5),  # dark theme
     ]
     for fg, bg, minimum in pairs:
         ratio = _contrast(tokens[fg], tokens[bg])
@@ -152,6 +158,7 @@ def check_cfm03(tokens: dict[str, str]) -> list[str]:
 
 # --------------------------------------------------------------------- CFM-04
 
+
 def check_cfm04() -> list[str]:
     violations: list[str] = []
     contract = CONTRACT.read_text(encoding="utf-8") if CONTRACT.exists() else ""
@@ -161,11 +168,14 @@ def check_cfm04() -> list[str]:
             violations.append(f"CFM-04 component realised but not in the contract: {name}")
     for match in re.finditer(r"^###\s+`?([a-z_]+)`?\s*$", contract, re.MULTILINE):
         if match.group(1) not in realised:
-            violations.append(f"CFM-04 component in the contract but not realised: {match.group(1)}")
+            violations.append(
+                f"CFM-04 component in the contract but not realised: {match.group(1)}"
+            )
     return violations
 
 
 # --------------------------------------------------------------------- CFM-05
+
 
 def check_cfm05(tokens: dict[str, str]) -> list[str]:
     violations: list[str] = []
@@ -192,7 +202,10 @@ def check_cfm05(tokens: dict[str, str]) -> list[str]:
             stack = match.group(1)
             if "latin-utility" in line or "inherit" in stack:
                 continue
-            if "$typography-font-bengali-family" not in stack and "$typography-font-mono-family" not in stack:
+            if (
+                "$typography-font-bengali-family" not in stack
+                and "$typography-font-mono-family" not in stack
+            ):
                 violations.append(
                     f"CFM-05 {partial.name}: font-family without the Bengali stack: {stack.strip()}"
                 )

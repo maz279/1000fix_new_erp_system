@@ -7,48 +7,155 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__abandoned
+msgid "Abandoned"
+msgstr "পরিত্যক্ত"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__agent
+msgid "Agent"
+msgstr "এজেন্ট"
+
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_tree
 msgid "AI"
 msgstr "এআই"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__ai
+msgid "AI Assistant"
+msgstr "AI সহকারী"
+
+#. module: cd_contact_centre
+#: model:ir.actions.act_window,name:cd_contact_centre.action_fix_assistant_intent
+#: model:ir.ui.menu,name:cd_contact_centre.menu_fix_assistant_intent
 msgid "Assistant Intents"
 msgstr "সহকারী অভিপ্রায়সমূহ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__sample_bn
 msgid "Bengali Utterances"
 msgstr "বাংলা উচ্চারণ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__call_sid
+msgid "Call SID"
+msgstr "কল SID"
+
+#. module: cd_contact_centre
+#: model:ir.ui.menu,name:cd_contact_centre.menu_ws_contact
 msgid "Contact Centre"
 msgstr "যোগাযোগ কেন্দ্র"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__contact_identity
 msgid "Contact Identity"
 msgstr "যোগাযোগ পরিচয়"
 
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_form
 msgid "Context"
 msgstr "প্রসঙ্গ"
 
+#. module: cd_contact_centre
+#: model:ir.actions.act_window,name:cd_contact_centre.action_fix_conversation
+#: model:ir.ui.menu,name:cd_contact_centre.menu_fix_conversation
 msgid "Conversations"
 msgstr "কথোপকথনসমূহ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__customer_id
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__customer
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__email
+msgid "Email"
+msgstr "ইমেইল"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__lang__en
 msgid "English"
 msgstr "ইংরেজি"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__sample_en
 msgid "English Utterances"
 msgstr "ইংরেজি উচ্চারণ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__grounding
 msgid "Grounding (live ERP data)"
 msgstr "গ্রাউন্ডিং (লাইভ ইআরপি ডেটা)"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__in_app
+msgid "In-App"
+msgstr "অ্যাপের ভেতরে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__pii_masked
+msgid "PII Masked"
+msgstr "PII মাস্ক করা"
+
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_form
 msgid "Resolution"
 msgstr "সমাধান"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__resolved_agent
+msgid "Resolved by Agent"
+msgstr "এজেন্ট কর্তৃক সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__resolved_ai
+msgid "Resolved by AI"
+msgstr "AI কর্তৃক সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__turn_ids
 msgid "Transcript"
 msgstr "ট্রান্সক্রিপ্ট"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__voice
+msgid "Voice (Hotline 16743)"
+msgstr "ভয়েস (হটলাইন 16743)"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__chat
+msgid "Web Chat"
+msgstr "ওয়েব চ্যাট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__whatsapp
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__with_agent
+msgid "With Agent"
+msgstr "এজেন্টের কাছে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__with_ai
+msgid "With AI Assistant"
+msgstr "AI সহকারীর কাছে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__lang__bn
 msgid "বাংলা"
 msgstr "বাংলা"

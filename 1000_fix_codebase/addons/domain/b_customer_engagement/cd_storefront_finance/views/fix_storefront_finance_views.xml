@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E2E3 flow 4: where a storefront order and its return stand in the books, and the retry. -->
+<odoo>
+    <record id="view_fix_storefront_order_form_finance" model="ir.ui.view">
+        <field name="name">fix.storefront.order.form.finance</field>
+        <field name="model">fix.storefront.order</field>
+        <field name="inherit_id" ref="cd_storefront.view_fix_storefront_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_retry_posting" type="object" string="Retry Posting"
+                        invisible="posting_state != 'pending'"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='subtotal']" position="after">
+                <field name="stock_state" optional="show"/>
+                <field name="stock_location_id" optional="hide"/>
+                <field name="stock_serial" optional="hide"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Books" name="books">
+                    <group>
+                        <group>
+                            <field name="posting_state"/>
+                            <field name="posting_note" invisible="not posting_note"/>
+                            <field name="ar_invoice_id"/>
+                            <field name="ar_invoice_state"/>
+                            <field name="mushak_id"/>
+                            <field name="ar_receipt_id"/>
+                            <field name="ar_credit_note_id" invisible="not ar_credit_note_id"/>
+                        </group>
+                        <group>
+                            <field name="stock_location_id"/>
+                            <field name="dispatched_at"/>
+                            <field name="posting_attempted_at"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_storefront_order_list_finance" model="ir.ui.view">
+        <field name="name">fix.storefront.order.list.finance</field>
+        <field name="model">fix.storefront.order</field>
+        <field name="inherit_id" ref="cd_storefront.view_fix_storefront_order_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="posting_state" optional="show"/>
+                <field name="ar_invoice_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_storefront_return_form_finance" model="ir.ui.view">
+        <field name="name">fix.storefront.return.form.finance</field>
+        <field name="model">fix.storefront.return</field>
+        <field name="inherit_id" ref="cd_storefront.view_fix_storefront_return_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_retry_posting" type="object" string="Retry Posting"
+                        invisible="books_state != 'pending'"/>
+            </xpath>
+            <xpath expr="//field[@name='credit_note_id']" position="replace">
+                <field name="ar_credit_note_id"/>
+                <field name="ar_credit_note_state" invisible="not ar_credit_note_id"/>
+                <field name="restock_state"/>
+                <field name="books_state"/>
+                <field name="books_note" invisible="not books_note"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

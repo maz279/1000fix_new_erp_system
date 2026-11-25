@@ -1,0 +1,54 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R09-M04",
+  "task": "R09-M04-T03",
+  "title": "Fitness-Function Promotion & Gate G8-6 Discharge Record",
+  "standard": "FG-04 / AR-012 / P11-M08-T02",
+  "timestamp": "2026-10-20T22:50:00Z",
+  "promotions": [
+    {
+      "id": "FF-13",
+      "name": "API response-time budget",
+      "script": "check_api_budget.py",
+      "previous_state": "warning",
+      "promoted_state": "blocking",
+      "blocking": true,
+      "status": "PASS"
+    },
+    {
+      "id": "FF-14",
+      "name": "dependency reciprocity (R-03; extractor)",
+      "script": "../architecture-baseline/extract-dependency-graph.ps1",
+      "previous_state": "warning",
+      "promoted_state": "blocking",
+      "blocking": true,
+      "status": "PASS"
+    },
+    {
+      "id": "FF-27",
+      "name": "portal contract test coverage (PS-11)",
+      "script": "check_portal_contract.py",
+      "previous_state": "warning",
+      "promoted_state": "blocking",
+      "blocking": true,
+      "status": "PASS"
+    },
+    {
+      "id": "FF-16",
+      "name": "CD identifier form + membership",
+      "script": "../scripts/check-cd-id.py",
+      "previous_state": "warning",
+      "promoted_state": "blocking",
+      "blocking": true,
+      "status": "PASS"
+    }
+  ],
+  "gate_g8_6_discharge": {
+    "gate_id": "G8-6",
+    "description": "Warning fitness functions promoted to Blocking",
+    "previous_status": "CONDITION",
+    "current_status": "PASS",
+    "evidence_document": "docs/governance/fitness-function-promotion-record.md"
+  },
+  "status": "PASS"
+}

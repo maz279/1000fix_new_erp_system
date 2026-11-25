@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M59 capture audit (2026-11-18): numbering and scheduled checks for the
+     permit to work, witness statement, work refusal, customer site hazard
+     and emergency plan registers. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_hse_permit" model="ir.sequence">
+            <field name="name">Permit to Work</field>
+            <field name="code">fix.hse.permit</field>
+            <field name="prefix">PTW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_witness_statement" model="ir.sequence">
+            <field name="name">Witness Statement</field>
+            <field name="code">fix.hse.witness.statement</field>
+            <field name="prefix">WIT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_work_refusal" model="ir.sequence">
+            <field name="name">Work Refusal</field>
+            <field name="code">fix.hse.work.refusal</field>
+            <field name="prefix">WRF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hse_location_hazard" model="ir.sequence">
+            <field name="name">Customer Site Hazard</field>
+            <field name="code">fix.hse.location.hazard</field>
+            <field name="prefix">LHZ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+
+    <!-- an authorised permit past its window expires and HSE is told -->
+    <record id="cron_hse_permit_expiry" model="ir.cron">
+        <field name="name">M59: Expire permits to work past their window</field>
+        <field name="model_id" ref="model_fix_hse_permit"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_expire_permits()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+    <!-- FR-HSE-035: emergency plans past their review or extinguisher service -->
+    <record id="cron_hse_emergency_plan_review" model="ir.cron">
+        <field name="name">M59: Flag emergency plans due for review</field>
+        <field name="model_id" ref="model_fix_hse_emergency_plan"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_flag_plan_reviews()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

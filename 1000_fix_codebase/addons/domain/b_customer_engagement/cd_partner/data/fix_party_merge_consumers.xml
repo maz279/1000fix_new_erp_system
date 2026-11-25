@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumer of party.merged for the partner programme (A03 audit W1): business-partner records follow a
+     supervised party merge. Each re-point is logged in
+     fix.party.repoint.log, so a merge reversal moves it back. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_party_merged_fix_partner" model="fix.event.consumer">
+            <field name="name">Partners: business-partner records follow the merged party</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.partner</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_partner</field>
+        </record>
+
+    </data>
+</odoo>

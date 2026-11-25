@@ -195,7 +195,11 @@ window.FX_MODULES.M19 = { area:'A08', en:'Financial Accounting & GL', bn:'আর
       {id:'M19-coa', en:'Chart of Accounts', bn:'হিসাবের ছক', t:'g'},
       {id:'M19-journals', en:'Journals', bn:'জার্নাল', t:'g'},
       {id:'M19-je', en:'Journal Entry', bn:'জার্নাল এন্ট্রি', t:'f'},
-      {id:'M19-tb', en:'Trial Balance', bn:'ট্রায়াল ব্যালান্স', t:'r'},
+      {id:'M19-tb', en:'Trial Balance', bn:'ট্রায়াল ব্যালেন্স', t:'r'},
+      {id:'M19-partner-ledger', en:'Partner Ledger (GL)', bn:'পার্টনার খতিয়ান (GL)', t:'r'},
+      {id:'M19-partner-statement', en:'Partner Statement Drill-down', bn:'পার্টনার স্টেটমেন্ট', t:'r'},
+      {id:'M19-takeon', en:'Legacy Take-on Wizard', bn:'লেগেসি টেক-অন উইজার্ড', t:'c'},
+      {id:'M19-takeon-lines', en:'Take-on Lines (audit)', bn:'টেক-অন লাইন (অডিট)', t:'g'},
       {id:'M19-dimensions', en:'7-Dimension Model', bn:'মাত্রা মডেল', t:'g'} ]},
     {en:'Close', screens:[
       {id:'M19-close', en:'Month-End Close Console', bn:'মাসিক ক্লোজ', t:'c'},
@@ -209,11 +213,11 @@ window.FX_MODULES.M19 = { area:'A08', en:'Financial Accounting & GL', bn:'আর
       {id:'M19-suspense', en:'Suspense & Control Accounts', bn:'সাসপেন্স', t:'g'},
       {id:'M19-recon', en:'Subledger vs Control', bn:'উপ-খতিয়ান মিলকরণ', t:'c'},
       {id:'M19-audit', en:'Immutable Audit Trail', bn:'নিরবচ্ছিন্ন অডিট', t:'g'} ]} ],
-  reports:['Trial Balance','P&L (BFRS)','Balance Sheet','Cash Flow','Dimensional P&L by Branch','Close Checklist Report'],
-  forms:['Journal Entry (manual/recurring)','Allocation Rule','Intercompany Charge'],
+  reports:['Trial Balance','P&L (BFRS)','Balance Sheet','Cash Flow','Dimensional P&L by Branch','Close Checklist Report','Partner Ledger (GL)','Partner Statement Drill-down'],
+  forms:['Journal Entry (manual/recurring)','Allocation Rule','Intercompany Charge','Legacy Partner-Ledger Take-on'],
   cross:['Every subledger posts here','M20/M52 AR/AP','M51 tax postings','M56 payroll cost'],
-  freg:{ src:91, sub:[
-    ['1','CoA & Dimensions',12],['2','Journals',11],['3','Subledger Posting Engine',12],
+  freg:{ src:95, sub:[
+    ['1','CoA & Dimensions',12],['2','Journals',15],['3','Subledger Posting Engine',12],
     ['4','Fiscal Calendar & Close',10],['5','Multi-Entity & Consolidation',9],
     ['6','Multi-Currency',7],['7','Statutory Statements',9],['8','Audit & Retention',7],
     ['9','Accrual Framework',8],['10','Controls & SoD',6] ] } },
@@ -339,8 +343,8 @@ window.FX_MODULES.M51 = { area:'A08', en:'Tax & Regulatory (BD)', bn:'কর ও
           {l:'Filing On-Time YTD',v:'100%',st:'ok'} ],
   groups:[
     {en:'VAT', screens:[
-      {id:'M51-mushak61', en:'Mushak 6.1 (Sales)', bn:'মুশক ৬.১', t:'g'},
-      {id:'M51-mushak62', en:'Mushak 6.2 (Purchases)', bn:'মুশক ৬.২', t:'g'},
+      {id:'M51-mushak61', en:'Mushak 6.1 (Purchases)', bn:'মুশক ৬.১', t:'g'},
+      {id:'M51-mushak62', en:'Mushak 6.2 (Sales)', bn:'মুশক ৬.২', t:'g'},
       {id:'M51-mushak63', en:'Mushak 6.3 Records', bn:'মুশক ৬.৩', t:'g'},
       {id:'M51-vat91', en:'VAT Return 9.1 Filing', bn:'ভ্যাট রিটার্ন ৯.১', t:'c'},
       {id:'M51-challans', en:'Challans (A-Challan)', bn:'চালান', t:'g'},
@@ -378,7 +382,7 @@ window.FX_MODULES.M53 = { area:'A08', en:'Revenue Recognition & Settlement', bn:
       {id:'M53-contract', en:'Contract Assets & Liabilities', bn:'চুক্তি সম্পদ', t:'r'} ]},
     {en:'Commission', screens:[
       {id:'M53-ledger', en:'Commission Ledger', bn:'কমিশন লেজার', t:'g'},
-      {id:'M53-schemes', en:'Incentive Schemes', bn:'প্রণোদনা কর্মসূচি', t:'g'} ]},
+      {id:'M53-schemes', en:'Commission Schemes', bn:'কমিশন কর্মসূচি', t:'g'} ]},
     {en:'Settlements', screens:[
       {id:'M53-payouts', en:'Payout Runs', bn:'পেআউট রান', t:'c'},
       {id:'M53-sellers', en:'Seller Statements', bn:'বিক্রেতা বিবৃতি', t:'r'},

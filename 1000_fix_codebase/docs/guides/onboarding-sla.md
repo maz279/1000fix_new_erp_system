@@ -26,4 +26,3 @@ the wave gate.
 Gate criterion (`G0b-10`): every developer's `make doctor` green **within the
 budget from a bare machine** — the SLA is the exit criterion, so the
 measurement IS the gate evidence. Filed in `docs/traceability/evidence/onboarding-sla-core-joiner-1.json`.
-

@@ -1,0 +1,31 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M01",
+  "task": "R10-M01-T04",
+  "title": "Nil-Return Automation for Newly Registered Entities",
+  "timestamp": "2026-10-22T08:57:27.689754+00:00",
+  "verdict": "PASS",
+  "tests": [
+    {
+      "check": "Nil-Return Eligibility (0 Transactions)",
+      "passed": true,
+      "details": "Newly registered: True, Eligible: True"
+    },
+    {
+      "check": "Ineligibility Rejection When Transactions Recorded",
+      "passed": true,
+      "details": "Correctly rejected nil return when transaction_count = 5"
+    },
+    {
+      "check": "Mushak 9.1 & TDS Nil Schema Generation",
+      "passed": true,
+      "details": "Mushak 9.1 Form 9.1 (NIL), TDS Form TDS_MONTHLY_NIL"
+    },
+    {
+      "check": "NBR Electronic Submission & Acknowledgement Reference",
+      "passed": true,
+      "details": "Generated filing reference: NBR-ACK-1000FIX-BD-202606-NIL"
+    }
+  ],
+  "status": "PASS"
+}

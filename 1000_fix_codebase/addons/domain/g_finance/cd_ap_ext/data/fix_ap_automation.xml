@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A08 finish: treasury's answers reach the documents that asked (M52-4, M52-9),
+     payroll is told of a deduction (M52-8), and unconfirmed payee accounts queue
+     for a second person (S1). None of this moves money: the queue job only opens
+     draft change requests. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_payment_executed_ap" model="fix.event.consumer">
+            <field name="name">M52: treasury paid: the claim or bill is paid, its payable cleared</field>
+            <field name="event_type">payment.executed</field>
+            <field name="model">fix.ap.payment.events</field>
+            <field name="method">consume_payment_executed</field>
+            <field name="module">cd_ap_ext</field>
+        </record>
+        <record id="consumer_payment_failed_ap" model="fix.event.consumer">
+            <field name="name">M52: the bank rejected or returned a claim or bill payment</field>
+            <field name="event_type">payment.failed</field>
+            <field name="model">fix.ap.payment.events</field>
+            <field name="method">consume_payment_failed</field>
+            <field name="module">cd_ap_ext</field>
+        </record>
+        <record id="consumer_advance_recovery_requested" model="fix.event.consumer">
+            <field name="name">M52: payroll is asked to deduct an advance balance</field>
+            <field name="event_type">advance.recovery_requested</field>
+            <field name="model">fix.employee.advance</field>
+            <field name="method">consume_advance_recovery_requested</field>
+            <field name="module">cd_ap_ext</field>
+        </record>
+        <record id="ir_cron_payee_confirmation_queue" model="ir.cron">
+            <field name="name">M52: queue unconfirmed payee bank accounts for a second person</field>
+            <field name="model_id" ref="model_fix_payee_bank_change"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_open_confirmation_queue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -475,7 +475,28 @@ if ($listeners.Count -eq 0) {
 } else {
     $dockerOnly = @($listeners | Where-Object { $_.IsDocker }).Count -eq $listeners.Count
     $detail = ($listeners | ForEach-Object { ":$($_.Port)=$($_.ProcessName)" }) -join ' '
-    if ($dockerOnly) {
+    # R01 re-audit 2026-10-22: WORKSTATION_RESERVED_PORTS includes THIS
+    # project's own published ports (5433/6380/8025...), so T10 warned whenever
+    # the project's own stack was up. A port published by a container of this
+    # project's compose stack (compose working_dir label ending in
+    # 1000_fix_codebase\infra\compose; suffix match because checkouts move
+    # between drives) is the expected state, not a collision.
+    $foreign = @()
+    if ($dockerOnly -and (Get-Command docker -ErrorAction SilentlyContinue)) {
+        foreach ($l in $listeners) {
+            # {{.Labels}} (not {{.Label "x"}}): PowerShell 5.1 strips embedded
+            # double quotes from native-command arguments.
+            $wds = @(docker ps --filter "publish=$($l.Port)" --format '{{.Labels}}' 2>$null)
+            $own = ($wds.Count -gt 0) -and (@($wds | Where-Object { $_ -match 'com\.docker\.compose\.project\.working_dir=[^,]*1000_fix_codebase[\\/]infra[\\/]compose(,|$)' }).Count -eq $wds.Count)
+            if (-not $own) { $foreign += $l }
+        }
+    } else {
+        $foreign = $listeners
+    }
+    if ($dockerOnly -and $foreign.Count -eq 0) {
+        Complete-Check 'T10' 'Reserved ports' 'PASS' "held only by this project's own compose stack: $detail"
+    } elseif ($dockerOnly) {
+        $detail = ($foreign | ForEach-Object { ":$($_.Port)=$($_.ProcessName)" }) -join ' '
         # Container-origin listeners (docker backend / wslrelay) are managed by
         # Docker, not host-installed services - DE-01's violation class is the
         # HOST service. A publishing container (any project's stack) is a

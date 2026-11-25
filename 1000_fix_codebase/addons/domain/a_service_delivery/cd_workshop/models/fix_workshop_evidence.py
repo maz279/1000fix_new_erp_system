@@ -1,9 +1,15 @@
 # fix.workshop.evidence — Workshop Evidence Pack (CD-M31-01 / AS-01 Document Attachment API).
 # Consumed by Warranty in Phase R05 (MV-02).
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
-
+#
+# A02 workflow audit (2026-11-03), M31-8: a release now requires the evidence
+# pack (fix.workshop.job._m31_check_release_evidence), so the record that
+# satisfies the gate must itself be evidence: who captured it and when are
+# stamped (guarded), and the job, category and document it proves cannot be
+# re-pointed after capture (a pre-repair photo relabelled as post-repair).
 import logging
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +21,69 @@ class FixWorkshopEvidence(models.Model):
     attachment API (AS-01), ensuring residency classification, retention rules,
     and audit trails are maintained centrally.
     """
+
     _name = "fix.workshop.evidence"
     _description = "Workshop Repair Evidence Record"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "captured_at desc, id desc"
+
+    # fixed once captured: what the evidence proves, for which job
+    _FROZEN_FIELDS = frozenset({"job_id", "evidence_type", "document_id"})
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"captured_by_id", "captured_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        return locked | self._FROZEN_FIELDS if self else locked
+
+    # A person's upload on the workspace form: it becomes the governed document.
+    upload_file = fields.Binary(string="Evidence File", store=False)
+    upload_filename = fields.Char(string="File Name", store=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """The release gate counts only a document filed against this job, so a file
+        uploaded here is filed there, and a picked document must not belong elsewhere."""
+        Document = self.env["fix.document"].sudo()
+        for vals in vals_list:
+            upload = vals.pop("upload_file", None)
+            filename = vals.pop("upload_filename", None)
+            job_id = vals.get("job_id")
+            if upload and not vals.get("document_id"):
+                vals["document_id"] = Document.attach(
+                    name=filename or vals.get("name") or "Evidence",
+                    datas=upload,
+                    document_type="evidence_pack",
+                    res_model="fix.workshop.job",
+                    res_id=job_id or 0,
+                ).id
+            elif vals.get("document_id") and job_id:
+                document = Document.browse(vals["document_id"])
+                if not document.res_model:
+                    document._guarded().write({"res_model": "fix.workshop.job", "res_id": job_id})
+                elif (document.res_model, document.res_id) != ("fix.workshop.job", job_id):
+                    raise UserError(
+                        "%s is filed against another record, so it cannot be this job's "
+                        "evidence. Upload the file here instead." % document.display_name
+                    )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        touched = self._FROZEN_FIELDS & set(vals)
+        if self and touched and not self._fix_guard_open():
+            changed = {
+                name
+                for rec in self
+                for name in touched
+                if rec._fix_guard_differs(name, vals[name], rec[name])
+            }
+            if changed:
+                raise UserError(
+                    "%s cannot be changed on captured evidence: capture a new record "
+                    "instead." % ", ".join(sorted(self._fields[n].string for n in changed))
+                )
+        return super().write(vals)
 
     company_id = fields.Many2one(
         "res.company",
@@ -54,6 +119,7 @@ class FixWorkshopEvidence(models.Model):
             ("serial_verification", "Device Serial / IMEI Barcode Scan Proof"),
             ("burn_in_log", "Thermal Chamber & Stress Test Telemetry Log"),
             ("post_repair_photo", "Post-Repair Finished Product Photograph"),
+            ("test_log", "Post-Repair Functional Test Log"),
             ("technician_certification", "Technician Calibration & Competency Sign-Off"),
         ],
         string="Evidence Category",
@@ -88,12 +154,14 @@ class FixWorkshopEvidence(models.Model):
         "hr.employee",
         string="Captured By",
         default=lambda self: self.env.user.employee_id,
+        readonly=True,
         tracking=True,
     )
     captured_at = fields.Datetime(
         string="Timestamp",
         default=fields.Datetime.now,
         required=True,
+        readonly=True,
     )
     description = fields.Text(string="Evidence Notes / Observations")
 
@@ -125,15 +193,22 @@ class FixWorkshopEvidence(models.Model):
             isolation_tier=isolation_tier,
         )
 
-        evidence = self.create({
-            "job_id": job.id,
-            "name": name,
-            "evidence_type": evidence_type,
-            "document_id": doc.id,
-            "description": description,
-            "captured_by_id": self.env.user.employee_id.id if self.env.user.employee_id else False,
-            "captured_at": fields.Datetime.now(),
-        })
+        # the factory stamps the capturer and the time itself (guarded fields)
+        created = self._guarded().create(
+            {
+                "job_id": job.id,
+                "name": name,
+                "evidence_type": evidence_type,
+                "document_id": doc.id,
+                "description": description,
+                "captured_by_id": self.env.user.employee_id.id
+                if self.env.user.employee_id
+                else False,
+                "captured_at": fields.Datetime.now(),
+            }
+        )
+        # hand back a record without the transition token
+        evidence = self.browse(created.ids)
 
         evidence._emit_evidence_recorded(job, doc)
         return evidence
@@ -141,13 +216,20 @@ class FixWorkshopEvidence(models.Model):
     def _emit_evidence_recorded(self, job, doc):
         """Emit workshop.evidence.recorded domain event via outbox."""
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.evidence.recorded", "fix.workshop.evidence", self.id, {
-            "evidence_id": self.id,
-            "job_id": job.id,
-            "job_name": job.name,
-            "document_id": doc.id,
-            "document_name": doc.name,
-            "evidence_type": self.evidence_type,
-            "captured_by_id": self.captured_by_id.id if self.captured_by_id else False,
-            "captured_at": str(self.captured_at),
-        })
+
+        publish(
+            self.env,
+            "workshop.evidence.recorded",
+            "fix.workshop.evidence",
+            self.id,
+            {
+                "evidence_id": self.id,
+                "job_id": job.id,
+                "job_name": job.name,
+                "document_id": doc.id,
+                "document_name": doc.name,
+                "evidence_type": self.evidence_type,
+                "captured_by_id": self.captured_by_id.id if self.captured_by_id else False,
+                "captured_at": str(self.captured_at),
+            },
+        )

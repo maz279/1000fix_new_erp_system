@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_settlement_ext — A08 M53 master data.
+     Sequences, and ONE seeded rate-table line: the TDS on partner / referral
+     commission. PwC's Bangladesh WHT summary lists commission at 10%; the
+     section number comes from secondary sources, so the line says "verify
+     with the company's tax adviser" and stays editable (effective-dated). No
+     marketplace-seller TDS line is seeded: that rate is unverified
+     (A08_FINANCE_RESEARCH.md) and must be entered by finance. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_settlement_adjustment" model="ir.sequence">
+            <field name="name">Settlement Escrow / Clawback</field>
+            <field name="code">fix.settlement.adjustment</field>
+            <field name="prefix">ADJ/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_fix_payout_hold" model="ir.sequence">
+            <field name="name">Payout Hold</field>
+            <field name="code">fix.payout.hold</field>
+            <field name="prefix">PHD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="scheme_partner_commission_tds_default" model="fix.commission.scheme">
+            <field name="name">Partner / referral commission — TDS 10% (default, verify with tax adviser)</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="scheme_type">partner</field>
+            <field name="commission_rate">0.0</field>
+            <field name="tds_rate">0.10</field>
+            <field name="tds_base">commission</field>
+            <field name="tds_reference">ITA 2023 withholding on commission (10%, PwC tax summary; section number unverified)</field>
+            <field name="date_from">2025-07-01</field>
+            <field name="note">Seeded master data — verify the rate and section with the company's VAT/tax adviser and edit or end-date this line. Commission rate 0 = each partner's agreed rate applies.</field>
+        </record>
+    </data>
+</odoo>

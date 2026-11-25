@@ -1,658 +1,269 @@
 "use client";
 
 /**
- * P04 Corporate B2B Executive Overview Dashboard.
- * Renders real operational KPIs, quick enterprise actions, and recent activity
- * fetched live from Odoo ERP via the Kong gateway.
- * Zero dummy/mock data (FF-39). Tokens only (CFM-01).
+ * P04 public landing page — the corporate client's front door.
+ *
+ * Explains the account-scoped self-service surface (fleet estate, contracts &
+ * SLA, invoices & statements, bulk service requests, tenders & quotations,
+ * reports and the account record) and gives one way in: corporate sign-in.
+ * The dashboard behind /dashboard is client-only (proxy + RequireAuth).
  */
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { tokens } from "../lib/imports";
-import { callOdoo } from "../lib/api";
 import { useLanguage } from "../components/language";
 import { useAuth } from "../components/auth-modal";
+import { pageStyle, primaryLinkStyle, linkButtonStyle } from "../components/ui";
 
-interface Device {
-  id: number;
-  brand: string;
-  model: string;
-  identifier: string;
-  warranty_status: string;
-  warranty_end: string | null;
-}
+const FEATURES = [
+  {
+    icon: "🏢",
+    href: "/estate",
+    en: "Fleet estate by site",
+    bn: "সাইট অনুযায়ী ডিভাইস বহর",
+    enDesc: "Every asset, its site, serial and warranty state — one estate register.",
+    bnDesc: "প্রতিটি অ্যাসেট, সাইট, সিরিয়াল ও ওয়ারেন্টি অবস্থা — এক রেজিস্টারে।",
+  },
+  {
+    icon: "📄",
+    href: "/contracts",
+    en: "Contracts & SLA",
+    bn: "চুক্তি ও এসএলএ",
+    enDesc: "AMC/managed agreements, coverage, renewal dates and response targets.",
+    bnDesc: "এএমসি/ম্যানেজড চুক্তি, কভারেজ, নবায়ন তারিখ ও রেসপন্স লক্ষ্য।",
+  },
+  {
+    icon: "🧾",
+    href: "/invoices",
+    en: "Invoices & statements",
+    bn: "ইনভয়েস ও স্টেটমেন্ট",
+    enDesc: "Consolidated billing, outstanding balance, aging and CSV statements.",
+    bnDesc: "কনসোলিডেটেড বিলিং, বাকি ব্যালেন্স, এজিং ও সিএসভি স্টেটমেন্ট।",
+  },
+  {
+    icon: "📝",
+    href: "/service-requests",
+    en: "Bulk service requests",
+    bn: "বাল্ক সার্ভিস রিকোয়েস্ট",
+    enDesc: "Raise one request across many devices with priority and site routing.",
+    bnDesc: "একাধিক ডিভাইসের জন্য প্রায়োরিটি ও সাইটসহ এক অনুরোধ।",
+  },
+  {
+    icon: "⚖️",
+    href: "/tenders",
+    en: "Tenders & quotations",
+    bn: "টেন্ডার ও কোটেশন",
+    enDesc: "Your procuring tenders and the quotations 1000 FiX has issued.",
+    bnDesc: "আপনার টেন্ডার ও ১০০০ FiX-এর ইস্যু করা কোটেশন।",
+  },
+  {
+    icon: "📊",
+    href: "/reports",
+    en: "Spend & service reports",
+    bn: "ব্যয় ও সার্ভিস রিপোর্ট",
+    enDesc: "Six-month spend, request volume, site distribution and AR aging.",
+    bnDesc: "ছয় মাসের ব্যয়, অনুরোধের পরিমাণ, সাইট বণ্টন ও এজিং।",
+  },
+  {
+    icon: "🏦",
+    href: "/account",
+    en: "Account record",
+    bn: "অ্যাকাউন্ট রেকর্ড",
+    enDesc: "Company master data, billing identity, contacts and account manager.",
+    bnDesc: "কোম্পানির মূল তথ্য, বিলিং পরিচয়, যোগাযোগ ও অ্যাকাউন্ট ম্যানেজার।",
+  },
+  {
+    icon: "🎧",
+    href: "/service-requests",
+    en: "Dedicated enterprise desk",
+    bn: "ডেডিকেটেড এন্টারপ্রাইজ ডেস্ক",
+    enDesc: "Hotline 16743 and your named account manager for escalations.",
+    bnDesc: "এস্কেলেশনের জন্য হটলাইন ১৬৭৪৩ ও আপনার নামযুক্ত অ্যাকাউন্ট ম্যানেজার।",
+  },
+];
 
-interface Invoice {
-  id: number;
-  invoice_no: string;
-  customer: string;
-  invoice_date: string;
-  state: string;
-  gross_bdt: string;
-  vat_bdt: string;
-  net_bdt: string;
-}
+const FACTS = [
+  { value: "ISO 9001:2015", en: "Certified service", bn: "সার্টিফায়েড সার্ভিস" },
+  { value: "51+", en: "Service centres", bn: "সার্ভিস সেন্টার" },
+  { value: "8", en: "Divisions", bn: "বিভাগ" },
+  { value: "24/7", en: "SLA support", bn: "এসএলএ সাপোর্ট" },
+];
 
-interface ServiceOrder {
-  id: number;
-  name: string;
-  state: string;
-  customer: string;
-  device: string;
-  opened_at: string;
-}
-
-const pillColors: Record<string, { bg: string; fg: string }> = {
-  active: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  expired: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  pending: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  voided: { bg: tokens["color.status.neutral-bg"], fg: tokens["color.status.neutral"] },
-  issued: { bg: tokens["color.status.info-bg"], fg: tokens["color.status.info"] },
-  paid: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  draft: { bg: tokens["color.status.neutral-bg"], fg: tokens["color.status.neutral"] },
-  credited: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-};
-
-export default function CorporateHomePage() {
-  const { t } = useLanguage();
-  const { user, openLoginModal } = useAuth();
-
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    setAuthError(false);
-    setErrorMsg(null);
-
-    try {
-      const [estateRes, invoicesRes, ordersRes] = await Promise.all([
-        callOdoo<{ devices: Device[]; total: number }>("/corporate/estate").catch((err) => {
-          throw err;
-        }),
-        callOdoo<{ invoices: Invoice[]; total: number }>("/corporate/invoices/consolidated").catch((err) => {
-          throw err;
-        }),
-        callOdoo<{ orders: ServiceOrder[]; total: number }>("/corporate/service-requests").catch((err) => {
-          throw err;
-        }),
-      ]);
-
-      setDevices(estateRes.devices || []);
-      setInvoices(invoicesRes.invoices || []);
-      setOrders(ordersRes.orders || []);
-      setLoading(false);
-    } catch (err: unknown) {
-      const msg = (err as Error).message || "";
-      if (msg.includes("Session expired") || msg.includes("Odoo Session Expired") || msg.includes("network")) {
-        setAuthError(true);
-      } else {
-        setErrorMsg(msg);
-      }
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const activeWarrantyCount = devices.filter((d) => d.warranty_status === "active").length;
+export default function CorporateLandingPage() {
+  const { locale } = useLanguage();
+  const { user } = useAuth();
+  const bn = locale === "bn";
 
   return (
-    <main style={{ padding: "32px 24px", maxWidth: 1280, margin: "0 auto" }}>
-      {/* Hero / Executive Header */}
+    <main style={pageStyle}>
       <section
-        aria-labelledby="overview-heading"
+        aria-labelledby="corp-hero-title"
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          marginBottom: 32,
-          paddingBottom: 24,
-          borderBottom: `1px solid ${tokens["color.border.default"]}`,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.55fr) minmax(240px, 0.75fr)",
+          gap: 26,
+          alignItems: "center",
+          padding: "32px 28px",
+          borderRadius: tokens["dimension.border.radius-lg"],
+          background: `linear-gradient(150deg, ${tokens["color.primary.hover"]}, ${tokens["color.primary.base"]})`,
+          color: tokens["color.text.inverse"],
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <span
-              style={{
-                color: tokens["color.primary.base"],
-                fontWeight: Number(tokens["typography.weight.bold"]),
-                fontSize: tokens["typography.size.200"],
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              {t.enterpriseBadge}
-            </span>
-            <span
-              style={{
-                fontSize: tokens["typography.size.100"],
-                background: tokens["color.surface.secondary"],
-                color: tokens["color.primary.base"],
-                padding: "2px 8px",
-                borderRadius: tokens["dimension.border.radius-sm"],
-                fontWeight: 600,
-              }}
-            >
-              {t.slaBadge}
-            </span>
-          </div>
-          <h1
-            id="overview-heading"
-            style={{
-              margin: "0 0 8px",
-              fontSize: tokens["typography.size.600"],
-              lineHeight: tokens["typography.lineHeight.step-600"],
-              color: tokens["color.text.primary"],
-            }}
-          >
-            {t.overviewTitle}
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              maxWidth: "75ch",
-              color: tokens["color.text.secondary"],
-              fontSize: tokens["typography.size.300"],
-              lineHeight: tokens["typography.lineHeight.normal"],
-            }}
-          >
-            {t.overviewSubtitle}
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.8 }}>
+            {bn ? "১০০০ FiX · কর্পোরেট বি২বি পোর্টাল" : "1000 FiX · CORPORATE B2B PORTAL"}
           </p>
-        </div>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <Link
-            href="/service-requests"
+          <h1
+            id="corp-hero-title"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "10px 18px",
-              background: tokens["color.primary.base"],
-              color: tokens["color.text.inverse"],
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-              fontWeight: Number(tokens["typography.weight.semibold"]),
-              textDecoration: "none",
+              margin: "8px 0 10px",
+              fontSize: tokens["typography.size.600"],
+              lineHeight: 1.18,
+              color: "#fff",
             }}
           >
-            + {t.actionNewRequest}
-          </Link>
-          <Link
-            href="/estate"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "10px 18px",
-              background: tokens["color.surface.primary"],
-              color: tokens["color.text.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-              fontWeight: Number(tokens["typography.weight.medium"]),
-              textDecoration: "none",
-            }}
-          >
-            🔍 {t.navEstate}
-          </Link>
-        </div>
-      </section>
-
-      {/* Unauthenticated or Session Error Banner */}
-      {authError && (
-        <section
-          role="alert"
-          style={{
-            padding: 24,
-            marginBottom: 32,
-            background: tokens["color.surface.primary"],
-            border: `1px solid ${tokens["color.primary.base"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-            boxShadow: tokens["shadow.md"],
-          }}
-        >
-          <div>
-            <h2 style={{ margin: "0 0 6px", color: tokens["color.text.primary"], fontSize: tokens["typography.size.300"] }}>
-              🔐 {t.unauthenticatedNotice}
-            </h2>
-            <p style={{ margin: 0, color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"] }}>
-              Connect with your corporate user or administrator account to stream real fleet records from the Odoo backend.
-            </p>
-          </div>
-          <button
-            onClick={openLoginModal}
-            style={{
-              padding: "10px 20px",
-              background: tokens["color.primary.base"],
-              color: tokens["color.text.inverse"],
-              border: "none",
-              borderRadius: tokens["dimension.border.radius-sm"],
-              fontSize: tokens["typography.size.200"],
-              fontWeight: Number(tokens["typography.weight.semibold"]),
-              cursor: "pointer",
-            }}
-          >
-            {t.unauthenticatedSignInBtn}
-          </button>
-        </section>
-      )}
-
-      {errorMsg && (
-        <div
-          role="alert"
-          style={{
-            padding: 16,
-            marginBottom: 24,
-            background: tokens["color.status.error-bg"],
-            color: tokens["color.status.error"],
-            border: `1px solid ${tokens["color.status.error"]}`,
-            borderRadius: tokens["dimension.border.radius-sm"],
-          }}
-        >
-          {t.errorPrefix} {errorMsg}
-        </div>
-      )}
-
-      {/* KPI Cards Grid */}
-      <section aria-label="Key Performance Indicators" style={{ marginBottom: 32 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-          {/* Card 1: Total Fleet */}
-          <article
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
-          >
-            <div style={{ color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"], marginBottom: 6 }}>
-              📱 {t.kpiFleetTotal}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.600"], fontWeight: Number(tokens["typography.weight.bold"]), color: tokens["color.text.primary"] }}>
-              {loading ? "…" : devices.length}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 4 }}>
-              Across corporate branches
-            </div>
-          </article>
-
-          {/* Card 2: Active Warranties */}
-          <article
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
-          >
-            <div style={{ color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"], marginBottom: 6 }}>
-              🛡️ {t.kpiActiveWarranty}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.600"], fontWeight: Number(tokens["typography.weight.bold"]), color: tokens["color.status.success"] }}>
-              {loading ? "…" : activeWarrantyCount}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 4 }}>
-              OEM & AMC covered assets
-            </div>
-          </article>
-
-          {/* Card 3: Open Service Requests */}
-          <article
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
-          >
-            <div style={{ color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"], marginBottom: 6 }}>
-              ⚙️ {t.kpiOpenOrders}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.600"], fontWeight: Number(tokens["typography.weight.bold"]), color: tokens["color.primary.base"] }}>
-              {loading ? "…" : orders.length}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 4 }}>
-              Active in repair workflow
-            </div>
-          </article>
-
-          {/* Card 4: Consolidated Invoices */}
-          <article
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
-          >
-            <div style={{ color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"], marginBottom: 6 }}>
-              📄 {t.kpiInvoicesTotal}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.600"], fontWeight: Number(tokens["typography.weight.bold"]), color: tokens["color.text.primary"] }}>
-              {loading ? "…" : invoices.length}
-            </div>
-            <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 4 }}>
-              Tax invoices on file
-            </div>
-          </article>
-        </div>
-      </section>
-
-      {/* Quick Enterprise Actions */}
-      <section aria-labelledby="quick-actions-heading" style={{ marginBottom: 36 }}>
-        <h2
-          id="quick-actions-heading"
-          style={{
-            margin: "0 0 16px",
-            fontSize: tokens["typography.size.400"],
-            color: tokens["color.text.primary"],
-            fontWeight: Number(tokens["typography.weight.semibold"]),
-          }}
-        >
-          {t.quickActionsTitle}
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-          <Link
-            href="/service-requests"
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-              textDecoration: "none",
-              color: "inherit",
-              display: "block",
-            }}
-          >
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📝</div>
-            <h3 style={{ margin: "0 0 6px", fontSize: tokens["typography.size.300"], color: tokens["color.text.primary"] }}>
-              {t.actionNewRequest}
-            </h3>
-            <p style={{ margin: 0, fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"], lineHeight: tokens["typography.lineHeight.normal"] }}>
-              {t.actionNewRequestDesc}
-            </p>
-          </Link>
-
-          <Link
-            href="/estate"
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-              textDecoration: "none",
-              color: "inherit",
-              display: "block",
-            }}
-          >
-            <div style={{ fontSize: 24, marginBottom: 8 }}>🏢</div>
-            <h3 style={{ margin: "0 0 6px", fontSize: tokens["typography.size.300"], color: tokens["color.text.primary"] }}>
-              {t.actionViewEstate}
-            </h3>
-            <p style={{ margin: 0, fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"], lineHeight: tokens["typography.lineHeight.normal"] }}>
-              {t.actionViewEstateDesc}
-            </p>
-          </Link>
-
-          <Link
-            href="/invoices"
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-              textDecoration: "none",
-              color: "inherit",
-              display: "block",
-            }}
-          >
-            <div style={{ fontSize: 24, marginBottom: 8 }}>🧾</div>
-            <h3 style={{ margin: "0 0 6px", fontSize: tokens["typography.size.300"], color: tokens["color.text.primary"] }}>
-              {t.actionViewInvoices}
-            </h3>
-            <p style={{ margin: 0, fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"], lineHeight: tokens["typography.lineHeight.normal"] }}>
-              {t.actionViewInvoicesDesc}
-            </p>
-          </Link>
-
-          <div
-            style={{
-              padding: 20,
-              background: tokens["color.surface.primary"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-            }}
-          >
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📞</div>
-            <h3 style={{ margin: "0 0 6px", fontSize: tokens["typography.size.300"], color: tokens["color.text.primary"] }}>
-              {t.actionSupport}
-            </h3>
-            <p style={{ margin: 0, fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"], lineHeight: tokens["typography.lineHeight.normal"] }}>
-              {t.actionSupportDesc}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Two Column Operational Tables */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: 24 }}>
-        {/* Recent Service Requests */}
-        <section aria-labelledby="recent-requests-heading">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2
-              id="recent-requests-heading"
+            {bn ? (
+              <>আপনার সার্ভিস অপারেশন, <br />এক জায়গায় নিয়ন্ত্রণে।</>
+            ) : (
+              <>Your service operations, <br />under control.</>
+            )}
+          </h1>
+          <p style={{ margin: 0, maxWidth: "72ch", fontSize: 14, lineHeight: 1.65, opacity: 0.9 }}>
+            {bn
+              ? "একাধিক সাইটের ডিভাইস বহর, চুক্তি ও এসএলএ, কনসোলিডেটেড বিলিং, বাল্ক সার্ভিস রিকোয়েস্ট এবং টেন্ডার — সবকিছু আপনার কর্পোরেট অ্যাকাউন্টের মধ্যে।"
+              : "Multi-site device estate, contracts and SLAs, consolidated billing, bulk service requests and tenders — all inside your own corporate account."}
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+            <Link
+              href={user ? "/dashboard" : "/login"}
               style={{
-                margin: 0,
-                fontSize: tokens["typography.size.400"],
-                color: tokens["color.text.primary"],
-                fontWeight: Number(tokens["typography.weight.semibold"]),
+                ...primaryLinkStyle,
+                background: "#fff",
+                color: tokens["color.primary.base"],
+                padding: "10px 18px",
+                fontSize: 14,
               }}
             >
-              {t.recentOrdersTitle}
-            </h2>
+              {user
+                ? bn
+                  ? "ওভারভিউ খুলুন"
+                  : "Open the overview"
+                : bn
+                  ? "কর্পোরেট অ্যাকাউন্টে সাইন ইন"
+                  : "Sign in to your corporate account"}
+            </Link>
             <Link
               href="/service-requests"
               style={{
-                fontSize: tokens["typography.size.200"],
-                color: tokens["color.primary.base"],
-                textDecoration: "none",
-                fontWeight: 600,
+                ...linkButtonStyle,
+                background: "transparent",
+                color: "#fff",
+                borderColor: "rgba(255,255,255,0.45)",
+                padding: "10px 18px",
+                fontSize: 14,
               }}
             >
-              {t.viewAll}
+              {bn ? "সার্ভিস রিকোয়েস্ট করুন →" : "Raise a service request →"}
             </Link>
           </div>
-
-          <div
-            style={{
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-              overflow: "hidden",
-              background: tokens["color.surface.primary"],
-            }}
-          >
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <caption style={{ display: "none" }}>{t.recentOrdersTitle}</caption>
-              <thead>
-                <tr style={{ background: tokens["color.surface.secondary"] }}>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colOrderRef}
-                  </th>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colDevice}
-                  </th>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    Status
-                  </th>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colOpenedDate}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.slice(0, 5).map((o) => (
-                  <tr key={o.id} style={{ borderBottom: `1px solid ${tokens["color.border.default"]}` }}>
-                    <td style={{ padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"], fontWeight: 600 }}>
-                      {o.name}
-                    </td>
-                    <td style={{ padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                      {o.device || "—"}
-                    </td>
-                    <td style={{ padding: "10px 16px" }}>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "2px 8px",
-                          borderRadius: tokens["dimension.border.radius-pill"],
-                          fontSize: tokens["typography.size.100"],
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          background: tokens["color.surface.secondary"],
-                          color: tokens["color.text.primary"],
-                        }}
-                      >
-                        {o.state}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                      {o.opened_at.slice(0, 10)}
-                    </td>
-                  </tr>
-                ))}
-                {orders.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={4} style={{ padding: 24, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                      {authError ? t.unauthenticatedNotice : t.requestsEmpty}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Recent Invoices */}
-        <section aria-labelledby="recent-invoices-heading">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2
-              id="recent-invoices-heading"
+          <p style={{ margin: "14px 0 0", fontSize: 11.5, opacity: 0.8, lineHeight: 1.55 }}>
+            {bn
+              ? "নতুন ক্লায়েন্ট? আপনার অ্যাকাউন্ট ম্যানেজার বা ১৬৭৪৩ হটলাইনে যোগাযোগ করুন — অ্যাক্সেস ও চুক্তি সেটআপ করা হবে।"
+              : "New client? Contact your account manager or hotline 16743 — access and contract setup are provisioned by 1000 FiX."}
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} aria-label={bn ? "পোর্টাল তথ্য" : "Portal facts"}>
+          {FACTS.map((f) => (
+            <div
+              key={f.value}
               style={{
-                margin: 0,
-                fontSize: tokens["typography.size.400"],
-                color: tokens["color.text.primary"],
-                fontWeight: Number(tokens["typography.weight.semibold"]),
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: tokens["dimension.border.radius-md"],
+                padding: "13px 14px",
               }}
             >
-              {t.recentInvoicesTitle}
-            </h2>
+              <b style={{ display: "block", fontSize: 17, color: "#fff" }}>{f.value}</b>
+              <span style={{ fontSize: 10.5, opacity: 0.8 }}>{bn ? f.bn : f.en}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 28 }} aria-labelledby="corp-features-title">
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <h2 id="corp-features-title" style={{ margin: 0, fontSize: tokens["typography.size.400"], color: tokens["color.text.primary"] }}>
+            {bn ? "আপনি যা করতে পারবেন" : "What your account can do"}
+          </h2>
+          <p style={{ margin: 0, fontSize: 12, color: tokens["color.text.secondary"] }}>
+            {bn
+              ? "প্রতিটি স্ক্রিন আপনার নিজের কমার্শিয়াল অ্যাকাউন্টে সীমাবদ্ধ — অন্য ক্লায়েন্টের ডেটা বা ব্যাক-অফিস কখনও নয়।"
+              : "Every screen is fenced to your own commercial account — never another client's data, never the back office."}
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          {FEATURES.map((f) => (
             <Link
-              href="/invoices"
+              key={`${f.href}-${f.en}`}
+              href={f.href}
               style={{
-                fontSize: tokens["typography.size.200"],
-                color: tokens["color.primary.base"],
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                padding: 16,
+                background: tokens["color.surface.primary"],
+                border: `1px solid ${tokens["color.border.default"]}`,
+                borderRadius: tokens["dimension.border.radius-md"],
+                color: tokens["color.text.primary"],
                 textDecoration: "none",
-                fontWeight: 600,
               }}
             >
-              {t.viewAll}
+              <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden>{f.icon}</span>
+              <strong style={{ fontSize: 13.5 }}>{bn ? f.bn : f.en}</strong>
+              <span style={{ fontSize: 12, lineHeight: 1.55, color: tokens["color.text.secondary"] }}>
+                {bn ? f.bnDesc : f.enDesc}
+              </span>
             </Link>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          <div
-            style={{
-              border: `1px solid ${tokens["color.border.default"]}`,
-              borderRadius: tokens["dimension.border.radius-md"],
-              overflow: "hidden",
-              background: tokens["color.surface.primary"],
-            }}
-          >
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <caption style={{ display: "none" }}>{t.recentInvoicesTitle}</caption>
-              <thead>
-                <tr style={{ background: tokens["color.surface.secondary"] }}>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colInvoiceNo}
-                  </th>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colDate}
-                  </th>
-                  <th scope="col" style={{ textAlign: "left", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colState}
-                  </th>
-                  <th scope="col" style={{ textAlign: "right", padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                    {t.colNet}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.slice(0, 5).map((inv) => {
-                  const pill = pillColors[inv.state] || pillColors.draft;
-                  return (
-                    <tr key={inv.id} style={{ borderBottom: `1px solid ${tokens["color.border.default"]}` }}>
-                      <td style={{ padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"], fontWeight: 600 }}>
-                        {inv.invoice_no}
-                      </td>
-                      <td style={{ padding: "10px 16px", fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-                        {inv.invoice_date}
-                      </td>
-                      <td style={{ padding: "10px 16px" }}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "2px 8px",
-                            borderRadius: tokens["dimension.border.radius-pill"],
-                            fontSize: tokens["typography.size.100"],
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            background: pill.bg,
-                            color: pill.fg,
-                          }}
-                        >
-                          {inv.state}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          padding: "10px 16px",
-                          textAlign: "right",
-                          fontSize: tokens["typography.size.200"],
-                          fontWeight: 600,
-                          color: tokens["color.text.primary"],
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {inv.net_bdt}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {invoices.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={4} style={{ padding: 24, textAlign: "center", color: tokens["color.text.secondary"] }}>
-                      {authError ? t.unauthenticatedNotice : t.invoicesEmpty}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+      <section
+        style={{
+          marginTop: 28,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 18,
+          flexWrap: "wrap",
+          padding: "18px 20px",
+          background: tokens["color.surface.primary"],
+          border: `1px solid ${tokens["color.border.default"]}`,
+          borderRadius: tokens["dimension.border.radius-lg"],
+        }}
+      >
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: tokens["typography.size.400"], color: tokens["color.text.primary"] }}>
+            {bn ? "সাহায্য দরকার?" : "Need a hand?"}
+          </h2>
+          <p style={{ margin: 0, maxWidth: "70ch", fontSize: 12.5, lineHeight: 1.55, color: tokens["color.text.secondary"] }}>
+            {bn
+              ? "আপনার ডেডিকেটেড এন্টারপ্রাইজ ডেস্ক ১৬৭৪৩-এ ২৪/৭ খোলা। চুক্তি, বিলিং বা অ্যাক্সেস সংক্রান্ত সবকিছুর জন্য কল করুন।"
+              : "Your dedicated enterprise desk is open 24/7 on 16743 — contracts, billing, access and escalations."}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <a href="tel:16743" style={{ ...primaryLinkStyle, textDecoration: "none" }}>☎ 16743</a>
+          <Link href="/account" style={{ ...linkButtonStyle, textDecoration: "none" }}>
+            {bn ? "অ্যাকাউন্ট দেখুন" : "View account"}
+          </Link>
+        </div>
+      </section>
+
+      <p style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${tokens["color.border.default"]}`, fontSize: 10.5, color: tokens["color.text.secondary"], textAlign: "center" }}>
+        {bn
+          ? "১০০০ FiX Services Ltd. · ISO 9001:2015 · PDPA ২০২৬ · কর্মীদের জন্য অপারেশনস পোর্টাল (P03)"
+          : "1000 FiX Services Ltd. · ISO 9001:2015 · PDPA 2026 · Staff use the operations portal (P03)"}
+      </p>
     </main>
   );
 }

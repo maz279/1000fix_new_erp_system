@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M08 scheduled jobs (A04 workflow audit 2026-11-03 M08-9 / C10; build 2026-11-04).
+
+  cron_expiring_contracts had no ir.cron, so no contract ever expired: an
+  "active" contract that ended a month ago still opened AMC orders. Each job
+  is daily, idempotent and writes through the models' guarded transitions.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_contract_expiry" model="ir.cron">
+            <field name="name">M08: contract expiry, renewal windows (AUT-015) and auto-renew drafts</field>
+            <field name="model_id" ref="model_fix_contract"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expiring_contracts()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_amendments_due" model="ir.cron">
+            <field name="name">M08: apply approved amendments on their effective date</field>
+            <field name="model_id" ref="model_fix_contract_amendment"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due_amendments()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_terminations_due" model="ir.cron">
+            <field name="name">M08: execute approved terminations and suspensions on their effective date</field>
+            <field name="model_id" ref="model_fix_contract_termination"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_execute_due_terminations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_pm_visits" model="ir.cron">
+            <field name="name">M08: complete PM visits whose service order was delivered</field>
+            <field name="model_id" ref="model_fix_contract_pm_visit"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_pm_visits()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_obligations_due" model="ir.cron">
+            <field name="name">M08: contract obligations due and overdue (AUT-CTR-16)</field>
+            <field name="model_id" ref="model_fix_contract_obligation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_obligations_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A04 ERP audit (20 Nov 2026): PM visits dispatched on their date
+             (M08-F16) and periodic entitlements renewed (M08-F15). -->
+        <record id="ir_cron_contract_pm_dispatch" model="ir.cron">
+            <field name="name">M08: dispatch preventive visits on their dispatch date</field>
+            <field name="model_id" ref="model_fix_contract_pm_visit"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispatch_due_pm_visits()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_entitlement_reset" model="ir.cron">
+            <field name="name">M08: renew periodic entitlements (monthly / annual)</field>
+            <field name="model_id" ref="model_fix_contract_entitlement"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_reset_entitlements()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

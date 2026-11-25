@@ -3,6 +3,99 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__category__account
+msgid "Account/Access"
+msgstr "অ্যাকাউন্ট/অ্যাক্সেস"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__state__assigned
+msgid "Assigned"
+msgstr "নিয়োজিত"
+
+#. module: cd_itsm
+#: model:ir.model.fields,field_description:cd_itsm.field_fix_itsm_ticket__assigned_to
+msgid "Assigned To"
+msgstr "দায়িত্বপ্রাপ্ত"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__category__hardware
+msgid "Hardware"
+msgstr "হার্ডওয়্যার"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__priority__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_itsm
 msgid "Internal IT Service Management"
-msgstr "Internal IT Service Management (বাংলা)"
+msgstr "অভ্যন্তরীণ IT সার্ভিস ব্যবস্থাপনা"
+
+#. module: cd_itsm
+#: model:ir.actions.act_window,name:cd_itsm.action_fix_itsm_ticket
+#: model:ir.ui.menu,name:cd_itsm.menu_fix_itsm_ticket
+msgid "Itsm Ticket"
+msgstr "ITSM টিকেট"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__priority__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__priority__medium
+msgid "Medium"
+msgstr "মাঝারি"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__category__network
+msgid "Network"
+msgstr "নেটওয়ার্ক"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_itsm
+#: model:ir.model.fields,field_description:cd_itsm.field_fix_itsm_ticket__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__category__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_itsm
+#: model:ir.model.fields,field_description:cd_itsm.field_fix_itsm_ticket__requester_id
+msgid "Requester"
+msgstr "অনুরোধকারী"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__state__resolved
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__category__software
+msgid "Software"
+msgstr "সফটওয়্যার"
+
+#. module: cd_itsm
+#: model:ir.model.fields.selection,name:cd_itsm.selection__fix_itsm_ticket__priority__urgent
+msgid "Urgent"
+msgstr "জরুরি"

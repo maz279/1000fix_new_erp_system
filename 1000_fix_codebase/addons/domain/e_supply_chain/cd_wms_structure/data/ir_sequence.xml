@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_wms_dock" model="ir.sequence">
+            <field name="name">Dock Appointment</field>
+            <field name="code">fix.wms.dock</field>
+            <field name="prefix">DOCK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_putaway" model="ir.sequence">
+            <field name="name">Directed Put-Away</field>
+            <field name="code">fix.wms.putaway</field>
+            <field name="prefix">PUTA/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_wave" model="ir.sequence">
+            <field name="name">Pick Wave</field>
+            <field name="code">fix.wms.wave</field>
+            <field name="prefix">WAVE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_carton" model="ir.sequence">
+            <field name="name">Packing Carton</field>
+            <field name="code">fix.wms.carton</field>
+            <field name="prefix">CART/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_stage" model="ir.sequence">
+            <field name="name">Staging Record</field>
+            <field name="code">fix.wms.stage</field>
+            <field name="prefix">STAG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_task" model="ir.sequence">
+            <field name="name">Warehouse Task</field>
+            <field name="code">fix.wms.task</field>
+            <field name="prefix">TASK/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_floor_count" model="ir.sequence">
+            <field name="name">Floor Count</field>
+            <field name="code">fix.wms.floor.count</field>
+            <field name="prefix">FLCT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

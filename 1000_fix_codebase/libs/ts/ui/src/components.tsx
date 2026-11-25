@@ -5,50 +5,79 @@
  * SectionHead. Styled ONLY from the generated token emission (CFM-01:
  * no hand-authored colours); every portal imports these through its
  * lib/imports barrel so the atoms exist once (no per-app duplication).
+ *
+ * Theme bridge (2026-10-23): role colours resolve to the R6 CSS custom
+ * properties (tokens.css) with the literal token value as fallback —
+ * portals that ship tokens.css get working [data-theme=dark]; portals
+ * that don't render exactly as before.
  */
 import { tokens } from "./tokens/tokens.generated";
 
+/** var(--fix-<path>, <literal token value>) — see generate-design-tokens.py R6. */
+const v = (path: string): string =>
+  `var(--fix-${path.replace(/\./g, "-")}, ${tokens[path as keyof typeof tokens]})`;
+
+// Semantic aliases (light literal fallback / dark override in tokens.css)
+const C = {
+  surface: v("color.surface.primary"),
+  surface2: v("color.surface.secondary"),
+  ink: v("color.text.primary"),
+  inkMuted: v("color.text.secondary"),
+  stroke: v("color.border.default"),
+  primary: v("color.primary.base"),
+  okBg: v("color.status.success-bg"),
+  ok: tokens["color.status.success"],
+  warnBg: v("color.status.warning-bg"),
+  warn: tokens["color.status.warning"],
+  errBg: v("color.status.error-bg"),
+  err: tokens["color.status.error"],
+  infoBg: v("color.status.info-bg"),
+  info: tokens["color.status.info"],
+  neutralBg: v("color.status.neutral-bg"),
+  neutral: tokens["color.status.neutral"],
+};
+
 const PILL_COLORS: Record<string, { bg: string; fg: string }> = {
   // success family
-  active: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  granted: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  approved: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  matched: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  verified: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  received: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  remitted: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  resolved_agent: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  commissioned: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  converted: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
-  paid: { bg: tokens["color.status.success-bg"], fg: tokens["color.status.success"] },
+  active: { bg: C.okBg, fg: C.ok },
+  granted: { bg: C.okBg, fg: C.ok },
+  approved: { bg: C.okBg, fg: C.ok },
+  matched: { bg: C.okBg, fg: C.ok },
+  verified: { bg: C.okBg, fg: C.ok },
+  received: { bg: C.okBg, fg: C.ok },
+  remitted: { bg: C.okBg, fg: C.ok },
+  resolved_agent: { bg: C.okBg, fg: C.ok },
+  commissioned: { bg: C.okBg, fg: C.ok },
+  converted: { bg: C.okBg, fg: C.ok },
+  paid: { bg: C.okBg, fg: C.ok },
+  done: { bg: C.okBg, fg: C.ok },
   // warning family
-  pending: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  sent: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  submitted: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  partially_received: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  with_ai: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  quoted: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  open: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
-  acknowledged: { bg: tokens["color.status.warning-bg"], fg: tokens["color.status.warning"] },
+  pending: { bg: C.warnBg, fg: C.warn },
+  sent: { bg: C.warnBg, fg: C.warn },
+  submitted: { bg: C.warnBg, fg: C.warn },
+  partially_received: { bg: C.warnBg, fg: C.warn },
+  with_ai: { bg: C.warnBg, fg: C.warn },
+  quoted: { bg: C.warnBg, fg: C.warn },
+  open: { bg: C.warnBg, fg: C.warn },
+  acknowledged: { bg: C.warnBg, fg: C.warn },
   // error family
-  expired: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  rejected: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  blocked: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  withdrawn: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  voided: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
-  mismatch: { bg: tokens["color.status.error-bg"], fg: tokens["color.status.error"] },
+  expired: { bg: C.errBg, fg: C.err },
+  rejected: { bg: C.errBg, fg: C.err },
+  blocked: { bg: C.errBg, fg: C.err },
+  withdrawn: { bg: C.errBg, fg: C.err },
+  voided: { bg: C.errBg, fg: C.err },
+  mismatch: { bg: C.errBg, fg: C.err },
+  cancelled: { bg: C.errBg, fg: C.err },
   // info family (agent lane)
-  with_agent: { bg: tokens["color.status.info-bg"], fg: tokens["color.status.info"] },
-  selected: { bg: tokens["color.status.info-bg"], fg: tokens["color.status.info"] },
-  in_progress: { bg: tokens["color.status.info-bg"], fg: tokens["color.status.info"] },
-  new: { bg: tokens["color.status.info-bg"], fg: tokens["color.status.info"] },
+  with_agent: { bg: C.infoBg, fg: C.info },
+  selected: { bg: C.infoBg, fg: C.info },
+  in_progress: { bg: C.infoBg, fg: C.info },
+  new: { bg: C.infoBg, fg: C.info },
+  confirmed: { bg: C.infoBg, fg: C.info },
 };
 
 export function Pill({ state, label }: { state: string; label?: string }) {
-  const pair = PILL_COLORS[state] || {
-    bg: tokens["color.status.neutral-bg"],
-    fg: tokens["color.status.neutral"],
-  };
+  const pair = PILL_COLORS[state] || { bg: C.neutralBg, fg: C.neutral };
   return (
     <span style={{
       display: "inline-block",
@@ -67,15 +96,15 @@ export function Pill({ state, label }: { state: string; label?: string }) {
 export function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "primary" | "default" }) {
   return (
     <div style={{
-      border: `1px solid ${tokens["color.border.default"]}`,
+      border: `1px solid ${C.stroke}`,
       borderRadius: tokens["dimension.border.radius-md"],
-      background: tokens["color.surface.primary"],
+      background: C.surface,
       padding: "16px 20px",
       minWidth: 140,
     }}>
       <div style={{
         fontSize: tokens["typography.size.100"],
-        color: tokens["color.text.secondary"],
+        color: C.inkMuted,
         textTransform: "uppercase",
         letterSpacing: "0.06em",
         marginBottom: 6,
@@ -83,9 +112,7 @@ export function Stat({ label, value, tone }: { label: string; value: React.React
       <div style={{
         fontSize: tokens["typography.size.400"],
         fontWeight: Number(tokens["typography.weight.semibold"]),
-        color: tone === "primary"
-          ? tokens["color.primary.base"]
-          : tokens["color.text.primary"],
+        color: tone === "primary" ? C.primary : C.ink,
         fontVariantNumeric: "tabular-nums",
       }}>{value}</div>
     </div>
@@ -98,12 +125,12 @@ export function SectionHead({ title, note }: { title: string; note?: string }) {
       <h1 style={{
         margin: 0,
         fontSize: tokens["typography.size.500"],
-        color: tokens["color.text.primary"],
+        color: C.ink,
       }}>{title}</h1>
       {note ? (
         <p style={{
           margin: "8px 0 0",
-          color: tokens["color.text.secondary"],
+          color: C.inkMuted,
           fontSize: tokens["typography.size.200"],
         }}>{note}</p>
       ) : null}
@@ -126,21 +153,21 @@ export function DataTable<T>({
 }) {
   return (
     <div style={{
-      border: `1px solid ${tokens["color.border.default"]}`,
+      border: `1px solid ${C.stroke}`,
       borderRadius: tokens["dimension.border.radius-md"],
       overflow: "hidden",
     }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ background: tokens["color.surface.secondary"] }}>
+          <tr style={{ background: C.surface2 }}>
             {columns.map((c) => (
               <th key={c.header} style={{
                 textAlign: "left",
                 padding: "8px 16px",
                 fontSize: tokens["typography.size.200"],
                 fontWeight: Number(tokens["typography.weight.medium"]),
-                color: tokens["color.text.secondary"],
-                borderBottom: `1px solid ${tokens["color.border.default"]}`,
+                color: C.inkMuted,
+                borderBottom: `1px solid ${C.stroke}`,
               }}>{c.header}</th>
             ))}
           </tr>
@@ -148,13 +175,13 @@ export function DataTable<T>({
         <tbody>
           {rows.map((row, i) => (
             <tr key={keyOf ? keyOf(row) : ((row as { id?: string | number }).id ?? i)} style={{
-              borderBottom: `1px solid ${tokens["color.border.default"]}`,
+              borderBottom: `1px solid ${C.stroke}`,
             }}>
               {columns.map((c) => (
                 <td key={c.header} style={{
                   padding: "8px 16px",
                   fontSize: tokens["typography.size.200"],
-                  color: tokens["color.text.primary"],
+                  color: C.ink,
                 }}>{c.cell(row)}</td>
               ))}
             </tr>
@@ -167,7 +194,7 @@ export function DataTable<T>({
 
 export function Loading({ label = "Loading…" }: { label?: string }) {
   return (
-    <main style={{ padding: 48, color: tokens["color.text.secondary"] }}>
+    <main style={{ padding: 48, color: C.inkMuted }}>
       {label}
     </main>
   );
@@ -175,8 +202,9 @@ export function Loading({ label = "Loading…" }: { label?: string }) {
 
 export function LoadError({ what, message }: { what: string; message: string }) {
   return (
-    <main style={{ padding: 48, color: tokens["color.status.error"] }}>
-      Failed to load {what}: {message}
+    <main className="load-error" style={{ margin: "0 auto", maxWidth: 640 }}>
+      <h4>⚠️ Failed to load {what}</h4>
+      <p style={{ fontSize: 12 }}>{message}</p>
     </main>
   );
 }

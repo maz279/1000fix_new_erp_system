@@ -3,6 +3,55 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_demand_plan
+#: model:ir.model.fields.selection,name:cd_demand_plan.selection__fix_demand_plan__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__current_stock
+msgid "Current Stock"
+msgstr "বর্তমান মজুদ"
+
+#. module: cd_demand_plan
+#: model:ir.actions.act_window,name:cd_demand_plan.action_fix_demand_plan
+#: model:ir.model,name:cd_demand_plan.model_fix_demand_plan
+#: model:ir.ui.menu,name:cd_demand_plan.menu_fix_demand_plan
+msgid "Demand Plan"
+msgstr "চাহিদা পরিকল্পনা"
+
+#. module: cd_demand_plan
 msgid "Demand Planning & Replenishment"
-msgstr "Demand Planning & Replenishment (বাংলা)"
+msgstr "চাহিদা পরিকল্পনা ও পুনঃসরবরাহ"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields.selection,name:cd_demand_plan.selection__fix_demand_plan__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__forecast_quantity
+msgid "Forecast Quantity"
+msgstr "পূর্বাভাসিত পরিমাণ"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__product_id
+msgid "Product"
+msgstr "পণ্য"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__recommended_order
+msgid "Recommended Order Qty"
+msgstr "সুপারিশকৃত অর্ডার পরিমাণ"
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__reorder_point
+msgid "Reorder Point"
+msgstr "রি-অর্ডার পয়েন্ট"

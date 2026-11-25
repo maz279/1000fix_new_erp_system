@@ -1,0 +1,321 @@
+{
+  "task_id": "R11-M03-T05",
+  "milestone": "R11-M03",
+  "evaluated_at_utc": "2026-10-22T14:34:45.571538+00:00",
+  "standards": [
+    "GV-009",
+    "GV-005",
+    "AR-012 \u00a710",
+    "AS-05",
+    "FF-09"
+  ],
+  "gate_chain_audit": {
+    "total_gates_audited": 12,
+    "gates_passed": 0,
+    "gates_not_passed": [
+      "G0a",
+      "G0b",
+      "G1",
+      "G1a",
+      "G2",
+      "G3",
+      "G4",
+      "G5",
+      "G6",
+      "G7",
+      "G8",
+      "G9"
+    ],
+    "missing_scripts": [],
+    "all_scripts_present": true,
+    "gates": [
+      {
+        "gate": "G0a",
+        "phase": "P01/R01",
+        "name": "Foundations & Governance",
+        "script": "verify-gate-g0a.ps1",
+        "script_present": true,
+        "evidence_count": 3,
+        "evidence_file": "tooling/gate/evidence/gate-g0a-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED-OPEN-BLOCKERS; criteria CONDITION=5, OPEN=1, PASS=12"
+      },
+      {
+        "gate": "G0b",
+        "phase": "P01/R01",
+        "name": "Sovereignty & Architecture Baseline",
+        "script": "verify-gate-g0b.ps1",
+        "script_present": true,
+        "evidence_count": 2,
+        "evidence_file": "tooling/gate/evidence/gate-g0b-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED-OPEN; criteria CONDITION=2, OPEN=1, PASS=8"
+      },
+      {
+        "gate": "G1",
+        "phase": "P04/R02",
+        "name": "Wave 1 Service Delivery Architecture",
+        "script": "verify-gate-g1.ps1",
+        "script_present": true,
+        "evidence_count": 2,
+        "evidence_file": "tooling/gate/evidence/gate-g1-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict CONDITION; criteria CONDITION=6, PASS=6"
+      },
+      {
+        "gate": "G1a",
+        "phase": "P05/R03",
+        "name": "Wave 2 Field Service & Mobile App",
+        "script": "verify-gate-g1a.ps1",
+        "script_present": true,
+        "evidence_count": 2,
+        "evidence_file": "tooling/gate/evidence/gate-g1a-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict CONDITION; criteria CONDITION=3, PASS=7"
+      },
+      {
+        "gate": "G2",
+        "phase": "P06/R04",
+        "name": "Wave 3 Commercial & Billing Engine",
+        "script": "verify-gate-g2.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g2-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED-OPEN; criteria CONDITION=9, OPEN=1"
+      },
+      {
+        "gate": "G3",
+        "phase": "P07/R05",
+        "name": "Wave 4 PDPA, Agreements & Contact Centre",
+        "script": "verify-gate-g3.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g3-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict CONDITION; criteria CONDITION=7, PASS=5"
+      },
+      {
+        "gate": "G4",
+        "phase": "P08/R06",
+        "name": "Wave 5 People, Payroll & Quality Depth",
+        "script": "verify-gate-g4.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g4-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict CONDITION; criteria CONDITION=7, PASS=11"
+      },
+      {
+        "gate": "G5",
+        "phase": "P09/R07",
+        "name": "Wave 6 Asset Management & GRC",
+        "script": "verify-gate-g5.ps1",
+        "script_present": true,
+        "evidence_count": 2,
+        "evidence_file": "tooling/gate/evidence/gate-g5-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict CONDITION; criteria CONDITION=3, PASS=7"
+      },
+      {
+        "gate": "G6",
+        "phase": "P10/R08",
+        "name": "Wave 7 Advanced Automation & Integrations",
+        "script": "verify-gate-g6.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g6-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED; criteria CONDITION=6, FAIL=1, PASS=3"
+      },
+      {
+        "gate": "G7",
+        "phase": "P11/R09",
+        "name": "Wave 8 BI, Warehouse & Analytics",
+        "script": "verify-gate-g7.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g7-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED; criteria CONDITION=6, FAIL=1, PASS=3"
+      },
+      {
+        "gate": "G8",
+        "phase": "P11/R10",
+        "name": "Wave 9 Multi-Entity & Final Pre-Prod",
+        "script": "verify-gate-g8.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g8-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED; criteria CONDITION=4, FAIL=2, PASS=2"
+      },
+      {
+        "gate": "G9",
+        "phase": "P12/R11",
+        "name": "Programme Closure & Final Acceptance",
+        "script": "verify-gate-g9.ps1",
+        "script_present": true,
+        "evidence_count": 1,
+        "evidence_file": "tooling/gate/evidence/gate-g9-latest.json",
+        "status": "FAIL",
+        "detail": "recorded verdict RED-OPEN; criteria CONDITION=9, OPEN=1"
+      }
+    ],
+    "note": "evidence content is validated as recorded; signatures in signed reports are not verifiable here",
+    "status": "FAIL"
+  },
+  "stub_ledger_audit": {
+    "register_document": "docs/traceability/gv-005-stub-register.md",
+    "evaluated_on": "2026-10-22",
+    "total_stubs_registered": 8,
+    "closed_stubs": 7,
+    "open_stubs": 1,
+    "expired_stubs": 0,
+    "closure_rate": "87.5%",
+    "stubs": [
+      {
+        "stub_id": "STUB-M15-M19-001",
+        "from_module": "M15 (`cd_inventory`)",
+        "target_module": "M19 (`cd_gl_ext` / General Ledger)",
+        "expiry_milestone": "R04-M01 (Task R04-M01-T04)",
+        "target_date": "2026-10-17",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M31-M22-001",
+        "from_module": "M31 (`cd_workshop`)",
+        "target_module": "M22 (`cd_competency` / Learning & Certification)",
+        "expiry_milestone": "R06-M04 (Task R06-M04-T01)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M31-M23-001",
+        "from_module": "M31 (`cd_workshop`)",
+        "target_module": "M23 (`cd_qms_process` / Quality Management ISO)",
+        "expiry_milestone": "R06-M04 (Task R06-M04-T02)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M02-M22-001",
+        "from_module": "M02 (`cd_field_service` / `dispatch-scoring`)",
+        "target_module": "M22 (`cd_competency` / Learning & Certification)",
+        "expiry_milestone": "R06-M04 (Task R06-M04-T01)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M34-M23-001",
+        "from_module": "M34 (`cd_warranty`)",
+        "target_module": "M23 (`cd_qms_process` / Quality Management ISO)",
+        "expiry_milestone": "R06-M04 (Task R06-M04-T02)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M42-M23-001",
+        "from_module": "M42 (`cd_contact_centre`)",
+        "target_module": "M23 (`cd_qms_process` / Quality Management ISO)",
+        "expiry_milestone": "R06-M04 (Task R06-M04-T02)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M02-M55-001",
+        "from_module": "M02 (`cd_field_service` / `dispatch-scoring`)",
+        "target_module": "M55 (`cd_advanced_scheduling` / Multi-day Optimization)",
+        "expiry_milestone": "R06-M02 (Task R06-M02-T03)",
+        "target_date": "2026-10-18",
+        "status": "CLOSED",
+        "is_closed": true,
+        "is_expired": false
+      },
+      {
+        "stub_id": "STUB-M10-M11-001",
+        "from_module": "M10 (`cd_loyalty`)",
+        "target_module": "M11 (`cd_pricing_engine`) / M20 (`cd_billing_engine`)",
+        "expiry_milestone": "R04-M02 (Task R04-M02-T08)",
+        "target_date": "2026-11-30",
+        "status": "REOPENED 2026-10-22 \u2014 audit: `cd_loyalty/models/fix_loyalty_stub.py` still returns `stub_active: True`; the prior CLOSED was a status write, not an integration, and its closure date (2026-11-30) had not even occurred",
+        "is_closed": false,
+        "is_expired": false
+      }
+    ],
+    "status": "FAIL"
+  },
+  "bypass_log_audit": {
+    "checks": {
+      "ff03_vendor_clean": {
+        "status": "PASS",
+        "exit_code": 0,
+        "detail": "check-vendor-clean: OK - vendor/ clean (FF-03)",
+        "forks_yaml_entries": 0
+      },
+      "ff09_residency": {
+        "status": "FAIL",
+        "exit_code": 1,
+        "detail": "FF-09: FAIL - 7 residency bypass path(s) found:",
+        "residency_bypass_paths": 7
+      },
+      "ci_bypass_markers": {
+        "status": "PASS",
+        "workflow_files_scanned": 1,
+        "markers": []
+      },
+      "bypass_log_register": {
+        "status": "UNMEASURED",
+        "reason": "no AR-012 \u00a710 pipeline bypass log artefact exists in the repository to audit"
+      }
+    },
+    "status": "FAIL"
+  },
+  "audit_sign_off": {
+    "status": "UNMEASURED",
+    "reason": "Head of Internal Audit / Audit Committee Chair signatures are a human act; no signed opinion is observable here"
+  },
+  "checks": {
+    "gate_chain": "FAIL",
+    "stub_ledger": "FAIL",
+    "bypass:ff03_vendor_clean": "PASS",
+    "bypass:ff09_residency": "FAIL",
+    "bypass:ci_bypass_markers": "PASS",
+    "bypass:bypass_log_register": "UNMEASURED",
+    "audit_sign_off": "UNMEASURED"
+  },
+  "internal_audit_opinion": {
+    "opinion_id": "IAO-2026-R11-01",
+    "programme": "1000FiX Integrated Smart ERP System v2.0",
+    "governing_standard": "GV-009 (Programme Assurance & Governance Framework)",
+    "scope": "Gate Evidence Chain G0a -> G9, GV-005 Stub Ledger, Pipeline Bypass Controls",
+    "audit_opinion": "QUALIFIED_OPINION_EXCEPTIONS_FOUND",
+    "basis": {
+      "verdict": "FAIL",
+      "exceptions": [
+        "gate_chain",
+        "stub_ledger",
+        "bypass:ff09_residency"
+      ],
+      "unmeasured": [
+        "bypass:bypass_log_register",
+        "audit_sign_off"
+      ]
+    },
+    "issued_at_utc": "2026-10-22T14:34:45.571538+00:00",
+    "status": "COMPUTED_UNSIGNED"
+  },
+  "verdict": "FAIL"
+}

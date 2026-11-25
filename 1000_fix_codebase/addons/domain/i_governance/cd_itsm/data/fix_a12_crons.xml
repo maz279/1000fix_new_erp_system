@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) R3 / P1-6: cd_itsm shipped no ir.cron record at
+  all, so the SLA escalation and the dead-letter mirror never ran.
+
+  - cron_escalate_sla: escalates tickets past their catalogue SLA
+    (fix.itsm.ticket, hourly).
+  - cron_sync_dead_letters: mirrors fix.event.consumer.delivery rows whose
+    state is 'dead' into fix.event.dlq, so the DLQ screen shows the REAL
+    dead letters of the relay instead of a disconnected register
+    (P1-6, 15 minutes).
+  - cron_enforce_quotas / cron_probe_connectors (P1-6 completion
+    2026-11-05): the quota state and connector health are MEASURED from
+    the append-only integration log - never typed.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_itsm_sla_escalation" model="ir.cron">
+            <field name="name">M66: escalate ITSM tickets past their SLA</field>
+            <field name="model_id" ref="model_fix_itsm_ticket"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_escalate_sla()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_event_dlq_sync" model="ir.cron">
+            <field name="name">M28: mirror relay dead letters into the DLQ</field>
+            <field name="model_id" ref="model_fix_event_dlq"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_dead_letters()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_api_quota_enforcement" model="ir.cron">
+            <field name="name">M28: throttle API consumers over their measured quota</field>
+            <field name="model_id" ref="model_fix_api_quota"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_enforce_quotas()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_connector_probe" model="ir.cron">
+            <field name="name">M28: probe connector health from measured evidence</field>
+            <field name="model_id" ref="model_fix_connector"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_probe_connectors()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

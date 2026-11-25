@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- cd_entity_config security: record rules for branch-scoped isolation (T2) -->
 <odoo>
-    <!-- T2 branch-scoped: users see records for their operating units only -->
+    <!-- T2 branch-scoped: users see records for their operating units only.
+         R01 re-audit 2026-10-22: the domain was [(1, '=', 1)] - every internal
+         user saw every branch, and because group rules are OR-ed it would
+         also have cancelled any operating-unit rule on fix.branch. It now
+         enforces what its name says, for every operation; operating-unit
+         managers (OCA operating_unit) are allowed all units. -->
     <record id="rule_fix_branch_t2_own_ou" model="ir.rule">
         <field name="name">Fix Branch: T2 branch-scoped (own OU only)</field>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="model_id" ref="model_fix_branch"/>
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+        <!-- explicit: an upgrade only rewrites fields present here, and the
+             previous record had perm_write=False -->
         <field name="perm_read" eval="True"/>
-        <field name="perm_write" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
     </record>
 </odoo>

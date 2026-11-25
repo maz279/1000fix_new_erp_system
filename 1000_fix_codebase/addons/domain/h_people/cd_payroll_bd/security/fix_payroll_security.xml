@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_payroll_bd security (authorization audit 2026-10-23).
+     Payroll data (payslips with salary + bank account numbers, BEFTN batches)
+     was granted to base.group_user - every employee could read and write it.
+     Access is now held by two payroll groups:
+       * Payroll Officer  - prepares periods, calculates payslips;
+       * Payroll Manager  - additionally APPROVES periods (maker-checker:
+                            never the calculator) and pays (BEFTN batches).
+     Plain employees hold no payroll ACL. Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <record id="privilege_fix_payroll" model="res.groups.privilege">
+        <field name="name">Payroll (Bangladesh)</field>
+        <field name="description">1000FiX payroll: periods, payslips, BEFTN disbursement.</field>
+        <field name="sequence">60</field>
+    </record>
+
+    <record id="group_payroll_officer" model="res.groups">
+        <field name="name">Payroll Officer</field>
+        <field name="privilege_id" ref="privilege_fix_payroll"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Prepares payroll periods and calculates payslips.</field>
+    </record>
+
+    <record id="group_payroll_manager" model="res.groups">
+        <field name="name">Payroll Manager</field>
+        <field name="privilege_id" ref="privilege_fix_payroll"/>
+        <field name="implied_ids" eval="[(4, ref('group_payroll_officer'))]"/>
+        <field name="comment">Approves (second key, never the calculator) and pays payroll periods.</field>
+        <!-- the back office keeps working: the administrator holds the role -->
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- A09 M56 build (SOD-29, BRU-PAY-03, M56-4): the bank release is a
+         third authority. A Payroll Disbursement Releaser (the spec's R26
+         Finance Manager) sends an approved run, off-cycle payment or bonus to
+         the bank and records the bank's settlement; the release method also
+         refuses a releaser who prepared, calculated or approved the document.
+         Members: root and admin only - who holds the role is a business
+         appointment (A09 report §7.1). -->
+    <record id="group_payroll_release" model="res.groups">
+        <field name="name">Payroll Disbursement Releaser (Finance)</field>
+        <field name="privilege_id" ref="privilege_fix_payroll"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Releases approved payroll, off-cycle and bonus payments to the bank (BEFTN) and records the bank's settlement. Never the preparer or the approver of what it releases.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- A09 M56-8 / FR-PAY-051: payroll and the releaser read every payslip
+         the company rules allow; anyone else who ever holds a payslip ACL
+         reads only their own PUBLISHED slip. GLOBAL, because the generated
+         operating-unit rule on base.group_user would OR-widen a group rule.
+         Plain employees hold NO payslip ACL: their self-service is the
+         ownership-checked fix.payslip.fix_my_payslips() / fix_my_payslip_html()
+         (a base.group_user read ACL would make has_access('read') true for
+         everyone, which cd_fpa reads as "may see per-person pay"). -->
+    <record id="rule_fix_payslip_own_published" model="ir.rule">
+        <field name="name">fix.payslip: own published payslip unless payroll</field>
+        <field name="model_id" ref="model_fix_payslip"/>
+        <field name="domain_force">['|', '&amp;', ('employee_id.user_id', '=', user.id), ('published', '=', True), (1 if user.fix_reads_all_payslips() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- A09 P0 (A5 coordination): plain users read only their own contract.
+         Payroll prepares every employee's run from the contract basic and
+         allowances, so the payroll groups read every contract (still inside
+         the company isolation rule). Read only: payroll never edits a contract. -->
+    <record id="rule_fix_employment_contract_payroll_read" model="ir.rule">
+        <field name="name">fix.employment.contract: payroll reads every contract</field>
+        <field name="model_id" ref="cd_hr_core.model_fix_employment_contract"/>
+        <field name="groups" eval="[(4, ref('group_payroll_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

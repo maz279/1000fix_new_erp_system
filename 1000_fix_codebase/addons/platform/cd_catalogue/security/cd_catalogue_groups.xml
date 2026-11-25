@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M37 catalogue roles (A04 audit 2026-11-04, C2-C4 / report §7.1).
+
+     M37 had no role group: every internal user created, approved (by typing
+     state and approved_by), published and hard-deleted catalogue items. The
+     spec (§13) names the Catalogue Officer (a new position under R04), who
+     authors items, kits, rBOM lines and rental SKUs but cannot approve his
+     own change, and the CCO or a delegate, who activates, publishes,
+     restricts and discontinues items and decides brand authorisations
+     (BRU-CAT-05, SOD-13).
+
+     - Catalogue Officer: creates and edits catalogue items while they are
+       drafts, kits, rBOM lines and rental SKUs; submits items for review.
+     - Catalogue Publisher (CCO delegate): implies the officer. Approves an
+       item someone else authored (from the M63 inbox), publishes, restricts,
+       discontinues and reactivates items, and decides brand authorisations.
+
+     Plain internal users keep read access. The dev admin is a member so daily
+     work keeps running; the segregation-of-duties checks still apply to it.
+     Appointing the real holders is a business decision (report §7.1). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_catalogue" model="res.groups.privilege">
+            <field name="name">Product &amp; Service Catalogue</field>
+            <field name="description">Catalogue item lifecycle, kits, repair BOM, rental SKUs and brand authorisation (M37).</field>
+            <field name="sequence">37</field>
+        </record>
+
+        <record id="group_catalogue_officer" model="res.groups">
+            <field name="name">Catalogue Officer</field>
+            <field name="privilege_id" ref="privilege_catalogue"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Authors catalogue items (while draft), service kits, repair-BOM lines and rental SKUs, and submits items for review. Cannot approve an item they authored or submitted.</field>
+        </record>
+
+        <record id="group_catalogue_publisher" model="res.groups">
+            <field name="name">Catalogue Publisher (CCO delegate)</field>
+            <field name="privilege_id" ref="privilege_catalogue"/>
+            <field name="implied_ids" eval="[(4, ref('group_catalogue_officer'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves catalogue items someone else authored, publishes, restricts, discontinues and reactivates them, and decides brand authorisations (BRU-CAT-05).</field>
+        </record>
+
+    </data>
+</odoo>

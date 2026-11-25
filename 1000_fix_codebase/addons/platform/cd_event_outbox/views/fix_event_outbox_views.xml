@@ -10,12 +10,15 @@
                 <field name="event_type"/>
                 <field name="aggregate"/>
                 <field name="aggregate_id"/>
+                <field name="bus_target" widget="badge"/>
                 <field name="status" widget="badge"
                        decoration-success="status == 'published'"
                        decoration-warning="status == 'pending'"
                        decoration-danger="status == 'failed'"/>
                 <field name="publish_attempts"/>
-                <field name="published_at"/>
+                <field name="kafka_published_at"/>
+                <field name="kafka_partition"/>
+                <field name="kafka_offset"/>
             </list>
         </field>
     </record>
@@ -27,16 +30,21 @@
             <form string="Event Outbox Entry" create="false" edit="false">
                 <sheet>
                     <group>
-                        <group>
+                        <group string="Routing &amp; Status">
                             <field name="event_id" readonly="1"/>
                             <field name="event_type"/>
                             <field name="aggregate"/>
                             <field name="aggregate_id"/>
+                            <field name="bus_target"/>
                             <field name="status"/>
                         </group>
-                        <group>
+                        <group string="Publication Metadata">
                             <field name="publish_attempts"/>
                             <field name="published_at"/>
+                            <field name="kafka_published_at"/>
+                            <field name="kafka_partition"/>
+                            <field name="kafka_offset"/>
+                            <field name="payload_sha256"/>
                             <field name="last_error"/>
                         </group>
                     </group>

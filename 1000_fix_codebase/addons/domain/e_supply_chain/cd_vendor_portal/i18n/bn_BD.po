@@ -7,15 +7,23 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
-msgid "My Invoices"
-msgstr "আমার চালানসমূহ"
-
+#. module: cd_vendor_portal
+#: model:ir.actions.act_window,name:cd_vendor_portal.action_fix_vendor_invoice_portal
 msgid "My Invoice Submissions"
 msgstr "আমার দাখিলকৃত চালানসমূহ"
 
+#. module: cd_vendor_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_invoices
+msgid "My Invoices"
+msgstr "আমার চালানসমূহ"
+
+#. module: cd_vendor_portal
+#: model:ir.actions.act_window,name:cd_vendor_portal.action_fix_po_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_pos
 msgid "My Purchase Orders"
 msgstr "আমার ক্রয় আদেশসমূহ"
 
+#. module: cd_vendor_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_root
 msgid "Vendor Portal"
 msgstr "ভেন্ডর পোর্টাল"

@@ -1,0 +1,570 @@
+# Bangla translation of the 1000FiX document suite: the quotation and the
+# advance payment request (quote-to-cash P3, 13 Nov 2026).
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "QUOTATION"
+msgstr "কোটেশন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Quotation No."
+msgstr "কোটেশন নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Quoted To"
+msgstr "প্রাপক"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Details"
+msgstr "বিস্তারিত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Type"
+msgstr "ধরন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Family"
+msgstr "চুক্তির ধরন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Duration"
+msgstr "মেয়াদ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Starts"
+msgstr "শুরু"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Unit"
+msgstr "ইউনিট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Qty"
+msgstr "পরিমাণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Disc %"
+msgstr "ছাড় %"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Amount (excl. VAT)"
+msgstr "মূল্য (ভ্যাট ব্যতীত)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Based on estimate"
+msgstr "এস্টিমেট অনুযায়ী"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Optional items (not included in the total)"
+msgstr "ঐচ্ছিক আইটেম (মোট মূল্যে অন্তর্ভুক্ত নয়)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Lines Total"
+msgstr "লাইনের মোট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Less: Discount"
+msgstr "বাদ: ছাড়"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "VAT"
+msgstr "ভ্যাট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Total Payable (incl. VAT)"
+msgstr "মোট প্রদেয় (ভ্যাটসহ)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "<span class=\"cds-words-label\">In Words:</span>"
+msgstr "<span class=\"cds-words-label\">কথায়:</span>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "<b>Terms &amp; Conditions</b>"
+msgstr "<b>শর্তাবলি</b>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "This quotation is valid until"
+msgstr "এই কোটেশনের বৈধতার শেষ তারিখ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Prices are quoted in"
+msgstr "মূল্যের মুদ্রা:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid ". VAT is shown separately and is included in the Total Payable."
+msgstr "। ভ্যাট আলাদাভাবে দেখানো হয়েছে এবং মোট প্রদেয় মূল্যে অন্তর্ভুক্ত।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Acceptance method:"
+msgstr "সম্মতির পদ্ধতি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Payment terms:"
+msgstr "পরিশোধের শর্ত:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Advance:"
+msgstr "অগ্রিম:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "% of the total payable ("
+msgstr "% মোট প্রদেয় মূল্যের ("
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid ") with the order."
+msgstr ") অর্ডারের সাথে।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Payment accepted by:"
+msgstr "যেভাবে পরিশোধ করা যাবে:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Delivery:"
+msgstr "সরবরাহ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Warranty:"
+msgstr "ওয়ারেন্টি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Your purchase order:"
+msgstr "আপনার ক্রয় আদেশ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "dated"
+msgstr "তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Invoicing:"
+msgstr "বিল প্রদানের সূচি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Withholding at source: VDS"
+msgstr "উৎসে কর্তন: ভিডিএস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "(Mushak 6.6) and TDS"
+msgstr "(মূসক ৬.৬) এবং টিডিএস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "(Income Tax Act 2023) may be deducted from the payment against your certificates; expected cash receipt"
+msgstr "(আয়কর আইন ২০২৩) আপনার সনদের বিপরীতে পরিশোধ থেকে কর্তন করা যেতে পারে; প্রত্যাশিত নগদ প্রাপ্তি"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Work commences upon written acceptance and, where applicable, advance payment."
+msgstr "লিখিত সম্মতি এবং প্রযোজ্য ক্ষেত্রে অগ্রিম পরিশোধের পর কাজ শুরু হবে।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Accepted By (Customer)<br/>Name, Signature &amp; Date"
+msgstr "গ্রহণকারী (গ্রাহক)<br/>নাম, স্বাক্ষর ও তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "For 1000FiX Services Ltd.<br/>Authorized Signature"
+msgstr "1000FiX Services Ltd.-এর পক্ষে<br/>অনুমোদিত স্বাক্ষর"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "ADVANCE PAYMENT REQUEST"
+msgstr "অগ্রিম পরিশোধের অনুরোধ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Against quotation"
+msgstr "কোটেশনের বিপরীতে"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Requested From"
+msgstr "যার কাছে অনুরোধ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Quotation Total (incl. VAT)"
+msgstr "কোটেশনের মোট (ভ্যাটসহ)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Advance Required ("
+msgstr "প্রয়োজনীয় অগ্রিম ("
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Already Received"
+msgstr "ইতোমধ্যে প্রাপ্ত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Please Pay Now"
+msgstr "এখন পরিশোধ করুন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "<b>How to pay</b>"
+msgstr "<b>যেভাবে পরিশোধ করবেন</b>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Quote"
+msgstr "পরিশোধের রেফারেন্স হিসেবে"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "as the payment reference. This request is not a tax invoice: VAT is charged on the invoice the advance is applied to."
+msgstr "উল্লেখ করুন। এটি কর চালান নয়: অগ্রিম যে চালানের সাথে সমন্বয় হবে সেই চালানে ভ্যাট ধার্য হবে।"
+
+# --- commercial document standard (generated) ---
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Invoice No."
+msgstr "ইনভয়েস নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Invoice Date"
+msgstr "ইনভয়েসের তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Due Date"
+msgstr "পরিশোধের শেষ তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Mushak 6.3 No."
+msgstr "মূসক ৬.৩ নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Customer PO / Ref"
+msgstr "গ্রাহকের ক্রয়াদেশ / রেফারেন্স"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Delivery Challan"
+msgstr "ডেলিভারি চালান"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Sales Person"
+msgstr "বিক্রয় প্রতিনিধি"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Payment Method"
+msgstr "পরিশোধের মাধ্যম"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Proforma No."
+msgstr "প্রফর্মা নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Date"
+msgstr "তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Valid Until"
+msgstr "বৈধতার শেষ তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Quotation Ref."
+msgstr "কোটেশন রেফারেন্স"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Payment Terms"
+msgstr "পরিশোধের শর্ত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Version"
+msgstr "সংস্করণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Estimate Ref."
+msgstr "এস্টিমেট রেফারেন্স"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Serial"
+msgstr "সিরিয়াল"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Prepared By"
+msgstr "প্রস্তুতকারী"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Total Items / Qty"
+msgstr "মোট আইটেম / পরিমাণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Subtotal (before discount)"
+msgstr "উপমোট (ছাড়ের আগে)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Taxable Value"
+msgstr "করযোগ্য মূল্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Less: Loyalty Redemption"
+msgstr "বাদ: লয়্যালটি রিডেম্পশন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Grand Total (BDT)"
+msgstr "সর্বমোট (টাকা)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Balance Due"
+msgstr "বকেয়া"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Advance Payable Now"
+msgstr "এখন প্রদেয় অগ্রিম"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Advance with Order"
+msgstr "অর্ডারের সাথে অগ্রিম"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Parts & Products"
+msgstr "যন্ত্রাংশ ও পণ্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Service & Labour"
+msgstr "সেবা ও শ্রম"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Diagnostic"
+msgstr "ডায়াগনস্টিক"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Transport & Other Charges"
+msgstr "পরিবহন ও অন্যান্য চার্জ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "TAX INVOICE"
+msgstr "কর চালানপত্র"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "CASH MEMO / TAX INVOICE"
+msgstr "ক্যাশ মেমো / কর চালানপত্র"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "SALES / SERVICE INVOICE"
+msgstr "বিক্রয় / সেবা ইনভয়েস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "PROFORMA INVOICE"
+msgstr "প্রফর্মা ইনভয়েস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "REPAIR / SERVICE ESTIMATE"
+msgstr "মেরামত / সেবা এস্টিমেট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Received in good condition by (Customer)"
+msgstr "ভালো অবস্থায় বুঝে পেলাম (গ্রাহক)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Prepared by"
+msgstr "প্রস্তুতকারী"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Authorised Signature & Company Seal"
+msgstr "অনুমোদিত স্বাক্ষর ও কোম্পানির সিল"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Accepted by (Customer) — name, signature & date"
+msgstr "গ্রহণকারী (গ্রাহক) — নাম, স্বাক্ষর ও তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "For 1000FiX Services Ltd. — Authorised Signature"
+msgstr "১০০০ফিক্স সার্ভিসেস লিমিটেড-এর পক্ষে — অনুমোদিত স্বাক্ষর"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "Customer Approval — signature & date"
+msgstr "গ্রাহকের অনুমোদন — স্বাক্ষর ও তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_label
+msgid "For 1000FiX Services Ltd. — Service Manager"
+msgstr "১০০০ফিক্স সার্ভিসেস লিমিটেড-এর পক্ষে — সার্ভিস ম্যানেজার"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "SL"
+msgstr "ক্রমিক"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Item Code"
+msgstr "আইটেম কোড"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Discount"
+msgstr "ছাড়"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Amount"
+msgstr "মূল্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "VAT %"
+msgstr "ভ্যাট %"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "Total"
+msgstr "মোট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_lines
+msgid "No lines recorded."
+msgstr "কোনো লাইন নেই।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_head
+msgid "Bill To"
+msgstr "বিল প্রাপক"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_head
+msgid "Service Item"
+msgstr "সেবার পণ্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_head
+msgid "Delivery / Service Address"
+msgstr "ডেলিভারি / সেবার ঠিকানা"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_head
+msgid "Vehicle No."
+msgstr "যানবাহন নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.commercial_footer
+msgid "In Words:"
+msgstr "কথায়:"

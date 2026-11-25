@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M34 in-Odoo event consumers (A03 audit R8; findings M34-4, M34-6, M34-7).
+
+  Each of these events was published faithfully and read by nobody: 22
+  service_order.closed events produced 0 surveys, the post-closure survey was
+  never sent, and the 72-hour escalation reached no one. The relay
+  (cd_event_outbox, fix_event_relay.py) hands each event to its consumer once
+  per (consumer, event). active_from defaults to the install time, so older
+  events are not replayed by surprise; replaying them is a deliberate
+  action_backfill on the consumer record.
+-->
+<odoo>
+    <record id="consumer_service_order_closed_survey" model="fix.event.consumer">
+        <field name="name">M34: post-service survey on order closure</field>
+        <field name="event_type">service_order.closed</field>
+        <field name="model">fix.survey</field>
+        <field name="method">consume_order_closed</field>
+        <field name="module">cd_cx_feedback</field>
+    </record>
+
+    <record id="consumer_complaint_post_closure_survey" model="fix.event.consumer">
+        <field name="name">M34: send the post-resolution complaint survey</field>
+        <field name="event_type">complaint.post_closure_survey_dispatched</field>
+        <field name="model">fix.complaint</field>
+        <field name="method">consume_post_closure_survey</field>
+        <field name="module">cd_cx_feedback</field>
+    </record>
+
+    <record id="consumer_complaint_escalated_72h" model="fix.event.consumer">
+        <field name="name">M34: 72-hour escalation opens an M63 exception task</field>
+        <field name="event_type">complaint.escalated_72h</field>
+        <field name="model">fix.complaint</field>
+        <field name="method">consume_escalated_72h</field>
+        <field name="module">cd_cx_feedback</field>
+    </record>
+</odoo>

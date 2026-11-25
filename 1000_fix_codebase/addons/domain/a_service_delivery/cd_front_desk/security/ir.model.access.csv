@@ -1,4 +1,36 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_token_queue,fix.token.queue,model_fix_token_queue,base.group_user,1,1,1,0
 access_fix_walkin_intake,fix.walkin.intake,model_fix_walkin_intake,base.group_user,1,1,1,0
-access_fix_cash_shift,fix.cash.shift,model_fix_cash_shift,base.group_user,1,1,1,0
+access_fix_cash_shift,fix.cash.shift,model_fix_cash_shift,base.group_user,1,0,0,0
+access_fix_cash_shift_cashier,fix.cash.shift cashier,model_fix_cash_shift,group_fd_cashier,1,1,1,0
+access_fix_cash_shift_manager,fix.cash.shift manager,model_fix_cash_shift,group_fd_branch_manager,1,1,1,0
+access_fix_counter_sale,fix.counter.sale,model_fix_counter_sale,base.group_user,1,0,0,0
+access_fix_counter_sale_cashier,fix.counter.sale cashier,model_fix_counter_sale,group_fd_cashier,1,1,1,0
+access_fix_counter_sale_manager,fix.counter.sale manager,model_fix_counter_sale,group_fd_branch_manager,1,1,1,0
+access_fix_counter_sale_refund,fix.counter.sale refund approver,model_fix_counter_sale,group_fd_refund_approver,1,1,0,0
+access_fix_branch_checklist,fix.branch.checklist,model_fix_branch_checklist,base.group_user,1,0,0,0
+access_fix_branch_checklist_cashier,fix.branch.checklist cashier,model_fix_branch_checklist,group_fd_cashier,1,1,1,0
+access_fix_branch_checklist_agent,fix.branch.checklist queue agent,model_fix_branch_checklist,group_fd_queue_agent,1,1,1,0
+access_fix_branch_checklist_manager,fix.branch.checklist manager,model_fix_branch_checklist,group_fd_branch_manager,1,1,1,0
+access_fix_branch_checklist_line,fix.branch.checklist.line,model_fix_branch_checklist_line,base.group_user,1,0,0,0
+access_fix_branch_checklist_line_cashier,fix.branch.checklist.line cashier,model_fix_branch_checklist_line,group_fd_cashier,1,1,1,1
+access_fix_branch_checklist_line_agent,fix.branch.checklist.line queue agent,model_fix_branch_checklist_line,group_fd_queue_agent,1,1,1,1
+access_fix_branch_checklist_line_manager,fix.branch.checklist.line manager,model_fix_branch_checklist_line,group_fd_branch_manager,1,1,1,1
+access_fix_queue_counter,fix.queue.counter,model_fix_queue_counter,base.group_user,1,0,0,0
+access_fix_queue_counter_manager,fix.queue.counter manager,model_fix_queue_counter,group_fd_branch_manager,1,1,1,0
+access_fix_queue_priority_rule,fix.queue.priority.rule,model_fix_queue_priority_rule,base.group_user,1,0,0,0
+access_fix_queue_priority_rule_manager,fix.queue.priority.rule manager,model_fix_queue_priority_rule,group_fd_branch_manager,1,1,1,0
+access_fix_storage_location,fix.storage.location,model_fix_storage_location,base.group_user,1,0,0,0
+access_fix_storage_location_manager,fix.storage.location manager,model_fix_storage_location,group_fd_branch_manager,1,1,1,0
+access_fix_cash_movement,fix.cash.movement,model_fix_cash_movement,base.group_user,1,0,0,0
+access_fix_cash_movement_cashier,fix.cash.movement cashier,model_fix_cash_movement,group_fd_cashier,1,1,1,0
+access_fix_cash_movement_manager,fix.cash.movement manager,model_fix_cash_movement,group_fd_branch_manager,1,1,1,0
+access_fix_branch_announcement,fix.branch.announcement,model_fix_branch_announcement,base.group_user,1,0,0,0
+access_fix_branch_announcement_manager,fix.branch.announcement manager,model_fix_branch_announcement,group_fd_branch_manager,1,1,1,0
+access_fix_shift_handover,fix.shift.handover,model_fix_shift_handover,base.group_user,1,0,0,0
+access_fix_shift_handover_cashier,fix.shift.handover cashier,model_fix_shift_handover,group_fd_cashier,1,1,1,0
+access_fix_shift_handover_agent,fix.shift.handover agent,model_fix_shift_handover,group_fd_queue_agent,1,1,1,0
+access_fix_shift_handover_manager,fix.shift.handover manager,model_fix_shift_handover,group_fd_branch_manager,1,1,1,0
+access_fix_cash_id_check,fix.cash.id.check,model_fix_cash_id_check,base.group_user,1,0,0,0
+access_fix_cash_id_check_cashier,fix.cash.id.check cashier,model_fix_cash_id_check,group_fd_cashier,1,0,1,0
+access_fix_cash_id_check_manager,fix.cash.id.check manager,model_fix_cash_id_check,group_fd_branch_manager,1,0,1,0

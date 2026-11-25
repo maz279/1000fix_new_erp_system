@@ -3,78 +3,293 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Marketing Campaign"
-msgstr "মার্কেটিং প্রচারণা"
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__target_audience_type__active_warranty
+msgid "Active Warranty Holders"
+msgstr "সক্রিয় ওয়ারেন্টিধারী"
 
-msgid "Campaign Response"
-msgstr "প্রচারণা সাড়া"
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__target_audience_type__all_customers
+msgid "All Registered Customers"
+msgstr "সকল নিবন্ধিত গ্রাহক"
 
-msgid "Campaign (Bengali)"
-msgstr "প্রচারণা (বাংলা)"
-
-msgid "Social"
-msgstr "সোশ্যাল"
-
-msgid "Search"
-msgstr "সার্চ"
-
-msgid "SMS"
-msgstr "এসএমএস"
-
-msgid "Email"
-msgstr "ইমেইল"
-
-msgid "Billboard"
-msgstr "বিলবোর্ড"
-
-msgid "Budget"
-msgstr "বাজেট"
-
-msgid "Running"
-msgstr "চলমান"
-
-msgid "Paused"
-msgstr "স্থগিত"
-
-msgid "Completed"
-msgstr "সম্পন্ন"
-
-msgid "Launch"
-msgstr "শুরু করুন"
-
-msgid "Pause"
-msgstr "স্থগিত করুন"
-
-msgid "Resume"
-msgstr "পুনরায় শুরু"
-
-msgid "Complete"
-msgstr "সম্পন্ন করুন"
-
+#. module: cd_campaign
 msgid "Audience Segment"
 msgstr "দর্শক বিভাগ"
 
-msgid "Responses"
-msgstr "সাড়াসমূহ"
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__audience_domain
+msgid "Audience Segment Domain"
+msgstr "দর্শক বিভাগ ডোমেইন"
 
-msgid "Cost per Response"
-msgstr "প্রতি সাড়ায় ব্যয়"
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Audience Segmentation & Compliance"
+msgstr "দর্শক বিভাজন ও কমপ্লায়েন্স"
 
-msgid "Click"
-msgstr "ক্লিক"
+#. module: cd_campaign
+msgid "Billboard"
+msgstr "বিলবোর্ড"
 
-msgid "Inbound Call"
-msgstr "আগত কল"
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__billboard
+msgid "Billboard / Outdoor"
+msgstr "বিলবোর্ড / আউটডোর"
 
-msgid "Form Submission"
-msgstr "ফর্ম জমা"
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign_response__loyalty_points_awarded
+msgid "Bonus Points Awarded"
+msgstr "প্রদত্ত বোনাস পয়েন্ট"
 
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__response_type__visit
 msgid "Branch Visit"
 msgstr "শাখা সাক্ষাৎ"
 
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__budget
+msgid "Budget"
+msgstr "বাজেট"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Budget & Schedule"
+msgstr "বাজেট ও সময়সূচি"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__name_bn
+msgid "Campaign (Bengali)"
+msgstr "প্রচারণা (বাংলা)"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Campaign Definition"
+msgstr "প্রচারণার সংজ্ঞা"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Campaign Name"
+msgstr "প্রচারণার নাম"
+
+#. module: cd_campaign
+#: model:ir.model,name:cd_campaign.model_fix_campaign_response
+msgid "Campaign Response"
+msgstr "প্রচারণা সাড়া"
+
+#. module: cd_campaign
+#: model:ir.actions.act_window,name:cd_campaign.action_fix_campaign
+#: model:ir.ui.menu,name:cd_campaign.menu_fix_campaign
+msgid "Campaigns"
+msgstr "প্রচারণাসমূহ"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__response_type__click
+msgid "Click"
+msgstr "ক্লিক"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Complete"
+msgstr "সম্পন্ন করুন"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__conversion_status__converted
+msgid "Converted to Order"
+msgstr "অর্ডারে রূপান্তরিত"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__target_audience_type__corporate_amc
+msgid "Corporate AMC Clients"
+msgstr "কর্পোরেট AMC ক্লায়েন্ট"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__cost_per_response
+msgid "Cost per Response"
+msgstr "প্রতি সাড়ায় ব্যয়"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__target_audience_type__custom_domain
+msgid "Custom Demographic Segment"
+msgstr "কাস্টম জনমিতিক বিভাগ"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__portal
+msgid "Customer Portal Banner"
+msgstr "গ্রাহক পোর্টাল ব্যানার"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__sms
+msgid "Direct SMS"
+msgstr "সরাসরি SMS"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Disburse Loyalty Rewards (M10)"
+msgstr "লয়ালটি পুরস্কার বিতরণ করুন (M10)"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__target_audience_type__dormant_90d
+msgid "Dormant (90+ Days)"
+msgstr "নিষ্ক্রিয় (৯০+ দিন)"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "e.g. Dhaka AC Season Overhaul 2026"
+msgstr "যেমন ঢাকা AC মৌসুম ওভারহল ২০২৬"
+
+#. module: cd_campaign
+msgid "Email"
+msgstr "ইমেইল"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__email
+msgid "Email Newsletter"
+msgstr "ইমেইল নিউজলেটার"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__conversion_status__engaged
+msgid "Engaged"
+msgstr "সম্পৃক্ত"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__conversion_status__enrolled_loyalty
+msgid "Enrolled in Loyalty Program"
+msgstr "লয়ালটি প্রোগ্রামে নিবন্ধিত"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__response_type__form
+msgid "Form Submission"
+msgstr "ফর্ম জমা"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__response_type__call
+msgid "Inbound Call"
+msgstr "আগত কল"
+
+#. module: cd_campaign
+msgid "Launch"
+msgstr "শুরু করুন"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Launch Campaign"
+msgstr "প্রচারণা শুরু করুন"
+
+#. module: cd_campaign
 msgid "Lead"
 msgstr "লিড"
 
-msgid "Campaigns"
-msgstr "প্রচারণাসমূহ"
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign_response__partner_id
+msgid "Lead / Customer"
+msgstr "লিড / গ্রাহক"
+
+#. module: cd_campaign
+#: model:ir.model,name:cd_campaign.model_fix_campaign
+msgid "Marketing Campaign"
+msgstr "মার্কেটিং প্রচারণা"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__operating_unit_id
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign_response__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Pause"
+msgstr "স্থগিত করুন"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__state__paused
+msgid "Paused"
+msgstr "স্থগিত"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__pdpa_consent_verified
+msgid "PDPA Consent Filter Verified"
+msgstr "PDPA সম্মতি ফিল্টার যাচাইকৃত"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Response Attribution Ledger"
+msgstr "সাড়া অ্যাট্রিবিউশন খতিয়ান"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__response_count
+msgid "Response Count"
+msgstr "সাড়ার সংখ্যা"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__response_ids
+msgid "Responses"
+msgstr "সাড়াসমূহ"
+
+#. module: cd_campaign
+#: model_terms:ir.ui.view,arch_db:cd_campaign.view_fix_campaign_form
+msgid "Resume"
+msgstr "পুনরায় শুরু"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__state__running
+msgid "Running"
+msgstr "চলমান"
+
+#. module: cd_campaign
+msgid "Search"
+msgstr "সার্চ"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__search
+msgid "Search Engines"
+msgstr "সার্চ ইঞ্জিন"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign_response__response_type__service_booking
+msgid "Service Booking"
+msgstr "সার্ভিস বুকিং"
+
+#. module: cd_campaign
+msgid "SMS"
+msgstr "এসএমএস"
+
+#. module: cd_campaign
+msgid "Social"
+msgstr "সোশ্যাল"
+
+#. module: cd_campaign
+#: model:ir.model.fields.selection,name:cd_campaign.selection__fix_campaign__channel__social
+msgid "Social Media"
+msgstr "সোশ্যাল মিডিয়া"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__target_audience_type
+msgid "Target Segment"
+msgstr "লক্ষ্য দর্শক বিভাগ"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__utm_campaign
+msgid "UTM Campaign Code"
+msgstr "UTM প্রচারণা কোড"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__utm_medium
+msgid "UTM Medium"
+msgstr "UTM মাধ্যম"
+
+#. module: cd_campaign
+#: model:ir.model.fields,field_description:cd_campaign.field_fix_campaign__utm_source
+msgid "UTM Source"
+msgstr "UTM উৎস"

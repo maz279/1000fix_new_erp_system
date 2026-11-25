@@ -1,0 +1,66 @@
+{
+  "schema": "1000fix-erp/pe-007-dr-drill/2",
+  "gate": "G5",
+  "milestone": "R06-M05-T04",
+  "timestamp_utc": "2026-10-22T11:31:34.575115+00:00",
+  "status": "INCOMPLETE",
+  "sla_metrics": {
+    "rpo_target_minutes": 15.0,
+    "rpo_achieved_seconds": null,
+    "rpo_status": "UNMEASURED",
+    "rto_target_minutes": 30.0,
+    "rto_achieved_seconds": null,
+    "rto_status": "UNMEASURED"
+  },
+  "drill_summary": {
+    "checks_total": 7,
+    "checks_passed": 3,
+    "checks_failed": 0,
+    "checks_unmeasured": 4
+  },
+  "checks": [
+    {
+      "id": "primary_replication_config",
+      "name": "Primary PostgreSQL WAL streaming + archiving configured",
+      "status": "PASS",
+      "detail": "postgres-prod: wal_level=replica, max_wal_senders=10, archive_mode=on, synchronous_standby_names=unset (asynchronous: RPO > 0 on primary loss)"
+    },
+    {
+      "id": "dr_standby_config",
+      "name": "DR warm standby declared as a streaming replica",
+      "status": "PASS",
+      "detail": "postgres-dr: primary_conninfo set, standby bootstrap declared, healthcheck asserts recovery mode"
+    },
+    {
+      "id": "runbook_present",
+      "name": "RB-52 DR runbook present",
+      "status": "PASS",
+      "detail": "RB-52-dr-disaster-recovery-and-cutover.md present"
+    },
+    {
+      "id": "rpo",
+      "name": "RPO <= 15 min (replication lag at primary loss)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "rto",
+      "name": "RTO <= 30 min (failure to service restored)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    },
+    {
+      "id": "dual_store_consistency",
+      "name": "Odoo / Mayan EDMS dual-store document consistency after failover",
+      "status": "UNMEASURED",
+      "detail": "requires Odoo and Mayan EDMS running on the promoted standby and a document hash comparison; not exercised"
+    },
+    {
+      "id": "control_totals",
+      "name": "Post-failover data integrity (control totals)",
+      "status": "UNMEASURED",
+      "detail": "requires a running primary + DR standby and an executed failover; this tool never stops, fences or promotes a database"
+    }
+  ],
+  "conclusion": "INCOMPLETE: 3 passed, 0 failed, 4 UNMEASURED of 7 checks."
+}

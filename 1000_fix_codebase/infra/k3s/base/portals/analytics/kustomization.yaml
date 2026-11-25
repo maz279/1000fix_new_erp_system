@@ -1,0 +1,13 @@
+# portal-analytics (apps/web/analytics) - instance of ../_template.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../_template
+nameSuffix: -analytics
+labels:
+  - pairs:
+      app.kubernetes.io/name: portal-analytics
+    includeSelectors: true
+images:
+  - name: 1000fix/portal
+    newName: 1000fix/portal-analytics

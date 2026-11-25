@@ -103,9 +103,14 @@ Check { $py = Get-Command python -ErrorAction SilentlyContinue
         ($out | Select-String 'checks passed') -replace '.*test-smoke:', 'test-smoke:' } 8 'Smoke test' 'tasks.ps1 -Target run then test-smoke'
 
 # 9 - pre-commit green on a clean tree
+# R01 audit correction: pre-commit's LAST line on failure is "Check the log
+# at ..." - returning it as detail recorded a FAIL as PASS. The exit code is
+# the verdict; the log line is never evidence of success.
 Check { $pc = Get-Command pre-commit -ErrorAction SilentlyContinue
         if (-not $pc) { throw 'SKIP: pre-commit not installed (bootstrap)' }
-        pre-commit run -a 2>&1 | Select-Object -Last 1 } 9 'Quality gates' 'fix findings; XS-20 governs --no-verify'
+        $out = @(pre-commit run -a 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw (($out | Select-Object -Last 12 | Out-String).Trim()) }
+        ($out | Where-Object { $_ -and "$_".Trim() } | Select-Object -Last 1) } 9 'Quality gates' 'fix findings; XS-20 governs --no-verify'
 
 # 10 - Bengali rendering vs committed reference image (TR-07)
 Check { $ref = 'docs/guides/reference/bengali-conjunct-reference.png'

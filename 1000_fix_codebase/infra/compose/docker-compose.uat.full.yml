@@ -1,0 +1,282 @@
+# =============================================================================
+# 1000fix-erp - SINGLE-HOST SYNTHETIC UAT stack (Gate 3, 2026-11-24).
+#
+# Self-contained: run it ALONE (project `fix-uat`), alongside the developer
+# stack without port or name collisions. This is the business-acceptance
+# surface for the rebuilt 8-portal estate on ONE host, compose not k8s.
+#
+# ENVIRONMENT CONTRACT - read before stakeholder sign-off:
+#   FIX_ENV=local (infra/environments.yaml `local`: generated-synthetic-only).
+#   That is deliberate: the customer portal's phone-OTP dev echo (DE-11) and
+#   the dispatcher's dry-run only exist under the local contract, so testers
+#   can sign in without an SMS gateway. The formal `uat` environment
+#   (full TS-002 frozen set, real delivery channels, residency service) is an
+#   operator step beyond this host - see infra/README-production.md.
+#   No real mail leaves: Mailpit is the only sink (DE-07).
+#   Service names are the CANONICAL DE-11 allowlist entries (postgres, redis,
+#   odoo, mailpit, notification-dispatcher - libs/py/fix_env_guard): the local
+#   contract refuses any other endpoint host. They are project-scoped, so they
+#   do not collide with the developer compose project on this host.
+#
+#   deploy:  docker compose -p fix-uat -f infra/compose/docker-compose.uat.full.yml \
+#              --env-file infra/uat/.env.uat up -d --build
+#   init:    see infra/README-uat.md (module install + demo seed into fix_uat)
+#
+# Every secret is a ${VAR:?} - compose refuses to load while one is unset;
+# no credential literal appears here. Generate infra/uat/.env.uat from
+# infra/uat/uat.env.example (git-ignored).
+#
+# Published ports (ALL bound to 127.0.0.1 - host-only; a LAN/reverse-proxy
+# exposure is an operator decision with TLS, not this file):
+#   Odoo back office   127.0.0.1:8073      PostgreSQL  127.0.0.1:5437
+#   customer portal    127.0.0.1:3400      Redis       127.0.0.1:6383
+#   corporate portal   127.0.0.1:3401      Mailpit UI  127.0.0.1:8026
+#   analytics portal   127.0.0.1:3402      Mailpit SMTP 127.0.0.1:1026
+#   seller portal      127.0.0.1:3403      dispatcher  127.0.0.1:8111
+#   brand portal       127.0.0.1:3404
+#   agent console      127.0.0.1:3405
+#   partner portal     127.0.0.1:3406
+#   vendor portal      127.0.0.1:3407
+#
+# The portals use the same-origin /api/odoo bridge (no Kong): the upstream is
+# the SERVER-configured ODOO_INTERNAL_URL, host-allowlisted (ODOO_ALLOWED_HOSTS).
+# =============================================================================
+name: fix-uat
+
+x-hardened: &hardened
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: "50m", max-file: "5" }
+
+# Runtime contract only - each portal service declares its OWN build block
+# (the PORTAL build arg differs per app; a YAML merge would not deep-merge it).
+x-portal: &portal
+  <<: *hardened
+  environment:
+    ODOO_INTERNAL_URL: http://odoo:8069
+    ODOO_ALLOWED_HOSTS: odoo
+  depends_on:
+    odoo: { condition: service_healthy }
+  deploy:
+    resources:
+      limits: { cpus: "1.0", memory: 768M }
+
+services:
+  postgres:
+    # NOT cap_drop ALL: the official entrypoint starts as root, chmods the
+    # data/socket dirs and drops to the postgres user (CHOWN/SETUID/SETGID/
+    # FOWNER/DAC_OVERRIDE). Dropping those caps made it fail at boot
+    # ("failed switching to postgres: operation not permitted", 2026-11-24).
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    environment:
+      FIX_ENV: local
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${UAT_DB_PASSWORD:?set in infra/uat/.env.uat}
+      POSTGRES_DB: fix_uat
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5437:5432"]
+    volumes:
+      - pgdata-uat:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_uat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    # Same entrypoint exception as postgres: the official image drops root to
+    # the redis user at boot (gosu), which cap_drop ALL would forbid.
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6383:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mailpit:
+    <<: *hardened
+    # DE-07: the ONLY mail sink. No service sends real mail from UAT. Ever.
+    image: axllent/mailpit:v1.22@sha256:f7f7c31de4de59540ad6515a0ca057a77525bca2069b6e747d873ca66c10fe08
+    environment:
+      FIX_ENV: local
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:1026:1025"   # SMTP sink
+      - "127.0.0.1:8026:8025"   # web UI
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8025/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # The service NAME is the DE-11 allowlist entry otp_delivery.py checks
+  # (LOCAL_DISPATCHER_HOSTS): keep it `notification-dispatcher`.
+  notification-dispatcher:
+    <<: *hardened
+    build:
+      context: ../..
+      dockerfile: services/notification-dispatcher/Dockerfile
+    environment:
+      FIX_ENV: local
+      FIX_ACTIVE_WAVE: W1
+      FIX_NOTIFICATION_DISPATCHER_HOST: "0.0.0.0"
+      FIX_EMAIL_API_URL: http://mailpit:8025/api/v1/send
+    ports: ["127.0.0.1:8111:8110"]
+    depends_on:
+      mailpit: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8110/health',timeout=5)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  odoo:
+    <<: *hardened
+    image: 1000fix/odoo:19.0-uat-synthetic
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    # -d fix_uat: Odoo creates the database on first boot (base only); the
+    # full first-party install + demo seed is the documented init step
+    # (infra/README-uat.md), run through the same entrypoint.
+    command:
+      - "-d"
+      - "fix_uat"
+      - "--load=base,rpc,web,cd_entity_config"
+      - "--db-filter=^fix_uat$"
+      - "--smtp=mailpit"
+      - "--smtp-port=1025"
+    environment:
+      FIX_ENV: local
+      HOST: postgres
+      PORT: "5432"
+      USER: fix
+      PASSWORD: ${UAT_DB_PASSWORD:?set in infra/uat/.env.uat}
+      ODOO_ADMIN_PASSWORD: ${UAT_ADMIN_PASSWORD:?set in infra/uat/.env.uat}
+      FIX_NOTIFICATION_DISPATCHER_URL: http://notification-dispatcher:8110
+    ports: ["127.0.0.1:8073:8069"]
+    volumes:
+      - odoo-data-uat:/var/lib/odoo
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  portal-customer:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: customer
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3400:3000"]
+
+  portal-corporate:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: corporate
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3401:3000"]
+
+  portal-analytics:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: analytics
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3402:3000"]
+
+  portal-seller:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: seller
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3403:3000"]
+
+  portal-brand:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: brand
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3404:3000"]
+
+  portal-agent-console:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: agent-console
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3405:3000"]
+
+  portal-partner:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: partner
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3406:3000"]
+
+  portal-vendor:
+    <<: *portal
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.portal
+      args:
+        PORTAL: vendor
+        PORTAL_BUILD_PROFILE: local
+        NEXT_PUBLIC_ODOO_DB: fix_uat
+        FIX_RELEASE: ${FIX_RELEASE:-uat-synthetic}
+    ports: ["127.0.0.1:3407:3000"]
+
+volumes:
+  pgdata-uat:
+  odoo-data-uat:

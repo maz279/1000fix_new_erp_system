@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Name the main company 1000 FiX Services Ltd. and book it in BDT /
+         Bangladesh when it still carries Odoo's install defaults. -->
+    <function model="fix.entity" name="_bootstrap_main_company"/>
+</odoo>

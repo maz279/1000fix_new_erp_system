@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 audit M36-12: quotation numbers came from QTN/<UTC year>/<count+1>
+     and were reused after a delete. One sequence, never a count. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_quotation" model="ir.sequence">
+            <field name="name">Quotation</field>
+            <field name="code">fix.quotation</field>
+            <field name="prefix">QTN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- Commercial document standard (17 Nov 2026): the customer (local)
+             proforma invoice, numbered when issued to the customer. -->
+        <record id="seq_fix_sales_proforma" model="ir.sequence">
+            <field name="name">Proforma Invoice (Local)</field>
+            <field name="code">fix.sales.proforma</field>
+            <field name="prefix">PI/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

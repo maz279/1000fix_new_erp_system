@@ -1,214 +1,2150 @@
-# fix_marketplace — M12: sellers, orders, quotes, scoring, commission events.
+# fix_marketplace — M12: Marketplace at Seller Scale (P10-M01 & R08-M01).
+#
+# Covers:
+# 1. Seller Onboarding with L6 KYC Decision (INT-034), Z4 Split-Residency (FF-09), and CFO Approval.
+# 2. Journey 7 Order Lifecycle with Ephemeral Contact Masking (BRU-ECM-05) & Refurb Resale Wiring (BRU-TRF-04).
+# 3. Transparent Seller Scoring, Tier Ranking (Platinum/Gold/Silver/At-Risk), and Dispute Handling with 48h SLA.
+# 4. Strict M12 <-> M53 Event Break: M12 publishes commission.earned; NEVER calls M53 directly.
+#
+# A04 workflow audit (2026-11-03) M12-1..-14, C2-C13 build (2026-11-04):
+# - KYC, CFO approval, tier, rating and the payout hold were plain fields
+#   (2,050 live sellers CFO-approved by nobody) and verifying KYC ticked CFO
+#   approval for the same clerk: they are guarded, KYC is a compliance
+#   decision and CFO approval a routed M63 decision of a DOFA Tier 4 holder
+#   who is not the KYC reviewer;
+# - order state, dates, the awarded quote and the commission rate were
+#   writable (a forged "reviewed" order was paid; 0.10 became 0.0001): they
+#   are guarded, the price and rate are pinned when the quote is awarded and
+#   the rate comes from the seller tier;
+# - the escrow had a caller switch (skip_escrow_check) and the seller-level
+#   payout hold was never read: both are gone / enforced, and the 7-day
+#   escrow runs from the customer's delivery confirmation;
+# - disputes had no state machine and the respondent ruled his own: a ruling
+#   is now proposed by an operator and decided by an arbitrator from the M63
+#   inbox, once, with the 48h SLA escalated by a cron.
+import logging
+from datetime import datetime, timedelta
+
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    has_role,
+)
+from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.fields import Domain
+from odoo.tools import SQL
 
 from libs.py.fix_events import publish
 
+logger = logging.getLogger(__name__)
+
+OPERATOR_GROUP = "cd_marketplace.group_marketplace_operator"
+COMPLIANCE_GROUP = "cd_marketplace.group_marketplace_compliance"
+ARBITRATOR_GROUP = "cd_marketplace.group_marketplace_arbitrator"
+# BRU-ECM-01 "CFO approval": the estate's CFO authority is DOFA Tier 4
+# (CFO / CCO / COO); no separate CFO group exists.
+CFO_GROUP = "cd_entity_config.group_dofa_tier_4"
+
 ORDER_STATES = [
-    ("open", "Open for Quotes"), ("quoted", "Quotes Received"),
-    ("selected", "Seller Selected"), ("in_progress", "Job In Progress"),
-    ("completed", "Completed"), ("reviewed", "Reviewed"),
-    ("commissioned", "Commission Earned"), ("paid", "Payout Complete"),
+    ("open", "Open for Quotes"),
+    ("quoted", "Quotes Received"),
+    ("selected", "Seller Selected"),
+    ("in_progress", "Job In Progress"),
+    ("completed", "Completed"),
+    ("reviewed", "Reviewed"),
+    ("commissioned", "Commission Earned"),
+    ("paid", "Payout Complete"),
     ("cancelled", "Cancelled"),
 ]
+BIDDING_STATES = ("open", "quoted")
+CLOSED_ORDER_STATES = ("paid", "cancelled")
+
+SELLER_TIERS = [
+    ("unrated", "Unrated (No Measured Performance Yet)"),
+    ("platinum", "Platinum Seller (Top 5%)"),
+    ("gold", "Gold Seller (Standard Qualified)"),
+    ("silver", "Silver Seller (Probationary)"),
+    ("at_risk", "At-Risk (Dispute Hold)"),
+]
+
+# A dispute is OPEN until it is resolved. An escalated dispute is still
+# unresolved (it awaits executive arbitration), so it keeps the payout lock
+# (BRU-BIL-03) exactly like a raised/investigated/arbitrated one.
+OPEN_DISPUTE_STATES = ("raised", "investigating", "arbitration", "escalated")
+RULING_STATES = ("arbitration", "escalated")
+
+# System parameter holding the platform commission rate (0-1). Configuration,
+# not code: an order without a rate and with no configured rate cannot earn.
+COMMISSION_RATE_PARAM = "cd_marketplace.platform_commission_rate"
+# A04 C6 (M12-8): the rate an order earns is the SELLER TIER's, pinned when
+# the quote is awarded. Per-tier rates are system parameters
+# cd_marketplace.commission_rate.<tier> (0-1); an unset tier earns the
+# platform rate. DEFAULT THE BUSINESS MUST CONFIRM (§7 item 5): no tier
+# differs from the platform rate until Finance sets one.
+TIER_RATE_PARAM = "cd_marketplace.commission_rate.%s"
+# FLAW-12.2 / Digital Commerce Guidelines 2021: the statutory inspection hold.
+ESCROW_DAYS = 7
+
+
+TIER_BANDS = ((0.85, "platinum"), (0.70, "gold"), (0.50, "silver"))
+
+
+def tier_for_score(composite) -> str:
+    """The seller tier of a measured composite score (0-1 scale)."""
+    for floor, tier in TIER_BANDS:
+        if (composite or 0.0) >= floor:
+            return tier
+    return "at_risk"
+
+
+# The M20 refund method (fix.ar.refund) for the M20 receipt method the customer
+# paid by (A04 ERP M12-F3): the money goes back the way it came.
+RECEIPT_REFUND_METHOD = {
+    "bkash": "bkash",
+    "nagad": "nagad",
+    "rocket": "rocket",
+    "cash": "cash",
+    "cheque": "cheque",
+}
+
+
+def _assert_role(env, xmlid, what):
+    """Superuser service code is trusted; a user needs the role."""
+    if env.su or env.user.has_group(xmlid):
+        return
+    group = env.ref(xmlid, raise_if_not_found=False)
+    raise AccessError(
+        "%s needs the %s role, which %s does not hold."
+        % (what, group.sudo().name if group else xmlid, env.user.name)
+    )
+
+
+def _seller_users(seller):
+    """The accounts that act for a seller (its party's users)."""
+    return seller.sudo().partner_id.user_ids
 
 
 class FixMarketplaceSeller(models.Model):
-    """A seller is a PARTY ROLE on M33 — one res.partner may hold
-    both customer and seller roles simultaneously."""
+    """M12: Marketplace Seller Counterparty.
+    A seller is a PARTY ROLE on M33 — one res.partner may hold
+    both customer and seller roles simultaneously.
+    Adheres strictly to AS-02 chatter mixin and AS-03 multi-company/OU."""
+
     _name = "fix.marketplace.seller"
     _description = "Marketplace Seller"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
+    _order = "name asc, id desc"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    # A04 C4/C9 (BRU-ECM-01): CFO approval is a routed decision of a DOFA
+    # Tier 4 holder, from the M63 inbox, never the KYC reviewer.
+    _approval_domain = "marketplace_seller_cfo"
+    _approval_apply_method = "action_cfo_approve"
+    _approval_group = CFO_GROUP
+    _approval_routed = True
+
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    name = fields.Char(required=True)
-    partner_id = fields.Many2one("res.partner", string="Party (M33)",
-                                  required=True, ondelete="restrict",
-                                  help="The party master record — a seller may "
-                                       "also be a customer")
+    name = fields.Char(string="Business / Shop Name", required=True)
+    partner_id = fields.Many2one(
+        "res.partner",
+        string="Party (M33)",
+        required=True,
+        ondelete="restrict",
+        help="The party master record — a seller may also be a customer",
+    )
+
+    # Statutory KYC & L6 Verification (INT-034 / ADR D-041)
+    nid_number = fields.Char(
+        string="National ID (NID)",
+        help="S3 Classified Residency Data. Stored via Z4 split-residency under FF-09",
+    )
+    trade_license_no = fields.Char(string="Trade License Number")
+    tin_number = fields.Char(string="Tax Identification Number (TIN)")
+    kyc_doc_z4_ref = fields.Char(
+        string="Z4 Document Reference",
+        readonly=True,
+        help="Cryptographic vault reference in Z4 resident store; raw files never land in ERP",
+    )
+    kyc_submission_date = fields.Date(string="KYC Submission Date", readonly=True)
+    kyc_verified_date = fields.Date(string="KYC Verification Date", readonly=True)
+    kyc_review_mode = fields.Selection(
+        [
+            ("automated_l6", "Automated L6 Service (INT-034)"),
+            ("manual_compliance", "Manual Compliance Review (FB-14)"),
+        ],
+        default="automated_l6",
+        required=True,
+        help="Automated Porichoy/NID verification or manual compliance review fallback FB-14",
+    )
     kyc_status = fields.Selection(
-        [("pending", "KYC Pending"), ("verified", "KYC Verified"),
-         ("rejected", "KYC Rejected")],
-        default="pending", required=True, tracking=True,
-        help="INT-034 L6 KYC; seller identity documents are S3 "
-             "residency data routed to Z4")
-    kyc_ref = fields.Char(string="KYC Reference",
-                          help="The KYC provider's reference; documents "
-                               "never land here (Z4 only)")
-    rating = fields.Float(string="Rating (0-5)", default=0.0)
-    total_jobs = fields.Integer(default=0)
+        [
+            ("pending", "KYC Pending"),
+            ("in_review", "In Compliance Review"),
+            ("verified", "KYC Verified"),
+            ("rejected", "KYC Rejected"),
+        ],
+        default="pending",
+        required=True,
+        tracking=True,
+        readonly=True,
+        help="INT-034 L6 KYC; seller identity documents are S3 residency data routed to Z4",
+    )
+    rejection_reason = fields.Text(string="Rejection Justification", readonly=True)
+
+    # CFO Governance Approval (BRU-ECM-01)
+    cfo_approved = fields.Boolean(
+        string="CFO Operational Approval",
+        default=False,
+        tracking=True,
+        readonly=True,
+        help="Mandatory financial and operational sign-off before seller can quote",
+    )
+    cfo_approval_date = fields.Date(string="CFO Approval Date", readonly=True)
+    cfo_approved_by = fields.Many2one("res.users", string="CFO Approved By", readonly=True)
+    compliance_reviewer_id = fields.Many2one(
+        "res.users", string="Compliance Reviewer", readonly=True
+    )
+
+    # Category Qualification & Accreditation (BRU-ECM-07)
+    category_ids = fields.Many2many(
+        "product.category",
+        string="Approved Service Categories",
+        help="Seller may quote/list ONLY in categories where verified/qualified",
+    )
+    # M12-training (12 Nov 2026): the standards and courses the seller holds,
+    # verified by compliance (fix.seller.certification).
+    certification_ids = fields.One2many(
+        "fix.seller.certification", "seller_id", string="Standards & Certifications"
+    )
+
+    # Performance, Tiering & Dispute Holds
+    rating = fields.Float(string="Review Rating (0-5)", default=0.0, readonly=True)
+    total_jobs = fields.Integer(string="Total Completed Jobs", default=0, readonly=True)
+    # A seller has no tier until their performance is MEASURED (fix.seller.score)
+    tier = fields.Selection(
+        SELLER_TIERS, default="unrated", required=True, tracking=True, readonly=True
+    )
+    payout_hold = fields.Boolean(
+        string="Payout Locked (Dispute Hold)",
+        default=False,
+        tracking=True,
+        readonly=True,
+        help="Hard payout lock enforced under BRU-BIL-03 while a dispute or chargeback is open",
+    )
     active = fields.Boolean(default=True)
 
-    def action_verify_kyc(self):
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "kyc_status",
+            "kyc_doc_z4_ref",
+            "kyc_submission_date",
+            "kyc_verified_date",
+            "rejection_reason",
+            "compliance_reviewer_id",
+            "cfo_approved",
+            "cfo_approval_date",
+            "cfo_approved_by",
+            "rating",
+            "total_jobs",
+            "tier",
+            "payout_hold",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id and self.kyc_status == "verified":
+            locked |= {"nid_number", "trade_license_no", "tin_number", "partner_id"}
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            identity = {"nid_number", "trade_license_no", "tin_number"} & set(vals)
+            for rec in self.filtered(lambda r: r.kyc_status == "verified"):
+                if any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in identity):
+                    raise UserError(
+                        "%s is KYC-verified: its identity documents change only through a new "
+                        "KYC submission (reject, then re-submit)." % rec.name
+                    )
+            # A04 ERP audit M12-F11: the categories a seller may quote in were
+            # approved by the CFO with the seller; changing them withdraws that
+            # approval, to be decided again.
+            if "category_ids" in vals and not self.env.su:
+                before = {
+                    rec.id: set(rec.category_ids.ids) for rec in self.filtered("cfo_approved")
+                }
+                result = super().write(vals)
+                for rec in self.filtered(lambda r: r.id in before):
+                    if set(rec.category_ids.ids) != before[rec.id]:
+                        rec._approval_clear_stamp(
+                            "the approved service categories changed (by %s); CFO approval is "
+                            "requested again" % self.env.user.name
+                        )
+                return result
+        return super().write(vals)
+
+    # ---- approval-engine hooks ----------------------------------------------
+    def _approval_needed(self) -> bool:
+        self.ensure_one()
+        return self.kyc_status == "verified" and not self.cfo_approved
+
+    def _approval_excluded(self):
+        """The KYC reviewer and the seller's own accounts never approve."""
+        excluded = super()._approval_excluded()
+        return excluded | (self.compliance_reviewer_id | _seller_users(self)).sudo()
+
+    def _approval_clear_stamp(self, reason):
+        # A voided approval (e.g. the seller's party re-pointed) withdraws
+        # the CFO approval it granted.
+        for rec in self.filtered("cfo_approved"):
+            rec.sudo()._guarded().write(
+                {"cfo_approved": False, "cfo_approval_date": False, "cfo_approved_by": False}
+            )
+            rec.sudo().message_post(body="CFO approval withdrawn: %s" % reason)
+        return super()._approval_clear_stamp(reason)
+
+    def _recompute_payout_hold(self):
+        """BRU-BIL-03: the hold is ON while the seller has an open dispute or
+        an open chargeback, and only then."""
+        Dispute = self.env["fix.marketplace.dispute"].sudo()
+        Chargeback = self.env["fix.marketplace.chargeback"].sudo()
         for rec in self:
-            rec.kyc_status = "verified"
-            publish(self.env, "seller.kyc_verified",
-                    "fix.marketplace.seller", rec.id,
-                    {"seller": rec.name})
+            hold = bool(
+                Dispute.search_count(
+                    [("seller_id", "=", rec.id), ("state", "in", list(OPEN_DISPUTE_STATES))]
+                )
+                or Chargeback.search_count(
+                    [("seller_id", "=", rec.id), ("state", "in", ["received", "contested"])]
+                )
+            )
+            if rec.payout_hold != hold:
+                rec.sudo()._guarded().write({"payout_hold": hold})
+        return True
+
+    # ---- KYC ----------------------------------------------------------------
+    def action_submit_kyc(
+        self, nid_number=None, trade_license_no=None, tin_number=None, doc_payload=None
+    ):
+        """Submit seller identity documents. Routes S3 classified data through libs.py.fix_residency (FF-09)."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Submitting seller KYC")
+            if rec.kyc_status == "verified":
+                raise UserError("%s is already KYC-verified." % rec.name)
+            identity = {}
+            if nid_number:
+                identity["nid_number"] = nid_number
+            if trade_license_no:
+                identity["trade_license_no"] = trade_license_no
+            if tin_number:
+                identity["tin_number"] = tin_number
+            if identity:
+                rec.write(identity)
+
+            # A04 ERP audit M12-F8: KYC was "verified" on a made-up
+            # z4-token-<id>-<ts> with no document behind it. The reference is
+            # now the Z4 vault key of the documents actually stored (FF-09),
+            # or the documents attached to the seller record; with neither,
+            # nothing is submitted.
+            z4_ref = rec._kyc_document_ref(doc_payload)
+
+            rec._guarded().write(
+                {
+                    "kyc_doc_z4_ref": z4_ref,
+                    "kyc_submission_date": today,
+                    "kyc_status": "in_review",
+                    "rejection_reason": False,
+                }
+            )
+            publish(
+                self.env,
+                "seller.kyc_submitted",
+                "fix.marketplace.seller",
+                rec.id,
+                {
+                    "seller": rec.name,
+                    "nid_masked": f"******{rec.nid_number[-4:]}"
+                    if rec.nid_number and len(rec.nid_number) >= 4
+                    else "N/A",
+                    "trade_license": rec.trade_license_no or "N/A",
+                    "z4_ref": rec.kyc_doc_z4_ref,
+                },
+            )
+
+    def _kyc_attachments(self):
+        self.ensure_one()
+        return (
+            self.env["ir.attachment"]
+            .sudo()
+            .search([("res_model", "=", self._name), ("res_id", "=", self.id)])
+        )
+
+    def _kyc_document_ref(self, doc_payload=None):
+        """The reference of the seller's KYC documents: the Z4 vault key of a
+        payload stored now, else the attachments on the seller. Refused when
+        there is no document, or the vault does not answer (never a token
+        invented in its place)."""
+        self.ensure_one()
+        if doc_payload:
+            try:
+                from libs.py.fix_residency import ResidencyClient
+
+                res = ResidencyClient().put(f"seller_kyc_{self.id}", str(doc_payload)) or {}
+            except Exception as exc:
+                logger.warning("Z4 put failed for seller %s: %s", self.id, exc)
+                res = {}
+            key = res.get("key") if isinstance(res, dict) else None
+            if not key:
+                raise UserError(
+                    "The KYC documents of %s could not be stored in the Z4 vault: nothing is "
+                    "submitted until they are (A04 ERP M12-F8)." % self.name
+                )
+            return key
+        docs = self._kyc_attachments()
+        if not docs:
+            raise UserError(
+                "Attach the seller's KYC documents (NID, trade licence, TIN certificate) to %s "
+                "before submitting KYC: a submission without documents is not reviewed "
+                "(A04 ERP M12-F8)." % self.name
+            )
+        return "attachment:%s" % ",".join(str(i) for i in sorted(docs.ids))
+
+    def action_cfo_approve(self):
+        """CFO operational sign-off gate (BRU-ECM-01). The M63 apply method:
+        a DOFA Tier 4 holder approves from the inbox, after KYC, and never
+        the KYC reviewer or the seller himself (A04 M12-1)."""
+        self._approval_assert_routed()
+        trusted = self.env.su and not self._approval_task()
+        authority = self._approval_authority_user()
+        acting = self._approval_acting_users()
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if rec.kyc_status != "verified":
+                raise UserError(
+                    "%s is not KYC-verified (%s): CFO approval comes after KYC (BRU-ECM-01)."
+                    % (rec.name, rec.kyc_status)
+                )
+            if rec.cfo_approved:
+                raise UserError("%s is already CFO-approved." % rec.name)
+            if not trusted:
+                if not authority.has_group(CFO_GROUP):
+                    raise UserError(
+                        "Seller CFO approval needs DOFA Tier 4 (CFO / CCO / COO), which %s "
+                        "does not hold." % authority.name
+                    )
+                if acting & (rec.compliance_reviewer_id | rec.create_uid | _seller_users(rec)):
+                    raise UserError(
+                        "Segregation of duties: the KYC reviewer, the person who onboarded "
+                        "%s and its own accounts do not CFO-approve it." % rec.name
+                    )
+            rec._guarded().write(
+                {
+                    "cfo_approved": True,
+                    "cfo_approval_date": today,
+                    "cfo_approved_by": self.env.user.id,
+                }
+            )
+            publish(
+                self.env,
+                "seller.cfo_approved",
+                "fix.marketplace.seller",
+                rec.id,
+                {
+                    "seller": rec.name,
+                    "approver": self.env.user.name,
+                },
+            )
+            publish(
+                self.env,
+                "seller.approved",
+                "fix.marketplace.seller",
+                rec.id,
+                {
+                    "seller": rec.name,
+                    "tier": rec.tier,
+                },
+            )
+        return True
+
+    def action_verify_kyc(self):
+        """Compliance verifies the KYC documents. A04 M12-1: this used to
+        tick CFO approval for the same user; CFO approval is now a separate
+        decision by someone else (Request Approval)."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            _assert_role(self.env, COMPLIANCE_GROUP, "Verifying seller KYC")
+            allowed = ("in_review", "pending") if self.env.su else ("in_review",)
+            if rec.kyc_status not in allowed:
+                raise UserError(
+                    "%s is %s: KYC is verified from compliance review (submit it first)."
+                    % (rec.name, rec.kyc_status)
+                )
+            # A04 ERP audit M12-F8: verified only on documents that exist
+            ref = rec.kyc_doc_z4_ref or ""
+            if not self.env.su and (
+                not ref
+                or ref.startswith("z4-token-")
+                or (ref.startswith("attachment:") and not rec._kyc_attachments())
+            ):
+                raise UserError(
+                    "%s has no KYC documents on file (%s): resubmit KYC with its documents "
+                    "before it is verified." % (rec.name, ref or "none")
+                )
+            rec._guarded().write(
+                {
+                    "kyc_status": "verified",
+                    "kyc_verified_date": today,
+                    "compliance_reviewer_id": self.env.user.id,
+                    "rejection_reason": False,
+                }
+            )
+            publish(
+                self.env,
+                "seller.kyc_verified",
+                "fix.marketplace.seller",
+                rec.id,
+                {
+                    "seller": rec.name,
+                    "reviewer": self.env.user.name,
+                },
+            )
+
+    def action_reject_kyc(self, reason="Document verification failed / invalid trade license"):
+        """Reject seller KYC application (and withdraw any CFO approval)."""
+        for rec in self:
+            _assert_role(self.env, COMPLIANCE_GROUP, "Rejecting seller KYC")
+            if not (reason or "").strip():
+                raise UserError("Give the reason the KYC is rejected.")
+            rec._guarded().write(
+                {
+                    "kyc_status": "rejected",
+                    "rejection_reason": reason,
+                    "compliance_reviewer_id": self.env.user.id,
+                    "cfo_approved": False,
+                    "cfo_approval_date": False,
+                    "cfo_approved_by": False,
+                }
+            )
+            publish(
+                self.env,
+                "seller.kyc_rejected",
+                "fix.marketplace.seller",
+                rec.id,
+                {
+                    "seller": rec.name,
+                    "reason": reason,
+                },
+            )
+
+    def _tier_commission_rate(self) -> float:
+        """The commission rate this seller's tier earns (A04 C6)."""
+        self.ensure_one()
+        Order = self.env["fix.marketplace.order"]
+        raw = self.env["ir.config_parameter"].sudo().get_param(TIER_RATE_PARAM % (self.tier or ""))
+        if raw:
+            try:
+                rate = float(raw)
+            except ValueError:
+                rate = 0.0
+            if 0 < rate <= 1:
+                return rate
+            logger.warning("Ignoring commission rate %r for tier %s", raw, self.tier)
+        return Order._default_commission_rate()
 
 
 class FixMarketplaceOrder(models.Model):
     """Journey 7: marketplace order -> seller quote -> selection -> job
-    -> review -> commission -> payout."""
+    -> review -> commission -> payout.
+    Includes M14 Refurbished Resale Wiring and Ephemeral Customer Contact Masking (BRU-ECM-05)."""
+
     _name = "fix.marketplace.order"
     _description = "Marketplace Order"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    name = fields.Char(required=True, copy=False, readonly=True,
-                       default=lambda self: "New")
-    customer_id = fields.Many2one("res.partner", string="Customer",
-                                  required=True, index=True)
-    service_order_id = fields.Many2one("fix.service.order",
-                                       string="Service Order (M01)",
-                                       ondelete="set null")
-    description = fields.Text(required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    budget = fields.Monetary(string="Customer Budget",
-                             currency_field="currency_id")
-    state = fields.Selection(ORDER_STATES, default="open",
-                             required=True, tracking=True)
-    quote_ids = fields.One2many("fix.seller.quote", "marketplace_order_id",
-                                 string="Seller Quotes")
-    selected_quote_id = fields.Many2one("fix.seller.quote",
-                                        string="Selected Quote",
-                                        readonly=True)
-    commission_amount = fields.Monetary(string="Commission Earned",
-                                        currency_field="currency_id",
-                                        readonly=True,
-                                        help="Set when commission.earned is "
-                                             "published (the M53 engine "
-                                             "consumes the event)")
+    name = fields.Char(required=True, copy=False, readonly=True, default=lambda self: "New")
+    order_type = fields.Selection(
+        [
+            ("service_quote", "Service & Repair Order"),
+            ("refurb_resale", "Refurbished Device Resale"),
+        ],
+        default="service_quote",
+        required=True,
+        tracking=True,
+    )
+    # A04 ERP round 2 (M12-F7, BRU-MKP-04): who the customer is and what they
+    # wrote are staff fields. A seller (portal) reads the job through the
+    # masked projection (fix_marketplace_award.py): a short brief and the
+    # customer's initials before award, the full job only once it is theirs.
+    customer_id = fields.Many2one(
+        "res.partner", string="Customer", required=True, index=True, groups="base.group_user"
+    )
+    service_order_id = fields.Many2one(
+        "fix.service.order",
+        string="Linked Service Order (M01)",
+        ondelete="set null",
+        groups="base.group_user",
+    )
+    category_id = fields.Many2one(
+        "product.category",
+        string="Service Category",
+        help="Category classification for seller qualification matching (BRU-ECM-07)",
+    )
+    description = fields.Text(required=True, groups="base.group_user")
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    budget = fields.Monetary(string="Customer Budget / Listing Price", currency_field="currency_id")
+    state = fields.Selection(
+        ORDER_STATES, default="open", required=True, tracking=True, readonly=True
+    )
+
+    # M14 Circular Trade-In / Refurb Resale Seam (BRU-TRF-04)
+    tradein_request_id = fields.Many2one(
+        "fix.tradein.request", string="Source Trade-In Request", ondelete="set null"
+    )
+    graded_stock_id = fields.Many2one(
+        "fix.graded.stock", string="Graded Refurb Inventory Unit", ondelete="set null"
+    )
+    battery_health_percent = fields.Float(
+        string="Battery Health (%)",
+        help="Mandatory disclosure under BRU-TRF-04 for refurbished device resale",
+    )
+    disclosed_defects = fields.Text(
+        string="Disclosed Cosmetic / Functional Defects",
+        help="Mandatory disclosure under BRU-TRF-04 for transparent marketplace resale",
+    )
+
+    # Ephemeral Contact Masking (BRU-ECM-05 / EA-04)
+    customer_contact_revealed = fields.Boolean(
+        string="Contact Info Revealed to Selected Seller",
+        default=False,
+        readonly=True,
+        help="Customer phone/address revealed ONLY to the selected seller, expiring upon job completion",
+    )
+    revealed_seller_id = fields.Many2one(
+        "fix.marketplace.seller", string="Awarded Seller for Contact Disclosure", readonly=True
+    )
+
+    # Quotes & Commission
+    quote_ids = fields.One2many("fix.seller.quote", "marketplace_order_id", string="Seller Quotes")
+    selected_quote_id = fields.Many2one("fix.seller.quote", string="Selected Quote", readonly=True)
+    awarded_price = fields.Monetary(
+        string="Awarded Price",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The selected quote's price, pinned at award (A04 M12-7): the gross the "
+        "commission is earned on",
+    )
+    commission_amount = fields.Monetary(
+        string="Commission Earned",
+        currency_field="currency_id",
+        readonly=True,
+        help="Set when commission.earned is published (M53 settlement consumes this)",
+    )
+    commission_rate = fields.Float(
+        string="Platform Commission Rate",
+        digits=(5, 4),
+        readonly=True,
+        default=lambda self: self._default_commission_rate(),
+        help="0-1. Pinned at award from the seller's tier (system parameters "
+        + TIER_RATE_PARAM % "<tier>"
+        + ", else "
+        + COMMISSION_RATE_PARAM
+        + "); never edited per order",
+    )
+    # Real performance evidence for seller scoring (fix.seller.score)
+    started_at = fields.Datetime(string="Job Started", readonly=True, copy=False)
+    completed_at = fields.Datetime(string="Job Completed", readonly=True, copy=False)
+    delivery_confirmed_at = fields.Datetime(
+        string="Customer Confirmed Delivery",
+        readonly=True,
+        copy=False,
+        help="The customer's sign-off (Review): the delivery evidence the 7-day escrow "
+        "runs from",
+    )
+    review_rating = fields.Integer(
+        string="Customer Rating (1-5)",
+        copy=False,
+        readonly=True,
+        help="0 = the customer gave no rating",
+    )
+    paid_at = fields.Datetime(string="Payout Released", readonly=True, copy=False)
+    paid_by_id = fields.Many2one("res.users", string="Payout Released By", readonly=True)
+    # A04 ERP audit M12-F1: the customer's money, received in M20. Nothing
+    # is earned or accrued on a sale whose money never arrived.
+    customer_receipt_id = fields.Many2one(
+        "fix.ar.receipt",
+        string="Customer Receipt (M20)",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="restrict",
+        help="The confirmed M20 receipt of the customer's payment of the awarded price.",
+    )
+    customer_paid_at = fields.Datetime(
+        string="Customer Payment Recorded", readonly=True, copy=False
+    )
+    refund_credit_ref = fields.Char(
+        string="Customer Refund (M20)",
+        readonly=True,
+        copy=False,
+        help="The M20 refund raised when a dispute or a lost chargeback returned the money.",
+    )
+
+    _customer_receipt_unique = models.UniqueIndex(
+        "(customer_receipt_id) WHERE customer_receipt_id IS NOT NULL",
+        "This M20 receipt already pays another marketplace order.",
+    )
+
+    # Dispute Integration & Payout Lock (BRU-BIL-03)
+    dispute_ids = fields.One2many("fix.marketplace.dispute", "order_id", string="Linked Disputes")
+    has_open_dispute = fields.Boolean(
+        string="Has Active Open Disputes", compute="_compute_has_open_dispute", store=True
+    )
+    # 7-Day Statutory Escrow Hold (Digital Commerce Guidelines 2021 / FLAW-12.2)
+    payout_available_date = fields.Date(
+        string="Escrow Release Date (7-Day Hold)",
+        compute="_compute_payout_escrow",
+        store=True,
+        help="Statutory 7-day escrow hold after the customer confirmed delivery under "
+        "Digital Commerce Guidelines 2021",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "customer_contact_revealed",
+            "revealed_seller_id",
+            "selected_quote_id",
+            "awarded_price",
+            "commission_amount",
+            "commission_rate",
+            "started_at",
+            "completed_at",
+            "delivery_confirmed_at",
+            "review_rating",
+            "paid_at",
+            "paid_by_id",
+            "customer_receipt_id",
+            "customer_paid_at",
+            "refund_credit_ref",
+        }
+
+    # ---- A04 ERP audit M12-F1/F4/F10 ---------------------------------------
+    def _award_commission_rate(self, seller) -> float:
+        """The rate the order earns: the seller commission scheme in force
+        (M53 fix.commission.scheme), its rate - else, a scheme with no rate,
+        the seller tier's configured rate. No scheme: no award (fail closed,
+        the scheme and its TDS are Finance's to configure)."""
+        self.ensure_one()
+        Scheme = self.env.get("fix.commission.scheme")
+        today = fields.Date.context_today(self)
+        scheme = (
+            Scheme.sudo()._find("seller", today, self.company_id, seller_tier=seller.tier)
+            if Scheme is not None
+            else None
+        )
+        if not scheme:
+            raise UserError(
+                "No seller commission scheme is in force for %s (tier %s) in %s: Finance "
+                "configures it in M53 Commission Schemes before any job is awarded "
+                "(A04 ERP M12-F4)." % (seller.name, seller.tier, self.company_id.name)
+            )
+        rate = scheme.commission_rate or seller._tier_commission_rate()
+        if not 0 < rate <= 1:
+            raise UserError(
+                "Commission scheme %s states no rate and no tier rate is configured for %s: "
+                "nothing can be earned on an award." % (scheme.display_name, seller.tier)
+            )
+        return rate
+
+    def _find_customer_receipt(self, receipt):
+        Receipt = self.env["fix.ar.receipt"].sudo()
+        if isinstance(receipt, models.BaseModel):
+            return receipt.sudo().exists()
+        try:
+            return Receipt.browse(int(receipt)).exists()
+        except (TypeError, ValueError):
+            pass
+        ref = str(receipt or "").strip()
+        if not ref:
+            return Receipt
+        return Receipt.search(["|", ("name", "=", ref), ("reference", "=", ref)], limit=1)
+
+    def action_record_customer_receipt(self, receipt=None):
+        """A04 ERP audit M12-F1: the customer's payment of the awarded price is
+        an M20 receipt (Dr channel clearing / Cr AR, recorded and confirmed in
+        M20 by finance); finance links it here. Confirmed, from this
+        customer, covering the awarded price, paying no other order."""
+        if not has_role(self.env, GROUP_ACCOUNTANT):
+            raise AccessError("Recording a marketplace customer payment needs the Accountant role.")
+        found = self._find_customer_receipt(receipt)
+        if not found:
+            raise UserError("No M20 receipt %r exists." % (receipt,))
+        for rec in self:
+            if rec.customer_receipt_id:
+                raise UserError("%s already carries its customer receipt." % rec.name)
+            if rec.state not in ("selected", "in_progress", "completed", "reviewed"):
+                raise UserError(
+                    "%s is %s: the customer pays an awarded, uncancelled job."
+                    % (rec.name, dict(ORDER_STATES).get(rec.state))
+                )
+            if found.state != "confirmed":
+                raise UserError("Receipt %s is %s, not confirmed." % (found.name, found.state))
+            if found.customer_id.commercial_partner_id != rec.customer_id.commercial_partner_id:
+                raise UserError(
+                    "Receipt %s is from %s, not from the customer of %s."
+                    % (found.name, found.customer_id.display_name, rec.name)
+                )
+            due = rec.awarded_price or 0.0
+            if (found.amount or 0.0) + 0.005 < due:
+                raise UserError(
+                    "Receipt %s is BDT %.2f; the awarded price of %s is BDT %.2f."
+                    % (found.name, found.amount, rec.name, due)
+                )
+            other = self.sudo().search(
+                [("customer_receipt_id", "=", found.id), ("id", "!=", rec.id)], limit=1
+            )
+            if other:
+                raise UserError("Receipt %s already pays %s." % (found.name, other.name))
+            rec._guarded().write(
+                {"customer_receipt_id": found.id, "customer_paid_at": fields.Datetime.now()}
+            )
+            rec.message_post(body="Customer payment: M20 receipt %s." % found.name)
+        return True
+
+    def _mkp_refund_customer(self, amount, source_ref):
+        """A04 ERP M12-F3: refund `amount` to the customer from the order's
+        M20 customer receipt (fix.ar.refund, authorised by another accountant,
+        paid by treasury). Idempotent per source; nothing when the money never
+        reached M20."""
+        self.ensure_one()
+        receipt = self.customer_receipt_id.sudo()
+        if not receipt:
+            self.message_post(
+                body="%s rules a refund of BDT %.2f, but the order holds no M20 customer "
+                "receipt: there is no collected money to refund (finance decides)."
+                % (source_ref, amount)
+            )
+            return {"skipped": "no customer receipt"}
+        Refund = self.env["fix.ar.refund"].sudo()
+        reason = ("Marketplace %s: %s" % (self.name, source_ref))[:250]
+        existing = Refund.search(
+            [("receipt_id", "=", receipt.id), ("reason", "=", reason), ("state", "!=", "rejected")],
+            limit=1,
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        receipt.invalidate_recordset(["unapplied_amount"])
+        take = round(min(amount, receipt.unapplied_amount), 2)
+        if take <= 0.005:
+            raise UserError(
+                "Receipt %s has nothing on account left to refund %s." % (receipt.name, source_ref)
+            )
+        refund = Refund.create(
+            {
+                "receipt_id": receipt.id,
+                "amount": take,
+                "method": RECEIPT_REFUND_METHOD.get(receipt.method, "bank_transfer"),
+                "reason": reason,
+            }
+        )
+        refunds = [r for r in (self.refund_credit_ref or "").split(", ") if r] + [refund.name]
+        self._guarded().write({"refund_credit_ref": ", ".join(refunds)})
+        return {"model": refund._name, "id": refund.id, "created": True}
+
+    def _mkp_seller_recovery(self, amount, source_ref, dispute=None):
+        """A04 ERP M12-F3: what the seller owes back. An escrow still holding
+        the order's commissions is flagged for Finance to forfeit (commission
+        forfeit, M53); a seller already paid gets a DRAFT clawback of their
+        share for a finance manager to approve. Nothing is decided here."""
+        self.ensure_one()
+        Adjustment = self.env.get("fix.settlement.adjustment")
+        seller = self.selected_quote_id.seller_id.sudo()
+        if Adjustment is None or not seller:
+            return {"skipped": "M53 not installed or no awarded seller"}
+        Adjustment = Adjustment.sudo()
+        if dispute is not None:
+            escrow = Adjustment.search(
+                [
+                    ("dispute_id", "=", dispute.id),
+                    ("adjustment_type", "=", "escrow"),
+                    ("state", "=", "active"),
+                ],
+                limit=1,
+            )
+            if escrow:
+                escrow.message_post(
+                    body="%s was ruled for the customer (refund BDT %.2f): forfeit this escrow "
+                    "(the held commissions are not paid)." % (source_ref, amount)
+                )
+                escrow.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    summary="Forfeit escrow %s (%s)" % (escrow.name, source_ref),
+                )
+                return {"model": escrow._name, "id": escrow.id, "action": "forfeit_requested"}
+        # M12 never reads the M53 ledger itself (the M12/M53 boundary): the
+        # settlement module answers through _fix_m53_ledger_states
+        if "paid" not in self._fix_m53_ledger_states():
+            return {"skipped": "the seller was not paid on %s" % self.name}
+        reason = "Recovery of %s on %s" % (source_ref, self.name)
+        existing = Adjustment.search(
+            [("reason", "=", reason), ("adjustment_type", "=", "clawback")], limit=1
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        share = round(amount * (1.0 - (self.commission_rate or 0.0)), 2)
+        claw = Adjustment.create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id or False,
+                "adjustment_type": "clawback",
+                "seller_partner_id": seller.partner_id.id,
+                "dispute_id": dispute.id if dispute is not None else False,
+                "amount": share,
+                "reason": reason,
+            }
+        )
+        return {"model": claw._name, "id": claw.id, "created": True, "amount": share}
+
+    def _fix_frozen_fields(self) -> set:
+        self.ensure_one()
+        if self.state in CLOSED_ORDER_STATES:
+            return {
+                n
+                for n, f in self._fields.items()
+                if f.store and not n.startswith(("message_", "activity_", "website_message"))
+            }
+        if self.state not in BIDDING_STATES:
+            return {
+                "budget",
+                "customer_id",
+                "category_id",
+                "order_type",
+                "currency_id",
+                "graded_stock_id",
+                "tradein_request_id",
+            }
+        return set()
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id:
+            locked |= self._fix_frozen_fields()
+        return locked
+
+    @api.depends("completed_at", "delivery_confirmed_at")
+    def _compute_payout_escrow(self):
+        for rec in self:
+            basis = rec.delivery_confirmed_at or rec.completed_at
+            if basis:
+                rec.payout_available_date = (basis + timedelta(days=ESCROW_DAYS)).date()
+            else:
+                rec.payout_available_date = False
+
+    @api.model
+    def _default_commission_rate(self):
+        raw = self.env["ir.config_parameter"].sudo().get_param(COMMISSION_RATE_PARAM)
+        try:
+            return float(raw) if raw else 0.0
+        except ValueError:
+            return 0.0
+
+    @api.constrains("commission_rate", "review_rating")
+    def _check_rate_and_rating(self):
+        for rec in self:
+            if not 0 <= rec.commission_rate <= 1:
+                raise UserError("Platform commission rate must be between 0 and 1")
+            if rec.review_rating and not 1 <= rec.review_rating <= 5:
+                raise UserError("A customer rating is 1 to 5")
+
+    @api.depends("dispute_ids.state")
+    def _compute_has_open_dispute(self):
+        for rec in self:
+            rec.has_open_dispute = any(d.state in OPEN_DISPUTE_STATES for d in rec.dispute_ids)
 
     @api.model_create_multi
     def create(self, vals_list):
+        _assert_role(self.env, OPERATOR_GROUP, "Creating a marketplace order")
         for vals in vals_list:
-            vals["name"] = self.env["ir.sequence"].next_by_code(
-                "fix.marketplace.order") or "MKT/New"
+            vals["name"] = (
+                self.env["ir.sequence"].next_by_code("fix.marketplace.order") or "MKT/New"
+            )
         recs = super().create(vals_list)
         for rec in recs:
-            publish(self.env, "marketplace_order.created",
-                    "fix.marketplace.order", rec.id,
-                    {"order": rec.name, "budget": float(rec.budget)})
+            publish(
+                self.env,
+                "marketplace_order.created",
+                "fix.marketplace.order",
+                rec.id,
+                {"order": rec.name, "budget": float(rec.budget or 0.0), "type": rec.order_type},
+            )
         return recs
 
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self:
+                changed = {
+                    n
+                    for n in set(vals) & rec._fix_frozen_fields()
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                }
+                if changed:
+                    raise UserError(
+                        "%s cannot be changed on %s: the order is %s."
+                        % (
+                            ", ".join(sorted(rec._fields[n].string or n for n in changed)),
+                            rec.name,
+                            dict(ORDER_STATES).get(rec.state),
+                        )
+                    )
+        return super().write(vals)
+
     def action_select_quote(self, quote):
-        """Transparent selection: the seller sees WHY they were selected."""
+        """Transparent quote selection (BRU-ECM-05): award order and reveal ephemeral contact.
+        A04 M12-7/-8: the awarded price and the seller tier's commission rate
+        are pinned here; the category gate holds for a seller with no
+        categories (BRU-ECM-07)."""
         for rec in self:
-            if rec.state != "quoted":
-                raise UserError("Select from 'Quotes Received'")
+            _assert_role(self.env, OPERATOR_GROUP, "Selecting a seller quote")
+            if rec.state not in BIDDING_STATES:
+                raise UserError("Quotes can only be selected from Open or Quoted states.")
             if quote.marketplace_order_id.id != rec.id:
-                raise UserError("Quote does not belong to this order")
-            rec.write({"state": "selected",
-                       "selected_quote_id": quote.id})
-            publish(self.env, "order.selected", "fix.marketplace.order",
-                    rec.id, {"seller": quote.seller_id.name,
-                             "price": float(quote.quoted_price)})
+                raise UserError("Selected quote does not belong to this marketplace order.")
+            if quote.state != "submitted":
+                raise UserError("Only a submitted quote can be selected (it is %s)." % quote.state)
+            seller = quote.seller_id
+            if seller.kyc_status != "verified" or not seller.cfo_approved:
+                raise UserError("Cannot select an unverified or unapproved seller (BRU-ECM-01).")
+            seller._assert_not_suspended("awarding a job")
+
+            # Category qualification (BRU-ECM-07): a seller quotes ONLY where
+            # qualified, so a seller with no approved categories is not.
+            if rec.category_id and rec.category_id not in seller.category_ids:
+                raise UserError(
+                    f"Seller {seller.name} is not certified for category {rec.category_id.name} (BRU-ECM-07)."
+                )
+            # A04 ERP audit M12-F4/F10: no award before Finance configured the
+            # seller commission scheme in force (M53); its rate is THE rate
+            # the order earns, pinned here (the ledger keeps it).
+            rate = rec._award_commission_rate(seller)
+
+            # Update quote states
+            rec.quote_ids.filtered(lambda q: q.id != quote.id)._guarded().write(
+                {"state": "not_selected"}
+            )
+            quote._guarded().write({"state": "selected"})
+
+            # Reveal ephemeral contact strictly for this awarded job (BRU-ECM-05)
+            rec._guarded().write(
+                {
+                    "state": "selected",
+                    "selected_quote_id": quote.id,
+                    "awarded_price": quote.quoted_price,
+                    "commission_rate": rate,
+                    "customer_contact_revealed": True,
+                    "revealed_seller_id": seller.id,
+                }
+            )
+            publish(
+                self.env,
+                "order.selected",
+                "fix.marketplace.order",
+                rec.id,
+                {
+                    "seller": seller.name,
+                    "seller_id": seller.id,
+                    "price": float(quote.quoted_price),
+                },
+            )
+            publish(
+                self.env,
+                "marketplace.contact_revealed",
+                "fix.marketplace.order",
+                rec.id,
+                {
+                    "seller_id": seller.id,
+                    "order": rec.name,
+                },
+            )
+
+    def action_start_job(self):
+        """Move order to in_progress upon seller job execution."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Starting a marketplace job")
+            if rec.state != "selected":
+                raise UserError("Order must be selected before work commences.")
+            rec._guarded().write({"state": "in_progress", "started_at": fields.Datetime.now()})
 
     def action_complete(self):
-        """Job completion: triggers the commission calculation."""
+        """Job completion: closes the ephemeral contact window and advances to completed."""
         for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Completing a marketplace job")
             if not rec.selected_quote_id:
-                raise UserError("No seller selected")
-            rec.state = "completed"
+                raise UserError("No seller selected.")
+            if rec.state != "in_progress":
+                # Completing a reviewed/commissioned order again would re-open
+                # the commission path and accrue commission twice.
+                raise UserError("Only a job in progress can be completed.")
+            rec._guarded().write(
+                {
+                    "state": "completed",
+                    "completed_at": fields.Datetime.now(),
+                    "customer_contact_revealed": False,  # Ephemeral contact expired upon completion (BRU-ECM-05)
+                }
+            )
+            publish(
+                self.env,
+                "marketplace_order.completed",
+                "fix.marketplace.order",
+                rec.id,
+                {
+                    "order": rec.name,
+                    "seller_id": rec.selected_quote_id.seller_id.id,
+                },
+            )
+
+    def _fix_job_rating(self):
+        """The customer's 1-5 rating of this job (0: none). The M12 capture
+        audit's review module refines it with the published review."""
+        self.ensure_one()
+        return self.review_rating or 0
+
+    def action_review(self, rating=None):
+        """Customer sign-off and review post completion (BRU-ECM-02). The
+        customer's 1-5 rating, when given, feeds the seller's measured score.
+        The sign-off is the delivery evidence the escrow runs from."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Recording the customer's sign-off")
+            if rec.state != "completed":
+                raise UserError("Customer review requires completed job.")
+            vals = {"state": "reviewed", "delivery_confirmed_at": fields.Datetime.now()}
+            if rating not in (None, False, "", 0, "0"):
+                # M12 capture audit (13 Nov 2026): the rating feeds the seller's
+                # measured score; 7 or -3 was stored as given.
+                try:
+                    value = int(rating)
+                except (TypeError, ValueError):
+                    value = None
+                if value is None or not 1 <= value <= 5:
+                    raise UserError("A customer rating is a whole number from 1 to 5.")
+                vals["review_rating"] = value
+            rec._guarded().write(vals)
 
     def action_earn_commission(self):
-        """THE M12<->M53 BREAK: M12 PUBLISHES commission.earned; it NEVER
-        calls M53. The settlement engine consumes the event (pair 12)."""
+        """THE M12 <-> M53 BREAK (Appendix E Pair 12):
+        M12 publishes commission.earned; M12 NEVER directly calls M53 settlement models.
+        Strictly enforces BRU-BIL-03 payout lock if any dispute is active."""
         for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Earning marketplace commission")
             if rec.state != "reviewed":
-                raise UserError("Review before commission")
+                raise UserError("Review required before platform commission calculation.")
+            if rec.has_open_dispute:
+                raise UserError(
+                    "Commission and payout blocked: order has active unresolved disputes (BRU-BIL-03)."
+                )
             quote = rec.selected_quote_id
-            commission = quote.quoted_price * 0.10  # 10% platform commission
-            rec.write({"state": "commissioned",
-                       "commission_amount": commission})
-            # THE EVENT — M53's commission engine consumes this.
-            # M12 has NO dependency on M53; the break is enforced here.
-            publish(self.env, "commission.earned",
-                    "fix.marketplace.order", rec.id, {
-                        "seller_id": quote.seller_id.id,
-                        "order": rec.name,
-                        "gross": float(quote.quoted_price),
-                        "commission": float(commission)})
+            if not quote:
+                raise UserError("Order %s has no awarded seller to earn on." % rec.name)
+            # A04 ERP audit M12-F1: commission is earned on money received
+            receipt = rec.customer_receipt_id.sudo()
+            if not receipt or receipt.state != "confirmed":
+                raise UserError(
+                    "Order %s has no confirmed M20 receipt of the customer's payment: nothing is "
+                    "earned on money never received (record the receipt first)." % rec.name
+                )
+            seller = quote.seller_id
+            # Pinned at award; orders awarded before the pin read the tier now.
+            rate = rec.commission_rate or seller._tier_commission_rate()
+            if not 0 < rate <= 1:
+                raise UserError(
+                    "No platform commission rate is set on %s or in the system "
+                    "parameter %s" % (rec.name, COMMISSION_RATE_PARAM)
+                )
+            gross_price = rec.awarded_price or quote.quoted_price
+            commission = rec.currency_id.round(gross_price * rate)
+
+            rec._guarded().write(
+                {
+                    "state": "commissioned",
+                    "commission_amount": commission,
+                    "commission_rate": rate,
+                    "awarded_price": gross_price,
+                }
+            )
+
+            # THE DECOUPLED OUTBOX EVENT — consumed asynchronously by M53 Settlement Engine
+            publish(
+                self.env,
+                "commission.earned",
+                "fix.marketplace.order",
+                rec.id,
+                {
+                    "order_id": rec.id,
+                    "seller_id": seller.id,
+                    "seller_partner_id": seller.partner_id.id,
+                    "seller_tier": seller.tier,
+                    "order": rec.name,
+                    "gross": float(gross_price),
+                    "rate": float(rate),
+                    "commission": float(commission),
+                    "currency": rec.currency_id.name or "BDT",
+                    "payout_available_date": str(rec.payout_available_date or ""),
+                },
+            )
+
+    def action_paid(self):
+        """Mark order as payout completed once settlement engine finishes disbursement (FLAW-12.2).
+
+        A04 M12-5/-6: the 7-day escrow had a caller switch (skip_escrow_check)
+        and could be passed by a backdated or missing completion date, and the
+        seller-level payout hold was never read. None of it is a caller option
+        now, for anyone: the payout needs a completed job, the customer's
+        delivery confirmation 7 days ago, no open dispute and no seller hold."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Releasing a marketplace payout")
+            if rec.state != "commissioned":
+                raise UserError("Payout requires the commission to be earned first.")
+            if not (rec.selected_quote_id and rec.completed_at and rec.payout_available_date):
+                raise UserError(
+                    "Order %s has no completed, customer-confirmed job to pay out." % rec.name
+                )
+            if rec.has_open_dispute:
+                raise UserError("Cannot mark paid: order has open disputes (BRU-BIL-03).")
+            seller = rec.selected_quote_id.seller_id
+            if seller.payout_hold:
+                raise UserError(
+                    "Cannot mark paid: seller %s is under a payout hold (open dispute or "
+                    "chargeback, BRU-BIL-03)." % seller.name
+                )
+            if rec.payout_available_date > today:
+                raise UserError(
+                    "Digital Commerce Operational Guidelines 2021 Escrow Hold: Payout blocked until %s "
+                    "(mandatory 7-day post-delivery customer inspection window)."
+                    % rec.payout_available_date
+                )
+            # A04 ERP audit M12-F2: "Payout Complete" was set with no payout
+            # run and no M50 instruction while the ledger stayed earned. The
+            # order is paid only when its M53 commission row was discharged by
+            # a bank-confirmed payout run (the discharge calls this).
+            states = rec._fix_m53_ledger_states()
+            if not states or any(state != "paid" for state in states):
+                raise UserError(
+                    "Order %s is paid out when its M53 payout run has paid the seller (the "
+                    "bank-confirmed discharge), not by marking it here." % rec.name
+                )
+            rec._guarded().write(
+                {"state": "paid", "paid_at": fields.Datetime.now(), "paid_by_id": self.env.uid}
+            )
+
+    def _fix_m53_ledger_states(self):
+        """The states of this order's M53 commission rows. M12 does not read
+        the settlement ledger (the M12/M53 boundary): the settlement module
+        overrides this. With no settlement module installed nothing was ever
+        paid out, so the answer is empty and the order can never be marked
+        paid by hand."""
+        self.ensure_one()
+        return []
+
+    def action_cancel(self):
+        """Cancel an order before the job starts."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Cancelling a marketplace order")
+            if rec.state not in ("open", "quoted", "selected"):
+                raise UserError("Only an order whose job has not started can be cancelled.")
+            rec._guarded().write({"state": "cancelled", "customer_contact_revealed": False})
+            rec.quote_ids.filtered(lambda q: q.state == "submitted")._guarded().write(
+                {"state": "not_selected"}
+            )
+
+    def action_list_refurb_resale(
+        self,
+        graded_stock,
+        listing_price,
+        battery_health=92.0,
+        defects="Grade-A minor chassis scuff",
+    ):
+        """Wire refurbished device resale from M14 trade-in (BRU-TRF-04).
+        A listing is a FRESH order: only an `open` order (not yet quoted,
+        awarded or settled) can be listed, and the M15 unit must be a
+        refurbished unit still in stock."""
+        _assert_role(self.env, OPERATOR_GROUP, "Listing a refurbished device")
+        if graded_stock and graded_stock.state != "in_stock":
+            raise UserError(
+                "Graded unit %s is not in stock (%s) — only refurbished stock on hand "
+                "can be listed for resale (BRU-TRF-04)." % (graded_stock.name, graded_stock.state)
+            )
+        for rec in self:
+            if rec.state != "open":
+                raise UserError(
+                    "Order %s is '%s' — only an open order can be listed for refurbished "
+                    "resale (BRU-TRF-04)." % (rec.name, rec.state)
+                )
+            rec.write(
+                {
+                    "order_type": "refurb_resale",
+                    "graded_stock_id": graded_stock.id if graded_stock else False,
+                    "budget": listing_price,
+                    "battery_health_percent": battery_health,
+                    "disclosed_defects": defects,
+                }
+            )
+            publish(
+                self.env,
+                "marketplace.refurb_listed",
+                "fix.marketplace.order",
+                rec.id,
+                {
+                    "order": rec.name,
+                    "stock_id": graded_stock.id if graded_stock else False,
+                    "battery_health": battery_health,
+                    "defects": defects,
+                    "price": float(listing_price),
+                },
+            )
 
 
 class FixSellerQuote(models.Model):
-    """A seller's response to a marketplace order."""
+    """A seller's quote on a marketplace order. A04 M12-7: the quote is the
+    seller's offer; once submitted it is not edited (8,000 became 48,000 after
+    award), and only the operator's selection changes its state."""
+
     _name = "fix.seller.quote"
     _description = "Seller Quote"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    marketplace_order_id = fields.Many2one("fix.marketplace.order",
-                                            required=True,
-                                            ondelete="cascade", index=True)
-    seller_id = fields.Many2one("fix.marketplace.seller", required=True,
-                                 ondelete="restrict", index=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    quoted_price = fields.Monetary(string="Quoted Price",
-                                   currency_field="currency_id", required=True)
+    marketplace_order_id = fields.Many2one(
+        "fix.marketplace.order", required=True, ondelete="cascade", index=True
+    )
+    seller_id = fields.Many2one(
+        "fix.marketplace.seller", required=True, ondelete="restrict", index=True
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    quoted_price = fields.Monetary(
+        string="Quoted Price", currency_field="currency_id", required=True
+    )
     eta_days = fields.Integer(string="ETA (days)", required=True, default=3)
-    notes = fields.Text()
-    state = fields.Selection([("submitted", "Submitted"),
-                              ("selected", "Selected"),
-                              ("not_selected", "Not Selected")],
-                             default="submitted", required=True)
+    notes = fields.Text(string="Quote Description / Proposal")
+    state = fields.Selection(
+        [("submitted", "Submitted"), ("selected", "Selected"), ("not_selected", "Not Selected")],
+        default="submitted",
+        required=True,
+        readonly=True,
+    )
+
+    _OFFER_FIELDS = frozenset(
+        {"quoted_price", "eta_days", "seller_id", "marketplace_order_id", "currency_id"}
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id:
+            locked |= set(self._OFFER_FIELDS)
+        return locked
 
     @api.constrains("quoted_price")
     def _check_price(self):
         for rec in self:
             if rec.quoted_price <= 0:
-                raise UserError("Quoted price must be positive")
+                raise UserError("Quoted price must be positive.")
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            # A04 audit C1 (M12-7): a seller submits a quote; selecting it is
+            # the operator's decision, never the seller's own.
+            if self.env.user.share and vals.get("state", "submitted") != "submitted":
+                raise UserError("A quote is submitted by the seller; only the operator selects it.")
+            seller = self.env["fix.marketplace.seller"].browse(vals.get("seller_id"))
+            if seller and (seller.kyc_status != "verified" or not seller.cfo_approved):
+                raise UserError(
+                    "Only KYC-verified and CFO-approved sellers can submit quotes (BRU-ECM-01)."
+                )
+            if seller:
+                # M12 capture audit (13 Nov 2026): a suspended seller does not
+                # transact (seller lifecycle s.8.1, BRU-MKP-11).
+                seller._assert_not_suspended("a new quote")
+            order = (
+                self.env["fix.marketplace.order"].sudo().browse(vals.get("marketplace_order_id"))
+            )
+            if order and order.state not in BIDDING_STATES:
+                raise UserError(
+                    "Quotes are only accepted on open jobs (%s is %s)." % (order.name, order.state)
+                )
         recs = super().create(vals_list)
         for rec in recs:
-            publish(self.env, "seller.quoted", "fix.seller.quote", rec.id,
-                    {"seller": rec.seller_id.name,
-                     "price": float(rec.quoted_price)})
+            if rec.marketplace_order_id.state == "open":
+                # The first quote moves the job to "quoted": a system
+                # transition, so the seller needs no write access on the order.
+                rec.marketplace_order_id.sudo()._guarded().write({"state": "quoted"})
+            publish(
+                self.env,
+                "seller.quoted",
+                "fix.seller.quote",
+                rec.id,
+                {
+                    "seller": rec.seller_id.name,
+                    "order": rec.marketplace_order_id.name,
+                    "price": float(rec.quoted_price),
+                },
+            )
         return recs
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self:
+                changed = [
+                    n
+                    for n in self._OFFER_FIELDS & set(vals)
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if changed:
+                    raise UserError(
+                        "A quote is the seller's offer and is not edited once submitted "
+                        "(%s); the seller submits a new quote instead."
+                        % ", ".join(rec._fields[n].string or n for n in changed)
+                    )
+        return super().write(vals)
+
+    def action_select(self):
+        """The operator awards the job to this quote."""
+        for rec in self:
+            rec.marketplace_order_id.action_select_quote(rec)
+        return True
 
 
 class FixSellerScore(models.Model):
-    """Transparent scoring — the named adoption mitigation for sellers."""
+    """Transparent scoring & tier ranking — the named adoption mitigation for sellers.
+    A04 C5: the KPIs are MEASURED (action_measure), never typed."""
+
     _name = "fix.seller.score"
-    _description = "Seller Score"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _description = "Seller Score & Ranking"
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    seller_id = fields.Many2one("fix.marketplace.seller", required=True,
-                                 ondelete="cascade", index=True)
-    period = fields.Char(required=True, help="YYYY-MM")
-    acceptance_rate = fields.Float(string="Acceptance Rate (0-1)")
-    on_time_rate = fields.Float(string="On-Time Delivery (0-1)")
-    review_rating = fields.Float(string="Review Rating (0-5)")
-    dispute_rate = fields.Float(string="Dispute Rate (0-1)")
-    composite = fields.Float(compute="_compute_composite", store=True)
+    seller_id = fields.Many2one(
+        "fix.marketplace.seller", required=True, ondelete="cascade", index=True
+    )
+    period = fields.Char(required=True, help="Billing period YYYY-MM")
+    # KPIs are MEASURED from the seller's real quotes, orders, ratings and
+    # disputes in the period (action_measure); 0 / unmeasured until then.
+    acceptance_rate = fields.Float(
+        string="Acceptance Rate (0-1)",
+        default=0.0,
+        readonly=True,
+        help="Selected quotes / decided quotes (selected + not selected)",
+    )
+    on_time_rate = fields.Float(
+        string="On-Time Delivery (0-1)",
+        default=0.0,
+        readonly=True,
+        help="Jobs completed within the quoted ETA / timed jobs",
+    )
+    review_rating = fields.Float(
+        string="Review Rating (0-5)",
+        default=0.0,
+        readonly=True,
+        help="Mean customer rating of rated jobs",
+    )
+    dispute_rate = fields.Float(
+        string="Dispute Rate (0-1)",
+        default=0.0,
+        readonly=True,
+        help="Awarded jobs with a dispute / awarded jobs",
+    )
+    quotes_decided = fields.Integer(readonly=True)
+    orders_awarded = fields.Integer(readonly=True)
+    orders_timed = fields.Integer(readonly=True)
+    orders_rated = fields.Integer(readonly=True)
+    metrics_measured = fields.Boolean(
+        readonly=True,
+        help="True only when every KPI has real evidence in the period; an "
+        "unmeasured score ranks the seller 'unrated'",
+    )
+    composite = fields.Float(
+        string="Composite Performance Score", compute="_compute_composite", store=True
+    )
 
-    @api.depends("acceptance_rate", "on_time_rate", "review_rating",
-                 "dispute_rate")
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "acceptance_rate",
+            "on_time_rate",
+            "review_rating",
+            "dispute_rate",
+            "quotes_decided",
+            "orders_awarded",
+            "orders_timed",
+            "orders_rated",
+            "metrics_measured",
+        }
+
+    def _period_bounds(self):
+        """[start, end) datetimes of the YYYY-MM period."""
+        self.ensure_one()
+        try:
+            start = datetime.strptime(self.period, "%Y-%m")
+        except (TypeError, ValueError) as exc:
+            raise UserError("Period must be YYYY-MM (got %r)" % self.period) from exc
+        end = (
+            start.replace(year=start.year + 1, month=1)
+            if start.month == 12
+            else (start.replace(month=start.month + 1))
+        )
+        return start, end
+
+    def action_measure(self):
+        """Measure the four KPIs from the seller's records in the period."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Measuring a seller score")
+            start, end = rec._period_bounds()
+            in_period = [("create_date", ">=", start), ("create_date", "<", end)]
+            quotes = self.env["fix.seller.quote"].search(
+                [("seller_id", "=", rec.seller_id.id), *in_period]
+            )
+            decided = quotes.filtered(lambda q: q.state in ("selected", "not_selected"))
+            orders = self.env["fix.marketplace.order"].search(
+                [
+                    ("selected_quote_id.seller_id", "=", rec.seller_id.id),
+                    ("state", "!=", "cancelled"),
+                    *in_period,
+                ]
+            )
+            timed = orders.filtered(lambda o: o.started_at and o.completed_at)
+            on_time = timed.filtered(
+                lambda o: (
+                    o.completed_at <= o.started_at + timedelta(days=o.selected_quote_id.eta_days)
+                )
+            )
+            rated = orders.filtered(lambda o: o._fix_job_rating())
+            disputed = orders.filtered(lambda o: o.dispute_ids)
+            measured = bool(decided and orders and timed and rated)
+            rec._guarded().write(
+                {
+                    "quotes_decided": len(decided),
+                    "orders_awarded": len(orders),
+                    "orders_timed": len(timed),
+                    "orders_rated": len(rated),
+                    "acceptance_rate": len(decided.filtered(lambda q: q.state == "selected"))
+                    / len(decided)
+                    if decided
+                    else 0.0,
+                    "on_time_rate": len(on_time) / len(timed) if timed else 0.0,
+                    "review_rating": round(sum(o._fix_job_rating() for o in rated) / len(rated), 2)
+                    if rated
+                    else 0.0,
+                    "dispute_rate": len(disputed) / len(orders) if orders else 0.0,
+                    "metrics_measured": measured,
+                }
+            )
+        return True
+
+    @api.depends(
+        "acceptance_rate", "on_time_rate", "review_rating", "dispute_rate", "metrics_measured"
+    )
     def _compute_composite(self):
         for rec in self:
+            if not rec.metrics_measured:
+                rec.composite = 0.0  # no evidence, no score
+                continue
             rec.composite = round(
-                (rec.acceptance_rate * 0.3
-                 + rec.on_time_rate * 0.3
-                 + (rec.review_rating / 5.0) * 0.25
-                 - rec.dispute_rate * 0.15), 4)
+                (
+                    rec.acceptance_rate * 0.3
+                    + rec.on_time_rate * 0.3
+                    + (rec.review_rating / 5.0) * 0.25
+                    - rec.dispute_rate * 0.15
+                ),
+                4,
+            )
+
+    def compute_ranking_tier(self):
+        """Update the seller's operational ranking tier based on composite score.
+        Every score in the recordset is ranked; returns the tier of the last one
+        (the tier itself for a single score, False for an empty recordset)."""
+        tier = False
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Ranking a seller")
+            tier = tier_for_score(rec.composite) if rec.metrics_measured else "unrated"
+
+            rec.seller_id._guarded().write({"tier": tier})
+            publish(
+                self.env,
+                "seller.tier_updated",
+                "fix.marketplace.seller",
+                rec.seller_id.id,
+                {
+                    "seller": rec.seller_id.name,
+                    "tier": tier,
+                    "composite": rec.composite,
+                },
+            )
+        return tier
 
     def action_publish(self):
+        """Measure the period from real records, rank, and publish."""
         for rec in self:
-            publish(self.env, "seller.scored", "fix.seller.score", rec.id,
-                    {"seller": rec.seller_id.name,
-                     "composite": rec.composite})
+            rec.action_measure()
+            rec.compute_ranking_tier()
+            publish(
+                self.env,
+                "seller.scored",
+                "fix.seller.score",
+                rec.id,
+                {
+                    "seller": rec.seller_id.name,
+                    "period": rec.period,
+                    "composite": rec.composite,
+                    "tier": rec.seller_id.tier,
+                    "measured": rec.metrics_measured,
+                },
+            )
+
+
+class FixMarketplaceDispute(models.Model):
+    """M12: Transparent dispute resolution with 48h SLA and hard payout lock (BRU-BIL-03).
+
+    A04 M12-3/-4 state machine: raised -> investigating -> arbitration ->
+    resolved, with escalated (past the 48h SLA) still open. An operator
+    proposes the ruling and sends it to arbitration; a Marketplace Dispute
+    Arbitrator decides it from the M63 inbox; a resolved dispute is final."""
+
+    _name = "fix.marketplace.dispute"
+    _description = "Marketplace Dispute"
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
+    _order = "create_date desc"
+
+    _approval_domain = "marketplace_dispute_ruling"
+    _approval_apply_method = "action_resolve"
+    _approval_group = ARBITRATOR_GROUP
+    _approval_routed = True
+
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    name = fields.Char(
+        string="Dispute Reference",
+        required=True,
+        copy=False,
+        readonly=True,
+        default=lambda self: "DSP/New",
+    )
+    order_id = fields.Many2one(
+        "fix.marketplace.order", string="Marketplace Order", required=True, index=True
+    )
+    seller_id = fields.Many2one(
+        "fix.marketplace.seller", string="Seller", required=True, index=True
+    )
+    customer_id = fields.Many2one("res.partner", string="Customer", required=True)
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    disputed_amount = fields.Monetary(string="Disputed Amount (BDT)", currency_field="currency_id")
+    dispute_reason = fields.Selection(
+        [
+            ("quality", "Substandard Repair Quality"),
+            ("delay", "Significant Delay Exceeding SLA"),
+            ("pricing", "Unauthorized Additional Charges"),
+            ("damage", "Device Cosmetic or Hardware Damage"),
+            ("unresponsive", "Seller Unresponsive"),
+        ],
+        default="quality",
+        required=True,
+        tracking=True,
+    )
+    description = fields.Text(string="Dispute Details & Evidence", required=True)
+
+    # SLA Management (48-Hour Statutory Target)
+    sla_deadline = fields.Datetime(string="48-Hour Resolution SLA Deadline", readonly=True)
+    # NOT stored: "breached" depends on the clock, and a stored value computed
+    # at the last write goes stale for a dispute nobody touches. The search
+    # method keeps list filters / domains on it working.
+    sla_breached = fields.Boolean(
+        string="SLA Breached",
+        compute="_compute_sla_breached",
+        search="_search_sla_breached",
+        help="An open dispute past its 48h deadline, or one resolved after it",
+    )
+    escalated_at = fields.Datetime(readonly=True, copy=False)
+
+    state = fields.Selection(
+        [
+            ("raised", "Dispute Raised"),
+            ("investigating", "Under Investigation"),
+            ("arbitration", "In Arbitration"),
+            ("resolved", "Resolved & Closed"),
+            ("escalated", "Escalated to Executive"),
+        ],
+        default="raised",
+        required=True,
+        tracking=True,
+        readonly=True,
+    )
+    investigator_id = fields.Many2one("res.users", string="Investigated By", readonly=True)
+
+    # The ruling the investigating operator proposes to the arbitrator.
+    proposed_resolution = fields.Selection(
+        [
+            ("refund_customer", "Full Refund to Customer"),
+            ("payout_seller", "Dismissed - Release Full Payout to Seller"),
+            ("split_settlement", "Split Settlement / Mutual Concession"),
+            ("rework_order", "Free Warranty Rework Scheduled"),
+        ],
+        string="Proposed Ruling",
+    )
+    proposed_refund_amount = fields.Monetary(
+        string="Proposed Refund to Customer",
+        currency_field="currency_id",
+        help="Full refund: the disputed amount. Split: the customer's part.",
+    )
+    proposed_by_id = fields.Many2one("res.users", string="Ruling Proposed By", readonly=True)
+    resolution_type = fields.Selection(
+        [
+            ("refund_customer", "Full Refund to Customer"),
+            ("payout_seller", "Dismissed - Release Full Payout to Seller"),
+            ("split_settlement", "Split Settlement / Mutual Concession"),
+            ("rework_order", "Free Warranty Rework Scheduled"),
+        ],
+        string="Resolution Ruling",
+        tracking=True,
+        readonly=True,
+    )
+    refund_amount = fields.Monetary(
+        string="Refund Ruled",
+        currency_field="currency_id",
+        readonly=True,
+        help="What the ruling refunds the customer (M19 credit / M53 forfeit, via the event)",
+    )
+    resolution_notes = fields.Text(string="Arbitration & Resolution Rationale")
+    resolved_by = fields.Many2one("res.users", string="Arbitrated By", readonly=True)
+    resolved_date = fields.Datetime(string="Resolution Timestamp", readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "escalated_at",
+            "investigator_id",
+            "proposed_by_id",
+            "resolution_type",
+            "refund_amount",
+            "resolved_by",
+            "resolved_date",
+        }
+
+    def _fix_frozen_fields(self) -> set:
+        self.ensure_one()
+        if self.state == "resolved":
+            return {
+                n
+                for n, f in self._fields.items()
+                if f.store and not n.startswith(("message_", "activity_", "website_message"))
+            }
+        # the 48h SLA is set when the dispute is raised and never moved
+        frozen = {"order_id", "seller_id", "customer_id", "currency_id", "sla_deadline"}
+        if self.state == "arbitration":
+            frozen |= {"proposed_resolution", "proposed_refund_amount", "resolution_notes"}
+        return frozen
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id:
+            locked |= self._fix_frozen_fields()
+        return locked
+
+    @api.depends("sla_deadline", "state", "resolved_date")
+    def _compute_sla_breached(self):
+        now = fields.Datetime.now()
+        for rec in self:
+            if rec.state == "resolved":
+                rec.sla_breached = (
+                    rec.resolved_date > rec.sla_deadline
+                    if (rec.resolved_date and rec.sla_deadline)
+                    else False
+                )
+            elif rec.sla_deadline:
+                rec.sla_breached = now > rec.sla_deadline
+            else:
+                rec.sla_breached = False
+
+    def _search_sla_breached(self, operator, value):
+        """The domain twin of _compute_sla_breached, evaluated at search time.
+        Only `in` is implemented; Odoo derives `not in` / `=` / `!=` from it."""
+        if operator != "in":
+            return NotImplemented
+        open_and_late = Domain.AND(
+            [
+                Domain("state", "!=", "resolved"),
+                Domain("sla_deadline", "!=", False),
+                Domain("sla_deadline", "<", fields.Datetime.now()),
+            ]
+        )
+        resolved_late = Domain("state", "=", "resolved") & Domain.custom(
+            # NULL-safe, so the negated domain (not breached) stays exact
+            to_sql=lambda model, alias, query: SQL(
+                "COALESCE(%s > %s, FALSE)",
+                model._field_to_sql(alias, "resolved_date", query),
+                model._field_to_sql(alias, "sla_deadline", query),
+            ),
+            predicate=lambda rec: bool(
+                rec.resolved_date and rec.sla_deadline and rec.resolved_date > rec.sla_deadline
+            ),
+        )
+        breached = open_and_late | resolved_late
+        return Domain.OR(breached if flag else ~breached for flag in value)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        _assert_role(self.env, OPERATOR_GROUP, "Raising a marketplace dispute")
+        now = fields.Datetime.now()
+        for vals in vals_list:
+            vals["name"] = (
+                self.env["ir.sequence"].next_by_code("fix.marketplace.dispute") or "DSP/New"
+            )
+            order = self.env["fix.marketplace.order"].sudo().browse(vals.get("order_id"))
+            awarded = order.selected_quote_id.seller_id if order else None
+            if awarded and vals.get("seller_id") and awarded.id != vals["seller_id"]:
+                raise ValidationError(
+                    "A dispute on %s is against the seller who was awarded it (%s)."
+                    % (order.name, awarded.name)
+                )
+            if vals.get("sla_deadline") and not self.env.su:
+                raise UserError("The 48-hour SLA deadline is set when the dispute is raised.")
+            vals.setdefault("sla_deadline", now + timedelta(hours=48))
+        recs = super().create(vals_list)
+        for rec in recs:
+            # Enforce hard payout lock on seller (BRU-BIL-03)
+            rec.seller_id._recompute_payout_hold()
+            publish(
+                self.env,
+                "marketplace.dispute_raised",
+                "fix.marketplace.dispute",
+                rec.id,
+                {
+                    "dispute": rec.name,
+                    "order": rec.order_id.name,
+                    "seller": rec.seller_id.name,
+                    "amount": float(rec.disputed_amount or 0.0),
+                    "sla_deadline": str(rec.sla_deadline),
+                },
+            )
+        return recs
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self:
+                changed = {
+                    n
+                    for n in set(vals) & rec._fix_frozen_fields()
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                }
+                if changed:
+                    raise UserError(
+                        "%s cannot be changed on %s: %s."
+                        % (
+                            ", ".join(sorted(rec._fields[n].string or n for n in changed)),
+                            rec.name,
+                            "a resolved dispute is final"
+                            if rec.state == "resolved"
+                            else "the ruling is with the arbitrator"
+                            if rec.state == "arbitration"
+                            else "a dispute stays on its order, seller and customer",
+                        )
+                    )
+        return super().write(vals)
+
+    # ---- approval-engine hooks ----------------------------------------------
+    def _approval_amount(self) -> float:
+        return abs(self.proposed_refund_amount or 0.0)
+
+    def _approval_needed(self) -> bool:
+        self.ensure_one()
+        return self.state in RULING_STATES and bool(self.proposed_resolution)
+
+    def _approval_pinned_fields(self) -> set:
+        return super()._approval_pinned_fields() | {
+            "proposed_resolution",
+            "order_id",
+            "seller_id",
+        }
+
+    def _approval_excluded(self):
+        """The person who raised it, the one who proposed the ruling and the
+        seller's own accounts never arbitrate it."""
+        excluded = super()._approval_excluded()
+        return excluded | (self.proposed_by_id | _seller_users(self.seller_id)).sudo()
+
+    def _approval_on_rejected(self, comment):
+        # The ruling goes back to the investigation (the request is already
+        # closed, so this voids nothing).
+        for rec in self.filtered(lambda r: r.state in RULING_STATES):
+            rec.sudo()._guarded().write({"state": "investigating"})
+            rec.sudo().message_post(
+                body="Proposed ruling sent back by the arbitrator: %s" % (comment or "-")
+            )
+
+    def _refund_for(self, ruling, proposed):
+        self.ensure_one()
+        disputed = self.disputed_amount or 0.0
+        if ruling == "refund_customer":
+            return proposed or disputed
+        if ruling == "split_settlement":
+            return proposed or 0.0
+        return 0.0
+
+    # ---- lifecycle ----------------------------------------------------------
+    def action_investigate(self):
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Investigating a dispute")
+            if rec.state != "raised":
+                raise UserError("Only a raised dispute goes under investigation.")
+            rec._guarded().write({"state": "investigating", "investigator_id": self.env.uid})
+
+    def action_arbitrate(self):
+        """Send the proposed ruling to a Marketplace Dispute Arbitrator."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Sending a dispute to arbitration")
+            if rec.state not in ("investigating", "escalated"):
+                raise UserError(
+                    "A dispute goes to arbitration from the investigation (it is %s)." % rec.state
+                )
+            ruling = rec.proposed_resolution
+            if not ruling or not (rec.resolution_notes or "").strip():
+                raise UserError(
+                    "Propose the ruling and its rationale before sending %s to arbitration."
+                    % rec.name
+                )
+            refund = rec._refund_for(ruling, rec.proposed_refund_amount)
+            ceiling = rec.disputed_amount or rec.order_id.awarded_price or 0.0
+            if refund < 0 or (ceiling and refund > ceiling + 0.005):
+                raise UserError(
+                    "The refund proposed (%.2f) must be between 0 and the disputed amount "
+                    "(%.2f)." % (refund, ceiling)
+                )
+            if ruling == "split_settlement" and not refund:
+                raise UserError("A split settlement names the customer's refund.")
+            if rec.approval_state == "pending":
+                raise UserError("%s is already with the arbitrator." % rec.name)
+            rec._guarded().write(
+                {
+                    "state": "arbitration" if rec.state == "investigating" else rec.state,
+                    "proposed_by_id": self.env.uid,
+                    "proposed_refund_amount": refund,
+                }
+            )
+            rec.action_request_approval(
+                justification="Proposed ruling: %s (refund %.2f). %s"
+                % (
+                    dict(self._fields["proposed_resolution"].selection)[ruling],
+                    refund,
+                    rec.resolution_notes,
+                )
+            )
+        return True
+
+    def action_resolve(self, resolution_type=None, notes=None):
+        """Resolve dispute, record ruling, and clear payout lock if no other disputes exist.
+
+        The M63 apply method: an arbitrator decides the proposed ruling from
+        the inbox (A04 M12-3). Superuser service code may pass the ruling;
+        nobody re-rules a resolved dispute."""
+        self._approval_assert_routed()
+        trusted = self.env.su and not self._approval_task()
+        authority = self._approval_authority_user()
+        acting = self._approval_acting_users()
+        for rec in self:
+            if rec.state == "resolved":
+                raise UserError("%s is resolved; a ruling is final." % rec.name)
+            if rec.state not in OPEN_DISPUTE_STATES:
+                raise UserError("%s is not an open dispute." % rec.name)
+            if trusted:
+                ruling = resolution_type or rec.proposed_resolution or "payout_seller"
+                text = notes or rec.resolution_notes or "Arbitration complete"
+            else:
+                if rec.state not in RULING_STATES or not rec.proposed_resolution:
+                    raise UserError("%s has no ruling in arbitration." % rec.name)
+                if resolution_type and resolution_type != rec.proposed_resolution:
+                    raise UserError("The arbitrator decides the ruling that was proposed.")
+                if not authority.has_group(ARBITRATOR_GROUP):
+                    raise UserError(
+                        "A dispute is ruled by a Marketplace Dispute Arbitrator, which %s is "
+                        "not." % authority.name
+                    )
+                if acting & (rec.create_uid | rec.proposed_by_id | _seller_users(rec.seller_id)):
+                    raise UserError(
+                        "Segregation of duties: whoever raised %s, proposed its ruling or acts "
+                        "for the seller does not arbitrate it." % rec.name
+                    )
+                ruling = rec.proposed_resolution
+                text = rec.resolution_notes
+            refund = rec._refund_for(ruling, rec.proposed_refund_amount)
+            rec._guarded().write(
+                {
+                    "state": "resolved",
+                    "resolution_type": ruling,
+                    "refund_amount": refund,
+                    "resolution_notes": text,
+                    "resolved_by": self.env.user.id,
+                    "resolved_date": fields.Datetime.now(),
+                }
+            )
+            rec.seller_id._recompute_payout_hold()
+            rec._restore_tier_after_resolution()
+            unlocked = not rec.seller_id.payout_hold
+
+            publish(
+                self.env,
+                "marketplace.dispute_resolved",
+                "fix.marketplace.dispute",
+                rec.id,
+                {
+                    "dispute": rec.name,
+                    "order": rec.order_id.name,
+                    "order_id": rec.order_id.id,
+                    "seller": rec.seller_id.name,
+                    "seller_id": rec.seller_id.id,
+                    "seller_partner_id": rec.seller_id.partner_id.id,
+                    "customer_id": rec.customer_id.id,
+                    "resolution": ruling,
+                    "disputed_amount": float(rec.disputed_amount or 0.0),
+                    "refund_amount": float(refund),
+                    "currency": rec.currency_id.name or "BDT",
+                    "payout_unlocked": unlocked,
+                },
+            )
+        return True
+
+    def action_escalate(self):
+        """Escalate unresolved dispute past 48h SLA to executive arbitration."""
+        for rec in self:
+            _assert_role(self.env, OPERATOR_GROUP, "Escalating a dispute")
+            if rec.state not in ("raised", "investigating", "arbitration"):
+                raise UserError("Only an open, not yet escalated dispute is escalated.")
+            rec._guarded().write({"state": "escalated", "escalated_at": fields.Datetime.now()})
+            rec.seller_id._guarded().write({"tier": "at_risk"})
+            publish(
+                self.env,
+                "marketplace.dispute_escalated",
+                "fix.marketplace.dispute",
+                rec.id,
+                {
+                    "dispute": rec.name,
+                    "order": rec.order_id.name,
+                    "seller": rec.seller_id.name,
+                },
+            )
+
+    # ---- A04 ERP audit M12-F16: the tier after the escalation is resolved ----
+    def _restore_tier_after_resolution(self):
+        """An escalation set the seller at_risk and nothing ever lifted it.
+        Once no escalated dispute remains, the seller takes the tier of their
+        latest measured score again (unrated when never measured)."""
+        Score = self.env["fix.seller.score"].sudo()
+        for seller in self.mapped("seller_id").sudo():
+            if seller.tier != "at_risk":
+                continue
+            if self.sudo().search_count(
+                [("seller_id", "=", seller.id), ("state", "=", "escalated")]
+            ):
+                continue
+            score = Score.search(
+                [("seller_id", "=", seller.id), ("metrics_measured", "=", True)],
+                order="period desc, id desc",
+                limit=1,
+            )
+            tier = tier_for_score(score.composite) if score else "unrated"
+            seller._guarded().write({"tier": tier})
+            seller.message_post(
+                body="Tier %s after the escalated dispute was resolved (latest measured score %s)."
+                % (tier, score.period if score else "none")
+            )
+
+    # ---- A04 ERP audit M12-F3 / X5: the money consequences of a ruling -------
+    @api.model
+    def consume_dispute_resolved(self, event: dict) -> dict:
+        """R8 consumer of marketplace.dispute_resolved. The ruling was decided
+        by an arbitrator; its money follows here, from the record (the
+        payload is a claim):
+          * the refund ruled goes back to the customer as an M20 refund of the
+            order's customer receipt (another accountant authorises it; M50
+            pays it on the rail it came by);
+          * the seller side is left to Finance as an M53 decision: an active
+            escrow of the dispute is flagged for forfeit, or - when the seller
+            was already paid - a DRAFT clawback of the seller's share is raised
+            for a finance manager to approve.
+        Idempotent per dispute."""
+        if not self.env.su:
+            raise AccessError("The dispute consumer runs only from the event relay.")
+        try:
+            dispute_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            dispute_id = 0
+        dispute = self.sudo().browse(dispute_id).exists()
+        if not dispute:
+            raise UserError("There is no marketplace dispute #%s." % dispute_id)
+        if dispute.state != "resolved":
+            return {"skipped": "dispute %s is %s" % (dispute.name, dispute.state)}
+        refund = dispute.refund_amount or 0.0
+        if refund <= 0.005:
+            return {"skipped": "dispute %s refunds nothing" % dispute.name}
+        order = dispute.order_id.sudo()
+        out = {
+            "refund": order._mkp_refund_customer(refund, dispute.name),
+            "seller": order._mkp_seller_recovery(refund, dispute.name, dispute=dispute),
+        }
+        return out
+
+    @api.model
+    def cron_dispute_sla_escalation(self) -> int:
+        """C10 (A04 M12-12): the 48-hour SLA was a deadline nothing acted on.
+        Every open dispute past it is escalated once (idempotent through
+        escalated_at; an already escalated dispute is left alone)."""
+        late = self.sudo().search(
+            [
+                ("state", "in", ["raised", "investigating", "arbitration"]),
+                ("sla_deadline", "!=", False),
+                ("sla_deadline", "<", fields.Datetime.now()),
+                ("escalated_at", "=", False),
+            ],
+            limit=500,
+        )
+        for rec in late:
+            rec.action_escalate()
+        return len(late)
+
+
+class FixApprovalMatrixMarketplace(models.Model):
+    """A04 C9: the M12 routed decisions on the DoA register."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[
+            ("marketplace_seller_cfo", "Marketplace Seller CFO Approval"),
+            ("marketplace_listing", "Marketplace Listing Approval"),
+            ("marketplace_dispute_ruling", "Marketplace Dispute Ruling"),
+        ],
+        ondelete={
+            "marketplace_seller_cfo": "cascade",
+            "marketplace_listing": "cascade",
+            "marketplace_dispute_ruling": "cascade",
+        },
+    )

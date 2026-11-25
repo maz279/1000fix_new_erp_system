@@ -1,3 +1,16 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_consignment,fix.consignment,model_fix_consignment,base.group_user,1,1,1,0
-access_fix_custody_scan,fix.custody.scan,model_fix_custody_scan,base.group_user,1,1,1,0
+access_fix_consignment,fix.consignment,model_fix_consignment,base.group_user,1,0,1,0
+access_fix_consignment_rider,fix.consignment rider,model_fix_consignment,group_fix_logistics_rider,1,1,1,0
+access_fix_consignment_hub,fix.consignment hub,model_fix_consignment,group_fix_logistics_hub,1,1,1,0
+access_fix_custody_scan,fix.custody.scan,model_fix_custody_scan,base.group_user,1,0,0,0
+access_fix_custody_scan_rider,fix.custody.scan rider,model_fix_custody_scan,group_fix_logistics_rider,1,0,1,0
+access_fix_custody_scan_hub,fix.custody.scan hub,model_fix_custody_scan,group_fix_logistics_hub,1,0,1,0
+access_fix_damage_claim,fix.damage.claim,model_fix_damage_claim,base.group_user,1,1,1,0
+access_fix_courier_partner,fix.courier.partner,model_fix_courier_partner,base.group_user,1,0,0,0
+access_fix_courier_partner_manager,fix.courier.partner manager,model_fix_courier_partner,group_fix_logistics_manager,1,1,1,0
+access_fix_courier_booking,fix.courier.booking,model_fix_courier_booking,base.group_user,1,0,0,0
+access_fix_courier_booking_hub,fix.courier.booking hub,model_fix_courier_booking,group_fix_logistics_hub,1,1,1,0
+access_fix_rider_certification,fix.rider.certification,model_fix_rider_certification,base.group_user,1,0,0,0
+access_fix_rider_certification_manager,fix.rider.certification manager,model_fix_rider_certification,group_fix_logistics_manager,1,1,1,0
+access_fix_logistics_tariff,fix.logistics.tariff,model_fix_logistics_tariff,base.group_user,1,0,0,0
+access_fix_logistics_tariff_manager,fix.logistics.tariff manager,model_fix_logistics_tariff,group_fix_logistics_manager,1,1,1,1

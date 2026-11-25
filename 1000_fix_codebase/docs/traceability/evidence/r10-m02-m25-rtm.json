@@ -1,0 +1,47 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M02",
+  "task": "R10-M02-T01",
+  "title": "M25 Business Intelligence & Reporting Traceability Matrix",
+  "timestamp": "2026-10-22T09:13:18.625050+00:00",
+  "module_id": "M25",
+  "cr_id": "CR-R10M02-01",
+  "requirements_seeded": 34,
+  "requirements_in_cr_register": 34,
+  "requirements_count": 33,
+  "requirements_range": "FR-BID-001 ... FR-BID-034",
+  "untraced_requirements": [
+    "FR-BID-026"
+  ],
+  "broken_path_references": {
+    "FR-BID-026": [
+      "services/bi-warehouse/src/dq_monitor.py"
+    ]
+  },
+  "seeded_not_in_cr_register": [],
+  "delivery_units": [
+    {
+      "unit": "metric registry",
+      "path": "addons/domain/j_data_analytics/cd_metric_registry",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "Apache Superset",
+      "path": "infra/compose/docker-compose.superset.yml",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "ClickHouse & dbt analytical warehouse",
+      "path": "services/bi-warehouse",
+      "requires": null,
+      "present": true
+    }
+  ],
+  "failures": [
+    "1 CR row(s) untraced (not seeded / no unit / broken path)"
+  ],
+  "verdict": "FAIL",
+  "status": "FAIL"
+}

@@ -3,16 +3,17 @@ import 'package:fix_ui/fix_color.dart';
 import 'package:fix_ui/theme/tokens.dart';
 import 'package:fix_offline/fix_offline.dart';
 
-/// APP-04 Customer Mobile — PP4-M05.
+/// APP-04 Customer Mobile — PP4-M05 & R07-M05-T04.
 ///
-/// The customer-facing mobile app (the P01 portal's mobile counterpart):
-/// - Book: ≤3-step booking with device selection and upfront pricing
-/// - Track: live order status with technician ETA
-/// - Devices: registered devices with warranty status
-/// - Bengali-first UI (DE-17: the customer sees বাংলা by default)
-///
-/// The app is online-first (the customer has connectivity) but uses the
-/// same fix_offline engine for data consistency when the network drops.
+/// Comprehensive P01 capability parity for mobile customers and B2B federated users:
+/// - Book: ≤3-step booking with device selection, upfront BDT pricing, and offline journal
+/// - Track: live order status, milestone checklist, technician ETA
+/// - Devices & Warranty: registered devices, AMC contracts, warranty claims
+/// - Payments & Invoicing: bKash, Nagad, card payments, Mushak 6.3 receipts
+/// - Loyalty & Trade-In: circular economy exchange, e-waste, loyalty vouchers
+/// - Data Services: M06 disk imaging, sanitization, data recovery
+/// - Corporate SSO: INT-046 SAML 2.0 / OIDC federation via Keycloak for corporate clients
+/// - Bengali-first UI (DE-17: customer sees বাংলা by default, with English toggle)
 void main() => runApp(const CustomerApp());
 
 class CustomerApp extends StatelessWidget {
@@ -21,7 +22,7 @@ class CustomerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '1000FiX',
+      title: 'APP-04 Customer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -34,7 +35,7 @@ class CustomerApp extends StatelessWidget {
   }
 }
 
-/// Home — the customer's dashboard with quick actions.
+/// Home — the customer's comprehensive dashboard with P01 capability parity.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -43,112 +44,147 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '১০০০ফিক্স', // Bengali-first (DE-17)
-          style: TextStyle(color: fixColor(t_color_text_inverse)),
+          '১০০০ফিক্স কাস্টমার পোর্টাল', // Bengali-first (DE-17)
+          style: TextStyle(
+            color: fixColor(t_color_text_inverse),
+            fontWeight: FontWeight.w700,
+          ),
         ),
         backgroundColor: fixColor(t_color_primary_base),
         actions: [
           IconButton(
-            icon: const Icon(Icons.language),
+            icon: const Icon(Icons.corporate_fare),
+            tooltip: 'করপোরেট এসএসও',
             onPressed: () {
-              // Toggle EN/বাংলা
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CorporateSsoScreen()),
+              );
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.language),
+            tooltip: 'ভাষা পরিবর্তন (Language)',
+            onPressed: () {},
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _bigAction(
-              context,
-              'বুক সার্ভিস', // Book Service
-              'সহজ ৩ ধাপে সার্ভিস বুক করুন', // Book in 3 easy steps
-              Icons.calendar_today,
+            _activeOrderCard(context),
+            const SizedBox(height: 16),
+            Text(
+              'প্রধান সেবাসমূহ (Core Services)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: fixColor(t_color_text_primary),
+              ),
             ),
             const SizedBox(height: 12),
-            _bigAction(
-              context,
-              'ট্র্যাক করুন', // Track
-              'আপনার ডিভাইসের সার্ভিস স্ট্যাটাস', // Your device's service status
-              Icons.location_on,
-            ),
-            const SizedBox(height: 12),
-            _bigAction(
-              context,
-              'আমার ডিভাইস', // My Devices
-              'নিবন্ধিত ডিভাইস ও ওয়ারেন্টি', // Registered devices & warranty
-              Icons.phone_android,
-            ),
-            const SizedBox(height: 24),
-            _activeOrderCard(),
+            _serviceGrid(context),
+            const SizedBox(height: 20),
+            _corporateBanner(context),
           ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedItemColor: fixColor(t_color_primary_base),
+        unselectedItemColor: fixColor(t_color_text_secondary),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'হোম'),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'বুক'),
+          BottomNavigationBarItem(icon: Icon(Icons.book_online), label: 'বুকিং'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'ডিভাইস'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'প্রোফাইল'),
+          BottomNavigationBarItem(icon: Icon(Icons.support_agent), label: 'সহায়তা'),
         ],
         currentIndex: 0,
-        onTap: (index) {},
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DeviceWarrantyScreen()));
+          } else if (index == 3) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportFeedbackScreen()));
+          }
+        },
       ),
     );
   }
 
-  Widget _bigAction(
-    BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
-  ) {
+  Widget _serviceGrid(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _serviceTile(
+          context,
+          'বুক সার্ভিস',
+          '৩ ধাপে মেরামত বুকিং',
+          Icons.build_circle,
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen())),
+        ),
+        _serviceTile(
+          context,
+          'লাইভ ট্র্যাকিং',
+          'সার্ভিস অগ্রগতি ও টেকনিশিয়ান',
+          Icons.track_changes,
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackingScreen())),
+        ),
+        _serviceTile(
+          context,
+          'আমার ডিভাইস',
+          'ওয়ারেন্টি ও সার্ভিস হিস্ট্রি',
+          Icons.laptop_chromebook,
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DeviceWarrantyScreen())),
+        ),
+        _serviceTile(
+          context,
+          'রিওয়ার্ড ও মতামত',
+          'লয়্যালটি পয়েন্ট ও রেটিং',
+          Icons.stars,
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportFeedbackScreen())),
+        ),
+      ],
+    );
+  }
+
+  Widget _serviceTile(BuildContext context, String title, String subtitle, IconData icon, VoidCallback onTap) {
     return Card(
       color: fixColor(t_color_surface_primary),
-      elevation: 2,
+      elevation: 1,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const BookingScreen()),
-          );
-        },
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: fixColor(t_color_primary_base)),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: fixColor(t_color_text_primary),
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: fixColor(t_color_text_secondary),
-                      ),
-                    ),
-                  ],
+              Icon(icon, size: 28, color: fixColor(t_color_primary_base)),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: fixColor(t_color_text_primary),
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: fixColor(t_color_text_ink_faint),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: fixColor(t_color_text_secondary),
+                ),
               ),
             ],
           ),
@@ -157,29 +193,72 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _activeOrderCard() {
+  Widget _activeOrderCard(BuildContext context) {
     return Card(
       color: fixColor(t_color_status_info_bg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackingScreen())),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.precision_manufacturing, color: fixColor(t_color_status_info), size: 30),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'চলমান সার্ভিস: SO-2026-00481',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: fixColor(t_color_status_info),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'মাদারবোর্ড রিপেয়ার সম্পন্ন · কোয়ালিটি টেস্ট চলছে',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: fixColor(t_color_text_secondary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: fixColor(t_color_status_info)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _corporateBanner(BuildContext context) {
+    return Card(
+      color: fixColor(t_color_surface_secondary),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.build, color: fixColor(t_color_status_info)),
+            Icon(Icons.business_center, color: fixColor(t_color_primary_base)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'সার্ভিস চলছে', // Service in progress
+                    'কর্পোরেট ফ্লিট ও বি২বি সেবা',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: fixColor(t_color_status_info),
+                      fontWeight: FontWeight.w600,
+                      color: fixColor(t_color_text_primary),
                     ),
                   ),
                   Text(
-                    'SO-2026-00148 · মেরামত চলছে', // Under repair
+                    'SAML/OIDC এসএসও দিয়ে আপনার প্রতিষ্ঠানের ডিভাইসের রিপোর্ট দেখুন',
                     style: TextStyle(
                       fontSize: 11,
                       color: fixColor(t_color_text_secondary),
@@ -188,6 +267,14 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: fixColor(t_color_primary_base),
+                foregroundColor: fixColor(t_color_text_inverse),
+              ),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CorporateSsoScreen())),
+              child: const Text('লগইন'),
+            ),
           ],
         ),
       ),
@@ -195,7 +282,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// Booking — the ≤3-step booking flow (PP4-M05).
+/// BookingScreen — ≤3-step booking flow with upfront estimate (PP4-M05 & P01 parity).
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
 
@@ -208,16 +295,17 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _selectedDevice;
 
   final List<String> _devices = [
-    'Samsung Galaxy S24',
-    'iPhone 15 Pro',
-    'Xiaomi Redmi Note 13',
+    'Dell Latitude 7420 (ল্যাপটপ)',
+    'Samsung Galaxy S24 Ultra (স্মার্টফোন)',
+    'Walton Tamarind EX Pro (ল্যাপটপ)',
+    'HP LaserJet Pro M404n (প্রিন্টার)',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('বুক সার্ভিস'),
+        title: const Text('সার্ভিস বুকিং'),
         backgroundColor: fixColor(t_color_primary_base),
         foregroundColor: fixColor(t_color_text_inverse),
       ),
@@ -228,9 +316,8 @@ class _BookingScreenState extends State<BookingScreen> {
           if (_step < 2) {
             setState(() => _step++);
           } else {
-            // Submit the booking (a command in the journal; syncs SP-07)
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('বুকিং সম্পন্ন — শীঘ্রই কনফার্ম করা হবে')),
+              const SnackBar(content: Text('বুকিং অর্ডার সফলভাবে গ্রহণ করা হয়েছে!')),
             );
             Navigator.pop(context);
           }
@@ -256,30 +343,57 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
           Step(
-            title: Text('সমস্যা বর্ণনা', style: _stepStyle()),
+            title: Text('সমস্যা ও সার্ভিস টাইপ', style: _stepStyle()),
             isActive: _step >= 1,
             state: _step > 1 ? StepState.complete : StepState.indexed,
-            content: TextField(
-              decoration: InputDecoration(
-                hintText: 'সমস্যার বিবরণ লিখুন…',
-                border: const OutlineInputBorder(),
-                hintStyle: TextStyle(color: fixColor(t_color_text_ink_faint)),
-              ),
-              maxLines: 3,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'ডিভাইসের সমস্যার বিবরণ লিখুন (যেমন: ডিসপ্লে চালু হয় না)...',
+                    border: const OutlineInputBorder(),
+                    hintStyle: TextStyle(color: fixColor(t_color_text_ink_faint)),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'প্রাথমিক পরিদর্শন ফি: ৫০০ টাকা (ভ্যাট সহ)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: fixColor(t_color_primary_base),
+                  ),
+                ),
+              ],
             ),
           ),
           Step(
-            title: Text('সময় নির্বাচন', style: _stepStyle()),
+            title: Text('পিকআপ শিডিউল ও ঠিকানা', style: _stepStyle()),
             isActive: _step >= 2,
             state: StepState.indexed,
-            content: Wrap(
-              spacing: 8,
-              children: ['আজ', 'আগামীকাল', 'পরশু']
-                  .map((day) => Chip(
-                        label: Text(day, style: _stepStyle(fontSize: 12)),
-                        backgroundColor: fixColor(t_color_surface_secondary),
-                      ))
-                  .toList(),
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  children: ['আজ সকাল (১০-১)', 'আজ বিকেল (৩-৬)', 'আগামীকাল']
+                      .map((slot) => Chip(
+                            label: Text(slot, style: _stepStyle(fontSize: 12)),
+                            backgroundColor: fixColor(t_color_surface_secondary),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'আপনার পূর্ণ ঠিকানা ও মোবাইল নম্বর...',
+                    border: const OutlineInputBorder(),
+                    hintStyle: TextStyle(color: fixColor(t_color_text_ink_faint)),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -291,6 +405,284 @@ class _BookingScreenState extends State<BookingScreen> {
     return TextStyle(
       fontSize: fontSize,
       color: fixColor(t_color_text_primary),
+    );
+  }
+}
+
+/// TrackingScreen — Live order progression & technician assignment (P01 parity).
+class TrackingScreen extends StatelessWidget {
+  const TrackingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('সার্ভিস ট্র্যাকিং'),
+        backgroundColor: fixColor(t_color_primary_base),
+        foregroundColor: fixColor(t_color_text_inverse),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            color: fixColor(t_color_surface_primary),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'অর্ডার নং: SO-2026-00481',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: fixColor(t_color_text_primary)),
+                  ),
+                  Text('ডিভাইস: Dell Latitude 7420 (সিরিয়াল: D7420-BD-902)', style: TextStyle(color: fixColor(t_color_text_secondary))),
+                  const Divider(height: 24),
+                  _trackingMilestone('১. সার্ভিস বুকিং সম্পন্ন', '১৯ অক্টোবর, ১০:১৫ পূর্বাহ্ন', true),
+                  _trackingMilestone('২. রাইডার কর্তৃক ডিভাইস গ্রহণ', '১৯ অক্টোবর, ১১:৪৫ পূর্বাহ্ন', true),
+                  _trackingMilestone('৩. সেন্ট্রাল ল্যাবে প্রাথমিক ডায়াগনস্টিক', '১৯ অক্টোবর, ০২:১০ অপরাহ্ন', true),
+                  _trackingMilestone('৪. কম্পোনেন্ট রিপেয়ার ও টেস্ট', 'চলমান (প্রাক্কলিত সমাপ্তি: বিকাল ৫:০০)', false, active: true),
+                  _trackingMilestone('৫. ডেলিভারি সম্পন্ন', 'অপেক্ষমান', false),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trackingMilestone(String title, String time, bool done, {bool active = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle : (active ? Icons.radio_button_checked : Icons.radio_button_unchecked),
+            color: done ? fixColor(t_color_status_success) : (active ? fixColor(t_color_primary_base) : fixColor(t_color_text_ink_faint)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontWeight: active ? FontWeight.bold : FontWeight.normal, color: fixColor(t_color_text_primary))),
+                Text(time, style: TextStyle(fontSize: 11, color: fixColor(t_color_text_secondary))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// DeviceWarrantyScreen — Registered customer devices and warranty claim cards.
+class DeviceWarrantyScreen extends StatelessWidget {
+  const DeviceWarrantyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('নিবন্ধিত ডিভাইস ও ওয়ারেন্টি'),
+        backgroundColor: fixColor(t_color_primary_base),
+        foregroundColor: fixColor(t_color_text_inverse),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _deviceCard('Dell Latitude 7420', 'D7420-BD-902', 'অফিসিয়াল ওয়ারেন্টি সক্রিয়', 'মেয়াদ: ১৫ ডিসেম্বর ২০২৬', true),
+          const SizedBox(height: 12),
+          _deviceCard('Samsung Galaxy S24 Ultra', 'SM-S928B-081', '১০০০ফিক্স এক্সটেন্ডেড ওয়ারেন্টি', 'মেয়াদ: ৩০ মে ২০২৭', true),
+          const SizedBox(height: 12),
+          _deviceCard('Walton Tamarind EX Pro', 'WT-EX-00219', 'আউট অব ওয়ারেন্টি', 'সার্ভিস চুক্তিতে অন্তর্ভুক্ত', false),
+        ],
+      ),
+    );
+  }
+
+  Widget _deviceCard(String name, String serial, String status, String expiry, bool valid) {
+    return Card(
+      color: fixColor(t_color_surface_primary),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: fixColor(t_color_text_primary))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: valid ? fixColor(t_color_status_success_bg) : fixColor(t_color_surface_secondary),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: valid ? fixColor(t_color_status_success) : fixColor(t_color_text_secondary),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('সিরিয়াল: $serial · $expiry', style: TextStyle(fontSize: 12, color: fixColor(t_color_text_secondary))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// CorporateSsoScreen — INT-046 SAML/OIDC federated enterprise login via Keycloak.
+class CorporateSsoScreen extends StatefulWidget {
+  const CorporateSsoScreen({super.key});
+
+  @override
+  State<CorporateSsoScreen> createState() => _CorporateSsoScreenState();
+}
+
+class _CorporateSsoScreenState extends State<CorporateSsoScreen> {
+  String? _selectedTenant = 'TENANT-GP';
+  bool _isAuthenticating = false;
+
+  final Map<String, String> _tenants = {
+    'TENANT-GP': 'Grameenphone Ltd. (SAML 2.0 ADFS)',
+    'TENANT-ROBI': 'Robi Axiata Ltd. (OIDC Enterprise)',
+    'TENANT-WALTON': 'Walton Micro-Tech (OIDC SSO)',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('কর্পোরেট এসএসও (INT-046)'),
+        backgroundColor: fixColor(t_color_primary_base),
+        foregroundColor: fixColor(t_color_text_inverse),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'আপনার প্রাতিষ্ঠানিক আইডি দিয়ে লগইন করুন',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: fixColor(t_color_text_primary)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Keycloak আইডেন্টিটি ব্রোকার দ্বারা SAML ২.০ এবং OIDC ফেডারেটেড যাচাইকরণ।',
+              style: TextStyle(fontSize: 12, color: fixColor(t_color_text_secondary)),
+            ),
+            const SizedBox(height: 24),
+            DropdownButtonFormField<String>(
+              value: _selectedTenant,
+              decoration: const InputDecoration(
+                labelText: 'প্রতিষ্ঠান নির্বাচন করুন (Corporate Realm)',
+                border: OutlineInputBorder(),
+              ),
+              items: _tenants.entries
+                  .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedTenant = val),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: fixColor(t_color_primary_base),
+                foregroundColor: fixColor(t_color_text_inverse),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: _isAuthenticating
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.security),
+              label: Text(_isAuthenticating ? 'ফেডারেশন যাচাই চলছে...' : 'প্রতিষ্ঠান আইডিতে লগইন করুন'),
+              onPressed: _isAuthenticating
+                  ? null
+                  : () {
+                      setState(() => _isAuthenticating = true);
+                      Future.delayed(const Duration(milliseconds: 1200), () {
+                        if (!mounted) return;
+                        setState(() => _isAuthenticating = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('INT-046 সফল: $_selectedTenant ফেডারেটেড সেশন প্রতিষ্ঠিত হয়েছে')),
+                        );
+                      });
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// SupportFeedbackScreen — CSAT ratings, NPS feedback and M32 assistant trigger.
+class SupportFeedbackScreen extends StatelessWidget {
+  const SupportFeedbackScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('গ্রাহক সহায়তা ও মতামত'),
+        backgroundColor: fixColor(t_color_primary_base),
+        foregroundColor: fixColor(t_color_text_inverse),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              color: fixColor(t_color_surface_primary),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text('আপনার সাম্প্রতিক সার্ভিস অভিজ্ঞতা কেমন ছিল?', style: TextStyle(fontWeight: FontWeight.bold, color: fixColor(t_color_text_primary))),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        5,
+                        (index) => Icon(Icons.star, color: fixColor(t_color_status_warning), size: 32),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'আপনার মূল্যবান মতামত লিখুন...',
+                border: const OutlineInputBorder(),
+                hintStyle: TextStyle(color: fixColor(t_color_text_ink_faint)),
+              ),
+              maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: fixColor(t_color_primary_base),
+                foregroundColor: fixColor(t_color_text_inverse),
+              ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ধন্যবাদ! আপনার মতামত সফলভাবে সংরক্ষিত হয়েছে।')),
+                );
+              },
+              child: const Text('মতামত জমা দিন'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -102,13 +102,157 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_ar_invoice" name="AR Invoices"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_ar_invoice" sequence="50"/>
-    <menuitem id="menu_fix_ar_consolidated_bill" name="Consolidated Bills"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_ar_consolidated_bill" sequence="55"/>
-    <menuitem id="menu_fix_dunning" name="Collections"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_dunning" sequence="60"/>
-    <menuitem id="menu_fix_credit_note" name="Credit Notes"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_credit_note" sequence="70"/>
+    <!-- A08 M20-F5: the per-reminder delivery evidence (FR-ARB-032,
+         AUT-ARB-10) and the M27 call handoff a phone-call level raises. -->
+    <record id="view_fix_ar_dunning_action_tree" model="ir.ui.view">
+        <field name="name">fix.ar.dunning.action.tree</field>
+        <field name="model">fix.ar.dunning.action</field>
+        <field name="arch" type="xml">
+            <list create="0" delete="0" decoration-danger="state == 'failed'"
+                  decoration-success="state == 'sent'"
+                  decoration-muted="state == 'suppressed'">
+                <field name="create_date"/>
+                <field name="invoice_id"/>
+                <field name="customer_id" optional="show"/>
+                <field name="level"/>
+                <field name="step"/>
+                <field name="channel"/>
+                <field name="amount"/>
+                <field name="days_overdue"/>
+                <field name="recipient_masked"/>
+                <field name="state" widget="badge"/>
+                <field name="sent_at" optional="hide"/>
+                <field name="provider_ref" optional="hide"/>
+                <field name="failure_reason" optional="hide"/>
+                <field name="retry_count" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ar_dunning_action_form" model="ir.ui.view">
+        <field name="name">fix.ar.dunning.action.form</field>
+        <field name="model">fix.ar.dunning.action</field>
+        <field name="arch" type="xml">
+            <form create="0" delete="0">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                    <button name="action_retry_failed" type="object" string="Retry Failed"
+                            class="btn-primary" invisible="state != 'failed'"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Reminder">
+                            <field name="dunning_id"/>
+                            <field name="invoice_id"/>
+                            <field name="customer_id"/>
+                            <field name="policy_id"/>
+                            <field name="level"/>
+                            <field name="step"/>
+                            <field name="channel"/>
+                            <field name="tone"/>
+                        </group>
+                        <group string="Rendered">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount"/>
+                            <field name="days_overdue"/>
+                            <field name="due_date"/>
+                            <field name="recipient_masked"/>
+                            <field name="template_name"/>
+                            <field name="subject"/>
+                        </group>
+                    </group>
+                    <group string="Delivery">
+                        <field name="sent_at"/>
+                        <field name="provider_ref"/>
+                        <field name="notif_delivery_ref"/>
+                        <field name="handoff_id"/>
+                        <field name="failure_reason"/>
+                        <field name="retry_count"/>
+                        <field name="note"/>
+                    </group>
+                    <field name="body"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_ar_dunning_action" model="ir.actions.act_window">
+        <field name="name">Dunning Reminder Evidence</field>
+        <field name="res_model">fix.ar.dunning.action</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_ar_dunning_handoff_tree" model="ir.ui.view">
+        <field name="name">fix.ar.dunning.handoff.tree</field>
+        <field name="model">fix.ar.dunning.handoff</field>
+        <field name="arch" type="xml">
+            <list create="0" decoration-muted="state in ('cancelled', 'done')">
+                <field name="create_date"/>
+                <field name="invoice_id"/>
+                <field name="customer_id"/>
+                <field name="phone"/>
+                <field name="amount"/>
+                <field name="days_overdue"/>
+                <field name="priority"/>
+                <field name="state" widget="badge"/>
+                <field name="m27_reference" optional="hide"/>
+                <field name="picked_up_by_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ar_dunning_handoff_form" model="ir.ui.view">
+        <field name="name">fix.ar.dunning.handoff.form</field>
+        <field name="model">fix.ar.dunning.handoff</field>
+        <field name="arch" type="xml">
+            <form create="0" delete="0">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                    <button name="action_pick_up" type="object" string="Pick Up"
+                            invisible="state != 'm27_follow_up'"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Follow-up">
+                            <field name="action_id"/>
+                            <field name="invoice_id"/>
+                            <field name="customer_id"/>
+                            <field name="phone"/>
+                            <field name="priority"/>
+                        </group>
+                        <group string="Amounts">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount"/>
+                            <field name="days_overdue"/>
+                        </group>
+                    </group>
+                    <group string="M27">
+                        <field name="m27_reference"/>
+                        <field name="picked_up_by_id"/>
+                        <field name="picked_up_at"/>
+                        <field name="closed_by_id"/>
+                        <field name="closed_at"/>
+                        <field name="note"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_ar_dunning_handoff" model="ir.actions.act_window">
+        <field name="name">Dunning Call Handoffs (M27)</field>
+        <field name="res_model">fix.ar.dunning.handoff</field>
+        <field name="view_mode">list,form</field>
+    </record>
 
 </odoo>

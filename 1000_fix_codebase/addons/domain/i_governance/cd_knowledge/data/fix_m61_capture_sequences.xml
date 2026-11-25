@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M61 capture audit (2026-11-18): numbers for review requests, field
+     captures and technician offline sets. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_knowledge_review" model="ir.sequence">
+            <field name="name">Knowledge Review Request</field>
+            <field name="code">fix.knowledge.review</field>
+            <field name="prefix">KREV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_knowledge_capture" model="ir.sequence">
+            <field name="name">Knowledge Field Capture</field>
+            <field name="code">fix.knowledge.capture</field>
+            <field name="prefix">KCAP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_knowledge_offline_set" model="ir.sequence">
+            <field name="name">Technician Offline Set</field>
+            <field name="code">fix.knowledge.offline.set</field>
+            <field name="prefix">OFS/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

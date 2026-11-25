@@ -1,2 +1,12 @@
 # cd_hse models.
-from . import fix_hse
+# ruff: noqa: I001
+from . import (
+    res_users_hse,
+    fix_hse_notice,
+    fix_hse,
+    fix_hse_ops,
+    fix_hse_investigation,
+    fix_hse_fitness,
+    fix_hse_followup,
+    fix_hse_capture,
+)

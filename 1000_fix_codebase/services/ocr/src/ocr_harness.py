@@ -10,6 +10,7 @@ plugs in behind `recognise()`; the harness runs wherever images exist.
 The metric that matters is per-field accuracy on DOCUMENTS WE SEE (job
 cards, NIDs, brand invoices), not generic Bengali OCR benchmarks.
 """
+
 from __future__ import annotations
 
 import json
@@ -21,7 +22,7 @@ from pathlib import Path
 class EvaluationCase:
     case_id: str
     image_path: str
-    expected_fields: dict[str, str]   # {"nid_number": "...", "name_bn": "..."}
+    expected_fields: dict[str, str]  # {"nid_number": "...", "name_bn": "..."}
 
 
 @dataclass
@@ -53,8 +54,9 @@ def evaluate(cases: list[EvaluationCase], recogniser) -> EvaluationResult:
             if str(recognised.get(field, "")).strip() == expected.strip():
                 hits += 1
                 result.field_hits += 1
-        result.per_case.append({"case_id": case.case_id, "hits": hits,
-                                "total": len(case.expected_fields)})
+        result.per_case.append(
+            {"case_id": case.case_id, "hits": hits, "total": len(case.expected_fields)}
+        )
     return result
 
 
@@ -65,13 +67,26 @@ def dry_run_recogniser(image_path: str) -> dict[str, str]:
 
 def main() -> None:
     corpus = Path(__file__).resolve().parents[1] / "evaluation" / "corpus.json"
-    cases = [EvaluationCase(c["case_id"], c["image"], c["expected"])
-             for c in json.loads(corpus.read_text(encoding="utf-8"))] if corpus.exists() else []
+    cases = (
+        [
+            EvaluationCase(c["case_id"], c["image"], c["expected"])
+            for c in json.loads(corpus.read_text(encoding="utf-8"))
+        ]
+        if corpus.exists()
+        else []
+    )
     result = evaluate(cases, dry_run_recogniser)
-    print(json.dumps({"cases": result.cases,
-                      "field_accuracy": result.field_accuracy,
-                      "note": "dry-run recogniser — the labelled corpus and the INT-044 engine land with the sandbox"},
-                     ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "cases": result.cases,
+                "field_accuracy": result.field_accuracy,
+                "note": "dry-run recogniser — the labelled corpus and the INT-044 engine land with the sandbox",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

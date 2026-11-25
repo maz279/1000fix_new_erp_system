@@ -4,7 +4,7 @@
   Every role maps to a Keycloak realm role, has assigned data isolation tiers,
   and is subject to negative permission testing (DoD-07).
 -->
-<odoo noupdate="1">
+<odoo>
 
     <!-- Executive & Management (R-01 .. R-05) -->
     <record id="role_r01" model="fix.role">
@@ -49,6 +49,21 @@
         <field name="name_bn">অপারেশনস পরিচালক</field>
         <field name="keycloak_role">R-05</field>
         <field name="description">Operational executive, nationwide service network authority.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <!-- R-54 Chief Operating Officer (2026-11-10): the C-suite title the
+         organisation actually staffs (the COO sits in the employee master
+         as "Chief Operating Officer"); added by business decision to the
+         register after the Role Center engagement found R-05 was the
+         nearest approximation. Group-mapped identically to R-05 (the
+         reviewed baseline); SoD pairs referencing R-05 apply unchanged. -->
+    <record id="role_r54" model="fix.role">
+        <field name="code">R-54</field>
+        <field name="name">Chief Operating Officer</field>
+        <field name="name_bn">প্রধান পরিচালনা কর্মকর্তা</field>
+        <field name="keycloak_role">R-54</field>
+        <field name="description">Chief operating executive — the CEO-suite oversight center (P03 R-EX).</field>
         <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
     </record>
 

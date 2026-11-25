@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 audit (2026-11-03) M46-2/3: the M46 dispatch-gate switches, created
+     with the deploy-safe defaults so the business can see and change them
+     (Settings > Technical > System Parameters). noupdate: an upgrade never
+     resets a value the business has chosen. -->
+<odoo noupdate="1">
+    <record id="param_mandatory_document_types" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.mandatory_document_types</field>
+        <field name="value">fitness,insurance,tax</field>
+    </record>
+    <record id="param_require_passed_preuse_check" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_passed_preuse_check</field>
+        <field name="value">False</field>
+    </record>
+    <!-- A07 P0 recipe M46-9 (FR-FLT-034): a fill above this many litres is held
+         for review. A fleet-wide default the business must confirm. -->
+    <record id="param_fuel_tank_capacity_litres" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fuel_tank_capacity_litres</field>
+        <field name="value">100</field>
+    </record>
+    <!-- A07 P1 (2026-11-04). Every value below is a default the business
+         must confirm (decision B2): the spec gives no number for any of them. -->
+    <!-- FR-FLT-009 / AC-21: a document counts only with its evidence scan. -->
+    <record id="param_require_document_evidence" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_document_evidence</field>
+        <field name="value">True</field>
+    </record>
+    <!-- The documents recorded before the evidence rule (the live register,
+         none scanned) keep counting until scanned. Turn off once every
+         current certificate carries its scan. -->
+    <record id="param_legacy_documents_count_valid" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.legacy_documents_count_valid</field>
+        <field name="value">True</field>
+    </record>
+    <!-- FR-FLT-011 / AUT-FLT-01 and AUT-FLT-04: alert days before expiry. -->
+    <record id="param_document_alert_days" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.document_alert_days</field>
+        <field name="value">60,30,15,7,1</field>
+    </record>
+    <record id="param_licence_alert_days" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.licence_alert_days</field>
+        <field name="value">60,30,15</field>
+    </record>
+    <!-- BRU-FLT-05: a licence class not recorded in BRTA terms blocks
+         dispatch. Off: live drivers record "professional" or nothing. A
+         recorded class that does not cover the vehicle always blocks. -->
+    <record id="param_require_licence_class" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_licence_class</field>
+        <field name="value">False</field>
+    </record>
+    <!-- FR-FLT-034 / BRU-FLT-10: the km per litre no vehicle in the fleet
+         exceeds. A fill whose distance since the previous accepted fill is
+         more than a full tank at this rate (tank capacity x this) is held
+         for review: a fill is missing or the odometer is wrong. -->
+    <record id="param_fuel_max_km_per_litre" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fuel_max_km_per_litre</field>
+        <field name="value">60</field>
+    </record>
+    <!-- BRU-FLT-08: every fuel transaction carries its receipt scan. Off: live
+         fills carry none, and not every pump gives one. A business decision. -->
+    <record id="param_require_fuel_receipt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_fuel_receipt</field>
+        <field name="value">False</field>
+    </record>
+    <!-- FR-FLT-036 / BRU-FLT-19: minutes without a ping before a device is
+         silent (stale) and its vehicle position-unknown. -->
+    <record id="param_telematics_silence_minutes" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.telematics_silence_minutes</field>
+        <field name="value">60</field>
+    </record>
+    <!-- FR-FLT-026 / BRU-FLT-11: the overdue tolerance, and whether beyond it
+         the vehicle goes off-road (off: live PM jobs have no due date yet). -->
+    <record id="param_pm_overdue_tolerance_days" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.pm_overdue_tolerance_days</field>
+        <field name="value">0</field>
+    </record>
+    <record id="param_pm_overdue_tolerance_km" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.pm_overdue_tolerance_km</field>
+        <field name="value">0</field>
+    </record>
+    <record id="param_pm_overdue_takes_offroad" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.pm_overdue_takes_offroad</field>
+        <field name="value">False</field>
+    </record>
+    <!-- A07 ERP audit (2026-11-20) M46-14, owner decision D11: a traffic fine's
+         recover-or-absorb decision: up to this amount the Logistics Manager,
+         up to the next the Operations Director (DOFA Tier 3), above it the CFO. -->
+    <record id="param_fine_decision_lm_limit_bdt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fine_decision_lm_limit_bdt</field>
+        <field name="value">10000</field>
+    </record>
+    <record id="param_fine_decision_director_limit_bdt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fine_decision_director_limit_bdt</field>
+        <field name="value">50000</field>
+    </record>
+    <!-- M46-25: commissioning a registered vehicle needs a fitted telematics
+         device. Off: no business decision yet. -->
+    <record id="param_commission_requires_telematics" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.commission_requires_telematics</field>
+        <field name="value">False</field>
+    </record>
+</odoo>

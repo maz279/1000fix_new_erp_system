@@ -1,0 +1,355 @@
+{
+  "$schema": "1000fix-erp/service-transition/1",
+  "standard": "SV-001 / SV-002 / SV-004 / ISO/IEC 20000-1:2018 / ITIL 4",
+  "milestone": "R11-M04",
+  "task": "R11-M04-T04",
+  "tool": "tooling/scripts/execute_service_transition.py",
+  "measured_at": "2026-10-22T14:34:46.029707+00:00",
+  "handover_verdict": "FAIL",
+  "summary": {
+    "pass": 6,
+    "fail": 1,
+    "unmeasured": 10
+  },
+  "checks": [
+    {
+      "id": "SV001_P1_CRITICAL_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P1_Critical",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 15 min",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P1_CRITICAL_TARGET_RESOLUTION_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P1_Critical",
+      "metric": "Target Resolution Time",
+      "contract_target": "<= 4 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P2_MAJOR_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P2_Major",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 30 min",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P2_MAJOR_TARGET_RESOLUTION_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P2_Major",
+      "metric": "Target Resolution Time",
+      "contract_target": "<= 8 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P3_MODERATE_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P3_Moderate",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 2 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P4_MINOR_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P4_Minor",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 4 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_GLOBAL_SYSTEM_AVAILABILITY",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "Global",
+      "metric": "System Availability (Uptime)",
+      "contract_target": ">= 99.90%",
+      "measured_actual": null
+    },
+    {
+      "id": "SV004_ROTA_DOCUMENTED",
+      "status": "FAIL",
+      "detail": "SV-004-hypercare-operating-manual.md missing"
+    },
+    {
+      "id": "SV004_ROTA_ACCEPTED",
+      "status": "UNMEASURED",
+      "detail": "requires the paging configuration and each BAU lead's acceptance of the rota"
+    },
+    {
+      "id": "CUSTODY_RUNBOOK_INDEX",
+      "status": "PASS",
+      "detail": "70/70 indexed module runbooks present",
+      "asset": "Module operational runbooks",
+      "runbooks_indexed": 70,
+      "runbooks_present": 70,
+      "identifier": "docs/runbooks/master-runbook-index.json",
+      "recipient": "ITSM Knowledge Base (M66)"
+    },
+    {
+      "id": "CUSTODY_RB53",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-53-production-cutover-master-runbook.md present",
+      "asset": "Master Cutover Runbook",
+      "identifier": "docs/runbooks/RB-53-production-cutover-master-runbook.md",
+      "recipient": "SRE Documentation Repository"
+    },
+    {
+      "id": "CUSTODY_RB51",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-51-branch-rollout-runbook.md present",
+      "asset": "Branch Rollout Runbook",
+      "identifier": "docs/runbooks/RB-51-branch-rollout-runbook.md",
+      "recipient": "Field Operations Management"
+    },
+    {
+      "id": "CUSTODY_RB52",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-52-dr-disaster-recovery-and-cutover.md present",
+      "asset": "Disaster Recovery & Failover Manual",
+      "identifier": "docs/runbooks/RB-52-dr-disaster-recovery-and-cutover.md",
+      "recipient": "Principal DBA & DR Lead"
+    },
+    {
+      "id": "CUSTODY_DOCTOR",
+      "status": "PASS",
+      "detail": "tooling/scripts/doctor.ps1 present",
+      "asset": "Doctor Health Diagnostic Harness",
+      "identifier": "tooling/scripts/doctor.ps1",
+      "recipient": "ITSM Level-2 Support Desk"
+    },
+    {
+      "id": "CUSTODY_ALERT_RULES",
+      "status": "PASS",
+      "detail": "infra/observability/prometheus/fix-alerts.yml present",
+      "asset": "Prometheus Alert Rules",
+      "identifier": "infra/observability/prometheus/fix-alerts.yml",
+      "recipient": "SOC / NOC Operations Team"
+    },
+    {
+      "id": "CUSTODY_ACCEPTED",
+      "status": "UNMEASURED",
+      "detail": "requires each recipient's acknowledgement of operational custody"
+    },
+    {
+      "id": "HANDOVER_SIGNATURES",
+      "status": "UNMEASURED",
+      "detail": "requires named human signatures; none has been recorded"
+    }
+  ],
+  "sla_performance": [
+    {
+      "id": "SV001_P1_CRITICAL_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P1_Critical",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 15 min",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P1_CRITICAL_TARGET_RESOLUTION_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P1_Critical",
+      "metric": "Target Resolution Time",
+      "contract_target": "<= 4 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P2_MAJOR_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P2_Major",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 30 min",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P2_MAJOR_TARGET_RESOLUTION_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P2_Major",
+      "metric": "Target Resolution Time",
+      "contract_target": "<= 8 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P3_MODERATE_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P3_Moderate",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 2 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_P4_MINOR_TARGET_ACK_TIME",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "P4_Minor",
+      "metric": "Target Ack Time",
+      "contract_target": "<= 4 hours",
+      "measured_actual": null
+    },
+    {
+      "id": "SV001_GLOBAL_SYSTEM_AVAILABILITY",
+      "status": "UNMEASURED",
+      "detail": "requires production ITSM incident records / availability monitoring for the measurement window; none are available to this tool",
+      "severity": "Global",
+      "metric": "System Availability (Uptime)",
+      "contract_target": ">= 99.90%",
+      "measured_actual": null
+    }
+  ],
+  "permanent_on_call_rota": [
+    {
+      "division": "Dhaka Central",
+      "bau_lead": "Tanvir Ahmed",
+      "role": "Senior Infrastructure Lead",
+      "hub": "Motijheel Flagship Hub",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Dhaka North & Suburbs",
+      "bau_lead": "Mahfuzur Rahman",
+      "role": "Systems Administrator",
+      "hub": "Uttara Diagnostic Centre",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Chattogram",
+      "bau_lead": "Farzana Yasmin",
+      "role": "Regional Service Lead",
+      "hub": "Agrabad Commercial Centre",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Rajshahi",
+      "bau_lead": "Shahriar Kabir",
+      "role": "Field Support Engineer",
+      "hub": "Shaheb Bazar Service Hub",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Khulna",
+      "bau_lead": "Masud Rana",
+      "role": "Regional Operations Engineer",
+      "hub": "Shib Bari Service Centre",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Barisal",
+      "bau_lead": "Nusrat Jahan",
+      "role": "Support Specialist",
+      "hub": "Sadar Road Centre",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Sylhet",
+      "bau_lead": "Rezwanul Hoque",
+      "role": "Service Operations Lead",
+      "hub": "Zindabazar Regional Bay",
+      "shift": "24/7 Primary"
+    },
+    {
+      "division": "Rangpur & Mymensingh",
+      "bau_lead": "Kamrul Islam",
+      "role": "Field Network Engineer",
+      "hub": "Station Road Service Bay",
+      "shift": "24/7 Primary"
+    }
+  ],
+  "operational_asset_custody": [
+    {
+      "id": "CUSTODY_RUNBOOK_INDEX",
+      "status": "PASS",
+      "detail": "70/70 indexed module runbooks present",
+      "asset": "Module operational runbooks",
+      "runbooks_indexed": 70,
+      "runbooks_present": 70,
+      "identifier": "docs/runbooks/master-runbook-index.json",
+      "recipient": "ITSM Knowledge Base (M66)"
+    },
+    {
+      "id": "CUSTODY_RB53",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-53-production-cutover-master-runbook.md present",
+      "asset": "Master Cutover Runbook",
+      "identifier": "docs/runbooks/RB-53-production-cutover-master-runbook.md",
+      "recipient": "SRE Documentation Repository"
+    },
+    {
+      "id": "CUSTODY_RB51",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-51-branch-rollout-runbook.md present",
+      "asset": "Branch Rollout Runbook",
+      "identifier": "docs/runbooks/RB-51-branch-rollout-runbook.md",
+      "recipient": "Field Operations Management"
+    },
+    {
+      "id": "CUSTODY_RB52",
+      "status": "PASS",
+      "detail": "docs/runbooks/RB-52-dr-disaster-recovery-and-cutover.md present",
+      "asset": "Disaster Recovery & Failover Manual",
+      "identifier": "docs/runbooks/RB-52-dr-disaster-recovery-and-cutover.md",
+      "recipient": "Principal DBA & DR Lead"
+    },
+    {
+      "id": "CUSTODY_DOCTOR",
+      "status": "PASS",
+      "detail": "tooling/scripts/doctor.ps1 present",
+      "asset": "Doctor Health Diagnostic Harness",
+      "identifier": "tooling/scripts/doctor.ps1",
+      "recipient": "ITSM Level-2 Support Desk"
+    },
+    {
+      "id": "CUSTODY_ALERT_RULES",
+      "status": "PASS",
+      "detail": "infra/observability/prometheus/fix-alerts.yml present",
+      "asset": "Prometheus Alert Rules",
+      "identifier": "infra/observability/prometheus/fix-alerts.yml",
+      "recipient": "SOC / NOC Operations Team"
+    },
+    {
+      "id": "CUSTODY_ACCEPTED",
+      "status": "UNMEASURED",
+      "detail": "requires each recipient's acknowledgement of operational custody"
+    }
+  ],
+  "signatories": [
+    {
+      "role": "Head of IT Service Management (ITSM)",
+      "designated_name": "Anisur Rahman",
+      "entity": "1000FiX Services Limited",
+      "signed": null
+    },
+    {
+      "role": "Head of Customer Care & Contact Centre",
+      "designated_name": "Shabnam Mustari",
+      "entity": "1000FiX Services Limited",
+      "signed": null
+    },
+    {
+      "role": "Service Delivery Director",
+      "designated_name": "Khandaker Farhad",
+      "entity": "1000FiX Services Limited",
+      "signed": null
+    },
+    {
+      "role": "Outgoing Programme Director",
+      "designated_name": "Syed Tarique Hasan",
+      "entity": "Enterprise Solutions International Ltd",
+      "signed": null
+    }
+  ]
+}

@@ -10,6 +10,7 @@ visitor pulls before interactivity). Usage:
 Exit 0 within budget (prints the measured KB); exit 1 over budget or when
 no build output exists (run `npm run build` first).
 """
+
 from __future__ import annotations
 
 import gzip
@@ -49,8 +50,10 @@ def main() -> int:
     total += html_bytes
     kb = total / 1024
     verdict = "OK" if kb <= budget_kb else "OVER BUDGET"
-    print(f"bundle-budget: {verdict} — {kb:.0f} KB gz across {files} files "
-          f"(budget {budget_kb:.0f} KB; JS+CSS chunks{' + route HTML' if html_bytes else ''})")
+    print(
+        f"bundle-budget: {verdict} — {kb:.0f} KB gz across {files} files "
+        f"(budget {budget_kb:.0f} KB; JS+CSS chunks{' + route HTML' if html_bytes else ''})"
+    )
     return 0 if kb <= budget_kb else 1
 
 

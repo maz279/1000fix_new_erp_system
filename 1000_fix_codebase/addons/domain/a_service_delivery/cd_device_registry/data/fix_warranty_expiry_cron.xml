@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 audit B4: nothing ever set a warranty to 'expired'. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_warranty_expiry" model="ir.cron">
+            <field name="name">M17: expire warranties past their end date</field>
+            <field name="model_id" ref="model_fix_warranty"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire_warranties()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

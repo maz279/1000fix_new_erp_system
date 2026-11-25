@@ -14,8 +14,9 @@ class FixWarehouse(models.Model):
     _description = "Warehouse"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
     name = fields.Char(required=True)
     code = fields.Char(required=True, size=8)
@@ -24,7 +25,9 @@ class FixWarehouse(models.Model):
     active = fields.Boolean(default=True)
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_company_unique = models.Constraint('UNIQUE (code, company_id)', 'Warehouse code must be unique per company')
+    _code_company_unique = models.Constraint(
+        "UNIQUE (code, company_id)", "Warehouse code must be unique per company"
+    )
 
 
 class FixWarehouseZone(models.Model):
@@ -44,16 +47,28 @@ class FixWarehouseZone(models.Model):
     name = fields.Char(required=True)
     code = fields.Char(required=True, size=8)
     zone_type = fields.Selection(
-        [("receiving", "Receiving"), ("inspection", "Quality Inspection"),
-         ("quarantine", "Quarantine / Blocked"), ("storage", "Main Storage"),
-         ("dispatch", "Dispatch"), ("returns", "Returns")],
-        required=True, default="storage")
-    reservable = fields.Boolean(compute="_compute_reservable", store=True,
-                                help="False for quarantine/blocked zones — BRU-INV-08")
+        [
+            ("receiving", "Receiving"),
+            ("inspection", "Quality Inspection"),
+            ("quarantine", "Quarantine / Blocked"),
+            ("storage", "Main Storage"),
+            ("dispatch", "Dispatch"),
+            ("returns", "Returns"),
+        ],
+        required=True,
+        default="storage",
+    )
+    reservable = fields.Boolean(
+        compute="_compute_reservable",
+        store=True,
+        help="False for quarantine/blocked zones — BRU-INV-08",
+    )
     bin_ids = fields.One2many("fix.warehouse.bin", "zone_id", string="Bins")
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_warehouse_unique = models.Constraint('UNIQUE (code, warehouse_id)', 'Zone code must be unique within the warehouse')
+    _code_warehouse_unique = models.Constraint(
+        "UNIQUE (code, warehouse_id)", "Zone code must be unique within the warehouse"
+    )
 
     @api.depends("zone_type")
     def _compute_reservable(self):
@@ -71,8 +86,30 @@ class FixWarehouseBin(models.Model):
     zone_id = fields.Many2one("fix.warehouse.zone", required=True, ondelete="cascade")
     name = fields.Char(required=True)
     barcode = fields.Char(index=True, help="RF-scannable bin barcode")
-    capacity_qty = fields.Float(default=0.0,
-                                help="0 = unconstrained bin")
+    capacity_qty = fields.Float(default=0.0, help="0 = unconstrained bin")
+    # BRU-WMS-11 (A06 audit M41-6): hazardous items (lithium batteries) go
+    # only into bins of the hazardous storage class; put-away enforces it.
+    storage_class = fields.Selection(
+        [("general", "General"), ("hazardous", "Hazardous (Li-ion / chemical)")],
+        string="Storage Class",
+        required=True,
+        default="general",
+    )
+    # BRU-WMS-03 (A06 audit M41-6): a bin may be dedicated to one ownership
+    # class (brand consignment kept apart from owned stock); put-away enforces it.
+    ownership_class = fields.Selection(
+        [
+            ("any", "Any Class"),
+            ("owned", "Owned Stock"),
+            ("consignment", "Supplier Consignment"),
+            ("customer", "Customer Property"),
+            ("bench", "Bench / WIP"),
+            ("warranty", "Warranty Reserve"),
+        ],
+        string="Ownership Class",
+        required=True,
+        default="any",
+    )
 
     @api.constrains("capacity_qty")
     def _check_capacity(self):

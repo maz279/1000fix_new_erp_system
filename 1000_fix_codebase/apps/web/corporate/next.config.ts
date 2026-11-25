@@ -12,6 +12,9 @@ import path from "node:path";
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // R01 re-audit 2026-10-22: standalone server for the portal Docker image
+  // (next start works locally, but the image ships .next/standalone only).
+  output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../.."),
   // EP-12: loopback-only in dev; production origins come from env at deploy.
   async headers() {

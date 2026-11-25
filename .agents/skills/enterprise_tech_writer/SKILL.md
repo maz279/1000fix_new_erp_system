@@ -84,4 +84,3 @@ When authoring a User Requirements Document (URD) or Stakeholder Requirements Sp
 3.  **Atomic User Requirements (`UR-X.X`):** Define user stories with RFC 2119 constraints and Gherkin BDD acceptance criteria scenarios (`Given / When / Then`).
 4.  **Ergonomics & Accessibility:** Benchmark against Nielsen Norman 10 Usability Heuristics, WCAG 2.1 Level AA accessibility standards, and bilingual localization (English & Bangla).
 5.  **User Traceability Matrix (U-RTM):** Maintain 100% bi-directional mapping from `UR-X.X` to `BR-X.X`, `REQ-X.X`, `FRS.X.X.X`, and primary persona.
-

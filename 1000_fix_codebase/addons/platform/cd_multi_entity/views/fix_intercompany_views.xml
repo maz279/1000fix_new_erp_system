@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- fix.intercompany.rule list view -->
+    <record id="view_fix_intercompany_rule_tree" model="ir.ui.view">
+        <field name="name">fix.intercompany.rule.tree</field>
+        <field name="model">fix.intercompany.rule</field>
+        <field name="arch" type="xml">
+            <list string="Inter-Company Rules">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="scope"/>
+                <field name="source_entity_id"/>
+                <field name="target_entity_id"/>
+                <field name="source_branch_id" optional="show"/>
+                <field name="target_branch_id" optional="show"/>
+                <field name="transaction_type"/>
+                <field name="markup_percent"/>
+                <field name="transfer_pricing_compliant"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- fix.intercompany.rule form view -->
+    <record id="view_fix_intercompany_rule_form" model="ir.ui.view">
+        <field name="name">fix.intercompany.rule.form</field>
+        <field name="model">fix.intercompany.rule</field>
+        <field name="arch" type="xml">
+            <form string="Inter-Company Rule">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Rule Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="scope"/>
+                            <field name="source_entity_id"/>
+                            <field name="target_entity_id"/>
+                            <field name="source_branch_id" invisible="scope != 'interbranch'"
+                                   required="scope == 'interbranch'"/>
+                            <field name="target_branch_id" invisible="scope != 'interbranch'"
+                                   required="scope == 'interbranch'"/>
+                            <field name="transaction_type"/>
+                        </group>
+                        <group>
+                            <field name="auto_mirror"/>
+                            <field name="markup_percent"/>
+                            <field name="transfer_pricing_compliant"/>
+                            <field name="documentation_ref"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Supplying Side">
+                            <field name="source_journal_id"/>
+                            <field name="source_receivable_account_id"/>
+                            <field name="source_income_account_id"/>
+                        </group>
+                        <group string="Receiving Side">
+                            <field name="target_journal_id" invisible="scope == 'interbranch'"/>
+                            <field name="target_expense_account_id"/>
+                            <field name="target_payable_account_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- fix.intercompany.transaction list view -->
+    <record id="view_fix_intercompany_transaction_tree" model="ir.ui.view">
+        <field name="name">fix.intercompany.transaction.tree</field>
+        <field name="model">fix.intercompany.transaction</field>
+        <field name="arch" type="xml">
+            <list string="Inter-Company Transactions">
+                <field name="reference"/>
+                <field name="name"/>
+                <field name="scope"/>
+                <field name="source_entity_id"/>
+                <field name="target_entity_id"/>
+                <field name="transaction_date"/>
+                <field name="amount"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="mirror_invoice_ref"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- fix.intercompany.transaction form view -->
+    <record id="view_fix_intercompany_transaction_form" model="ir.ui.view">
+        <field name="name">fix.intercompany.transaction.form</field>
+        <field name="model">fix.intercompany.transaction</field>
+        <field name="arch" type="xml">
+            <form string="Inter-Company Transaction">
+                <header>
+                    <button name="action_generate_mirror" type="object" string="Post Entries &amp; Mirror"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_match" type="object" string="Match Against Ledger"
+                            invisible="state not in ('pending_matching', 'disputed')" class="btn-primary"/>
+                    <button name="action_mark_settled" type="object" string="Mark Settled"
+                            invisible="state != 'matched'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,pending_matching,matched,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="reference" readonly="state != 'draft'"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" readonly="state != 'draft'"/>
+                            <field name="rule_id" readonly="state != 'draft'"/>
+                            <field name="scope"/>
+                            <field name="source_entity_id" readonly="state != 'draft'"/>
+                            <field name="target_entity_id" readonly="state != 'draft'"/>
+                            <field name="source_branch_id" invisible="scope != 'interbranch'" readonly="state != 'draft'"/>
+                            <field name="target_branch_id" invisible="scope != 'interbranch'" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="transaction_date" readonly="state != 'draft'"/>
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="currency_id" readonly="state != 'draft'"/>
+                            <field name="source_move_id"/>
+                            <field name="target_move_id"/>
+                            <field name="mirror_invoice_ref"/>
+                            <field name="matched_date"/>
+                            <field name="match_difference"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_fix_intercompany_rule" model="ir.actions.act_window">
+        <field name="name">Inter-Company Rules</field>
+        <field name="res_model">fix.intercompany.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_intercompany_transaction" model="ir.actions.act_window">
+        <field name="name">Inter-Company Transactions</field>
+        <field name="res_model">fix.intercompany.transaction</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_fix_intercompany_root" name="Inter-Company Operations" parent="cd_entity_config.menu_fix_entity_root" sequence="60"/>
+    <menuitem id="menu_fix_intercompany_rule" name="Inter-Company Rules" parent="menu_fix_intercompany_root" action="action_fix_intercompany_rule" sequence="10"/>
+    <menuitem id="menu_fix_intercompany_transaction" name="Inter-Company Transactions" parent="menu_fix_intercompany_root" action="action_fix_intercompany_transaction" sequence="20"/>
+</odoo>

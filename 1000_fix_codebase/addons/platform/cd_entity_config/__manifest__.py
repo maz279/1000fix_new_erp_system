@@ -19,19 +19,30 @@ Owns:
 
 CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",
     "category": "Platform/Administration",
     "depends": [
+        "hr",
         "base",
         "mail",
         "operating_unit",
     ],
     "data": [
+        "data/fix_dofa_ladder_data.xml",
+        "data/platform_ops_sequences.xml",
+        "security/fix_isolation_rules.xml",
         "security/cd_entity_config_security.xml",
+        "security/cd_dofa_security.xml",
+        # A12: platform/MDM roles first so the ACL rows can reference them.
+        "security/fix_platform_a12_groups.xml",
         "security/ir.model.access.csv",
+        "data/platform_ops2_sequences.xml",
+        "data/platform_ops3_sequences.xml",
+        "data/platform_ops4_data.xml",
+        "data/fix_a12_crons.xml",
         "views/fix_portal_shell_views.xml",
         "views/fix_entity_views.xml",
         "views/fix_branch_views.xml",
@@ -39,12 +50,12 @@ CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
         "views/fix_working_calendar_views.xml",
         "views/fix_feature_flag_views.xml",
         "views/fix_admin_extra_views.xml",
+        "data/main_company_bd.xml",
     ],
     "demo": [],
     "installable": True,
     "application": False,
     "auto_install": False,
-
     # --- 1000FiX mandatory keys (AR-007 section 3.2, FF-16 validated) --------
     "x_cd_id": "CD-M30-01",
     "x_module_id": "M30",

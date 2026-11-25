@@ -1,4 +1,75 @@
 /** @odoo-module **/
+import * as A08_M19 from "./a08/m19";
+import * as A08_M20 from "./a08/m20";
+import * as A08_M52 from "./a08/m52";
+import * as A08_M50 from "./a08/m50";
+import * as A08_M51 from "./a08/m51";
+import * as A08_M53 from "./a08/m53";
+import * as A08_M49 from "./a08/m49";
+import * as A08_M54 from "./a08/m54";
+import * as A09_M21 from "./a09/m21";
+import * as A09_M55 from "./a09/m55";
+import * as A09_M56 from "./a09/m56";
+import * as A09_M57 from "./a09/m57";
+import * as A09_M22 from "./a09/m22";
+import * as A09_M58 from "./a09/m58";
+import * as A09_M59 from "./a09/m59";
+import * as A10_M23 from "./a10/m23";
+import * as A10_M60 from "./a10/m60";
+import * as A10_M24 from "./a10/m24";
+import * as A10_M61 from "./a10/m61";
+import * as A02_M01 from "./a02/m01";
+import * as A02_M02 from "./a02/m02";
+import * as A02_M03 from "./a02/m03";
+import * as A02_M04 from "./a02/m04";
+import * as A02_M05 from "./a02/m05";
+import * as A02_M06 from "./a02/m06";
+import * as A02_M31 from "./a02/m31";
+import * as A03_M07 from "./a03/m07";
+import * as A03_M10 from "./a03/m10";
+import * as A03_M27 from "./a03/m27";
+import * as A03_M32 from "./a03/m32";
+import * as A03_M35 from "./a03/m35";
+import * as A04_M11 from "./a04/m11";
+import * as A04_M08 from "./a04/m08";
+import * as A04_M12 from "./a04/m12";
+import * as A04_M09 from "./a04/m09";
+import * as A04_M36 from "./a04/m36";
+import * as A04_M37 from "./a04/m37";
+import * as A04_M38 from "./a04/m38";
+import * as A04_M39 from "./a04/m39";
+import * as A04_M40 from "./a04/m40";
+import * as A05_M13 from "./a05/m13";
+import * as A05_M14 from "./a05/m14";
+import * as A05_M18 from "./a05/m18";
+import * as A06_M15 from "./a06/m15";
+import * as A06_M16 from "./a06/m16";
+import * as A06_M42 from "./a06/m42";
+import * as A06_M43 from "./a06/m43";
+import * as A06_M44 from "./a06/m44";
+import * as A07_M17 from "./a07/m17";
+import * as A07_M45 from "./a07/m45";
+import * as A07_M46 from "./a07/m46";
+import * as A07_M47 from "./a07/m47";
+import * as A07_M48 from "./a07/m48";
+import * as A06_M41 from "./a06/m41";
+import * as A03_M33 from "./a03/m33";
+import * as A03_M34 from "./a03/m34";
+// BISECT-A (re-enabled 2026-10-27, M25 v2 re-audit): the A11 fragments were
+// commented out during an incident bisect, leaving the stale inline M25/M26
+// stubs live (4 screens vs 13 registry). The fragments are the single source
+// again, exactly like A02/A03/A08.
+import * as A11_M25 from "./a11/m25";
+import * as A11_M26 from "./a11/m26";
+import * as A11_M62 from "./a11/m62";
+import * as A11_M63 from "./a11/m63";
+import * as A12_M28 from "./a12/m28";
+import * as A12_M29 from "./a12/m29";
+import * as A12_M30 from "./a12/m30";
+import * as A12_M64 from "./a12/m64";
+import * as A12_M65 from "./a12/m65";
+import * as A12_M66 from "./a12/m66";
+import * as A12_M67 from "./a12/m67";
 
 /* =====================================================================
  * 1000 FiX ERP — Complete 67-Module Metadata & Data Schema Dictionary
@@ -25,20 +96,21 @@ export const P03_AREAS = [
  * Tailored for 150–250 back-office and branch staff across Bangladesh.
  * ===================================================================== */
 export const P03_ROLES = [
+  { id: 'executive', code: 'R-EX', en: 'Executive Oversight', bn: 'নির্বাহী তদারকি', icon: '👔', desc: 'CEO/COO/CSO oversight: company-wide orders, SLA exposure, revenue, headcount and branch network.' },
   { id: 'service_intake', code: 'R08', en: 'Service Intake Counter', bn: 'সার্ভিস ইনটেক কাউন্টার', icon: '📥', desc: 'Walk-in customer token queue, rapid intake registration (<3 min), and device check-in.' },
   { id: 'dispatch_manager', code: 'R07', en: 'Dispatch & Live Map', bn: 'ডিসপ্যাচ ও লাইভ ম্যাপ', icon: '⚡', desc: 'Interactive GPS vector map, SLA risk countdowns, and automated field technician allocation.' },
   { id: 'branch_manager', code: 'R06', en: 'Branch Operations Console', bn: 'শাখা পরিচালনা কনসোল', icon: '🏢', desc: 'Own-branch daily intake, cash & bKash register, WIP ageing, and ready-for-collection shelf.' },
   { id: 'workshop_supervisor', code: 'R09', en: 'Workshop & Depot Repair', bn: 'ওয়ার্কশপ ও ডিপো মেরামত', icon: '🔧', desc: '8-station bench board, parts & estimate holds, QC inspection queue, and rework detection.' },
-  { id: 'field_technician', code: 'R09-F', en: 'Field Service Technician', bn: 'ফিল্ড সার্ভিস টেকনিশিয়ান', icon: '🛵', desc: 'Day queue, Dhaka Circle geofenced clock-in, van stock barcode scanning, and e-signatures.' },
+  { id: 'field_technician', code: 'R-12', en: 'Field Service Technician', bn: 'ফিল্ড সার্ভিস টেকনিশিয়ান', icon: '🛵', desc: 'Day queue, Dhaka Circle geofenced clock-in, van stock barcode scanning, and e-signatures.' },
   { id: 'inventory_keeper', code: 'R17', en: 'Inventory & Store Keeper', bn: 'ইনভেন্টরি ও স্টোর কিপার', icon: '📦', desc: 'Warehouse bin cards, stockout prevention, van replenishment, and RMA quarantine.' },
   { id: 'procurement_officer', code: 'R19', en: 'Procurement & Purchasing', bn: 'ক্রয় ও সংগ্রহ কর্মকর্তা', icon: '🛒', desc: 'Purchase orders, supplier lead times, buffer stock calculations, and landed cost reconciliation.' },
   { id: 'finance_officer', code: 'R26', en: 'Finance & Mushak 6.3', bn: 'অর্থ ও মূসক ৬.৩ চালান', icon: '💰', desc: 'Statutory Mushak 6.3 VAT tax invoices, NBR compliance, and collection reconciliation.' },
   { id: 'hr_payroll', code: 'R30', en: 'People & Workforce HR', bn: 'এইচআর ও কর্মী শিফট', icon: '👥', desc: 'Staff shifts, biometric attendance logs, field overtime, and skill certification matrix.' },
   { id: 'quality_auditor', code: 'R32', en: 'Quality & ISO 9001 Audit', bn: 'কোয়ালিটি ও আইএসও অডিট', icon: '🔬', desc: 'ISO 9001:2015 audit checklists, repeat-repair investigation, and equipment calibration.' },
-  { id: 'contact_centre_agent', code: 'R08-C', en: 'Contact Centre & Hotline', bn: 'হটলাইন ১৬৭৪৩ ও কন্টাক্ট সেন্টার', icon: '🎧', desc: 'Hotline 16743 queue, omnichannel customer chat, ticket resolution, and callback scheduling.' },
+  { id: 'contact_centre_agent', code: 'R-34', en: 'Contact Centre & Hotline', bn: 'হটলাইন ১৬৭৪৩ ও কন্টাক্ট সেন্টার', icon: '🎧', desc: 'Hotline 16743 queue, omnichannel customer chat, ticket resolution, and callback scheduling.' },
   { id: 'account_manager', code: 'R22', en: 'Corporate B2B & Contracts', bn: 'কর্পোরেট চুক্তি ও এএমসি', icon: '💼', desc: 'Enterprise client estates, SLA credit penalties, bulk service orders, and AMC billing.' },
   { id: 'marketplace_ops', code: 'R24', en: 'Marketplace & Vendor Ops', bn: 'মার্কেটপ্লেস ও বিক্রেতা', icon: '🛍️', desc: 'Verified parts merchant onboarding, escrow settlement, disputes, and parts catalogue sync.' },
-  { id: 'rider_logistics', code: 'R20', en: 'Rider & Logistics Fleet', bn: 'রাইডার ও লজিস্টিকস বহর', icon: '🚚', desc: 'Hub-to-hub manifests, pick-and-drop logistics, parcel transit fleet tracking.' },
+  { id: 'rider_logistics', code: 'R-16', en: 'Rider & Logistics Fleet', bn: 'রাইডার ও লজিস্টিকস বহর', icon: '🚚', desc: 'Hub-to-hub manifests, pick-and-drop logistics, parcel transit fleet tracking.' },
   { id: 'system_admin', code: 'R33', en: 'System & Security Admin', bn: 'সিস্টেম ও সিকিউরিটি অ্যাডমিন', icon: '🛡️', desc: 'RBAC permissions, immutable audit logs, server telemetry, and PDPA data residency.' }
 ];
 
@@ -409,23 +481,59 @@ export const P03_MODULES = {
     bn: 'গ্রাহক মাস্টার', icon: '🪪',
     desc: 'Single golden record for every party — roles, hierarchies, OTP verification, consent, segments, credit.',
     kpis: [
-      { l: 'Self-Bookings Today' },
-      { l: 'Online Estimate Approval' },
-      { l: 'bKash Self-Pay Share' }
+      { l: 'Active Customers' },
+      { l: 'Duplicate Rate' },
+      { l: 'Golden Coverage' },
+      { l: 'Consent Current' },
+      { l: 'Credit Holds' },
+      { l: 'New Today' }
     ],
     groups: [
       {
-        en: 'Portal Engagement',
+        en: 'Party Records',
         screens: [
-          { id: 'M33-bookings', en: 'Online Customer Bookings', bn: 'অনলাইন বুকিং', t: 'g' },
-          { id: 'M33-tracker', en: 'Real-time Tracking Simulator', bn: 'ট্র্যাকিং সিমুলেটর', t: 'd' }
+          { id: 'M33-directory', en: 'Party Directory', bn: 'পার্টি তালিকা', t: 'g' },
+          { id: 'M33-party', en: 'Party Record (roles)', bn: 'পার্টি নথি', t: 'f' },
+          { id: 'M33-360', en: 'Customer 360', bn: 'গ্রাহক ৩৬০', t: 'x' },
+          { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' }
+        ]
+      },
+      {
+        en: 'Identity & Verification',
+        screens: [
+          { id: 'M33-identity', en: 'Identity Documents (NID/BIN)', bn: 'পরিচয়পত্র', t: 'g' },
+          { id: 'M33-otp', en: 'OTP Verification Log', bn: 'ওটিপি যাচাই', t: 'g' },
+          { id: 'M33-approval', en: 'Registration Approvals', bn: 'নিবন্ধন অনুমোদন', t: 'c' }
+        ]
+      },
+      {
+        en: 'Data Quality',
+        screens: [
+          { id: 'M33-dedupe', en: 'Duplicate Detection', bn: 'সদৃশ শনাক্তকরণ', t: 'g' },
+          { id: 'M33-merge', en: 'Supervised Merge', bn: 'মার্জ তত্ত্বাবধান', t: 'c' },
+          { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'r' }
+        ]
+      },
+      {
+        en: 'Consent & Rights',
+        screens: [
+          { id: 'M33-consent', en: 'Consent Register', bn: 'সম্মতি রেজিস্টার', t: 'g' },
+          { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'c' }
+        ]
+      },
+      {
+        en: 'Segments & Credit',
+        screens: [
+          { id: 'M33-segments', en: 'Segments', bn: 'সেগমেন্ট', t: 'g' },
+          { id: 'M33-credit', en: 'Credit Profiles & Holds', bn: 'ক্রেডিট প্রোফাইল', t: 'g' },
+          { id: 'M33-status', en: 'Party Status Lifecycle', bn: 'পার্টি স্ট্যাটাস', t: 'g' }
         ]
       }
     ],
-    reports: ['Portal Drop-off Funnel', 'Customer Self-Service Adoption', 'Digital Payment Breakdown'],
-    forms: ['Public Booking Test Form'],
-    cross: ['M01 Service Orders', 'M35 Customer Self-Payment', 'P01 Public Web Portal'],
-    freg: { src: 84, sub: [['1', 'Online Booking Wizard', 12], ['2', 'OTP Customer Authentication', 8], ['3', 'bKash / Nagad Instant Pay', 10]] }
+    reports: ['Customer Growth by District', 'Data Quality Scorecard', 'Duplicate Merge Audit', 'Consent Coverage Report', 'Credit Exposure by Segment', 'Corporate Hierarchy Map'],
+    forms: ['Party (multi-role)', 'Address with GPS', 'Identity Document', 'Credit Profile', 'Merge Request'],
+    cross: ['Every module reads party', 'M07 CRM accounts', 'M20 credit control', 'P01 self-service profile', 'M29 record isolation'],
+    freg: { src: 100, sub: [['1', 'Party Record & Roles', 12], ['2', 'Classification', 7], ['3', 'Account Hierarchy', 8], ['4', 'Addresses (BD structure + GPS)', 7], ['5', 'Identity & OTP', 9], ['6', 'Registration Approval', 6], ['7', 'Deduplication & Merge', 11], ['8', 'Golden Record & Quality', 9], ['9', 'Consent & DSR', 13], ['10', 'Segments', 5], ['11', 'Credit Profile', 8], ['12', 'Status Lifecycle', 5]] }
   },
 
   M07: {
@@ -433,23 +541,52 @@ export const P03_MODULES = {
     bn: 'সিআরএম ও বিক্রয়', icon: '🎯',
     desc: 'Leads, opportunities, corporate account plans, QBRs, renewals T-90, cross-sell and win/loss.',
     kpis: [
-      { l: 'Active Customer Accounts' },
-      { l: 'Repeat Customer Rate' },
-      { l: 'Avg Customer Rating' }
+      { l: 'Weighted Pipeline' },
+      { l: 'Win Rate' },
+      { l: 'AMC Renewals T-90' },
+      { l: 'New Corp Logos YTD' },
+      { l: 'QBRs This Month' },
+      { l: 'Referral Leads' }
     ],
     groups: [
       {
-        en: 'Profiles & History',
+        en: 'Leads',
         screens: [
-          { id: 'M07-customers', en: 'Unified Customer Directory', bn: 'কাস্টমার ডিরেক্টরি', t: 'g' },
-          { id: 'M07-360', en: 'Customer 360 Degree View', bn: 'কাস্টমার ৩৬০ ভিউ', t: 'x' }
+          { id: 'M07-leads', en: 'Leads', bn: 'লিড', t: 'g' },
+          { id: 'M07-scoring', en: 'Scoring & Routing', bn: 'স্কোরিং ও রাউটিং', t: 'g' },
+          { id: 'M07-sources', en: 'Sources & Campaigns', bn: 'উৎস', t: 'r' }
+        ]
+      },
+      {
+        en: 'Pipeline',
+        screens: [
+          { id: 'M07-opps', en: 'Opportunities', bn: 'সুযোগ', t: 'g' },
+          { id: 'M07-kanban', en: 'Pipeline Kanban', bn: 'পাইপলাইন কানবান', t: 'd' },
+          { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'r' }
+        ]
+      },
+      {
+        en: 'Accounts',
+        screens: [
+          { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
+          { id: 'M07-plans', en: 'Account Plans', bn: 'অ্যাকাউন্ট প্ল্যান', t: 'g' },
+          { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর', t: 'c' },
+          { id: 'M07-activities', en: 'Activities & Visits', bn: 'কার্যক্রম', t: 'g' }
+        ]
+      },
+      {
+        en: 'Renewals & Growth',
+        screens: [
+          { id: 'M07-t90', en: 'T-90 Renewal Register', bn: 'নবায়ন রেজিস্টার', t: 'g' },
+          { id: 'M07-crosssell', en: 'Cross-Sell / Upsell', bn: 'ক্রস-সেল', t: 'g' },
+          { id: 'M07-winloss', en: 'Win/Loss Analysis', bn: 'জয়-পরাজয়', t: 'r' }
         ]
       }
     ],
-    reports: ['Customer Lifetime Value', 'Device Repair Frequency', 'Customer Retention Analysis'],
-    forms: ['Create Customer Profile', 'Merge Duplicate Accounts'],
-    cross: ['M01 Service Orders', 'M17 Device Registry', 'M34 Customer Feedback'],
-    freg: { src: 90, sub: [['1', 'Master Identity Resolution', 10], ['2', 'Customer Lifetime Audit', 8], ['3', 'Communication History', 9]] }
+    reports: ['Pipeline by Stream', 'Funnel Conversion', 'Win Rate by Source', 'Account Manager Scorecard', 'Renewal Risk Report', 'Cross-Sell Attach Rate'],
+    forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan'],
+    cross: ['M33 party master', 'M08 contract renewals', 'M35 marketing campaigns', 'M54 profitability by customer'],
+    freg: { src: 79, sub: [['1', 'Lead Capture & Qualification', 10], ['2', 'Opportunity Stages', 8], ['3', 'Pipeline & Forecasting', 9], ['4', 'Account Plans & Stakeholders', 8], ['5', 'Account-Manager Assignment', 7], ['6', 'QBR Programme', 9], ['7', 'Activities', 6], ['8', 'Renewal Pipeline', 9], ['9', 'Cross-Sell / Upsell', 7], ['10', 'Competitor Intelligence', 6]] }
   },
 
   M10: {
@@ -693,13 +830,46 @@ export const P03_MODULES = {
   M13: {
     area: 'A05', code: 'M13', en: 'Rental & EaaS', title: 'M13 · Rental & EaaS',
     bn: 'ভাড়া ও ইকুইপমেন্ট', icon: '🎥',
-    desc: '8 asset categories — fleet register, availability, agreements & deposits, damage recovery, utilisation.',
-    kpis: [{ l: 'E-Waste Recycled MTD' }],
-    groups: [
-      { en: 'Recycling', screens: [{ id: 'M13-intake', en: 'E-Waste Intake Registry', bn: 'ই-বর্জ্য ইনটেক রেজিস্ট্রি', t: 'g' }] }
+    desc: '8 asset categories — fleet register, real-time availability, kits and accessories, reservations, e-signed agreements, deposits, condition reports, damage recovery, turnaround and re-grade, utilisation and retirement.',
+    kpis: [
+      { l: 'Fleet Size', m: 'fleet_size' },
+      { l: 'Available Now', m: 'available_now' },
+      { l: 'Active Rentals', m: 'active_rentals' },
+      { l: 'Deposits Held', m: 'deposits_held', prefix: '৳' },
+      { l: 'Damage Open', m: 'damage_recovery_open' },
+      { l: 'Utilisation 30d', m: 'utilization_30d', suffix: '%' }
     ],
-    reports: ['RoHS Environmental Compliance Certificate'], forms: ['Log E-Waste Intake Form'], cross: ['M14 Refurbishment'],
-    freg: { src: 84, sub: [['1', 'Weighing & Hazardous Materials Log', 10], ['2', 'Certified Destruction Certificate', 8]] }
+    groups: [
+      { en: 'Fleet', screens: [
+        { id: 'M13-fleet', en: 'Fleet Register', bn: 'ফ্লিট রেজিস্টার', t: 'g' },
+        { id: 'M13-availability', en: 'Real-Time Availability', bn: 'রিয়েল-টাইম প্রাপ্যতা', t: 'd' },
+        { id: 'M13-kits', en: 'Kits & Accessories', bn: 'কিট ও এক্সেসরিজ', t: 'g' }
+      ]},
+      { en: 'Booking', screens: [
+        { id: 'M13-reservations', en: 'Reservations', bn: 'বুকিং রেজিস্ট্রি', t: 'g' },
+        { id: 'M13-agreements', en: 'Rental Agreements', bn: 'ভাড়া চুক্তিপত্র', t: 'f' },
+        { id: 'M13-deposits', en: 'Security Deposits', bn: 'জামানত খতিয়ান', t: 'g' }
+      ]},
+      { en: 'Lifecycle', screens: [
+        { id: 'M13-condition', en: 'Condition Reports', bn: 'কন্ডিশন রিপোর্ট', t: 'g' },
+        { id: 'M13-damage', en: 'Damage & Recovery', bn: 'ক্ষয়ক্ষতি ও পুনরুদ্ধার', t: 'g' },
+        { id: 'M13-turnaround', en: 'Turnaround & Re-Grade', bn: 'টার্নঅ্যারাউন্ড ও রি-গ্রেড', t: 'g' }
+      ]},
+      { en: 'Analytics', screens: [
+        { id: 'M13-utilisation', en: 'Utilisation Analytics', bn: 'ব্যবহার অ্যানালিটিক্স', t: 'r' },
+        { id: 'M13-retire', en: 'Fleet Health & Retirement', bn: 'ফ্লিট স্থায়িত্ব ও অবসর', t: 'r' }
+      ]}
+    ],
+    reports: ['Utilisation by Category', 'Damage & Loss Rate', 'Rental P&L', 'Late Return Analysis', 'Deposit Reconciliation', 'Real-Time Availability', 'Fleet Health & Retirement'],
+    forms: ['Reservation Cockpit', 'Rental Agreement (e-sign)', 'Condition Report', 'Damage Assessment & Recovery', 'Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Deposit Movement Ledger', 'Turnaround & Regrading'],
+    cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
+    freg: { src: 78, sub: [
+      ['1', 'Fleet Register', 9], ['2', 'Availability & Reservation', 12],
+      ['3', 'Agreements', 10], ['4', 'Deposits & Waivers', 8],
+      ['5', 'Condition & Damage', 10], ['6', 'Returns & Recovery', 8],
+      ['7', 'In-Rental Support', 7], ['8', 'Turnaround & PM', 7],
+      ['9', 'Analytics', 7]
+    ] }
   },
 
   M14: {
@@ -882,123 +1052,17 @@ export const P03_MODULES = {
   },
 
   /* ============ A08 · FINANCE & TREASURY =============================== */
-  M19: {
-    area: 'A08', code: 'M19', en: 'Financial Accounting & GL', title: 'M19 · Financial Accounting & GL',
-    bn: 'আর্থিক হিসাব', icon: '💰',
-    desc: 'Chart of accounts, 7-dimension model, subledger posting engine, July–June close, statutory statements.',
-    kpis: [
-      { l: 'Revenue MTD' },
-      { l: 'Operating Margin' }
-    ],
-    groups: [
-      {
-        en: 'General Ledger',
-        screens: [
-          { id: 'M19-journals', en: 'Journal Entries (Auto-Posted)', bn: 'জার্নাল এন্ট্রি', t: 'g' },
-          { id: 'M19-tb', en: 'Trial Balance & Financials', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' }
-        ]
-      }
-    ],
-    reports: ['Monthly Profit & Loss Statement', 'Balance Sheet Statement', 'Branch Profitability Report'],
-    forms: ['Create Manual Journal Entry'], cross: ['M20 Invoicing', 'M50 Accounts Payable'],
-    freg: { src: 118, sub: [['1', 'Automated Subledger Posting', 14], ['2', 'Financial Statement Generation', 12]] }
-  },
+  /* Rebuilt 2026-10-24 as a faithful mirror of contracts/nav/registry.json
+   * (the canonical A08 structure): full groups/screens/reports/forms/freg per
+   * module, cross-links that resolve to real module names. kpis carry an
+   * optional `m` metric key served by /p03/finance/kpis (real Odoo reads). */
 
-  M20: {
-    area: 'A08', code: 'M20', en: 'AR, Invoicing & Collections', title: 'M20 · AR, Invoicing & Collections',
-    bn: 'প্রাপ্য ও ইনভয়েসিং', icon: '🧾',
-    desc: 'Billable events from every module, Mushak 6.3 invoices, bKash/Nagad/card receipts, dunning, ageing.',
-    kpis: [
-      { l: 'Mushak 6.3 Invoices MTD' },
-      { l: 'VAT Collected (15%)' },
-      { l: 'NBR Compliant' }
-    ],
-    groups: [
-      {
-        en: 'Tax Invoices',
-        screens: [
-          { id: 'M20-invoices', en: 'All Mushak 6.3 Tax Invoices', bn: 'সকল মূসক ৬.৩ চালান', t: 'g' },
-          { id: 'M20-preview', en: 'Mushak 6.3 Invoice Printable', bn: 'চালান প্রিন্ট ভিউ', t: 'f' }
-        ]
-      }
-    ],
-    reports: ['Monthly NBR Mushak 9.1 VAT Return', 'Withholding Tax (VDS) Summary'],
-    forms: ['Generate Mushak 6.3 Invoice Form', 'Credit Note (Mushak 6.7) Form'],
-    cross: ['M01 Service Orders', 'M19 General Ledger', 'M54 Tax Filing'],
-    freg: { src: 110, sub: [['1', 'NBR Mushak 6.3 Calculation Engine', 14], ['2', 'QR Code Digital Validation', 10], ['3', 'Mushak 9.1 Return Compilation', 12]] }
-  },
 
-  M52: {
-    area: 'A08', code: 'M52', en: 'AP & Employee Expense', title: 'M52 · AP & Employee Expense',
-    bn: 'প্রদেয় ও ব্যয়', icon: '💸',
-    desc: 'Vendor invoices with 3-way match, TDS/VDS at source, employee expenses & advances, payment runs.',
-    kpis: [{ l: 'Total AR Outstanding' }, { l: 'Overdue > 60d' }],
-    groups: [
-      { en: 'Receivables', screens: [{ id: 'M52-ar', en: 'AR Ageing Analysis Register', bn: 'রিসিভেবল এজিং', t: 'g' }] }
-    ],
-    reports: ['AR Aging 30/60/90 Days Pareto'], forms: ['Record Customer Payment Receipt'], cross: ['M36 B2B Accounts', 'M19 Ledger'],
-    freg: { src: 86, sub: [['1', 'Aging Calculation & Provisioning', 10], ['2', 'Automated Dunning Reminders', 8]] }
-  },
 
-  M50: {
-    area: 'A08', code: 'M50', en: 'Treasury & Banking', title: 'M50 · Treasury & Banking',
-    bn: 'কোষাগার ও ব্যাংক', icon: '🏦',
-    desc: 'Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.',
-    kpis: [{ l: 'Pending Vendor Bills' }],
-    groups: [
-      { en: 'Payables', screens: [{ id: 'M50-bills', en: 'Vendor Bills & Invoices', bn: 'ভেন্ডর বিল তালিকা', t: 'g' }] }
-    ],
-    reports: ['Upcoming Payment Commitments'], forms: ['Record Vendor Bill'], cross: ['M41 Purchase Orders', 'M19 Ledger'],
-    freg: { src: 88, sub: [['1', '3-Way Match Verification', 10], ['2', 'TDS / VDS Statutory Deduction', 8]] }
-  },
 
-  M51: {
-    area: 'A08', code: 'M51', en: 'Tax & Regulatory (BD)', title: 'M51 · Tax & Regulatory (BD)',
-    bn: 'কর ও ভ্যাট', icon: '🏛️',
-    desc: 'VAT 15%, Mushak 6.1–9.1 registers & returns, TDS/VDS, challans, NID capture, statutory calendar.',
-    kpis: [{ l: 'Reconciliation Health' }],
-    groups: [
-      { en: 'Reconciliation', screens: [{ id: 'M51-reconcile', en: 'Bank & Mobile Wallet Statement Match', bn: 'ব্যাংক স্টেটমেন্ট ম্যাচ', t: 'g' }] }
-    ],
-    reports: ['Unreconciled Bank Transactions'], forms: ['Perform Bank Reconciliation'], cross: ['M19 General Ledger'],
-    freg: { src: 80, sub: [['1', 'Bank Feed Parsing & Auto-Match', 10], ['2', 'bKash / Nagad Settlement Cleared', 8]] }
-  },
 
-  M53: {
-    area: 'A08', code: 'M53', en: 'Revenue Recognition & Settlement', title: 'M53 · Revenue Recognition & Settlement',
-    bn: 'রাজস্ব ও নিষ্পত্তি', icon: '📊',
-    desc: 'Performance obligations, contract balances, commission ledger, seller/partner payouts, clawbacks, escrow.',
-    kpis: [{ l: 'Budget Variance MTD' }],
-    groups: [
-      { en: 'Budgets', screens: [{ id: 'M53-budgets', en: 'Cost Center Budget Master', bn: 'কস্ট সেন্টার বাজেট', t: 'g' }] }
-    ],
-    reports: ['Budget vs Actual Variance Report'], forms: ['Create Annual Branch Budget'], cross: ['M19 Ledger'],
-    freg: { src: 76, sub: [['1', 'Cost Center Allocation Rules', 8], ['2', 'Variance Alerting Engine', 8]] }
-  },
 
-  M49: {
-    area: 'A08', code: 'M49', en: 'Fixed Assets & Capex', title: 'M49 · Fixed Assets & Capex',
-    bn: 'স্থায়ী সম্পদ ও ক্যাপেক্স', icon: '🏗️',
-    desc: 'Capex requests to retirement — CWIP, dual-book depreciation (accounting + tax Third Schedule), verification.',
-    kpis: [{ l: 'Net Book Value' }],
-    groups: [
-      { en: 'Fixed Assets', screens: [{ id: 'M49-assets', en: 'Fixed Assets Register', bn: 'স্থাবর সম্পদ রেজিস্টার', t: 'g' }] }
-    ],
-    reports: ['Annual Depreciation Schedule'], forms: ['Add Fixed Asset'], cross: ['M19 General Ledger'],
-    freg: { src: 68, sub: [['1', 'Depreciation Run Generator', 8], ['2', 'Asset Disposal & Gain/Loss', 6]] }
-  },
 
-  M54: {
-    area: 'A08', code: 'M54', en: 'Costing, Budget & FP&A', title: 'M54 · Costing, Budget & FP&A',
-    bn: 'ব্যয়, বাজেট ও এফপিএ', icon: '🧮',
-    desc: 'Allocation cycles, job & contract costing, 14-stream business-line profitability, branch league, budgets.',
-    kpis: [{ l: 'Audit Readiness Score' }],
-    groups: [
-      { en: 'Audit', screens: [{ id: 'M54-audit', en: 'Statutory Audit Document Vault', bn: 'অডিট ডকুমেন্ট ভল্ট', t: 'g' }] }
-    ],
-    reports: ['Annual Tax Schedule Package'], forms: ['Generate Statutory Audit File'], cross: ['M20 Mushak 6.3'],
-    freg: { src: 72, sub: [['1', 'Audit Trail Export & Reconciliation', 8], ['2', 'NBR Compliance Check', 8]] }
-  },
 
   /* ============ A09 · PEOPLE & WORKFORCE =============================== */
   M21: {
@@ -1296,4 +1360,193 @@ export function generateGridData(screenId, groupTitle, moduleTitle) {
     return { cols: ['Mushak 6.3 No', 'Customer Name', 'Issue Date', 'Taxable Value', '15% VAT (BDT)', 'Grand Total (BDT)', 'Payment Method', 'NBR Status'], rows: [] };
   }
   return { cols: ['Record ID', 'Title / Description', 'Category', 'Assigned Hub', 'Created Date', 'Status', 'Actions'], rows: [] };
+}
+
+/* =====================================================================
+ * A08 live-surface map — registry screens backed by REAL Odoo models in
+ * the g_finance addons (installed in fix_dev). The workspace opens these
+ * as dynamic act_window views (list, or form for type-f screens). Every
+ * screen NOT listed here keeps the honest "porting phase" empty state.
+ * ===================================================================== */
+export const P03_LIVE_SCREENS = {
+  // M19 · Financial Accounting & GL (cd_gl_ext)
+  // M20 · AR, Invoicing & Collections — all 15 screens moved to the
+  // in-workspace data-screen framework (CD-M20-02); no stock doAction.
+  // M50 · Treasury & Banking (cd_cash_position)
+  // M51 · Tax & Regulatory BD (cd_tax_engine_bd)
+  // M52 · AP & Employee Expense (cd_ap_ext)
+  // M53 · Revenue Recognition & Settlement (cd_settlement_ext + cd_subscription)
+  // M49 · Fixed Assets & Capex (cd_fixed_asset_ext)
+  // M54 · Costing, Budget & FP&A (cd_fpa)
+};
+
+/* A08 module create surfaces: the "+ New" action for each finance module
+ * opens the REAL model's form view (replaces the M01 service-order intake
+ * that previously opened for every module). */
+export const P03_MODULE_CREATE = {
+};
+
+/* A08 data-entry form chips → real model forms. Keyed `${moduleId}:${form
+ * label}` (the same label can mean different models in different modules).
+ * Unmapped chips fall back to the module create surface or an honest
+ * "porting phase" toast — never the M01 intake form. */
+export const P03_FORM_MODELS = {
+};
+
+/* D365 IN-WORKSPACE FORM SCREENS (user directive 2026-10-27): a fragment's
+ * FORM_CHIPS map routes a data-entry chip to its in-workspace model_form
+ * screen (`${moduleId}:${label}`), and `__by_model__` routes a grid's
+ * + New / Open-record to the same form. The Odoo dialog is the last-resort
+ * fallback only. */
+export const P03_FORM_CHIPS = {
+};
+
+/* M19 in-workspace D365 screens (the GL pilot, 2026-10-24): every registry
+ * screen of the Financial Accounting & GL module renders INSIDE the
+ * workspace shell — fed by the /p03/gl/* endpoints — instead of leaving to
+ * a stock Odoo backend view. `kind` selects the screen layout; `report`
+ * parameterises the statement engine. Screens listed here are checked
+ * BEFORE P03_LIVE_SCREENS. Extend to other modules one pilot at a time. */
+export const P03_DATA_SCREENS = {
+  // Ledger
+  // Close
+  // Statements
+  // Controls
+  // ---- A08 completion (2026-10-25): generic model_list screens ----
+  // ---- M20 · AR, Invoicing & Collections (CD-M20-02) — /p03/ar/* ----
+  // Invoicing
+  // Receipts
+  // Credit Control
+  // Analysis
+};
+
+/* Built-in report chips → the in-workspace screen that already shows that
+ * report's data (M19/M20 wired; other modules get an honest toast). Keyed
+ * `${moduleId}:${reportName}`. */
+export const P03_REPORT_ROUTES = {
+};
+
+/* A04 · Commercial & Revenue lives in ./a04/<module>.js — same merge. */
+const A04_FRAGMENTS = [A04_M08, A04_M09, A04_M11, A04_M12, A04_M36, A04_M37, A04_M38, A04_M39, A04_M40];
+for (const f of A04_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A05 · Circular Economy lives in ./a05/<module>.js — same merge. The inline
+ * M13/M14/M18 stubs are superseded as each module's fragment lands. */
+const A05_FRAGMENTS = [A05_M13, A05_M14, A05_M18];
+for (const f of A05_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A06 · Supply Chain lives in ./a06/<module>.js — same merge. */
+const A06_FRAGMENTS = [A06_M15, A06_M16, A06_M42, A06_M43, A06_M44, A06_M41];
+for (const f of A06_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+
+/* A07 · Assets & Facilities lives in ./a07/<module>.js — same merge. */
+const A07_FRAGMENTS = [A07_M17, A07_M45, A07_M46, A07_M47, A07_M48];
+for (const f of A07_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+/* A08 · Finance & Treasury lives in ./a08/<module>.js (one file per module). */
+const A08_FRAGMENTS = [A08_M19, A08_M20, A08_M52, A08_M50, A08_M51, A08_M53, A08_M49, A08_M54];
+for (const f of A08_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A09 · People & Workforce lives in ./a09/<module>.js — the fragment replaces
+ * the in-file stubs (which showed one screen and wrong KPIs). */
+const A09_FRAGMENTS = [A09_M21, A09_M55, A09_M56, A09_M57, A09_M22, A09_M58, A09_M59];
+for (const f of A09_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A10 · Governance, Risk & Quality lives in ./a10/<module>.js — replaces the stubs. */
+const A10_FRAGMENTS = [A10_M23, A10_M60, A10_M24, A10_M61];
+for (const f of A10_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A12 · Platform & Technology lives in ./a12/<module>.js — replaces stubs. */
+const A12_FRAGMENTS = [A12_M28, A12_M29, A12_M30, A12_M64, A12_M65, A12_M66, A12_M67];
+for (const f of A12_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A02 · Service Operations lives in ./a02/<module>.js — same merge; the
+ * fragment's MODULE replaces any in-file stub (single source: the fragment). */
+const A02_FRAGMENTS = [A02_M01, A02_M02, A02_M03, A02_M04, A02_M05, A02_M06, A02_M31];
+for (const f of A02_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A11 · Insights & Intelligence lives in ./a11/<module>.js — same merge. */
+const A11_FRAGMENTS = [A11_M62, A11_M25, A11_M26, A11_M63];
+for (const f of A11_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A03 · Customer Experience lives in ./a03/<module>.js — same merge; the
+ * fragment's MODULE replaces any in-file stub (single source: the fragment). */
+const A03_FRAGMENTS = [A03_M07, A03_M10, A03_M27, A03_M32, A03_M33, A03_M34, A03_M35];
+for (const f of A03_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_FORM_CHIPS, f.FORM_CHIPS || {});
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
 }

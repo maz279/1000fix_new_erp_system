@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "identity.provisioned",
+  "description": "Published by identity-lifecycle through libs.py.fix_events.publish_dual() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "identity.provisioned"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "identity-lifecycle"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "employee_id",
+        "employee_code",
+        "keycloak_user_id",
+        "username",
+        "created",
+        "enabled",
+        "realm_roles_assigned",
+        "required_actions",
+        "provisioned_at",
+        "attempts",
+        "joined_event_id"
+      ],
+      "properties": {
+        "employee_id": {
+          "type": "integer"
+        },
+        "employee_code": {
+          "type": "string"
+        },
+        "keycloak_user_id": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "created": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "realm_roles_assigned": {
+          "type": "array"
+        },
+        "required_actions": {
+          "type": "array"
+        },
+        "provisioned_at": {
+          "type": "string"
+        },
+        "attempts": {
+          "type": "integer"
+        },
+        "joined_event_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "identity-lifecycle",
+  "x-publishers": [
+    "services/identity-lifecycle/src/identity_lifecycle.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

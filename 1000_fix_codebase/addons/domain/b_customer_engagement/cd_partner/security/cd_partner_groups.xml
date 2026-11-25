@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M40 Partner & Channel roles (A04 workflow audit 2026-11-03, M40-1..8 and
+  report 7.1).
+
+  Onboarding, deal approval, brand authorisation, franchise activation and
+  rebate payout were open to any internal user (or to nobody, when the
+  accidental PII gate stopped onboarding). Plain internal users now READ the
+  partner programmes; the work goes to these roles.
+
+  - Channel Officer: records partners, deals, authorisations, franchises,
+    rebates, conflicts and technical audits; submits partners for
+    onboarding; accrues rebates and requests their payout approval; records
+    deal outcomes; registers PDPA erasure requests.
+  - Channel KYC Officer: verifies a partner's statutory identifiers and KYC
+    documents, never for a partner they created or a document they uploaded.
+  - Channel Manager (CCO delegate): onboards, suspends and reinstates
+    partners, approves deals and technical audits, activates authorisations
+    and franchises, sets commission rates - never on a record they raised.
+  - Rebate Approver: decides rebate / MDF payouts from the M63 inbox, within
+    the DOFA tier the approver also holds, never on a rebate they raised.
+
+  Conflict rulings and PDPA erasures keep their DOFA Tier 3 authority. Any
+  internal user may still RAISE a channel conflict (it is a report, not a
+  decision); the ruling, its arbitrator and its time are guarded.
+  The development admin is a member so the workspace keeps working;
+  segregation of duties still applies to it.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="privilege_fix_channel" model="res.groups.privilege">
+            <field name="name">Partner &amp; Channel</field>
+            <field name="description">Onboarding, programme and payout roles of the M40 partner module.</field>
+            <field name="sequence">43</field>
+        </record>
+
+        <record id="group_fix_channel_officer" model="res.groups">
+            <field name="name">Channel Officer</field>
+            <field name="privilege_id" ref="privilege_fix_channel"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Records partners and their programmes, submits partners for onboarding, accrues rebates and requests their payout approval, records deal outcomes.</field>
+        </record>
+
+        <record id="group_fix_channel_kyc_officer" model="res.groups">
+            <field name="name">Channel KYC Officer</field>
+            <field name="privilege_id" ref="privilege_fix_channel"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Verifies a partner's statutory identifiers and KYC documents; never for a partner they created or a document they uploaded.</field>
+        </record>
+
+        <record id="group_fix_channel_manager" model="res.groups">
+            <field name="name">Channel Manager</field>
+            <field name="privilege_id" ref="privilege_fix_channel"/>
+            <field name="implied_ids" eval="[(4, ref('group_fix_channel_officer'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Onboards, suspends and reinstates partners, approves deal registrations and technical audits, activates authorisations and franchises, sets commission rates; never on a record they raised.</field>
+        </record>
+
+        <record id="group_fix_rebate_approver" model="res.groups">
+            <field name="name">Rebate Approver</field>
+            <field name="privilege_id" ref="privilege_fix_channel"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves rebate and MDF payouts from the approval inbox, within the DOFA tier the approver also holds, and never on a rebate they raised.</field>
+        </record>
+    </data>
+</odoo>

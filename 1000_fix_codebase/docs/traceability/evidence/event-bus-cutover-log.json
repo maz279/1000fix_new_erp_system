@@ -1,0 +1,244 @@
+{
+  "test": "R07-M01-T04: Consumer Group Migration with Per-Group Rollback (EP-05)",
+  "timestamp_utc": "2026-11-02T01:22:31Z",
+  "results": {
+    "measurement_scope": "in-process state machine of libs/py/fix_events.migration on in-memory Kafka/Redis stand-ins; no live broker",
+    "canonical_groups_count": 6,
+    "groups": [
+      "notification-dispatcher",
+      "inventory-syncer",
+      "audit-logger",
+      "bi-streaming",
+      "sla-calculator",
+      "evat-reporter"
+    ],
+    "rollback_drill": {
+      "target_group": "inventory-syncer",
+      "in_process_state_flip_ms": 0.004,
+      "in_process_state_flip_note": "time to flip the in-memory state field only; not a live consumer rollback"
+    },
+    "final_state_distribution": {
+      "BUS_REDIS": 0,
+      "BUS_DUAL": 0,
+      "BUS_KAFKA": 6
+    },
+    "infra_probe": {
+      "kafka_brokers_reachable": 3,
+      "kafka_brokers_declared": 3,
+      "details": [
+        "127.0.0.1:9092 accepted a TCP connection",
+        "127.0.0.1:9094 accepted a TCP connection",
+        "127.0.0.1:9095 accepted a TCP connection"
+      ]
+    },
+    "live_window": null,
+    "checks": [
+      {
+        "check": "initial_state_all_bus_redis",
+        "status": "PASS",
+        "detail": "6/6 groups on BUS_REDIS"
+      },
+      {
+        "check": "transition_all_to_bus_dual",
+        "status": "PASS",
+        "detail": "6/6 groups read back as BUS_DUAL"
+      },
+      {
+        "check": "transition_all_to_bus_kafka",
+        "status": "PASS",
+        "detail": "6/6 groups read back as BUS_KAFKA"
+      },
+      {
+        "check": "routing_bus_kafka_reads_kafka_log",
+        "status": "PASS",
+        "detail": "inventory-syncer on BUS_KAFKA delivered sources=['kafka']"
+      },
+      {
+        "check": "negative_control_lag_at_threshold_stays_healthy",
+        "status": "PASS",
+        "detail": "lag=500 (= threshold) -> status=HEALTHY, state=BUS_KAFKA"
+      },
+      {
+        "check": "fault_injection_lag_breach_rolls_back_target",
+        "status": "PASS",
+        "detail": "lag=750 -> status=ROLLED_BACK, state=BUS_REDIS"
+      },
+      {
+        "check": "blast_radius_other_groups_stay_on_kafka",
+        "status": "PASS",
+        "detail": "5/5 non-target groups still on BUS_KAFKA"
+      },
+      {
+        "check": "routing_after_rollback_reads_redis_stream",
+        "status": "PASS",
+        "detail": "inventory-syncer after rollback delivered sources=['redis']"
+      },
+      {
+        "check": "recutover_all_groups_on_bus_kafka",
+        "status": "PASS",
+        "detail": "final state distribution {'BUS_REDIS': 0, 'BUS_DUAL': 0, 'BUS_KAFKA': 6}"
+      },
+      {
+        "check": "live_cluster_cutover_drill",
+        "status": "FAIL",
+        "detail": "raised ModuleNotFoundError: No module named 'kafka'"
+      },
+      {
+        "check": "live_rollback_sla_under_5s",
+        "status": "FAIL",
+        "detail": "raised ModuleNotFoundError: No module named 'kafka'"
+      }
+    ],
+    "cutover_log": [
+      {
+        "step": "initial_check",
+        "states": {
+          "notification-dispatcher": "BUS_REDIS",
+          "inventory-syncer": "BUS_REDIS",
+          "audit-logger": "BUS_REDIS",
+          "bi-streaming": "BUS_REDIS",
+          "sla-calculator": "BUS_REDIS",
+          "evat-reporter": "BUS_REDIS"
+        }
+      },
+      {
+        "step": "transition_BUS_DUAL",
+        "results": {
+          "notification-dispatcher": {
+            "group_id": "notification-dispatcher",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.001,
+            "status": "SUCCESS"
+          },
+          "inventory-syncer": {
+            "group_id": "inventory-syncer",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.001,
+            "status": "SUCCESS"
+          },
+          "audit-logger": {
+            "group_id": "audit-logger",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.001,
+            "status": "SUCCESS"
+          },
+          "bi-streaming": {
+            "group_id": "bi-streaming",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "sla-calculator": {
+            "group_id": "sla-calculator",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "evat-reporter": {
+            "group_id": "evat-reporter",
+            "previous_state": "BUS_REDIS",
+            "current_state": "BUS_DUAL",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          }
+        }
+      },
+      {
+        "step": "transition_BUS_KAFKA",
+        "results": {
+          "notification-dispatcher": {
+            "group_id": "notification-dispatcher",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "inventory-syncer": {
+            "group_id": "inventory-syncer",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "audit-logger": {
+            "group_id": "audit-logger",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "bi-streaming": {
+            "group_id": "bi-streaming",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "sla-calculator": {
+            "group_id": "sla-calculator",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          },
+          "evat-reporter": {
+            "group_id": "evat-reporter",
+            "previous_state": "BUS_DUAL",
+            "current_state": "BUS_KAFKA",
+            "transition_time_ms": 0.0,
+            "status": "SUCCESS"
+          }
+        }
+      },
+      {
+        "step": "negative_control",
+        "target": "audit-logger",
+        "result": {
+          "group_id": "audit-logger",
+          "lag": 500,
+          "status": "HEALTHY"
+        }
+      },
+      {
+        "step": "fault_injection_rollback",
+        "target": "inventory-syncer",
+        "result": {
+          "group_id": "inventory-syncer",
+          "previous_state": "BUS_KAFKA",
+          "current_state": "BUS_REDIS",
+          "rollback_elapsed_ms": 0.004,
+          "sla_5s_met": true,
+          "reason": "Consumer lag (750 msgs) exceeded threshold (500 msgs)",
+          "status": "ROLLED_BACK"
+        }
+      },
+      {
+        "step": "blast_radius",
+        "states": {
+          "notification-dispatcher": "BUS_KAFKA",
+          "audit-logger": "BUS_KAFKA",
+          "bi-streaming": "BUS_KAFKA",
+          "sla-calculator": "BUS_KAFKA",
+          "evat-reporter": "BUS_KAFKA"
+        }
+      },
+      {
+        "step": "recutover_target",
+        "result": {
+          "group_id": "inventory-syncer",
+          "previous_state": "BUS_REDIS",
+          "current_state": "BUS_KAFKA",
+          "transition_time_ms": 0.001,
+          "status": "SUCCESS"
+        }
+      }
+    ],
+    "verdict": "FAIL"
+  },
+  "verdict": "FAIL"
+}

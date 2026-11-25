@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M32 capture pass 3: the safety floor of the handoff signal phrases
+     (BRU-CAI-06/07). English only: Bengali phrases are authored by a native
+     speaker (T08) and added by the Customer Service Manager on the M32
+     Handoff Decision page. noupdate, so the register is theirs once installed. -->
+<odoo noupdate="1">
+    <record id="signal_phrase_distress_on_fire" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">caught fire</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_onfire" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">on fire</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_smoke" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">smoke coming</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_shock" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">electric shock</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_gas" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">gas leak</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_burning" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">burning smell</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Appliance safety risk</field>
+    </record>
+    <record id="signal_phrase_distress_danger" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">i am in danger</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Personal safety</field>
+    </record>
+    <record id="signal_phrase_distress_suicide" model="fix.assistant.signal.phrase">
+        <field name="signal">distress</field>
+        <field name="phrase">kill myself</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="note">Vulnerability</field>
+    </record>
+    <record id="signal_phrase_explicit_real_person" model="fix.assistant.signal.phrase">
+        <field name="signal">explicit_request</field>
+        <field name="phrase">real person</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+    </record>
+    <record id="signal_phrase_explicit_human_agent" model="fix.assistant.signal.phrase">
+        <field name="signal">explicit_request</field>
+        <field name="phrase">human agent</field>
+        <field name="language">en</field>
+        <field name="company_id" ref="base.main_company"/>
+    </record>
+</odoo>

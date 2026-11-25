@@ -3,6 +3,630 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__active
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__open
+msgid "Active / Open"
+msgstr "সক্রিয় / খোলা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__5
+msgid "Almost Certain (5)"
+msgstr "প্রায় নিশ্চিত (৫)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__annual
+msgid "Annual"
+msgstr "বার্ষিক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__state__archived
+msgid "Archived"
+msgstr "সংরক্ষণাগারভুক্ত"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_obligation_form
+msgid "Assessment Notes"
+msgstr "মূল্যায়ন নোট"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__notes
+msgid "Audit & Assessment Notes"
+msgstr "নিরীক্ষা ও মূল্যায়ন নোট"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__audit_date
+msgid "Audit Date"
+msgstr "নিরীক্ষার তারিখ"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Audit Details"
+msgstr "নিরীক্ষার বিবরণ"
+
+#. module: cd_grc
+#: model:ir.model,name:cd_grc.model_fix_audit_finding
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Audit Finding & CAPA"
+msgstr "নিরীক্ষা পর্যবেক্ষণ ও CAPA"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__finding_ids
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_framework_form
+msgid "Audit Findings"
+msgstr "নিরীক্ষা পর্যবেক্ষণসমূহ"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_audit_finding
+#: model:ir.ui.menu,name:cd_grc.menu_fix_audit_finding
+msgid "Audit Findings & CAPA"
+msgstr "নিরীক্ষা পর্যবেক্ষণসমূহ ও CAPA"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_framework_form
+msgid "Audit Schedule & Scores"
+msgstr "নিরীক্ষার সময়সূচি ও স্কোর"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__framework_id
+msgid "Audited Framework"
+msgstr "নিরীক্ষিত ফ্রেমওয়ার্ক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__continuous
+msgid "Automated / Continuous"
+msgstr "স্বয়ংক্রিয় / অবিরত"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__code__bla_2006
+msgid "Bangladesh Labour Act 2006 & Rules 2015"
+msgstr "বাংলাদেশ শ্রম আইন ২০০৬ ও বিধিমালা ২০১৫"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__code__pdpa_2023
+msgid "Bangladesh PDPA 2023 / 2026"
+msgstr "বাংলাদেশ PDPA ২০২৩ / ২০২৬"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__obligation_id
+msgid "Breached Obligation / Clause"
+msgstr "লঙ্ঘিত বাধ্যবাধকতা / ধারা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__capa_status__capa_submitted
+msgid "CAPA Submitted"
+msgstr "CAPA জমা দেওয়া হয়েছে"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__target_closure_date
+msgid "CAPA Target Closure Date"
+msgstr "CAPA সমাপ্তির লক্ষ্য তারিখ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__certifying_body
+msgid "Certification Body / Regulator"
+msgstr "সনদ প্রদানকারী সংস্থা / নিয়ন্ত্রক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__clause_reference
+msgid "Clause / Section Reference"
+msgstr "ধারা / অনুচ্ছেদ রেফারেন্স"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_obligation_form
+msgid "Clause Reference"
+msgstr "ধারার রেফারেন্স"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__capa_status__closed
+msgid "Closed & Certified"
+msgstr "বন্ধ ও প্রত্যয়িত"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__closed
+msgid "Closed / Retired"
+msgstr "বন্ধ / অবসরপ্রাপ্ত"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__closure_evidence_doc_id
+msgid "Closure Evidence Document (M24)"
+msgstr "সমাপ্তির প্রমাণ দলিল (M24)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__evidence_doc_id
+msgid "Compliance Evidence (M24 Document)"
+msgstr "কমপ্লায়েন্সের প্রমাণ (M24 দলিল)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__framework_id
+msgid "Compliance Framework"
+msgstr "কমপ্লায়েন্স ফ্রেমওয়ার্ক"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_framework_form
+msgid "Compliance Framework Matrix"
+msgstr "কমপ্লায়েন্স ফ্রেমওয়ার্ক ম্যাট্রিক্স"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_compliance_framework
+#: model:ir.ui.menu,name:cd_grc.menu_fix_compliance_framework
+msgid "Compliance Frameworks (ISO/PDPA/BLA)"
+msgstr "কমপ্লায়েন্স ফ্রেমওয়ার্কসমূহ (ISO/PDPA/BLA)"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_obligation_form
+msgid "Compliance Obligation"
+msgstr "কমপ্লায়েন্স বাধ্যবাধকতা"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_compliance_obligation
+#: model:ir.ui.menu,name:cd_grc.menu_fix_compliance_obligation
+msgid "Compliance Obligations"
+msgstr "কমপ্লায়েন্স বাধ্যবাধকতাসমূহ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__compliance_score
+msgid "Compliance Rate (%)"
+msgstr "কমপ্লায়েন্সের হার (%)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__description
+msgid "Condition & Objective Evidence"
+msgstr "অবস্থা ও বস্তুনিষ্ঠ প্রমাণ"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_control_form
+msgid "Control Attributes"
+msgstr "নিয়ন্ত্রণের বৈশিষ্ট্য"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__control_code
+msgid "Control Code (e.g. CTL-SEC-01)"
+msgstr "নিয়ন্ত্রণ কোড (যেমন CTL-SEC-01)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__evidence_doc_id
+msgid "Control Evidence (M24)"
+msgstr "নিয়ন্ত্রণের প্রমাণ (M24)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__name
+msgid "Control Title"
+msgstr "নিয়ন্ত্রণের শিরোনাম"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__corrective
+msgid "Corrective"
+msgstr "সংশোধনমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__remediation_plan
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Corrective Action Plan (CAPA)"
+msgstr "সংশোধনমূলক পদক্ষেপ পরিকল্পনা (CAPA)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__cyber
+msgid "Cybersecurity & Data Protection (PDPA/ISO 27001)"
+msgstr "সাইবার নিরাপত্তা ও ডেটা সুরক্ষা (PDPA/ISO 27001)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__daily
+msgid "Daily"
+msgstr "দৈনিক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__detective
+msgid "Detective"
+msgstr "শনাক্তকরণমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__state__draft
+msgid "Draft Mapping"
+msgstr "খসড়া ম্যাপিং"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__standard_edition
+msgid "Edition / Revision"
+msgstr "সংস্করণ / পরিমার্জন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__effective
+msgid "Effective"
+msgstr "কার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__capa_status__verified
+msgid "Effectiveness Verified"
+msgstr "কার্যকারিতা যাচাইকৃত"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__state__active
+msgid "Enforced & Audited"
+msgstr "প্রয়োগকৃত ও নিরীক্ষিত"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__control_ids
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_obligation_form
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_risk_register_form
+msgid "Enforcing Controls"
+msgstr "প্রয়োগকারী নিয়ন্ত্রণসমূহ"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Evidence & Organisation"
+msgstr "প্রমাণ ও সংগঠন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__financial
+msgid "Financial"
+msgstr "আর্থিক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__finding_code
+msgid "Finding Reference (e.g. AUD-2026-001)"
+msgstr "পর্যবেক্ষণ রেফারেন্স (যেমন AUD-2026-001)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__name
+msgid "Finding Summary"
+msgstr "পর্যবেক্ষণের সারসংক্ষেপ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__code
+msgid "Framework Identifier"
+msgstr "ফ্রেমওয়ার্ক শনাক্তকারী"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__name
+msgid "Framework Name"
+msgstr "ফ্রেমওয়ার্কের নাম"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_obligation__compliance_status__compliant
+msgid "Fully Compliant"
+msgstr "সম্পূর্ণ কমপ্লায়েন্ট"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_obligation_form
+msgid "Governance Scope"
+msgstr "গভর্নেন্সের পরিসর"
+
+#. module: cd_grc
 msgid "Governance, Risk & Compliance"
-msgstr "Governance, Risk & Compliance (বাংলা)"
+msgstr "গভর্নেন্স, ঝুঁকি ও কমপ্লায়েন্স"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__hse
+msgid "Health, Safety & Environment (BLA 2006)"
+msgstr "স্বাস্থ্য, নিরাপত্তা ও পরিবেশ (BLA ২০০৬)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__state__inactive
+msgid "Inactive"
+msgstr "নিষ্ক্রিয়"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__ineffective
+msgid "Ineffective"
+msgstr "অকার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__risk_score
+msgid "Inherent Risk Score"
+msgstr "সহজাত ঝুঁকি স্কোর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__1
+msgid "Insignificant (1)"
+msgstr "নগণ্য (১)"
+
+#. module: cd_grc
+#: model:ir.model,name:cd_grc.model_fix_control
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_control_form
+msgid "Internal Control"
+msgstr "অভ্যন্তরীণ নিয়ন্ত্রণ"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_control
+#: model:ir.ui.menu,name:cd_grc.menu_fix_control
+msgid "Internal Controls"
+msgstr "অভ্যন্তরীণ নিয়ন্ত্রণসমূহ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__code__iso_14001
+msgid "ISO 14001:2015 Environmental Management"
+msgstr "ISO 14001:2015 পরিবেশ ব্যবস্থাপনা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__code__iso_9001
+msgid "ISO 9001:2015 Quality Management"
+msgstr "ISO 9001:2015 মান ব্যবস্থাপনা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_framework__code__iso_27001
+msgid "ISO/IEC 27001:2022 Information Security"
+msgstr "ISO/IEC 27001:2022 তথ্য নিরাপত্তা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__last_tested
+msgid "Last Assessment Date"
+msgstr "সর্বশেষ মূল্যায়নের তারিখ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__last_audit_date
+msgid "Last External/Internal Audit"
+msgstr "সর্বশেষ বাহ্যিক/অভ্যন্তরীণ নিরীক্ষা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__auditor_id
+msgid "Lead Auditor"
+msgstr "প্রধান নিরীক্ষক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__4
+msgid "Likely (4)"
+msgstr "সম্ভাব্য (৪)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__4
+msgid "Major (4)"
+msgstr "গুরুতর (৪)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__finding_type__major_nc
+msgid "Major Non-Conformance"
+msgstr "বড় অসঙ্গতি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__mandatory
+msgid "Mandatory Statutory Requirement"
+msgstr "বাধ্যতামূলক সংবিধিবদ্ধ শর্ত"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_control_form
+msgid "Mapped Compliance Obligations"
+msgstr "ম্যাপকৃত কমপ্লায়েন্স বাধ্যবাধকতাসমূহ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__obligation_ids
+msgid "Mapped Obligations"
+msgstr "ম্যাপকৃত বাধ্যবাধকতাসমূহ"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_framework_form
+msgid "Mapped Obligations & Clauses"
+msgstr "ম্যাপকৃত বাধ্যবাধকতা ও ধারাসমূহ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__2
+msgid "Minor (2)"
+msgstr "সামান্য (২)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__finding_type__minor_nc
+msgid "Minor Non-Conformance"
+msgstr "ছোট অসঙ্গতি"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__mitigating
+msgid "Mitigating / Under Treatment"
+msgstr "প্রশমনাধীন / প্রতিকারাধীন"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__control_ids
+msgid "Mitigating Controls"
+msgstr "প্রশমনকারী নিয়ন্ত্রণসমূহ"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_risk_register_form
+msgid "Mitigation & Treatment"
+msgstr "প্রশমন ও প্রতিকার"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__mitigation
+msgid "Mitigation & Treatment Strategy"
+msgstr "প্রশমন ও প্রতিকার কৌশল"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__3
+msgid "Moderate (3)"
+msgstr "মাঝারি (৩)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__review_date
+msgid "Next Review Date"
+msgstr "পরবর্তী পর্যালোচনার তারিখ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__next_audit_date
+msgid "Next Surveillance Audit"
+msgstr "পরবর্তী নজরদারি নিরীক্ষা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_obligation__compliance_status__non_compliant
+msgid "Non-Compliant"
+msgstr "নন-কমপ্লায়েন্ট"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_obligation__compliance_status__not_applicable
+msgid "Not Applicable"
+msgstr "প্রযোজ্য নয়"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Objective Evidence & Finding"
+msgstr "বস্তুনিষ্ঠ প্রমাণ ও পর্যবেক্ষণ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__obligation_ids
+msgid "Obligations"
+msgstr "বাধ্যবাধকতাসমূহ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__capa_status__open
+msgid "Open Non-Conformance"
+msgstr "অমীমাংসিত অসঙ্গতি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__operating_unit_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__operating_unit_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__operating_unit_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__operational
+msgid "Operational (Service Delivery)"
+msgstr "পরিচালনগত (সার্ভিস ডেলিভারি)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_audit_finding__finding_type__ofi
+msgid "Opportunity for Improvement (OFI)"
+msgstr "উন্নয়নের সুযোগ (OFI)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_compliance_obligation__compliance_status__partially_compliant
+msgid "Partially Compliant"
+msgstr "আংশিক কমপ্লায়েন্ট"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__partially
+msgid "Partially Effective"
+msgstr "আংশিক কার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__3
+msgid "Possible (3)"
+msgstr "সম্ভব (৩)"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__preventive
+msgid "Preventive"
+msgstr "প্রতিরোধমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__1
+msgid "Rare (1)"
+msgstr "বিরল (১)"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_obligation__name
+msgid "Requirement Title"
+msgstr "শর্তের শিরোনাম"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__accepted
+msgid "Residual Accepted"
+msgstr "অবশিষ্ট ঝুঁকি গৃহীত"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__risk_id
+msgid "Risk Addressed"
+msgstr "সংশ্লিষ্ট ঝুঁকি"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_risk_register_form
+msgid "Risk Assessment"
+msgstr "ঝুঁকি মূল্যায়ন"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__name
+msgid "Risk Description"
+msgstr "ঝুঁকির বিবরণ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__owner_id
+msgid "Risk Owner"
+msgstr "ঝুঁকির মালিক"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_risk_register
+#: model:ir.ui.menu,name:cd_grc.menu_fix_risk_register
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_risk_register_form
+msgid "Risk Register"
+msgstr "ঝুঁকি রেজিস্টার"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Root Cause Analysis"
+msgstr "মূল কারণ বিশ্লেষণ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_audit_finding__root_cause_analysis
+msgid "Root Cause Analysis (5-Why / Fishbone)"
+msgstr "মূল কারণ বিশ্লেষণ (৫-কেন / ফিশবোন)"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_risk_register_form
+msgid "Scope & Multi-Company"
+msgstr "পরিসর ও বহু-কোম্পানি"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__5
+msgid "Severe / Catastrophic (5)"
+msgstr "মারাত্মক / বিপর্যয়কর (৫)"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_compliance_framework_form
+msgid "Standard Meta"
+msgstr "মানদণ্ডের তথ্য"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__compliance
+msgid "Statutory & Regulatory Compliance"
+msgstr "সংবিধিবদ্ধ ও নিয়ন্ত্রক কমপ্লায়েন্স"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__strategic
+msgid "Strategic"
+msgstr "কৌশলগত"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Submit CAPA"
+msgstr "CAPA জমা দিন"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_control_form
+msgid "Testing & Governance"
+msgstr "পরীক্ষা ও গভর্নেন্স"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_compliance_framework__clause_count
+msgid "Total Mapped Clauses"
+msgstr "মোট ম্যাপকৃত ধারা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__2
+msgid "Unlikely (2)"
+msgstr "অসম্ভাব্য (২)"
+
+#. module: cd_grc
+#: model_terms:ir.ui.view,arch_db:cd_grc.view_fix_audit_finding_form
+msgid "Verify & Close CAPA"
+msgstr "CAPA যাচাই ও বন্ধ করুন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__weekly
+msgid "Weekly"
+msgstr "সাপ্তাহিক"

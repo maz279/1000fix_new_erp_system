@@ -10,6 +10,7 @@ translation key parity:
 Built, disabled until portal code lands at Gate G3; runs as validator when enabled.
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,7 +37,11 @@ def main() -> int:
             continue
         locales_dir = app_dir / "locales"
         messages_dir = app_dir / "messages"
-        target_dir = locales_dir if locales_dir.is_dir() else (messages_dir if messages_dir.is_dir() else None)
+        target_dir = (
+            locales_dir
+            if locales_dir.is_dir()
+            else (messages_dir if messages_dir.is_dir() else None)
+        )
 
         if not target_dir:
             continue
@@ -50,7 +55,9 @@ def main() -> int:
             bn_data = load_json(bn_file)
             missing_in_bn = set(en_data.keys()) - set(bn_data.keys())
             if missing_in_bn:
-                violations.append(f"{app_dir.name}: {len(missing_in_bn)} key(s) in en.json missing from bn.json")
+                violations.append(
+                    f"{app_dir.name}: {len(missing_in_bn)} key(s) in en.json missing from bn.json"
+                )
 
     if violations:
         print(f"i18n-keys: FAIL - {len(violations)} portal i18n key parity violation(s):")
@@ -59,7 +66,9 @@ def main() -> int:
         print("  remedy: synchronize en.json and bn.json dictionary keys in portal messages.")
         return 1
 
-    print(f"i18n-keys: OK - {portals_checked} portal translation directory(ies) verified for key parity")
+    print(
+        f"i18n-keys: OK - {portals_checked} portal translation directory(ies) verified for key parity"
+    )
     return 0
 
 

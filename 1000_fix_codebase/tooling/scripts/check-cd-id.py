@@ -10,6 +10,7 @@ BLOCKING at the G1 gate. Exit code: 0 ok / 1 violations / 2 misconfigured.
 In Warning mode violations exit 0 with [WARN] lines so the pipeline records
 them without blocking (promotion flips a single flag below).
 """
+
 from __future__ import annotations
 
 import re
@@ -44,7 +45,12 @@ def main(argv: list[str]) -> int:
     files = argv[1:] or []
     # Exemptions: the register itself, its generator output, vendored code,
     # and this checker.
-    exempt = ("tooling/cd-register.yaml", "tooling/generators/", "vendor/", "tooling/scripts/check-cd-id.py")
+    exempt = (
+        "tooling/cd-register.yaml",
+        "tooling/generators/",
+        "vendor/",
+        "tooling/scripts/check-cd-id.py",
+    )
     violations: list[tuple[str, str]] = []
     for f in files:
         f = f.replace("\\", "/")
@@ -61,7 +67,9 @@ def main(argv: list[str]) -> int:
             if ref not in registered:
                 violations.append((f, ref))
     if not violations:
-        print(f"check-cd-id: OK - all CD references resolve in the register ({len(registered)} items)")
+        print(
+            f"check-cd-id: OK - all CD references resolve in the register ({len(registered)} items)"
+        )
         return 0
     mode = "FAIL" if BLOCKING else "WARN"
     for f, ref in violations:

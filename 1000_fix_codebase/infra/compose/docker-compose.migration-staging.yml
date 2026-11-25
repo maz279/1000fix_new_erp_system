@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env - development-only value}
       POSTGRES_DB: fix_migration
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
-    ports: ["127.0.0.1:5434:5432"]   # 5434: distinct from dev (5433)
+    ports: ["127.0.0.1:5454:5432"]   # 5454: distinct from dev (5433) and the superset replica (5434)
     volumes:
       - pgdata-migration:/var/lib/postgresql/data
     healthcheck:
@@ -41,7 +41,7 @@ services:
   # from the mounted migrations/ bundle. It has NO Odoo web exposure —
   # loading is batch-only (MIG-02 totals are asserted before commit).
   migration-runner:
-    image: python:3.12-slim@sha256:0baa58b9971b80f0ea4b5f2d0dbfddfd1bd0f3637bb01ce846c3777fdbd1851a
+    image: python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2
     profiles: ["migration-staging"]
     environment:
       FIX_ENV: local

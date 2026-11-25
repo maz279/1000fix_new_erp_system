@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription — A08 M53-15: revenue recognition ran only when someone pressed
+     the button (2 live schedules had recognised nothing since June). The daily
+     job recognises every active schedule with a contract behind it up to today; each
+     run posts its GL. A schedule with no contract and no CFO approval is held (M53-6). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_revenue_recognition" model="ir.cron">
+            <field name="name">M53: daily revenue recognition (IFRS 15 schedules)</field>
+            <field name="model_id" ref="model_fix_revenue_schedule"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_recognize()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+    <!-- M53-6: schedules with no contract and no CFO approval are held and listed at
+         every upgrade (idempotent; posts nothing), before any cron run. -->
+    <data>
+        <function model="fix.revenue.schedule" name="_hold_legacy_schedules"/>
+    </data>
+</odoo>

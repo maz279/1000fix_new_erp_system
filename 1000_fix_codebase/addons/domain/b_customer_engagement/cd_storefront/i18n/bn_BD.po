@@ -1,8 +1,430 @@
-# Bengali translations for cd_storefront (P10).
+# Bengali translations for cd_storefront (P10 / M38).
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_storefront
+#: model:ir.ui.menu,name:cd_storefront.menu_fix_storefront_cart
+msgid "Active Carts"
+msgstr "সক্রিয় কার্টসমূহ"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Approve RMA"
+msgstr "আরএমএ অনুমোদন করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__payment_rail__bkash
+msgid "bKash Direct Pay"
+msgstr "bKash ডাইরেক্ট পে"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__shipping_method__branch_pickup
+msgid "Branch Walk-in Pickup"
+msgstr "শাখা থেকে সরাসরি সংগ্রহ"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Cancel Order"
+msgstr "অর্ডার বাতিল করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart__line_ids
+#: model:ir.ui.menu,name:cd_storefront.menu_fix_storefront_cart_line
+msgid "Cart Lines"
+msgstr "কার্ট আইটেমসমূহ"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__payment_rail__cod
+msgid "Cash on Delivery"
+msgstr "ক্যাশ অন ডেলিভারি"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_cart__state__checkout
+msgid "Checkout"
+msgstr "চেকআউট"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Confirm Payment"
+msgstr "পেমেন্ট নিশ্চিত করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart__customer_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__customer_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__reason__changed_mind
+msgid "Customer Changed Mind"
+msgstr "গ্রাহক সিদ্ধান্ত পরিবর্তন করেছেন"
+
+#. module: cd_storefront
+#: model:ir.ui.menu,name:cd_storefront.menu_fix_storefront_order
+msgid "Customer Orders"
+msgstr "গ্রাহকের অর্ডারসমূহ"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__inspected_condition__scrap
+msgid "Damaged / Scrap Only"
+msgstr "ক্ষতিগ্রস্ত / কেবল স্ক্র্যাপ"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__reason__defective
+msgid "Defective Item"
+msgstr "ত্রুটিপূর্ণ আইটেম"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__delivered
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Delivery Address"
+msgstr "ডেলিভারি ঠিকানা"
+
+#. module: cd_storefront
+#: model:ir.ui.menu,name:cd_storefront.menu_fix_storefront_root
+msgid "Digital Storefront"
+msgstr "ডিজিটাল স্টোরফ্রন্ট"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Dispatch Order"
+msgstr "অর্ডার ডেলিভারির জন্য প্রেরণ করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__dispatched
+msgid "Dispatched for Delivery"
+msgstr "ডেলিভারির জন্য প্রেরিত"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_storefront
 msgid "E-Commerce & Digital Storefront"
-msgstr "E-Commerce & Digital Storefront (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "ই-কমার্স ও ডিজিটাল স্টোরফ্রন্ট"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__shipping_method__express_courier
+msgid "Express Courier (24h)"
+msgstr "এক্সপ্রেস কুরিয়ার (২৪ ঘণ্টা)"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart__order_id
+msgid "Generated Order"
+msgstr "তৈরিকৃত অর্ডার"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__inspected_condition__grade_a
+msgid "Grade A (Like New / Resalable)"
+msgstr "গ্রেড A (নতুনের মতো / পুনঃবিক্রয়যোগ্য)"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__inspected_condition__grade_b
+msgid "Grade B (Minor Wear / Refurbishable)"
+msgstr "গ্রেড B (সামান্য ব্যবহারজনিত ক্ষয় / রিফার্বিশযোগ্য)"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Inspect Item"
+msgstr "আইটেম পরীক্ষা করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__inspected_condition
+msgid "Inspection Result"
+msgstr "পরিদর্শনের ফলাফল"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__state__received
+msgid "Item Received & Inspected"
+msgstr "আইটেম গৃহীত ও পরিদর্শিত"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_cart_form
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Items"
+msgstr "আইটেমসমূহ"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__carrier_consignment_id
+msgid "Logistics Consignment"
+msgstr "লজিস্টিকস কনসাইনমেন্ট"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Mark Delivered"
+msgstr "ডেলিভারি সম্পন্ন চিহ্নিত করুন"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__payment_rail__nagad
+msgid "Nagad Direct Pay"
+msgstr "Nagad ডাইরেক্ট পে"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__reason__not_as_described
+msgid "Not As Described"
+msgstr "বর্ণনার সাথে মিল নেই"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_cart__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart__operating_unit_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__order_date
+msgid "Order Date"
+msgstr "অর্ডারের তারিখ"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Order Information"
+msgstr "অর্ডারের তথ্য"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__line_ids
+msgid "Order Items"
+msgstr "অর্ডারের আইটেমসমূহ"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__name
+msgid "Order Reference"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_cart__state__ordered
+msgid "Ordered"
+msgstr "অর্ডারকৃত"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__cart_id
+msgid "Original Cart"
+msgstr "মূল কার্ট"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__order_id
+msgid "Original Order"
+msgstr "মূল অর্ডার"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__cart_id
+msgid "Originating Cart"
+msgstr "উৎস কার্ট"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Originating Order"
+msgstr "মূল অর্ডার"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Payment & Fulfillment"
+msgstr "পেমেন্ট ও পূর্ণতা"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__paid
+msgid "Payment Confirmed"
+msgstr "পেমেন্ট নিশ্চিত"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__payment_date
+msgid "Payment Date"
+msgstr "পেমেন্টের তারিখ"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__payment_ref
+msgid "Payment Rail Reference / TrxID"
+msgstr "পেমেন্ট রেল রেফারেন্স / TrxID"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__state__pending_payment
+msgid "Pending Payment"
+msgstr "পেমেন্টের অপেক্ষায়"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_cart_form
+msgid "Proceed to Checkout"
+msgstr "চেকআউটে এগিয়ে যান"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Process Refund"
+msgstr "টাকা ফেরত দিন"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart_line__product_id
+msgid "Product"
+msgstr "পণ্য"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order_line__product_id
+msgid "Product Item"
+msgstr "পণ্য আইটেম"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart_line__quantity
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order_line__quantity
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__refund_amount
+msgid "Refund Amount"
+msgstr "ফেরতের পরিমাণ"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__state__refunded
+msgid "Refund Disbursed"
+msgstr "ফেরতের অর্থ প্রদান করা হয়েছে"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__state__approved
+msgid "Return Approved"
+msgstr "ফেরত অনুমোদিত"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Return Details"
+msgstr "রিটার্নের বিবরণ"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__state__rejected
+msgid "Return Rejected"
+msgstr "ফেরত প্রত্যাখ্যাত"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__state__requested
+msgid "Return Requested"
+msgstr "ফেরতের অনুরোধ করা হয়েছে"
+
+#. module: cd_storefront
+#: model:ir.ui.menu,name:cd_storefront.menu_fix_storefront_return
+msgid "Returns & Reverse Logistics"
+msgstr "রিটার্ন ও রিভার্স লজিস্টিকস"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__carrier_consignment_id
+msgid "Reverse Logistics Consignment"
+msgstr "রিভার্স লজিস্টিকস কনসাইনমেন্ট"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_return__name
+msgid "RMA Number"
+msgstr "RMA নম্বর"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__shipping_address
+msgid "Shipping Address"
+msgstr "শিপিং ঠিকানা"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__payment_rail__sslcommerz
+msgid "SSLCOMMERZ Card / Gateway"
+msgstr "SSLCOMMERZ কার্ড / গেটওয়ে"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_order__shipping_method__standard_delivery
+msgid "Standard Home Delivery (48h)"
+msgstr "স্ট্যান্ডার্ড হোম ডেলিভারি (৪৮ ঘণ্টা)"
+
+#. module: cd_storefront
+#: model:ir.model,name:cd_storefront.model_fix_storefront_cart
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_cart_form
+msgid "Storefront Cart"
+msgstr "স্টোরফ্রন্ট কার্ট"
+
+#. module: cd_storefront
+#: model:ir.model,name:cd_storefront.model_fix_storefront_cart_line
+msgid "Storefront Cart Line"
+msgstr "স্টোরফ্রন্ট কার্ট আইটেম"
+
+#. module: cd_storefront
+#: model:ir.actions.act_window,name:cd_storefront.action_fix_storefront_cart_line
+msgid "Storefront Cart Lines"
+msgstr "স্টোরফ্রন্ট কার্ট আইটেমসমূহ"
+
+#. module: cd_storefront
+#: model:ir.actions.act_window,name:cd_storefront.action_fix_storefront_cart
+msgid "Storefront Carts"
+msgstr "স্টোরফ্রন্ট কার্টসমূহ"
+
+#. module: cd_storefront
+#: model:ir.model,name:cd_storefront.model_fix_storefront_order
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_order_form
+msgid "Storefront Customer Order"
+msgstr "স্টোরফ্রন্ট গ্রাহক অর্ডার"
+
+#. module: cd_storefront
+msgid "Storefront Order"
+msgstr "স্টোরফ্রন্ট অর্ডার"
+
+#. module: cd_storefront
+#: model:ir.actions.act_window,name:cd_storefront.action_fix_storefront_order
+msgid "Storefront Orders"
+msgstr "স্টোরফ্রন্ট অর্ডারসমূহ"
+
+#. module: cd_storefront
+msgid "Storefront Return"
+msgstr "স্টোরফ্রন্ট রিটার্ন"
+
+#. module: cd_storefront
+#: model_terms:ir.ui.view,arch_db:cd_storefront.view_fix_storefront_return_form
+msgid "Storefront Return & RMA"
+msgstr "স্টোরফ্রন্ট রিটার্ন ও RMA"
+
+#. module: cd_storefront
+msgid "Storefront Returns"
+msgstr "স্টোরফ্রন্ট রিটার্নসমূহ"
+
+#. module: cd_storefront
+#: model:ir.actions.act_window,name:cd_storefront.action_fix_storefront_return
+msgid "Storefront Returns (RMA)"
+msgstr "স্টোরফ্রন্ট রিটার্ন (আরএমএ)"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart_line__subtotal
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order_line__subtotal
+msgid "Subtotal"
+msgstr "উপমোট"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart__total
+msgid "Total"
+msgstr "মোট"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order__total_amount
+msgid "Total Amount"
+msgstr "মোট পরিমাণ"
+
+#. module: cd_storefront
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_cart_line__unit_price
+#: model:ir.model.fields,field_description:cd_storefront.field_fix_storefront_order_line__unit_price
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+#. module: cd_storefront
+#: model:ir.model.fields.selection,name:cd_storefront.selection__fix_storefront_return__reason__wrong_item
+msgid "Wrong Item Delivered"
+msgstr "ভুল আইটেম ডেলিভারি করা হয়েছে"

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "marketplace.order_placed",
+  "description": "Event emitted when buyer places an order with a marketplace seller (Journey 7)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "marketplace.order_placed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_marketplace"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "buyer_id",
+        "seller_id",
+        "gross_amount",
+        "order_placed_at"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "buyer_id": {
+          "type": "integer"
+        },
+        "seller_id": {
+          "type": "integer"
+        },
+        "gross_amount": {
+          "type": "number"
+        },
+        "order_placed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -10,14 +10,37 @@ Gate criterion: walk-in intake in under 3 minutes, demonstrated by branch staff.
 Token queue management, handover with customer acknowledgement, cash drawer
 and shift control with AS-10 Monetary reconciliation.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.1.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Front Desk",
-    "depends": ["base", "mail", "cd_entity_config", "cd_device_registry",
-                 "cd_service_order", "cd_document_core", "cd_event_outbox",
-                 "cd_employee_core"],
-    "data": ["security/ir.model.access.csv", "views/fix_front_desk_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_document_core",
+        "cd_event_outbox",
+        "cd_employee_core",
+        # A02 audit B1: the variance, refund and price approvals are routed M63
+        "cd_workflow_engine",
+        # counter sales price default from product.product
+        "product",
+    ],
+    "data": [
+        # A02 audit M04-6: the role groups load before the ACLs that use them
+        "security/fix_front_desk_groups.xml",
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "data/ir_counter_sale_sequence.xml",
+        "data/fix_front_desk_cron.xml",
+        # load order: fix_front_desk_views defines the workspace parent menu
+        # (menu_ws_front_desk) the counter-sale menu hangs from — loading the
+        # counter-sale views first breaks every clean install (build-test-db).
+        "views/fix_front_desk_views.xml",
+        "views/fix_counter_sale_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M04-01",

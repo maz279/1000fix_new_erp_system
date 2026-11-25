@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gps.spoofing.blocked",
+  "description": "Published by cd_field_service through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "gps.spoofing.blocked"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_field_service"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "field_order_id",
+        "order_ref",
+        "technician_id"
+      ],
+      "properties": {
+        "field_order_id": {
+          "type": "integer"
+        },
+        "order_ref": {
+          "type": "string"
+        },
+        "technician_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_field_service",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

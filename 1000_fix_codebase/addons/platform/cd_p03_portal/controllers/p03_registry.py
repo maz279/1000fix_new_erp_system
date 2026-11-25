@@ -4,18 +4,19 @@
 # contracts/nav/registry.json — areas, modules, groups, screens, reports,
 # forms, freg, personas) and renders archetype A2 from it. The registry is
 # generated, committed, and FF-38-checked; this controller only serves it.
+import json
+from pathlib import Path
+
 from odoo import http
 from odoo.http import request
 
-import json
-from pathlib import Path
+from .p03_service_order_api import _require_internal
 
 REGISTRY_PATH = Path(__file__).resolve().parents[4] / "contracts" / "nav" / "registry.json"
 
 
 class P03RegistryController(http.Controller):
-
-    @http.route("/p03/registry", type="json", auth="user", readonly=True)
+    @http.route("/p03/registry", type="jsonrpc", auth="user", readonly=True)
     def get_registry(self):
         """The frozen navigation registry — read-only, user-authenticated.
 
@@ -23,4 +24,5 @@ class P03RegistryController(http.Controller):
         (it is the menu universe); actual screen access is action-gated by
         the domain modules' own ACLs (NVR-22).
         """
+        _require_internal(request.env)
         return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))

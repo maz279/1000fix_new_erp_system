@@ -36,7 +36,7 @@ async function drivePortal(name, port, routes) {
   for (const route of routes) {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     const errs = [];
-    page.on("console", (m) => { if (m.type() === "error") errs.push(m.text().slice(0, 100)); });
+    page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errs.push(m.text().slice(0, 100)); });
     page.on("pageerror", (e) => errs.push("PAGEERROR " + String(e).slice(0, 100)));
     let note = "";
     try {

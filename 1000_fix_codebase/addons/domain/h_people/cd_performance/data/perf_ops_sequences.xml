@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_perf_review" model="ir.sequence">
+            <field name="name">Performance Review</field>
+            <field name="code">fix.performance.review</field>
+            <field name="prefix">PRV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_perf_pip" model="ir.sequence">
+            <field name="name">Performance Improvement Plan</field>
+            <field name="code">fix.performance.pip</field>
+            <field name="prefix">PIP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_perf_recognition" model="ir.sequence">
+            <field name="name">Recognition Award</field>
+            <field name="code">fix.performance.recognition</field>
+            <field name="prefix">RECG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_band_exception" model="ir.sequence">
+            <field name="name">Above-Band Salary Exception</field>
+            <field name="code">fix.band.exception</field>
+            <field name="prefix">BEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_warranty_claims — AUT-018 wiring (G4-01): claims auto-create within
+     24h of a completed warranty job. The intake drains the outbox for
+     service_order.closed — the completion event the producer actually emits
+     (the historical service_order.completed subscription was dead wiring). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_warranty_aut018" model="ir.cron">
+            <field name="name">Warranty: AUT-018 claim auto-create (service_order.closed)</field>
+            <field name="model_id" ref="model_fix_warranty_claim"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_aut018_intake()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

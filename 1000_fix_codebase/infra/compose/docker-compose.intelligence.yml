@@ -7,10 +7,22 @@ services:
     profiles: ["intelligence"]
     environment:
       CLICKHOUSE_DB: fix_analytics
+      # Without explicit credentials the image entrypoint DISABLES network
+      # access for user 'default' (observed: HTTP 401 from the host), which
+      # silently breaks every bi-warehouse tool. Dev-only credentials, in line
+      # with the compose env-var rule (never literal secrets).
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env - development-only value}
     ports:
       - "127.0.0.1:8123:8123"
+    volumes:
+      # DE-05 named volume: warehouse data survives the loss of the container
+      - clickhouse-data:/var/lib/clickhouse
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     restart: unless-stopped
+
+volumes:
+  clickhouse-data:

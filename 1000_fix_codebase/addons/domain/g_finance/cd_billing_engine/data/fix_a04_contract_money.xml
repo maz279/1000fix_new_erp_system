@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP audit (20 Nov 2026, stream B2): the contract money legs.
+     - contract.terminated: the stub is billed, what was billed beyond the new
+       end is credited (submitted credit notes), the penalty is invoiced
+       (M08-F2);
+     - contract.entitlement_topped_up: the top-up is invoiced (M08-F3);
+     - the daily service-credit job: SLA breaches of an issued period earn the
+       contract's credit scheme as a submitted credit note (M08-F11). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a04_contract_terminated" model="fix.event.consumer">
+            <field name="name">M20: a terminated contract bills its stub, credits over-billing and invoices its penalty</field>
+            <field name="event_type">contract.terminated</field>
+            <field name="model">fix.a04.contract.consumers</field>
+            <field name="method">consume_contract_terminated</field>
+            <field name="module">cd_billing_engine</field>
+        </record>
+
+        <record id="consumer_a04_contract_entitlement_topped_up" model="fix.event.consumer">
+            <field name="name">M20: an applied entitlement top-up raises its draft invoice</field>
+            <field name="event_type">contract.entitlement_topped_up</field>
+            <field name="model">fix.a04.contract.consumers</field>
+            <field name="method">consume_contract_entitlement_topped_up</field>
+            <field name="module">cd_billing_engine</field>
+        </record>
+
+        <record id="ir_cron_contract_service_credits" model="ir.cron">
+            <field name="name">M08: contract SLA service credits (M20 credit notes)</field>
+            <field name="model_id" ref="model_fix_contract_billing_period"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_contract_service_credits()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

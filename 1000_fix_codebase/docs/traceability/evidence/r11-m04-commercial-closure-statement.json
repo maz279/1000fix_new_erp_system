@@ -1,0 +1,120 @@
+{
+  "$schema": "1000fix-erp/commercial-closure/2",
+  "standard": "CO-003 / CO-003-AMD-01 / B-11 Settlement / ISO 21502:2020 §7.10",
+  "milestone": "R11-M04",
+  "task": "R11-M04-T02",
+  "closure_timestamp": "2026-10-22T14:34:45.796648+00:00",
+  "contracted_baseline": {
+    "functional_requirements": 3389,
+    "nfrs": 122,
+    "source": "docs/p01-m08/SoW-F08-signed-amendment.md"
+  },
+  "checks": [
+    {
+      "id": "AMENDMENT_ON_DISK",
+      "status": "PASS",
+      "detail": "SoW-F08-signed-amendment.md on disk and cites 3,389 requirements / 122 NFRs (an on-disk amendment is not proof of execution)"
+    },
+    {
+      "id": "SCOPE_BASELINE_MATCHES",
+      "status": "PASS",
+      "detail": "requirements-baseline-2026-10-01.json measured 3389 requirements / 122 NFRs vs contracted 3389 / 122",
+      "measured_requirements": 3389,
+      "measured_nfrs": 122,
+      "scan_ran_at": "2026-10-01T10:01:13.2518116Z"
+    },
+    {
+      "id": "REQUIREMENTS_ACCEPTANCE",
+      "status": "FAIL",
+      "detail": "rtm-seed.csv: 0 of 3347 rows record acceptance (statuses {'seeded': 3347}); 42 of the 3,389 contracted requirements are not in the RTM",
+      "rtm_rows": 3347,
+      "rtm_rows_accepted": 0,
+      "rtm_status_counts": {
+        "seeded": 3347
+      }
+    },
+    {
+      "id": "NFR_ACCEPTANCE",
+      "status": "UNMEASURED",
+      "detail": "no per-NFR acceptance register is committed; acceptance of the 122 NFRs needs the signed acceptance records"
+    },
+    {
+      "id": "CHANGE_REQUEST_DISPOSITION",
+      "status": "FAIL",
+      "detail": "4 of 8 CR documents record a closed disposition; not closed: CR-P01M02-05 (NO_RECORDED_DISPOSITION), CR-P01M03-01 (NO_RECORDED_DISPOSITION), CR-P04-DSY-01 (NO_RECORDED_DISPOSITION), UX-001-D-01 (NO_RECORDED_DISPOSITION)",
+      "change_requests_found": 8,
+      "change_requests_dispositioned": 4
+    },
+    {
+      "id": "VENDOR_SETTLEMENTS",
+      "status": "UNMEASURED",
+      "detail": "vendor contract terminations, final invoices, retainage release and data-destruction certificates live in commercial/finance records, none of which are committed"
+    },
+    {
+      "id": "CONTRACT_SIGNATURES",
+      "status": "UNMEASURED",
+      "detail": "execution of CO-003-AMD-01 and the closure sign-off are named-person acts a tool cannot observe (P01-M08 records the amendment signature as external)"
+    }
+  ],
+  "change_requests": {
+    "total_found": 8,
+    "dispositioned": 4,
+    "not_dispositioned": 4,
+    "items": [
+      {
+        "cr_id": "CR-P01M02-05",
+        "document": "docs/p01-m02/CR-mobile-reallocation-D027.md",
+        "recorded_status": null,
+        "disposition": "NO_RECORDED_DISPOSITION"
+      },
+      {
+        "cr_id": "CR-P01M03-01",
+        "document": "docs/p01-m03/CR-module-register-M66-M67.md",
+        "recorded_status": null,
+        "disposition": "NO_RECORDED_DISPOSITION"
+      },
+      {
+        "cr_id": "CR-P04-DSY-01",
+        "document": "docs/p04/CR-cd-register-design-tokens.md",
+        "recorded_status": null,
+        "disposition": "NO_RECORDED_DISPOSITION"
+      },
+      {
+        "cr_id": "UX-001-D-01",
+        "document": "docs/p04/CR-ux001-d01-nfr080-restatement.md",
+        "recorded_status": null,
+        "disposition": "NO_RECORDED_DISPOSITION"
+      },
+      {
+        "cr_id": "CR-R10M02-01",
+        "document": "docs/r10/CR-module-register-M25.md",
+        "recorded_status": "APPROVED & RATIFIED",
+        "disposition": "DISPOSITIONED"
+      },
+      {
+        "cr_id": "CR-R10M02-02",
+        "document": "docs/r10/CR-module-register-M26.md",
+        "recorded_status": "APPROVED & RATIFIED",
+        "disposition": "DISPOSITIONED"
+      },
+      {
+        "cr_id": "CR-R10M02-03",
+        "document": "docs/r10/CR-module-register-M32.md",
+        "recorded_status": "APPROVED & RATIFIED",
+        "disposition": "DISPOSITIONED"
+      },
+      {
+        "cr_id": "CR-R10M02-04",
+        "document": "docs/r10/CR-module-register-M42.md",
+        "recorded_status": "APPROVED & RATIFIED",
+        "disposition": "DISPOSITIONED"
+      }
+    ]
+  },
+  "summary": {
+    "checks_passed": 2,
+    "checks_failed": 2,
+    "checks_unmeasured": 3
+  },
+  "commercial_verdict": "FAIL"
+}

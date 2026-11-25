@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_storefront security: customer portal cross-tenant record rules (R08-M04-T01, G7-6).
+     Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <!-- A04 audit C1 (M38-3): portal access is READ-ONLY on carts, lines,
+         orders and returns. Every storefront flow (add to cart, checkout,
+         returns) runs through controllers/storefront_api.py as superuser
+         after its own checks; a portal user writing through JSON-RPC set
+         a BDT 2,500 line to BDT 1 - and another customer's line, because
+         the lines had no rule at all. -->
+    <!-- Customer sees only their own carts -->
+    <record id="rule_fix_storefront_cart_customer_self" model="ir.rule">
+        <field name="name">Storefront: own carts only</field>
+        <field name="model_id" ref="model_fix_storefront_cart"/>
+        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Customer sees only the lines of their own carts -->
+    <record id="rule_fix_storefront_cart_line_customer_self" model="ir.rule">
+        <field name="name">Storefront: own cart lines only</field>
+        <field name="model_id" ref="model_fix_storefront_cart_line"/>
+        <field name="domain_force">[('cart_id.customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Customer sees only their own orders -->
+    <record id="rule_fix_storefront_order_customer_self" model="ir.rule">
+        <field name="name">Storefront: own orders only</field>
+        <field name="model_id" ref="model_fix_storefront_order"/>
+        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Customer sees only returns on their own orders -->
+    <record id="rule_fix_storefront_return_customer_self" model="ir.rule">
+        <field name="name">Storefront: own returns only</field>
+        <field name="model_id" ref="model_fix_storefront_return"/>
+        <field name="domain_force">[('order_id.customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- A04 ERP round 2 (M38-F8): the lines of a return follow their return:
+         the user's allowed companies, and a customer only their own. -->
+    <record id="rule_fix_storefront_return_line_company" model="ir.rule">
+        <field name="name">fix.storefront.return.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_storefront_return_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_storefront_return_line_customer_self" model="ir.rule">
+        <field name="name">Storefront: lines of own returns only</field>
+        <field name="model_id" ref="model_fix_storefront_return_line"/>
+        <field name="domain_force">[('return_id.order_id.customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

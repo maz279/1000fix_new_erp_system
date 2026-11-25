@@ -1,0 +1,57 @@
+# =============================================================================
+# 1000FiX ERP — infra/compose/docker-compose.superset.yml (R05-M04-T01)
+# Apache Superset BI & Analytics deployment on the READ REPLICA (LB-06 / AR-001).
+# Standing rules:
+#   DE-03 healthcheck declared
+#   DE-04 loopback binding only (127.0.0.1:8088, EP-12)
+#   DE-11 FIX_ENV=local assertion
+#   LB-06 T11 intelligence connects to READ REPLICA ONLY, never the primary
+# =============================================================================
+
+services:
+  # Read replica service for analytical queries (LB-06)
+  postgres-replica:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["intelligence", "analytics"]
+    environment:
+      FIX_ENV: local
+      POSTGRES_USER: fix_readonly
+      POSTGRES_PASSWORD: ${REPLICA_POSTGRES_PASSWORD:-readonly_dev_pass}
+      POSTGRES_DB: fix_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pgreplicadata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix_readonly -d fix_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Apache Superset BI server — queries postgres-replica (port 5434/5432)
+  superset:
+    image: apache/superset:4.0.2@sha256:51a90d11a59ac522172642cece4bd8047917253e13d884293fcd0cd48419939c
+    profiles: ["intelligence", "analytics"]
+    environment:
+      FIX_ENV: local
+      SUPERSET_ENV: local
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-fix_superset_dev_secret_key_32chars_min}
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://fix_readonly:${REPLICA_POSTGRES_PASSWORD:-readonly_dev_pass}@postgres-replica:5432/fix_dev
+      SUPERSET_FEATURE_EMBEDDED_SUPERSET: "true"
+      SUPERSET_FEATURE_ENABLE_TEMPLATE_PROCESSING: "true"
+      TALISMAN_CONFIG: '{"force_https": false, "content_security_policy": null}'
+    ports:
+      - "127.0.0.1:8088:8088"
+    depends_on:
+      postgres-replica:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8088/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgreplicadata:

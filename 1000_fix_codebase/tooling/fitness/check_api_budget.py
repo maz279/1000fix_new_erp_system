@@ -9,6 +9,7 @@ contracts/openapi/ and Next.js / Odoo API route definitions.
 Warning tier: burns to zero by Gate G3.
 Exit: 0 pass / 1 violations (when blocking).
 """
+
 from __future__ import annotations
 
 import re
@@ -53,7 +54,9 @@ def main() -> int:
         print("  remedy: declare p95 <= 200 ms latency bounds for all transactional routes.")
         return 0  # Warning tier per registry (blocking: false)
 
-    print(f"api-budget: OK - {checked_contracts} OpenAPI contract(s) and {checked_routes} route clients within latency budget (p95 <= {MAX_P95_MS} ms)")
+    print(
+        f"api-budget: OK - {checked_contracts} OpenAPI contract(s) and {checked_routes} route clients within latency budget (p95 <= {MAX_P95_MS} ms)"
+    )
     return 0
 
 

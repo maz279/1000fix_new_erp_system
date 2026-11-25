@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "hotline.emergency_dispatch",
+  "description": "Published by cd_contact_centre through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "hotline.emergency_dispatch"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_contact_centre"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "customer_id",
+        "phone",
+        "intent",
+        "service_order",
+        "work_order_ref"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "intent": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "service_order": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "work_order_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_contact_centre",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

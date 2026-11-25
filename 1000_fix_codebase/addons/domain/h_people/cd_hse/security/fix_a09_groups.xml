@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_hse privilege model (RAP X-02, A09 zero-trust re-audit 2026-10-30).
+
+     Every transactional model of this module granted write+create to
+     base.group_user, so any internal user could write the records that other
+     controls depend on. RAP X-02's target is that no A09 model is writable by
+     base.group_user except a named self-service surface.
+
+     Write now belongs to HSE Officer; plain internal users keep read.
+     Loaded BEFORE ir.model.access.csv so the CSV can reference the group. -->
+<odoo>
+    <record id="privilege_hse_officer" model="res.groups.privilege">
+        <field name="name">Health, Safety &amp; Wellbeing</field>
+        <field name="description">1000FiX A09 — Health, Safety &amp; Wellbeing.</field>
+        <field name="sequence">64</field>
+    </record>
+
+    <record id="group_hse_officer" model="res.groups">
+        <field name="name">HSE Officer</field>
+        <field name="privilege_id" ref="privilege_hse_officer"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Maintains inspections, committees, PPE, hazardous substances, drills and health records.</field>
+        <!-- the back office keeps working: the administrator holds the role -->
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- A09 audit M59-F1: medical records (restrictions, fitness verdicts,
+         clinician) were readable by every employee and editable by every HSE
+         Officer and so every HR manager. They now belong to Occupational
+         Health alone, which no other role implies. -->
+    <record id="group_occupational_health" model="res.groups">
+        <field name="name">Occupational Health</field>
+        <field name="privilege_id" ref="privilege_hse_officer"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Keeps employee health records and fitness-for-work decisions. Implied by no other role.</field>
+        <!-- the back office keeps working: the administrator holds the role -->
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+
+    <!-- A09 workflow audit M59-F5: any HSE Officer recorded the DIFE notice
+         with a typed reference. The spec makes the HR Manager the statutory
+         notification authority, so the role is implied by HR Manager. -->
+    <record id="group_statutory_notifier" model="res.groups">
+        <field name="name">Statutory Notification Authority (DIFE)</field>
+        <field name="privilege_id" ref="privilege_hse_officer"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Dispatches the BLA s.80 / BLR r.70 Form 27 / 27(a) accident notice to DIFE, with the form on file. Receives the notice-clock escalations.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- A09 workflow audit M59-F8 / interface I5: injury compensation was a
+         typed float. It is approved from the M63 inbox, never by the HSE
+         Officer who assessed it. Holders are a business decision. -->
+    <record id="group_injury_compensation_approver" model="res.groups">
+        <field name="name">Injury Compensation Approver</field>
+        <field name="privilege_id" ref="privilege_hse_officer"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Approves BLA 2006 Chapter XII injury compensation before it is handed to payroll.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- an HR Manager inherits the role, so existing manager accounts are
+         unaffected by the tightening -->
+    <record id="hr.group_hr_manager" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('cd_hse.group_hse_officer')), (4, ref('cd_hse.group_statutory_notifier'))]"/>
+    </record>
+</odoo>

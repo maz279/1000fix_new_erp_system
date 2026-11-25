@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M14 capture pass 2 (19 Nov 2026): the policy values the new captures
+     read. Each is a recorded business decision the owner may change. -->
+<odoo>
+    <data noupdate="1">
+        <!-- FR-TRF-033 / BRU-TRF-10: an offer whose modelled margin (resale
+             estimate minus offer and expected costs) is below this share of
+             the resale estimate needs a valuation manager's approval. -->
+        <record id="param_offer_margin_floor_pct" model="ir.config_parameter">
+            <field name="key">cd_tradein.offer_margin_floor_pct</field>
+            <field name="value">15</field>
+        </record>
+        <!-- FR-TRF-026: a sold refurbished unit is taken back within this many
+             days of the sale, or later within its refurbished warranty. -->
+        <record id="param_return_window_days" model="ir.config_parameter">
+            <field name="key">cd_tradein.return_window_days</field>
+            <field name="value">7</field>
+        </record>
+    </data>
+    <!-- BRU-TRF-14: each published grade's battery minimum (A 85, B 80, C 75,
+         D 70); a minimum already set is kept. -->
+    <function model="fix.refurb.grade" name="_m14_seed_battery_minimums"/>
+</odoo>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M18 event consumers (A05 audit M18-15 / D8): the ESG metrics (M25 feed)
+     are recomputed from the collections when an item is received, routed to
+     reuse or certified. Consumers are superuser-only and idempotent. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_esg_collection_recorded" model="fix.event.consumer">
+            <field name="name">M18/M25: refresh the ESG inventory of the month</field>
+            <field name="event_type">ewaste.collected</field>
+            <field name="model">fix.esg.metric</field>
+            <field name="method">consume_collection_recorded</field>
+            <field name="module">cd_ewaste</field>
+        </record>
+        <record id="consumer_esg_certificate_issued" model="fix.event.consumer">
+            <field name="name">M18/M25: refresh avoided CO2 when a recycler certificate is issued</field>
+            <field name="event_type">ewaste.certificate_issued</field>
+            <field name="model">fix.esg.metric</field>
+            <field name="method">consume_certificate_issued</field>
+            <field name="module">cd_ewaste</field>
+        </record>
+        <record id="consumer_esg_reuse_routed" model="fix.event.consumer">
+            <field name="name">M18/M25: refresh devices diverted to reuse</field>
+            <field name="event_type">ewaste.reuse_routed</field>
+            <field name="model">fix.esg.metric</field>
+            <field name="method">consume_reuse_routed</field>
+            <field name="module">cd_ewaste</field>
+        </record>
+        <!-- M14 -> M18: a harvested grade-E unit targeted for recycling enters
+             the e-waste stream (one collection per trade-in). -->
+        <record id="consumer_tradein_harvested_recycle" model="fix.event.consumer">
+            <field name="name">M14/M18: harvested trade-in unit targeted for recycling</field>
+            <field name="event_type">tradein.harvested</field>
+            <field name="model">fix.ewaste.collection</field>
+            <field name="method">consume_tradein_harvested</field>
+            <field name="module">cd_ewaste</field>
+        </record>
+        <!-- M15 -> M18: stock written off leaves the ledger and enters the
+             e-waste stream for disposal (one collection per write-off). -->
+        <record id="consumer_stock_written_off" model="fix.event.consumer">
+            <field name="name">M15/M18: written-off stock enters the e-waste stream</field>
+            <field name="event_type">stock.written_off</field>
+            <field name="model">fix.ewaste.collection</field>
+            <field name="method">consume_stock_written_off</field>
+            <field name="module">cd_ewaste</field>
+        </record>
+    </data>
+</odoo>

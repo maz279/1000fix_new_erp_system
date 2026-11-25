@@ -12,35 +12,52 @@ class FixSlaPolicy(models.Model):
     these targets against the branch working calendar; the policy itself is
     estate-wide master data (no OU — a promise made in one branch is the
     promise)."""
+
     _name = "fix.sla.policy"
     _description = "SLA Policy"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'SLA policy code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "SLA policy code must be unique")
 
     code = fields.Char(string="SLA Code", required=True, size=16)
     name = fields.Char(string="SLA Policy", required=True)
     service_type = fields.Selection(
-        [("walk_in", "Walk-in"), ("collection", "Collection/Delivery"),
-         ("onsite", "On-site"), ("mail_in", "Mail-in"), ("corporate", "Corporate/Bulk")],
-        string="Service Type", required=True)
+        [
+            ("walk_in", "Walk-in"),
+            ("collection", "Collection/Delivery"),
+            ("onsite", "On-site"),
+            ("mail_in", "Mail-in"),
+            ("corporate", "Corporate/Bulk"),
+        ],
+        string="Service Type",
+        required=True,
+    )
     priority = fields.Selection(
-        [("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"),
-         ("emergency", "Emergency")],
-        string="Priority", required=True, default="normal")
+        [("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"), ("emergency", "Emergency")],
+        string="Priority",
+        required=True,
+        default="normal",
+    )
     # Targets in HOURS of business time (fix.working.calendar); the engine
     # converts hours to deadlines per branch calendar. BRU-SRM-10: Gold and
     # Diamond members map to priority-1 policies automatically.
-    response_hours = fields.Float(string="Response Target (hours)", required=True,
-                                  help="Assignment to first action, business hours")
-    resolution_hours = fields.Float(string="Resolution Target (hours)", required=True,
-                                    help="Intake to ready, business hours")
+    response_hours = fields.Float(
+        string="Response Target (hours)",
+        required=True,
+        help="Assignment to first action, business hours",
+    )
+    resolution_hours = fields.Float(
+        string="Resolution Target (hours)", required=True, help="Intake to ready, business hours"
+    )
     escalation_template_id = fields.Many2one(
-        "mail.template", string="Escalation Template",
-        help="NT-020 escalation template fired on breach / near-breach")
-    company_id = fields.Many2one("res.company", string="Company", required=True,
-                                 default=lambda self: self.env.company)
+        "mail.template",
+        string="Escalation Template",
+        help="NT-020 escalation template fired on breach / near-breach",
+    )
+    company_id = fields.Many2one(
+        "res.company", string="Company", required=True, default=lambda self: self.env.company
+    )
     active = fields.Boolean(default=True, tracking=True)
 
     @api.constrains("response_hours", "resolution_hours")
@@ -49,8 +66,7 @@ class FixSlaPolicy(models.Model):
             if policy.response_hours <= 0 or policy.resolution_hours <= 0:
                 raise ValidationError("SLA targets must be positive (business hours)")
             if policy.response_hours > policy.resolution_hours:
-                raise ValidationError(
-                    "Response target cannot exceed resolution target")
+                raise ValidationError("Response target cannot exceed resolution target")
 
 
 class FixDiagnosticNode(models.Model):
@@ -58,6 +74,7 @@ class FixDiagnosticNode(models.Model):
     nodes pose a question; terminal nodes carry the fault code and the
     recommended action. Trees are versionless masters: correcting a tree is
     an edit, because work orders store the traversed node, not a snapshot."""
+
     _name = "fix.diagnostic.node"
     _description = "Diagnostic Tree Node"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -65,23 +82,27 @@ class FixDiagnosticNode(models.Model):
 
     name = fields.Char(string="Question / Symptom", required=True)
     code = fields.Char(string="Node Code", required=True, size=24, index=True)
-    parent_id = fields.Many2one("fix.diagnostic.node", string="Parent Node",
-                                index=True, ondelete="restrict")
-    children_ids = fields.One2many("fix.diagnostic.node", "parent_id",
-                                   string="Answers / Children")
+    parent_id = fields.Many2one(
+        "fix.diagnostic.node", string="Parent Node", index=True, ondelete="restrict"
+    )
+    children_ids = fields.One2many("fix.diagnostic.node", "parent_id", string="Answers / Children")
     is_terminal = fields.Boolean(
-        string="Terminal Node", compute="_compute_is_terminal", store=True,
-        help="A node with no children ends a diagnostic path")
+        string="Terminal Node",
+        compute="_compute_is_terminal",
+        store=True,
+        help="A node with no children ends a diagnostic path",
+    )
     fault_code = fields.Char(
-        string="Fault Code",
-        help="Set on terminal nodes: feeds work_order.diagnosed_fault_code")
+        string="Fault Code", help="Set on terminal nodes: feeds work_order.diagnosed_fault_code"
+    )
     recommended_action = fields.Text(string="Recommended Action")
-    company_id = fields.Many2one("res.company", string="Company", required=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", string="Company", required=True, default=lambda self: self.env.company
+    )
     active = fields.Boolean(default=True)
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'Diagnostic node code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "Diagnostic node code must be unique")
 
     @api.depends("children_ids")
     def _compute_is_terminal(self):
@@ -92,11 +113,9 @@ class FixDiagnosticNode(models.Model):
     def _check_terminal(self):
         for node in self:
             if node.is_terminal and not node.fault_code:
-                raise ValidationError(
-                    "A terminal diagnostic node must carry a fault code")
+                raise ValidationError("A terminal diagnostic node must carry a fault code")
             if not node.is_terminal and node.fault_code:
-                raise ValidationError(
-                    "Only terminal nodes carry a fault code")
+                raise ValidationError("Only terminal nodes carry a fault code")
 
     @api.constrains("parent_id")
     def _check_no_cycle(self):

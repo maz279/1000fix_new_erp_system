@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 finish build (2026-11-07) N-M66-7, M66-6, spec s13 (M66 roles):
+  "All employees: raise a ticket; track their own tickets; view their own allocated
+  assets." Security incident detail is masked to all but the people who run it.
+
+  Group rules on one model are ORed, so the rule that used to apply to every
+  internal user (OU only) now applies to the agent group; a plain employee has only
+  the own-record rule. The company rules stay global and are ANDed on top.
+-->
+<odoo>
+    <record id="rule_fix_itsm_ticket_own" model="ir.rule">
+        <field name="name">fix.itsm.ticket: an employee reads his own tickets</field>
+        <field name="model_id" ref="model_fix_itsm_ticket"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('requester_id.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_itsm_ticket_agent_unit" model="ir.rule">
+        <field name="name">fix.itsm.ticket: an agent reads his units' tickets, security incidents only when assigned</field>
+        <field name="model_id" ref="model_fix_itsm_ticket"/>
+        <field name="groups" eval="[(4, ref('cd_itsm.group_itsm_agent'))]"/>
+        <field name="domain_force">['&amp;', '|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids), '|', ('category', '!=', 'security'), ('assigned_user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_itsm_ticket_manager_unit" model="ir.rule">
+        <field name="name">fix.itsm.ticket: Change Manager and CAB read every ticket of their units</field>
+        <field name="model_id" ref="model_fix_itsm_ticket"/>
+        <field name="groups" eval="[(4, ref('cd_itsm.group_itsm_change_manager')), (4, ref('cd_itsm.group_itsm_cab_member'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_asset_own" model="ir.rule">
+        <field name="name">fix.itsm.asset: an employee reads the assets allocated to him</field>
+        <field name="model_id" ref="model_fix_itsm_asset"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('assigned_to_id.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_itsm_asset_agent" model="ir.rule">
+        <field name="name">fix.itsm.asset: the service desk reads the register</field>
+        <field name="model_id" ref="model_fix_itsm_asset"/>
+        <field name="groups" eval="[(4, ref('cd_itsm.group_itsm_agent'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

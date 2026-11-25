@@ -1,9 +1,18 @@
 # fix.workshop.job — Workshop Repair Order & Execution Job (CD-M31-01, RR-03 Milestone R03-M02).
 # Full state machine unified with AS-06, bench routing, multi-job handling, burn-in, costing, and stubs.
+#
+# A02 workflow audit (2026-11-03), M31-1 … M31-12: every gate in this file lived
+# in an action method while the fields those gates protect (state, qc_passed,
+# burn_in_passed, the burn-in minutes, certification_waiver, qc_inspector_id)
+# were writable by the technician through the ORM and /p03/model/write. A draft
+# L2 job was written straight to "delivered" with QC and burn-in "passed", and a
+# technician passed his own QC by typing a colleague into qc_inspector_id. The
+# job is now guarded (fix.guarded.mixin): those fields change only through the
+# transition methods below, which write through `_guarded()`.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +26,11 @@ WORKSHOP_JOB_STATES = [
     ("qc_pending", "QC Pending"),
     ("qc_failed", "QC Failed — Rework Loop"),
     ("ready", "Ready for Release / Handover"),
+    # A02 pass 2 M31-02: the workshop releases the device to the front desk
+    # (outgoing staging); the customer hand-over is M01's, which closes the job
+    ("released", "Released to Front Desk"),
     ("delivered", "Delivered / Handed Over"),
+    ("unrepairable", "Unrepairable / BER — Written Off"),
     ("cancelled", "Cancelled"),
 ]
 
@@ -25,16 +38,131 @@ WORKSHOP_JOB_STATES = [
 VALID_JOB_TRANSITIONS = {
     "draft": {"intake", "cancelled"},
     "intake": {"diagnostic", "waiting_parts", "in_repair", "cancelled"},
-    "diagnostic": {"waiting_parts", "in_repair", "cancelled"},
-    "waiting_parts": {"in_repair", "cancelled"},
-    "in_repair": {"burn_in", "qc_pending", "waiting_parts", "cancelled"},
-    "burn_in": {"qc_pending", "in_repair", "qc_failed"},
+    "diagnostic": {"waiting_parts", "in_repair", "unrepairable", "cancelled"},
+    "waiting_parts": {"in_repair", "unrepairable", "cancelled"},
+    "in_repair": {"burn_in", "qc_pending", "waiting_parts", "unrepairable", "cancelled"},
+    # A02 ERP audit M31-F19: no burn_in -> qc_failed edge. The order is
+    # still in repair during burn-in and M01 has no repair -> QC-failed move,
+    # so that edge raised against M01; a failed burn-in goes back to the bench.
+    "burn_in": {"qc_pending", "in_repair"},
     "qc_pending": {"ready", "qc_failed"},
-    "qc_failed": {"in_repair", "diagnostic", "cancelled"},
-    "ready": {"delivered"},
+    "qc_failed": {"in_repair", "diagnostic", "unrepairable", "cancelled"},
+    "ready": {"released"},
+    "released": {"delivered"},
     "delivered": set(),
+    "unrepairable": set(),
     "cancelled": set(),
 }
+
+# A02 audit M31-1: the workflow, approval and evidence fields. Only a
+# transition method below may change them (fix.guarded.mixin).
+GUARDED_JOB_FIELDS = frozenset(
+    {
+        "state",
+        # QC (BRU-SRM-18 / WSR-04): stamped from the acting inspector
+        "qc_passed",
+        "qc_notes",
+        "qc_inspector_id",
+        "qc_inspector_user_id",
+        "qc_inspected_at",
+        "ncr_id",
+        # burn-in (FLAW-31.3): stamped by the burn-in actions, never typed
+        "burn_in_started_at",
+        "burn_in_completed_at",
+        "burn_in_actual_minutes",
+        "thermal_crash_count",
+        "burn_in_passed",
+        # M22 certification waiver: a supervisor action
+        "certification_waiver",
+        "certification_waiver_reason",
+        "certification_waiver_by_id",
+        "certification_waiver_at",
+        "certification_waiver_technician_id",
+        # A02 ERP audit M31-F14: the typed labour figure defeated the BRU-WSR-11
+        # cost gate. Labour comes from the work clock at the workshop rate;
+        # the typed figure is used only where no rate is set, and is recorded
+        # by a supervisor through action_record_labour.
+        "labour_total",
+        # release / rework / write-off stamps
+        "completed_at",
+        "dofa_writeoff_tier",
+        "rework_of_id",
+        "is_rework",
+        "rework_count",
+        "rework_reason",
+        "ber_reason",
+        "ber_writeoff_amount",
+        "ber_proposed_by_id",
+        "ber_proposed_at",
+        "ber_confirmed_by_id",
+        "ber_confirmed_at",
+    }
+)
+
+# A02 audit M31-4 / P31-10: once a job is closed its cost and routing are the
+# record of what was done; a delivered job's labour went from 500 to 140,000.
+CLOSED_JOB_STATES = ("delivered", "unrepairable", "cancelled")
+JOB_FROZEN_WHEN_CLOSED = frozenset(
+    {
+        "labour_total",
+        "repair_level",
+        "order_id",
+        "workshop_id",
+        "technician_id",
+        "bench_id",
+        "device_id",
+        "device_serial",
+        "customer_id",
+        "equipment_id",
+        "sam_standard_minutes",
+        "actual_logged_minutes",
+        "diagnostic_findings",
+        "repair_action_summary",
+        "pre_rework_photo_attachment_id",
+        "post_rework_photo_attachment_id",
+    }
+)
+# The repairing technician is what QC's segregation of duties compares
+# against, and the repair level decides the certification, burn-in and
+# evidence gates: while the job is on the bench or in test neither changes
+# (a downgrade from L2 to L1 would skip the burn-in).
+ON_BENCH_STATES = ("in_repair", "burn_in", "qc_pending", "ready", "released", *CLOSED_JOB_STATES)
+# A02 pass 2 M31-01: a job waiting for parts or back from a failed QC is still
+# the same repair. A downgrade there skipped the burn-in, and a new technician
+# there passed QC on work he never touched; the level and the technician
+# change only by a supervisor (action_revise_level / Allocate to Bench).
+SUPERVISOR_ROUTING_STATES = ("waiting_parts", "qc_failed")
+TECHNICIAN_LOCKED_STATES = (*ON_BENCH_STATES, *SUPERVISOR_ROUTING_STATES)
+ROUTING_LOCKED_FIELDS = frozenset({"technician_id", "repair_level"})
+
+# A02 audit M31-3: the parent-order states in which repair may proceed.
+ORDER_CLEARED_FOR_REPAIR = ("approved", "in_repair", "qc_failed")
+
+# A02 audit M31-8: the evidence pack a release needs.
+RELEASE_EVIDENCE = ("post_repair_photo", "test_log")
+RELEASE_EVIDENCE_L2_L3 = ("burn_in_log",)
+
+GROUP_TECHNICIAN = "cd_workshop.group_fix_workshop_user"
+GROUP_SUPERVISOR = "cd_workshop.group_fix_workshop_manager"
+GROUP_QC_INSPECTOR = "cd_workshop.group_fix_workshop_qc_inspector"
+
+# FLAW-31.3 default; a policy number, so it is a config parameter.
+BURN_IN_MIN_MINUTES_PARAM = "cd_workshop.burn_in_min_minutes"
+BURN_IN_MIN_MINUTES_DEFAULT = 240.0
+
+# A07 audit (2026-11-03) M45-4 / BRU-EAM-15: every QC pass names the test
+# instrument it was measured with. Live, 0 of 65 QC'd jobs name one and 7 of 13
+# instruments have never been calibrated, so enforcing it on deploy would stop
+# every QC pass: it is a business switch, off by default ("1"/"true" = on).
+QC_REQUIRES_INSTRUMENT_PARAM = "cd_workshop.qc_requires_instrument"
+
+# BER / scrap write-off ladder, from the tier labels already on the job
+# (Tier 2 ≤ 10,000 BDT, Tier 3 ≤ 50,000 BDT, Tier 4 above).
+BER_DOFA_THRESHOLDS = [
+    (10000.0, "tier_2"),
+    (50000.0, "tier_3"),
+    (float("inf"), "tier_4"),
+]
 
 
 class FixWorkshopJob(models.Model):
@@ -43,10 +171,34 @@ class FixWorkshopJob(models.Model):
     Carries repair-level routing (L1/L2/L3), bench allocation, spare parts consumption,
     evidence packs, burn-in testing, and quality control.
     """
+
     _name = "fix.workshop.job"
     _description = "Workshop Repair Job"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    # fix.dofa.mixin brings fix.guarded.mixin (A1) and the DOFA approval used
+    # by the BER / scrap write-off (A02 audit M31-9).
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "priority desc, create_date desc"
+
+    # A02 audit B1: the BER write-off is decided from the approver's M63
+    # inbox (the apply method is action_dofa_approve, which closes the job).
+    # Confirm BER requests it; a direct press of Approve is refused.
+    _approval_domain = "workshop_ber"
+    _approval_routed = True
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | GUARDED_JOB_FIELDS
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) != 1:
+            return locked
+        if self.state != "draft":
+            locked |= {"order_id"}
+        if self.state in TECHNICIAN_LOCKED_STATES:
+            locked |= ROUTING_LOCKED_FIELDS
+        if self.state in CLOSED_JOB_STATES:
+            locked |= JOB_FROZEN_WHEN_CLOSED
+        return locked
 
     # Multi-entity & Governance (AS-03)
     company_id = fields.Many2one(
@@ -109,8 +261,24 @@ class FixWorkshopJob(models.Model):
     qc_inspector_id = fields.Many2one(
         "hr.employee",
         string="QC Inspector",
+        readonly=True,
         tracking=True,
-        help="Independent QC inspector (BRU-SRM-18: must differ from repairing technician)",
+        help="Independent QC inspector (BRU-SRM-18: must differ from repairing technician). "
+        "Stamped from the user who ran the inspection, never typed.",
+    )
+    qc_inspector_user_id = fields.Many2one(
+        "res.users",
+        string="QC Inspected By",
+        readonly=True,
+        copy=False,
+        tracking=True,
+        help="The user who ran the QC inspection (A02 audit M31-2).",
+    )
+    qc_inspected_at = fields.Datetime(string="QC Inspected At", readonly=True, copy=False)
+    equipment_id = fields.Many2one(
+        "fix.equipment",
+        string="Test Equipment Used",
+        help="M45 calibration-tracked test instrument used for verification / QC (ISO 9001 Clause 7.1.5)",
     )
 
     # Repair Classification & Multi-job handling
@@ -164,6 +332,7 @@ class FixWorkshopJob(models.Model):
         WORKSHOP_JOB_STATES,
         default="draft",
         required=True,
+        readonly=True,
         tracking=True,
         index=True,
         group_expand="_read_group_states",
@@ -186,24 +355,140 @@ class FixWorkshopJob(models.Model):
     # Burn-In & Stress Testing (CD-M31-03)
     burn_in_duration_hours = fields.Float(
         string="Burn-In Duration (Hours)",
-        default=2.0,
-        help="Scheduled burn-in test duration",
+        default=4.0,
+        help="Scheduled burn-in test duration (minimum 4.0h / 240m for L2/L3)",
+    )
+    burn_in_actual_minutes = fields.Float(
+        string="Actual Burn-In Minutes",
+        default=0.0,
+        readonly=True,
+        tracking=True,
+        help="FLAW-31.3: L2/L3 board repairs require >= 240 minutes continuous stress testing. "
+        "Measured from the burn-in start and end stamps (A02 audit M31-6), never typed.",
+    )
+    thermal_crash_count = fields.Integer(
+        string="Thermal / Stress Crashes",
+        default=0,
+        readonly=True,
+        tracking=True,
+        help="FLAW-31.3: Must be 0 to pass burn-in. Counted by Log Thermal Crash.",
     )
     burn_in_started_at = fields.Datetime(string="Burn-In Started At", readonly=True)
     burn_in_completed_at = fields.Datetime(string="Burn-In Completed At", readonly=True)
     burn_in_temp_celsius = fields.Float(string="Chamber Temp (°C)", default=40.0)
-    burn_in_passed = fields.Boolean(string="Burn-In Passed", default=False, tracking=True)
+    burn_in_passed = fields.Boolean(
+        string="Burn-In Passed", default=False, readonly=True, tracking=True
+    )
+
+    # Micro-Soldering, IPC-7711/7721 & SAM Labor Efficiency (M31 Enterprise Data Capture)
+    schematic_designators = fields.Char(
+        string="Schematic / Boardview Designators",
+        help="e.g. U7000, CD3217B12, C7050, PPBUS_G3H",
+    )
+    reflow_profile_name = fields.Char(
+        string="BGA / Hot-Air Reflow Profile",
+        help="e.g. SAC305 Lead-Free 235°C Peak / 60s TAL",
+    )
+    flux_solder_spec = fields.Char(
+        string="Solder Alloy & Flux Lot",
+        help="e.g. Senju M705 SAC305 + Amtech NC-559-V2-TF",
+    )
+    dc_power_rail_readings = fields.Text(
+        string="DC Power Rail / Diode Mode Readings",
+        help="Pre and post repair voltage/current/diode measurements on primary rails",
+    )
+    ipc_class_target = fields.Selection(
+        [
+            ("class_2", "IPC Class 2 — Dedicated Service Electronic Products"),
+            ("class_3", "IPC Class 3 — High Performance / Critical Electronic Products"),
+        ],
+        string="IPC-7711/7721 Rework Standard",
+        default="class_2",
+    )
+    ipc_visual_inspection_passed = fields.Boolean(
+        string="IPC 10x–40x Microscope Inspection Passed",
+        default=True,
+    )
+    sam_standard_minutes = fields.Float(
+        string="Standard Allowed Minutes (SAM)",
+        default=60.0,
+    )
+    actual_logged_minutes = fields.Float(
+        string="Actual Logged Bench Minutes",
+        default=60.0,
+    )
+    labor_efficiency_pct = fields.Float(
+        string="Labor Efficiency (%)",
+        compute="_compute_labor_efficiency",
+        store=True,
+    )
+    # A02 audit M31-9 / P31-11: the tier was a free Selection the technician
+    # set himself and nothing read. It is now derived from the write-off amount.
+    dofa_writeoff_tier = fields.Selection(
+        [
+            ("none", "No Write-Off Required"),
+            # A02 pass 2 M31-09: a BER of nothing sunk is a supervisor's decision
+            ("tier_1", "Tier 1 — Workshop Supervisor"),
+            ("tier_2", "Tier 2 — Service Center Manager (<= 10,000 BDT)"),
+            ("tier_3", "Tier 3 — Regional Service Head (<= 50,000 BDT)"),
+            ("tier_4", "Tier 4 — Head of Service & Finance (> 50,000 BDT)"),
+        ],
+        string="DOFA BER / Scrap Write-Off Tier",
+        compute="_compute_dofa_writeoff_tier",
+        store=True,
+        help="Derived from the BER write-off amount. Never set by hand.",
+    )
+    pre_rework_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Pre-Rework Microscope Photo",
+    )
+    post_rework_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Post-Rework Microscope / Thermal Log",
+    )
 
     # Quality Control & Checklists
-    qc_passed = fields.Boolean(string="QC Passed", default=False, tracking=True)
-    qc_notes = fields.Text(string="QC Inspection Notes")
+    qc_passed = fields.Boolean(string="QC Passed", default=False, readonly=True, tracking=True)
+    qc_notes = fields.Text(string="QC Inspection Notes", readonly=True)
+    ncr_id = fields.Many2one(
+        "fix.ncr",
+        string="NCR (M23)",
+        ondelete="set null",
+        readonly=True,
+        help="Formal ISO 9001 Non-Conformance Record (STUB-M31-M23-001 CLOSED)",
+    )
+    # A02 audit M31-5 / P31-07: the technician ticked this on his own job.
+    # It is now granted by a supervisor (action_grant_certification_waiver),
+    # stamped with who and when, and covers only the technician it was
+    # granted for.
+    certification_waiver = fields.Boolean(
+        string="Certification Waiver",
+        readonly=True,
+        copy=False,
+        help="Supervisor waiver for L2/L3 repair assignment (audited)",
+    )
+    certification_waiver_reason = fields.Char(
+        string="Waiver Justification", readonly=True, copy=False
+    )
+    certification_waiver_by_id = fields.Many2one(
+        "res.users", string="Waiver Granted By", readonly=True, copy=False
+    )
+    certification_waiver_at = fields.Datetime(string="Waiver Granted At", readonly=True, copy=False)
+    certification_waiver_technician_id = fields.Many2one(
+        "hr.employee",
+        string="Waiver Covers Technician",
+        readonly=True,
+        copy=False,
+        help="A waiver is granted for one technician; reassigning the job voids it.",
+    )
 
     # Costing & Monetary (AS-10)
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
         required=True,
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
     parts_total = fields.Monetary(
         string="Parts Total",
@@ -225,15 +510,36 @@ class FixWorkshopJob(models.Model):
     )
 
     # Rework Tracking (M01 / M31 Rework loops)
-    is_rework = fields.Boolean(string="Internal Rework", default=False, tracking=True)
-    rework_count = fields.Integer(string="Rework Count", default=0)
-    rework_reason = fields.Text(string="Rework Reason")
+    is_rework = fields.Boolean(
+        string="Internal Rework", default=False, readonly=True, tracking=True
+    )
+    rework_count = fields.Integer(string="Rework Count", default=0, readonly=True)
+    rework_reason = fields.Text(string="Rework Reason", readonly=True)
     rework_of_id = fields.Many2one(
         "fix.workshop.job",
         string="Rework Of Job",
         index=True,
         readonly=True,
     )
+
+    # BER / scrap (A02 audit M31-9): proposed by the bench, approved under
+    # DOFA on the write-off amount, confirmed by a second technician.
+    ber_reason = fields.Text(string="BER / Scrap Reason", readonly=True, copy=False)
+    ber_writeoff_amount = fields.Monetary(
+        string="Write-Off Amount",
+        readonly=True,
+        copy=False,
+        currency_field="currency_id",
+        help="The value written off. Never below the cost already sunk into the job.",
+    )
+    ber_proposed_by_id = fields.Many2one(
+        "res.users", string="BER Proposed By", readonly=True, copy=False
+    )
+    ber_proposed_at = fields.Datetime(string="BER Proposed At", readonly=True, copy=False)
+    ber_confirmed_by_id = fields.Many2one(
+        "res.users", string="BER Confirmed By (Second Technician)", readonly=True, copy=False
+    )
+    ber_confirmed_at = fields.Datetime(string="BER Confirmed At", readonly=True, copy=False)
 
     # Permanent Legacy Reference (MIG-03)
     legacy_reference = fields.Char(
@@ -254,12 +560,140 @@ class FixWorkshopJob(models.Model):
     def _read_group_states(self, states, domain, order):
         return [s[0] for s in WORKSHOP_JOB_STATES]
 
-    @api.depends("part_line_ids.subtotal", "labour_total")
+    def _m31_fitted_parts_cost(self) -> float:
+        """A02 ERP audit M31-F12: only parts consumed on the bench cost the
+        job. A draft, reserved or released line was counted, so a reserved
+        part that went back to stores still sat in the cost and the BER
+        write-off."""
+        self.ensure_one()
+        return sum(
+            line.subtotal for line in self.part_line_ids if line.reservation_state == "consumed"
+        )
+
+    @api.depends("part_line_ids.subtotal", "part_line_ids.reservation_state", "labour_total")
     def _compute_totals(self):
+        # labour and consumables are added by the work clock (capture2)
         for rec in self:
-            parts = sum(line.subtotal for line in rec.part_line_ids)
+            parts = rec._m31_fitted_parts_cost()
             rec.parts_total = parts
             rec.total_repair_cost = parts + (rec.labour_total or 0.0)
+
+    @api.depends("sam_standard_minutes", "actual_logged_minutes")
+    def _compute_labor_efficiency(self):
+        for rec in self:
+            if rec.actual_logged_minutes and rec.actual_logged_minutes > 0:
+                rec.labor_efficiency_pct = round(
+                    (rec.sam_standard_minutes or 0.0) / rec.actual_logged_minutes * 100.0, 2
+                )
+            else:
+                rec.labor_efficiency_pct = 100.0
+
+    # --- DOFA on the BER write-off (A02 audit M31-9) ---
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        if not self.ber_proposed_at:
+            return 0.0
+        # the sunk cost cannot be understated to reach a lower tier
+        return max(self.ber_writeoff_amount or 0.0, self.total_repair_cost or 0.0)
+
+    def _dofa_thresholds(self):
+        return BER_DOFA_THRESHOLDS
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "the BER write-off of BDT %.2f on %s" % (self._dofa_amount(), self.name)
+
+    @api.depends("ber_writeoff_amount", "ber_proposed_at", "total_repair_cost")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    @api.depends("ber_writeoff_amount", "ber_proposed_at", "total_repair_cost")
+    def _compute_dofa_writeoff_tier(self):
+        for rec in self:
+            tier = rec._dofa_current_tier()
+            rec.dofa_writeoff_tier = tier if tier in ("tier_2", "tier_3", "tier_4") else "none"
+
+    # --- Frozen records (A02 audit M31-1 / M31-4) ---
+    def write(self, vals):
+        # --- A07 P1 (2026-11-04) M45 probe 22 --------------------------------
+        # The QC instrument is measurement evidence for EVERY caller, the
+        # superuser included (sudo service code and imports too): once QC has
+        # passed it changes only inside a guarded transition.
+        if self and "equipment_id" in vals and not self._fix_guard_has_token():
+            for rec in self.filtered("qc_passed"):
+                if rec._fix_guard_differs("equipment_id", vals["equipment_id"], rec.equipment_id):
+                    raise UserError(
+                        "Test Equipment Used cannot be changed on job %s while it is %s: "
+                        "it is the measurement evidence of the QC pass."
+                        % (rec.name, dict(WORKSHOP_JOB_STATES).get(rec.state, rec.state))
+                    )
+        # --- end A07 P1 M45 ----------------------------------------------------
+        if self and not self._fix_guard_open():
+            for rec in self:
+                frozen = set()
+                if rec.state != "draft":
+                    frozen |= {"order_id"}
+                if rec.state in TECHNICIAN_LOCKED_STATES:
+                    frozen |= ROUTING_LOCKED_FIELDS
+                if rec.state in CLOSED_JOB_STATES:
+                    frozen |= JOB_FROZEN_WHEN_CLOSED
+                # A07 audit (2026-11-03) M45-4: the instrument is the QC
+                # measurement evidence; it was frozen only once the job closed,
+                # so it could be cleared or swapped right after QC passed
+                if rec.qc_passed:
+                    frozen |= {"equipment_id"}
+                changed = sorted(
+                    name
+                    for name in frozen & set(vals)
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                )
+                if changed:
+                    labels = ", ".join(rec._fields[n].string or n for n in changed)
+                    raise UserError(
+                        "%s cannot be changed on job %s while it is %s: %s"
+                        % (
+                            labels,
+                            rec.name,
+                            dict(WORKSHOP_JOB_STATES).get(rec.state, rec.state),
+                            "a closed job is the record of the repair."
+                            if rec.state in CLOSED_JOB_STATES
+                            else "the parent order and the repairing technician are fixed "
+                            "once the job is under way (QC independence and the approved "
+                            "estimate are checked against them).",
+                        )
+                    )
+        return super().write(vals)
+
+    # --- Roles and segregation of duties (A02 audit M31-2 / M31-5) ---
+    def _m31_require_group(self, xmlids, what):
+        """The acting user must hold one of these groups. Superuser code
+        (crons, seeds, sudo service calls) is trusted, as by the guard."""
+        if self.env.su:
+            return
+        if any(self.env.user.has_group(x) for x in xmlids):
+            return
+        names = []
+        for xmlid in xmlids:
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            names.append(group.sudo().name if group else xmlid)
+        raise UserError(
+            "%s needs the %s role. You do not hold it; ask a workshop supervisor."
+            % (what, " or ".join("'%s'" % n for n in names))
+        )
+
+    def _m31_actor_is_technician(self) -> bool:
+        """Is the acting user the job's repairing technician? Compared on the
+        user who acts, never on a field the technician can type."""
+        self.ensure_one()
+        # sudo: a technician may not read other employees' HR fields, and the
+        # comparison must not depend on what the actor is allowed to see
+        tech = self.sudo().technician_id
+        if not tech:
+            return False
+        user = self.env.user.sudo()
+        if tech.user_id and tech.user_id.id == user.id:
+            return True
+        return tech.id in user.employee_ids.ids
 
     # --- State Machine Transitions (AS-06) ---
     def _validate_transition(self, new_state: str) -> None:
@@ -271,7 +705,36 @@ class FixWorkshopJob(models.Model):
                 f"Permitted next states from '{self.state}' are: {', '.join(sorted(valid_next)) or 'None (Terminal)'}"
             )
 
+    # A02 audit M31-7 / P31-06: the generic transition was whitelisted in P03,
+    # so a QC fail reached qc_failed with no NCR and no rework count, and the
+    # burn-in state was skippable. The public entry point now dispatches to the
+    # target's dedicated method, so every target carries its side-effects;
+    # targets whose method needs a decision (QC verdict, BER) are refused.
+    _TRANSITION_METHODS = {
+        "intake": "action_intake",
+        "diagnostic": "action_diagnostic",
+        "waiting_parts": "action_wait_parts",
+        "in_repair": "action_start_repair",
+        "burn_in": "action_start_burn_in",
+        "qc_pending": "action_submit_qc",
+        "released": "action_release",
+        "delivered": "action_deliver",
+        "cancelled": "action_cancel",
+    }
+
     def action_transition(self, new_state: str):
+        """Move the job to `new_state` through that state's own action."""
+        method = self._TRANSITION_METHODS.get(new_state)
+        if not method:
+            raise UserError(
+                "'%s' is reached only through its own action (Pass QC, Fail QC, Pass "
+                "Burn-In, Confirm BER), which records the inspector, the NCR or the "
+                "approval. It cannot be set as a plain transition."
+                % dict(WORKSHOP_JOB_STATES).get(new_state, new_state)
+            )
+        return getattr(self, method)()
+
+    def _transition(self, new_state: str):
         """Execute state transition with business gate enforcement and event publication."""
         for rec in self:
             rec._validate_transition(new_state)
@@ -279,83 +742,466 @@ class FixWorkshopJob(models.Model):
 
             # Business Gate: In Repair requires bench & technician eligibility check
             if new_state == "in_repair":
+                rec._m31_check_order_cleared_for_repair(old_state)
                 if not rec.bench_id:
-                    raise UserError(f"Job {rec.name} cannot enter 'In Repair' without an assigned workbench.")
+                    raise UserError(
+                        f"Job {rec.name} cannot enter 'In Repair' without an assigned workbench."
+                    )
                 if not rec.technician_id:
-                    raise UserError(f"Job {rec.name} cannot enter 'In Repair' without an assigned technician.")
+                    raise UserError(
+                        f"Job {rec.name} cannot enter 'In Repair' without an assigned technician."
+                    )
                 # Execute Cross-Wave Stub STUB-M31-M22-001 (Certification check)
                 rec._check_technician_certification(rec.technician_id, rec.repair_level)
+                # FLAW-31.2: ESD compliance gate for L2/L3 repairs. A02 pass 2
+                # M31-05: the bench's verification of TODAY (Dhaka), not the
+                # last readings whenever they were taken, and an L3 job only in
+                # an ESD-certified workshop.
+                rec._m31_check_esd()
+                # A repair (or a rework) is a new build: the burn-in that
+                # covered the previous build does not cover this one.
+                if rec.burn_in_passed:
+                    rec._guarded().write({"burn_in_passed": False})
 
-            # Business Gate: Burn-In started
-            if new_state == "burn_in":
-                rec.burn_in_started_at = fields.Datetime.now()
+            # Business Gate: QC Pending requires burn-in pass if L2 or L3 (A02
+            # pass 2 M31-04: or when the job's test protocol sets a burn-in)
+            if new_state == "qc_pending" and rec._m31_burn_in_required() and not rec.burn_in_passed:
+                raise UserError(
+                    f"Job {rec.name} ({rec.repair_level.upper()}) requires burn-in test to pass before QC."
+                )
 
-            # Business Gate: QC Pending requires burn-in pass if L2 or L3
-            if new_state == "qc_pending" and rec.repair_level in ("l2", "l3"):
-                if not rec.burn_in_passed:
-                    raise UserError(f"Job {rec.name} ({rec.repair_level.upper()}) requires burn-in test to pass before QC.")
-
-            # Business Gate: Ready requires QC inspection
+            # Business Gate: Ready requires QC inspection and the evidence pack
             if new_state == "ready":
                 if not rec.qc_passed:
-                    raise UserError(f"Job {rec.name} cannot be marked 'Ready' without passing Quality Control.")
-                rec.completed_at = fields.Datetime.now()
-                # Release bench upon completion
-                if rec.bench_id:
-                    rec.bench_id.action_release_job(rec)
+                    raise UserError(
+                        f"Job {rec.name} cannot be marked 'Ready' without passing Quality Control."
+                    )
+                rec._m31_check_release_evidence()
+                rec._guarded().write({"completed_at": fields.Datetime.now()})
 
-            rec.state = new_state
+            # Release the bench when the job leaves the bench for good
+            if new_state in ("ready", "unrepairable", "cancelled") and rec.bench_id:
+                rec.bench_id.action_release_job(rec)
+
+            rec._guarded().write({"state": new_state})
             rec._emit_job_transitioned(old_state, new_state)
 
-            # Synchronize with parent service order if present
-            rec._sync_with_service_order(new_state)
+            # Synchronize with parent service order if present. Raises: a job
+            # cannot move where its order cannot legally follow (M31-3).
+            rec._sync_with_service_order(new_state, old_state)
 
         return True
 
     def action_intake(self):
-        return self.action_transition("intake")
+        return self._transition("intake")
 
     def action_diagnostic(self):
-        return self.action_transition("diagnostic")
+        return self._transition("diagnostic")
 
     def action_wait_parts(self):
-        return self.action_transition("waiting_parts")
+        return self._transition("waiting_parts")
 
     def action_start_repair(self):
-        return self.action_transition("in_repair")
+        return self._transition("in_repair")
+
+    def action_submit_qc(self):
+        """Bench work done: hand the job to QC (in_repair -> qc_pending). L2/L3
+        jobs reach QC only through Pass Burn-In."""
+        return self._transition("qc_pending")
 
     def action_start_burn_in(self):
-        return self.action_transition("burn_in")
+        """A02 audit M31-6: burn-in is a real state with a server start stamp.
+        Each run starts clean: a re-run after rework does not inherit the old
+        run's minutes or crash count."""
+        for rec in self:
+            rec._validate_transition("burn_in")
+            rec._guarded().write(
+                {
+                    "burn_in_started_at": fields.Datetime.now(),
+                    "burn_in_completed_at": False,
+                    "burn_in_actual_minutes": 0.0,
+                    "thermal_crash_count": 0,
+                    "burn_in_passed": False,
+                }
+            )
+            rec._transition("burn_in")
+        return True
+
+    def action_log_thermal_crash(self, note=""):
+        """Record one thermal / stress crash during the running burn-in. The
+        count only rises; a run with a crash cannot pass (FLAW-31.3)."""
+        for rec in self:
+            if rec.state != "burn_in":
+                raise UserError("A thermal crash is logged only while the job is in burn-in.")
+            rec._guarded().write({"thermal_crash_count": (rec.thermal_crash_count or 0) + 1})
+            rec.message_post(
+                body="Thermal / stress crash #%d logged by %s%s"
+                % (rec.thermal_crash_count, self.env.user.name, (": %s" % note) if note else ".")
+            )
+        return True
+
+    def _m31_burn_in_min_minutes(self) -> float:
+        raw = self.env["ir.config_parameter"].sudo().get_param(BURN_IN_MIN_MINUTES_PARAM)
+        try:
+            return float(raw) if raw not in (None, False, "") else BURN_IN_MIN_MINUTES_DEFAULT
+        except (TypeError, ValueError):
+            return BURN_IN_MIN_MINUTES_DEFAULT
+
+    def _m31_close_burn_in_run(self):
+        """Stamp the end of the run; the minutes come from the two stamps."""
+        self.ensure_one()
+        if not self.burn_in_started_at:
+            raise UserError(
+                f"FLAW-31.3 Burn-In Gate: job {self.name} has no burn-in start stamp. "
+                "Start the burn-in run first."
+            )
+        now = fields.Datetime.now()
+        minutes = round(max(0.0, (now - self.burn_in_started_at).total_seconds() / 60.0), 2)
+        self._guarded().write({"burn_in_completed_at": now, "burn_in_actual_minutes": minutes})
+        return minutes
 
     def action_pass_burn_in(self):
+        """A02 audit M31-6 / P31-05: runs only from the burn_in state, and the
+        minutes are measured from the start and end stamps, not typed."""
         for rec in self:
-            rec.burn_in_completed_at = fields.Datetime.now()
-            rec.burn_in_passed = True
-        return self.action_transition("qc_pending")
+            if rec.state != "burn_in":
+                raise UserError(
+                    f"FLAW-31.3 Burn-In Gate: job {rec.name} is not in burn-in "
+                    f"(state: {rec.state}). Start the burn-in run first."
+                )
+            if rec._m31_burn_in_required():
+                if not rec.burn_in_started_at:
+                    raise UserError(
+                        f"FLAW-31.3 Burn-In Gate: job {rec.name} has no burn-in start stamp."
+                    )
+                elapsed = (fields.Datetime.now() - rec.burn_in_started_at).total_seconds() / 60.0
+                required = rec._m31_required_burn_in_minutes()
+                if elapsed < required:
+                    raise UserError(
+                        f"FLAW-31.3 Burn-In Gate: {rec.repair_level.upper()} repair job {rec.name} requires at least "
+                        f"{required:.0f} minutes continuous burn-in stress testing (running: {elapsed:.0f} min)."
+                    )
+                if (rec.thermal_crash_count or 0) > 0:
+                    raise UserError(
+                        f"FLAW-31.3 Burn-In Gate: Job {rec.name} experienced {rec.thermal_crash_count} thermal/stress crashes during burn-in."
+                    )
+            rec._m31_close_burn_in_run()
+            rec._guarded().write({"burn_in_passed": True})
+            rec._transition("qc_pending")
+        return True
+
+    def action_fail_burn_in(self, reason=""):
+        """End a failed burn-in run and return the job to the bench."""
+        for rec in self:
+            if rec.state != "burn_in":
+                raise UserError(f"Job {rec.name} is not in burn-in.")
+            rec._m31_close_burn_in_run()
+            rec._guarded().write({"burn_in_passed": False})
+            rec.message_post(
+                body="Burn-in failed after %.0f min (%d crashes)%s"
+                % (
+                    rec.burn_in_actual_minutes,
+                    rec.thermal_crash_count,
+                    (": %s" % reason) if reason else ".",
+                )
+            )
+            rec._transition("in_repair")
+        return True
+
+    def _m31_assert_qc_inspector(self):
+        """A02 audit M31-2 / P31-03 (BRU-SRM-18): the inspector is the user who
+        acts. He must hold the QC inspector or supervisor role and must not be
+        the repairing technician; a typed qc_inspector_id no longer counts."""
+        self.ensure_one()
+        self._m31_require_group((GROUP_QC_INSPECTOR, GROUP_SUPERVISOR), "A QC inspection")
+        if self._m31_actor_is_technician():
+            raise ValidationError(
+                f"BRU-SRM-18 Violation: Repairing technician ({self.technician_id.name}) "
+                f"cannot perform their own Quality Control inspection."
+            )
 
     def action_pass_qc(self, notes=""):
         """Pass QC inspection and advance to ready."""
         for rec in self:
+            rec._validate_transition("ready")
             rec._run_qc_inspection(passed=True, notes=notes)
-            rec.action_transition("ready")
+            rec._transition("ready")
         return True
 
     def action_fail_qc(self, reason=""):
-        """Fail QC inspection, increment rework loop and return to in_repair."""
+        """Fail QC inspection: raise the NCR and open the rework loop (qc_failed).
+
+        The transition is validated FIRST - the old body wrote ``state`` directly,
+        so a draft or delivered job could "fail QC" - and goes through
+        _transition (transition event + service-order sync). The QC event is
+        emitted once, by _run_qc_inspection: the old body emitted it a second time,
+        so every failure was counted twice downstream."""
         for rec in self:
+            rec._validate_transition("qc_failed")
             rec._run_qc_inspection(passed=False, notes=reason)
-            rec.is_rework = True
-            rec.rework_count += 1
-            rec.rework_reason = reason
-            rec.state = "qc_failed"
-            rec._emit_qc_completed(passed=False, notes=reason)
+            rec._guarded().write(
+                {"is_rework": True, "rework_count": rec.rework_count + 1, "rework_reason": reason}
+            )
+            rec._transition("qc_failed")
         return True
 
-    def action_deliver(self):
-        return self.action_transition("delivered")
+    def _m31_release_evidence_types(self):
+        self.ensure_one()
+        needed = list(RELEASE_EVIDENCE)
+        if self._m31_burn_in_required():
+            needed += list(RELEASE_EVIDENCE_L2_L3)
+        return needed
 
-    def action_cancel(self):
-        return self.action_transition("cancelled")
+    # --- A02 pass 2 M31-04 / M31-05 (the protocol's burn-in, the daily ESD) ---
+    def _m31_burn_in_required(self) -> bool:
+        """L2/L3 always; refined by the job's test protocol (fix_workshop_a02r2)."""
+        self.ensure_one()
+        return self.repair_level in ("l2", "l3")
+
+    def _m31_required_burn_in_minutes(self) -> float:
+        self.ensure_one()
+        return self._m31_burn_in_min_minutes()
+
+    def _m31_check_esd(self):
+        self.ensure_one()
+        if self.repair_level not in ("l2", "l3") or not self.bench_id:
+            return
+        bench = self.bench_id.sudo()
+        if not bench.esd_compliant_today:
+            raise UserError(
+                f"FLAW-31.2 ESD Interlock Gate: Bench {bench.code} has not passed today's "
+                f"daily ESD wrist-strap (<35 MΩ) and worksurface (<1000 MΩ) verification "
+                f"required for {self.repair_level.upper()} repairs."
+            )
+        if self.repair_level == "l3" and not self.workshop_id.sudo().is_esd_certified:
+            raise UserError(
+                f"FLAW-31.2 ESD Interlock Gate: workshop {self.workshop_id.name} is not "
+                "ESD-certified: L3 board-level repair is done only in a certified workshop."
+            )
+
+    def _m31_check_release_evidence(self):
+        """A02 audit M31-8 / P31-13: a release needs its evidence pack — a
+        post-repair photo and a test log, plus the burn-in log for L2/L3.
+        37 of 37 live deliveries carried none (warranty defensibility)."""
+        self.ensure_one()
+        # only evidence whose governed document was filed against THIS job
+        # counts: a row pointing at another job's photo proves nothing here
+        evidence = self.sudo().evidence_ids.filtered(
+            lambda ev: ev.document_id.res_model == self._name and ev.document_id.res_id == self.id
+        )
+        have = set(evidence.mapped("evidence_type"))
+        missing = [t for t in self._m31_release_evidence_types() if t not in have]
+        if missing:
+            labels = dict(self.env["fix.workshop.evidence"]._fields["evidence_type"].selection)
+            raise UserError(
+                "Job %s cannot be released without its evidence pack. Missing: %s."
+                % (self.name, "; ".join(labels.get(t, t) for t in missing))
+            )
+
+    def action_deliver(self):
+        """A02 pass 2 M31-02: the job is closed by M01's customer hand-over
+        (consume_service_order_delivered), not by the bench: pressing Deliver
+        on the job delivered the order to the customer from the workshop. The
+        bench releases the job (action_release); a job of no service order (a
+        refurbishment or an M45 work order) is closed by its supervisor."""
+        for rec in self:
+            # A02 pass 2 review: M01's delivered event closes the job as the
+            # superuser (consume_service_order_delivered); no context key a
+            # client sends lets the bench deliver
+            if not self.env.su:
+                if rec.sudo().order_id:
+                    raise UserError(
+                        "Job %s closes when its service order %s is handed to the customer "
+                        "at the front desk (M01). Release the job to the front desk instead."
+                        % (rec.name, rec.sudo().order_id.name)
+                    )
+                rec._m31_require_group((GROUP_SUPERVISOR,), "Closing an internal workshop job")
+            rec._transition("delivered")
+        return True
+
+    def action_release(self):
+        """A02 pass 2 M31-02: QC passed, the device leaves the bench for the
+        front desk's outgoing staging. Implemented in fix_workshop_a02r2."""
+        return self._transition("released")
+
+    def action_cancel(self, reason=""):
+        return self._transition("cancelled")
+
+    # --- M22 certification waiver (A02 audit M31-5, B1) ---
+    def action_grant_certification_waiver(self, reason=""):
+        """A02 audit B1: a waiver is no longer granted by pressing a button on
+        the job. This (the old button's name) now raises the routed request,
+        which a Workshop Supervisor other than the requester and the
+        repairing technician grants from his M63 inbox
+        (fix.workshop.waiver.request.action_grant)."""
+        return self.action_request_certification_waiver(reason)
+
+    def _m31_waiver_covers(self, technician) -> bool:
+        self.ensure_one()
+        if not self.certification_waiver:
+            return False
+        # rows waived before the waiver named its technician keep their waiver
+        covered = self.certification_waiver_technician_id
+        return not covered or covered == technician
+
+    # --- BER / scrap write-off (A02 audit M31-9) ---
+    def action_propose_ber(self, reason="", writeoff_amount=0.0):
+        """The bench declares the device beyond economic repair. The write-off
+        amount (never below the cost already sunk) sets the DOFA tier; the
+        approval and a second technician's confirmation follow."""
+        for rec in self:
+            rec._m31_require_group((GROUP_TECHNICIAN,), "Proposing a BER write-off")
+            if "unrepairable" not in VALID_JOB_TRANSITIONS.get(rec.state, set()):
+                raise UserError(f"Job {rec.name} cannot be declared BER from state {rec.state}.")
+            if not (reason or "").strip():
+                raise UserError("A BER / scrap proposal needs the reason and the evidence seen.")
+            if rec.approval_state == "pending":
+                raise UserError(
+                    f"The BER write-off on job {rec.name} is already awaiting approval."
+                )
+            # A02 audit M31 steps 11-12: the evidence seen is on the job
+            rec._m31_check_ber_evidence()
+            amount = max(float(writeoff_amount or 0.0), rec.total_repair_cost or 0.0)
+            rec._guarded().write(
+                {
+                    "ber_reason": reason.strip(),
+                    "ber_writeoff_amount": amount,
+                    "ber_proposed_by_id": self.env.user.id,
+                    "ber_proposed_at": fields.Datetime.now(),
+                    # a new proposal needs a new confirmation
+                    "ber_confirmed_by_id": False,
+                    "ber_confirmed_at": False,
+                }
+            )
+            rec.message_post(
+                body="BER proposed by %s (write-off BDT %.2f): %s"
+                % (self.env.user.name, rec._dofa_amount(), reason.strip())
+            )
+        return True
+
+    def action_dofa_approve(self):
+        """The BER write-off approval, and the engine's apply method (A02
+        audit B1): it runs only from the approver's M63 inbox, and it does the
+        real state change, closing the job as unrepairable (and its order with
+        it). On top of the DOFA tier, the job's creator check and the
+        justification (fix.dofa.mixin), the approver is neither the proposer,
+        the confirming technician nor the repairing technician."""
+        self._approval_assert_routed()
+        for rec in self:
+            if not rec.ber_proposed_at:
+                raise UserError(f"Job {rec.name} has no BER write-off proposal to approve.")
+            if not rec.ber_confirmed_at:
+                raise UserError(
+                    f"The BER on job {rec.name} is confirmed by a second technician before "
+                    "its write-off is approved."
+                )
+            if (
+                self.env.user in (rec.ber_proposed_by_id | rec.ber_confirmed_by_id)
+                or rec._m31_actor_is_technician()
+            ):
+                raise UserError(
+                    "Segregation of duties: the BER write-off on %s must be approved by "
+                    "someone other than its proposer, its confirming technician and the "
+                    "repairing technician." % rec.name
+                )
+        # The checks above ran in the approver's environment, and the DOFA
+        # rules below test the approver's (or the absent approver's) tier
+        # group and the creator on users, not on env.su. The approver holds a
+        # DOFA tier and usually no workshop role, so the stamp, the job's
+        # transition and M01's cancellation then run as the system.
+        super(FixWorkshopJob, self.sudo()).action_dofa_approve()
+        self.sudo()._m31_close_ber()
+        return True
+
+    def action_confirm_ber(self):
+        """A second technician confirms the BER (FR-WSR-030). A02 audit B1:
+        confirming routes the write-off to the DOFA tier holders' M63 inboxes;
+        the approval closes the job. A write-off below every DOFA threshold
+        needs no approval and closes the job now."""
+        for rec in self:
+            rec._m31_require_group((GROUP_TECHNICIAN,), "Confirming a BER write-off")
+            if not rec.ber_proposed_at:
+                raise UserError(f"Job {rec.name} has no BER proposal to confirm.")
+            if rec._m31_actor_is_technician() or rec.ber_proposed_by_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: a BER is confirmed by a second technician, "
+                    "not by the repairing technician or the proposer."
+                )
+            if rec.approval_state == "pending":
+                raise UserError(f"The BER on job {rec.name} is already awaiting approval.")
+            if "unrepairable" not in VALID_JOB_TRANSITIONS.get(rec.state, set()):
+                raise UserError(f"Job {rec.name} cannot close as BER from state {rec.state}.")
+            rec._m31_check_ber_order_can_follow()
+            rec._guarded().write(
+                {"ber_confirmed_by_id": self.env.user.id, "ber_confirmed_at": fields.Datetime.now()}
+            )
+            if rec._approval_needed():
+                rec.action_request_approval(justification=rec.dofa_justification or rec.ber_reason)
+            else:
+                rec._m31_close_ber()
+        return True
+
+    def action_auto_assign_bench(self):
+        """The bench-allocation engine (M31 'Bench Allocation & Queue'):
+        pick the best bench for this job — deterministic and explainable.
+
+          1. level-capable (bench repair_level >= job repair_level)
+          2. capacity free (current_job_count < max_concurrent_jobs)
+          3. ESD-safe when the job's device demands it (L3 always prefers
+             ESD benches; is_esd_certified workshops' benches rank first)
+          4. same workshop as the job, calibration not expired
+
+        Ties break on lowest current load, then bench code. Returns the
+        bench; raises when nothing qualifies (the queue stays honest).
+        """
+        Bench = self.env["fix.workshop.bench"].sudo()
+        for job in self:
+            if job.bench_id:
+                continue  # already benched
+            candidates = Bench.search(
+                [
+                    ("workshop_id", "=", job.workshop_id.id),
+                    ("state", "in", ("available", "occupied")),
+                    ("repair_level", ">=", job.repair_level),
+                ]
+            ).filtered(
+                lambda b, job=job: b.current_job_count < b.max_concurrent_jobs
+                and (
+                    not b.calibration_expiry_date
+                    or b.calibration_expiry_date >= fields.Date.today()
+                )
+                # A02 pass 2 M31-05: the same ESD rules as a manual allocation
+                and not job._m31_bench_fit_error(b, job.workshop_id, job.repair_level)
+            )
+            if not candidates:
+                raise UserError(
+                    "No capable bench is free at %s for a %s job — add capacity "
+                    "or wait for a release." % (job.workshop_id.name, job.repair_level.upper())
+                )
+
+            def bench_score(bench, job_level="l3", want_esd=False):
+                level_rank = {"l1": 1, "l2": 2, "l3": 3}
+                # ascending sort: ESD-first flag (-1 sorts before 0), then the
+                # LOWEST level that can do the job (keeps L3 benches free for
+                # L3 work), then lowest load, then code for determinism
+                return (
+                    # a bench verified today first for L2/L3 (M31-05)
+                    -1 if (bench.esd_compliant_today and want_esd) else 0,
+                    level_rank.get(bench.repair_level, 1),
+                    bench.current_job_count,
+                    bench.code or "",
+                )
+
+            ranked = sorted(
+                candidates,
+                key=lambda b: bench_score(
+                    b,
+                    job_level=job.repair_level,
+                    want_esd=job.repair_level in ("l2", "l3"),
+                ),
+            )
+            ranked[0].action_assign_job(job.sudo())
+        return True
 
     # --- Cross-Wave Stubs Implementation (GV-005) ---
     def _check_technician_certification(self, technician, repair_level: str) -> bool:
@@ -363,91 +1209,293 @@ class FixWorkshopJob(models.Model):
 
         Wave Boundary: Wave 2 -> Wave 5.
         Expiry Milestone: R06-M02 (Milestone R06-M02: M22 Competency & Certification Engine).
-        Rule: In Wave 2, technician competency matrix is stubbed with qualification fallback.
+        Rule: In Wave 2, technician competency matrix was stubbed with qualification fallback.
+        In Wave 5 (R06-M04), STUB-M31-M22-001 is CLOSED: L2/L3 benches strictly require active certification.
         """
         # Validate that technician exists and is active
         if not technician or not technician.active:
             raise UserError("Repair technician is invalid or inactive.")
 
+        # L2 and L3 chip-level / soldering repairs require M22 certification
+        if (
+            repair_level in ("l2", "l3")
+            and "fix.certification" in self.env
+            and not self._m31_waiver_covers(technician)
+        ):
+            device_type = self.device_id.device_type or None
+            # M22 (RAP-M22-01/02): an L2/L3 bench job is gated on the OEM brand
+            # and the repair tier, not on the device type alone — a generic
+            # smartphone certificate must not open an Apple logic-board job.
+            # Passing only `device_type` left the brand and tier dimensions
+            # that M22 builds unreachable from the one path that enforces them.
+            #
+            # `fail_closed` is deliberately left at its default here: at this
+            # call site it would also refuse a job whose device type has no
+            # gating competency configured yet, which is a configuration gap
+            # rather than a competency gap, and would stop bench work on day
+            # one. RAP-M22 §8 asks for advisory-then-enforce; turning it on is
+            # the COO/Technical Services decision recorded in the audit.
+            eligible, reason = self.env["fix.certification"].dispatch_eligibility(
+                technician,
+                device_type=device_type,
+                brand_id=self.device_id.brand_id.id or None,
+                repair_tier=repair_level,
+            )
+            if not eligible:
+                raise UserError(
+                    f"M22 Certification Gate (STUB-M31-M22-001 CLOSED): Assignment blocked — {reason}"
+                )
+
         logger.info(
-            "STUB-M31-M22-001 evaluated for technician %s (ID %s) on level %s. "
-            "Returns ELIGIBLE until R06-M02 cutover.",
-            technician.name, technician.id, repair_level
+            "STUB-M31-M22-001 CLOSED: Verified certification for technician %s (ID %s) on level %s.",
+            technician.name,
+            technician.id,
+            repair_level,
         )
         return True
+
+    def _m31_qc_requires_instrument(self) -> bool:
+        raw = self.env["ir.config_parameter"].sudo().get_param(QC_REQUIRES_INSTRUMENT_PARAM)
+        return str(raw or "").strip().lower() in ("1", "true", "yes")
 
     def _run_qc_inspection(self, passed: bool, notes: str = "") -> bool:
         """STUB-M31-M23-001: M31 Workshop Quality Gate -> M23 Quality Management (ISO).
 
         Wave Boundary: Wave 2 -> Wave 5.
         Expiry Milestone: R06-M04 (Milestone R06-M04: M23 ISO 9001 QMS Process Governance).
-        Rule: M01/M31 owns checklists locally until R06-M04 where M23 takes over with formal NCR.
-        Enforces BRU-SRM-18: QC inspector must differ from repairing technician.
+        Rule: M01/M31 owned checklists locally until R06-M04 where M23 takes over with formal NCR.
+        STUB-M31-M23-001 is CLOSED: A failed inspection raises a formal fix.ncr record.
+        Enforces BRU-SRM-18: QC inspector must differ from repairing technician —
+        compared on the acting user (A02 audit M31-2).
         """
-        inspector = self.qc_inspector_id or self.env.user.employee_id
-        if inspector and self.technician_id and inspector.id == self.technician_id.id:
-            raise ValidationError(
-                f"BRU-SRM-18 Violation: Repairing technician ({self.technician_id.name}) "
-                f"cannot perform their own Quality Control inspection."
+        self._m31_assert_qc_inspector()
+
+        # M45 Test-Equipment Calibration check (ISO 9001 Clause 7.1.5);
+        # cd_equipment_register is a manifest dependency (the method always exists).
+        # A07 audit (2026-11-03) M45-1/M45-4: the gate now refuses failed,
+        # never-calibrated, out-of-service and retired instruments, not only
+        # overdue ones. An instrument issued to the inspector or to this job's
+        # repairing technician is on this bench and counts as in service.
+        if (
+            passed
+            and not self.equipment_id
+            and not self.env.su
+            and self._m31_qc_requires_instrument()
+        ):
+            raise UserError(
+                "BRU-EAM-15: name the test instrument used for this QC inspection "
+                "before passing job %s." % self.name
+            )
+        if self.equipment_id:
+            holder = self.env.user.sudo().employee_ids | self.sudo().technician_id
+            self.equipment_id.action_assert_usable(holder=holder)
+            # --- A07 P1 (2026-11-04) M45 probe 16, FR-EAM-045 -----------------
+            # QC wrote no usage row, so the retrospective impact assessment saw
+            # only hand-typed usage. Each inspection made with an instrument is
+            # now a use of it, stamped with the calibration at use (M45 service).
+            self.env["fix.equipment.usage"].m45_record_qc_use(
+                self.equipment_id,
+                self.name,
+                "pass" if passed else "fail",
+                source=self,
+                service_order_ref=self.sudo().order_id.name or None,
+            )
+            # --- end A07 P1 M45 ------------------------------------------------
+
+        self._guarded().write(
+            {
+                "qc_passed": passed,
+                "qc_notes": notes,
+                "qc_inspector_id": self.env.user.sudo().employee_id.id or False,
+                "qc_inspector_user_id": self.env.user.id,
+                "qc_inspected_at": fields.Datetime.now(),
+            }
+        )
+
+        if not passed:
+            # STUB-M31-M23-001 CLOSED: create formal ISO 9001 Non-Conformance Record
+            # (fix.ncr: cd_qms_process is a manifest dependency, always installed)
+            ncr = self.env["fix.ncr"].create(
+                {
+                    "source": "qc",
+                    "order_id": self.order_id.id,
+                    "severity": "major",
+                    "description": f"Workshop job {self.name} failed QC inspection: {notes or 'No details provided'}",
+                }
+            )
+            self._guarded().write({"ncr_id": ncr.id})
+            logger.info(
+                "STUB-M31-M23-001 CLOSED: Raised formal NCR %s for failed job %s",
+                ncr.name,
+                self.name,
             )
 
-        self.qc_passed = passed
-        self.qc_notes = notes
-        if inspector and not self.qc_inspector_id:
-            self.qc_inspector_id = inspector.id
-
+        self._m31_record_order_qc(passed, notes)
         self._emit_qc_completed(passed, notes)
         return passed
 
-    def _sync_with_service_order(self, new_state: str) -> None:
-        """Propagate key milestone states to parent fix.service.order if linked."""
+    def _m31_record_order_qc(self, passed: bool, notes: str = "") -> None:
+        """The bench QC is the order's QC (A02 ERP audit, 20 Nov 2026).
+
+        M01 releases an order to Ready only on a QC checklist of the current
+        round (BRU-SRM-04), and the workshop's own inspection wrote none: a
+        depot repair that passed QC on the bench could not follow its job to
+        Ready, and every job would have been inspected twice. The outcome is
+        now recorded as the order's checklist for the round, by the same
+        inspector (whose independence _m31_assert_qc_inspector enforced), with
+        the bench test results as its items."""
+        self.ensure_one()
+        order = self.sudo().order_id
+        if not order or order.state != "qc_pending" or "fix.qc.checklist" not in self.env:
+            return
+        Checklist = self.env["fix.qc.checklist"].sudo()
+        items = []
+        results = self.sudo().test_result_ids if "test_result_ids" in self._fields else []
+        # the latest result of each test step (results are append-only)
+        latest = {}
+        for res in results.sorted("id"):
+            latest[res.step_id.id or res.id] = res
+        for res in latest.values():
+            label = res.test_name or "Bench test"
+            items.append((0, 0, {"name": label[:120], "passed": bool(res.passed)}))
+        items.append((0, 0, {"name": "Workshop QC of %s" % self.name, "passed": bool(passed)}))
+        checklist = Checklist.create(
+            {"order_id": order.id, "notes": notes or False, "item_ids": items}
+        )
+        checklist._guarded().write(
+            {
+                "state": "passed" if passed else "failed",
+                "checked_at": fields.Datetime.now(),
+                "inspected_by": self.env.user.id,
+                "inspector_id": self.env.user.sudo().employee_id.id or False,
+                "qc_round": order.qc_round,
+            }
+        )
+
+    # --- The M01 hand-back (A02 audit M31-3) ---
+    def _m31_check_order_cleared_for_repair(self, old_state: str) -> None:
+        """A job leaves diagnosis for repair only once its parent order is
+        approved. M01 decides approval (an approved estimate, or a warranty /
+        AMC entitlement); the workshop reads the order's state, it does not
+        re-decide it. P31-08: a job went to in_repair and on to delivered
+        while its order was still a draft."""
+        self.ensure_one()
+        order = self.order_id
+        if not order:
+            return
+        cleared = set(ORDER_CLEARED_FOR_REPAIR)
+        if old_state == "qc_failed":
+            # the rework loop: M01 has no QC-fail transition the job can call,
+            # so the order is still qc_pending when the job goes back on the bench
+            cleared.add("qc_pending")
+        if order.state not in cleared:
+            raise UserError(
+                "Job %s cannot start repair: its service order %s is '%s'. Repair starts "
+                "only once the order is approved (an approved estimate, or a verified "
+                "warranty / AMC entitlement)."
+                % (
+                    self.name,
+                    order.name,
+                    dict(order._fields["state"]._description_selection(self.env)).get(
+                        order.state, order.state
+                    ),
+                )
+            )
+
+    # job state -> the fix.service.order method that moves the order there
+    _ORDER_SYNC_METHODS = {
+        "in_repair": ("in_repair", "action_start_repair"),
+        "qc_pending": ("qc_pending", "action_submit_qc"),
+        "qc_failed": ("qc_failed", "action_fail_qc"),
+        "ready": ("ready", "action_ready"),
+        # A02 pass 2 M31-02: no "delivered" entry. The customer hand-over is
+        # M01's (front desk or delivery leg); the job follows the order there
+        # (consume_service_order_delivered), it never delivers the order.
+    }
+
+    def _sync_with_service_order(self, new_state: str, old_state: str | None = None) -> None:
+        """Move the parent order with the job, through the order's OWN
+        transition methods (A02 audit M31-3). The old body wrote the order's
+        state directly and swallowed every refusal, so 37 of 37 live jobs were
+        delivered while their orders sat in draft..qc_pending, all unpaid. A
+        refusal now stops the job transition: a job is not delivered when its
+        order cannot legally be."""
         if not self.order_id:
             return
-        # Map workshop job states to service order states
-        mapping = {
-            "in_repair": "in_repair",
-            "qc_pending": "qc_pending",
-            "ready": "ready",
-            "delivered": "delivered",
-        }
-        so_target = mapping.get(new_state)
-        if so_target and self.order_id.state != so_target:
-            try:
-                self.order_id._validate_transition(so_target)
-                self.order_id.state = so_target
-            except Exception as e:
-                logger.warning(
-                    "Service order %s sync to %s skipped: %s",
-                    self.order_id.name, so_target, str(e)
-                )
+        if new_state == "unrepairable":
+            # A02 audit B2: a BER reaches M01 (the order stayed in_repair)
+            self._m31_order_unrepairable()
+            return
+        target = self._ORDER_SYNC_METHODS.get(new_state)
+        if not target:
+            return
+        so_state, method = target
+        order = self.order_id
+        if order.state == so_state:
+            return
+        if new_state == "in_repair" and old_state == "qc_failed" and order.state == "qc_pending":
+            # rework loop while M01 offers no QC-fail transition (see below)
+            return
+        action = getattr(order, method, None)
+        if action is None:
+            # M01 has no method for this transition (today: QC failed). The job
+            # does not write the order's state itself; the order stays where
+            # it is and the gap is recorded on it.
+            order.message_post(
+                body="Workshop job %s moved to %s; the order has no '%s' transition, so "
+                "it stays %s." % (self.name, new_state, method, order.state)
+            )
+            logger.warning(
+                "Service order %s has no %s(); workshop job %s -> %s not mirrored",
+                order.name,
+                method,
+                self.name,
+                new_state,
+            )
+            return
+        action()
 
     # --- Domain Events (AS-08) ---
     def _emit_job_transitioned(self, old_state: str, new_state: str):
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.job.transitioned", "fix.workshop.job", self.id, {
-            "job_id": self.id,
-            "job_name": self.name,
-            "order_id": self.order_id.id if self.order_id else False,
-            "order_reference": self.order_id.name if self.order_id else "",
-            "workshop_id": self.workshop_id.id,
-            "workshop_code": self.workshop_id.code,
-            "bench_id": self.bench_id.id if self.bench_id else False,
-            "technician_id": self.technician_id.id if self.technician_id else False,
-            "repair_level": self.repair_level,
-            "old_state": old_state,
-            "new_state": new_state,
-            "is_rework": self.is_rework,
-        })
+
+        publish(
+            self.env,
+            "workshop.job.transitioned",
+            "fix.workshop.job",
+            self.id,
+            {
+                "job_id": self.id,
+                "job_name": self.name,
+                "order_id": self.order_id.id if self.order_id else False,
+                "order_reference": self.order_id.name if self.order_id else "",
+                "workshop_id": self.workshop_id.id,
+                "workshop_code": self.workshop_id.code,
+                "bench_id": self.bench_id.id if self.bench_id else False,
+                "technician_id": self.technician_id.id if self.technician_id else False,
+                "repair_level": self.repair_level,
+                "old_state": old_state,
+                "new_state": new_state,
+                "is_rework": self.is_rework,
+            },
+        )
 
     def _emit_qc_completed(self, passed: bool, notes: str = ""):
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.qc.completed", "fix.workshop.job", self.id, {
-            "job_id": self.id,
-            "job_name": self.name,
-            "order_id": self.order_id.id if self.order_id else False,
-            "workshop_id": self.workshop_id.id,
-            "inspector_id": self.qc_inspector_id.id if self.qc_inspector_id else False,
-            "qc_passed": passed,
-            "rework_count": self.rework_count,
-            "notes": notes,
-        })
+
+        publish(
+            self.env,
+            "workshop.qc.completed",
+            "fix.workshop.job",
+            self.id,
+            {
+                "job_id": self.id,
+                "job_name": self.name,
+                "order_id": self.order_id.id if self.order_id else False,
+                "workshop_id": self.workshop_id.id,
+                "inspector_id": self.qc_inspector_id.id if self.qc_inspector_id else False,
+                "qc_passed": passed,
+                "rework_count": self.rework_count,
+                "notes": notes,
+            },
+        )

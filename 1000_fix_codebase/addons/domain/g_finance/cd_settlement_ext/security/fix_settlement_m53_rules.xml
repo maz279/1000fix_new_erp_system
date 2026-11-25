@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_settlement_ext: company isolation for the A08 M53 models.
+     Hand-maintained beside the generated fix_isolation_rules.xml. -->
+<odoo>
+    <record id="rule_fix_commission_scheme_company" model="ir.rule">
+        <field name="name">fix.commission.scheme: allowed companies</field>
+        <field name="model_id" ref="model_fix_commission_scheme"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_settlement_adjustment_company" model="ir.rule">
+        <field name="name">fix.settlement.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_settlement_adjustment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_settlement_adjustment_operating_unit" model="ir.rule">
+        <field name="name">fix.settlement.adjustment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_settlement_adjustment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_settlement_recovery_company" model="ir.rule">
+        <field name="name">fix.settlement.recovery: allowed companies</field>
+        <field name="model_id" ref="model_fix_settlement_recovery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_warranty_provision_policy_company" model="ir.rule">
+        <field name="name">fix.warranty.provision.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_warranty_provision_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_warranty_provision_company" model="ir.rule">
+        <field name="name">fix.warranty.provision: allowed companies</field>
+        <field name="model_id" ref="model_fix_warranty_provision"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

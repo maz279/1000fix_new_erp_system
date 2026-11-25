@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M54 capture audit (2026-11-17): references for the planned activity rate,
+  budget target and variance explanation, and the two variance jobs
+  (AUT-FPA-07/08): raise explanations for last month's threshold variances,
+  and give overdue ones a to-do for their owner.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_activity_rate" model="ir.sequence">
+            <field name="name">Planned Activity Rate</field>
+            <field name="code">fix.activity.rate</field>
+            <field name="prefix">ACR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_budget_target" model="ir.sequence">
+            <field name="name">Budget Target</field>
+            <field name="code">fix.budget.target</field>
+            <field name="prefix">BTG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_variance_explanation" model="ir.sequence">
+            <field name="name">Variance Explanation</field>
+            <field name="code">fix.variance.explanation</field>
+            <field name="prefix">VEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="ir_cron_variance_explanations" model="ir.cron">
+            <field name="name">M54: raise explanations for last month's budget variances above threshold</field>
+            <field name="model_id" ref="model_fix_variance_explanation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_raise_explanations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_variance_explanations_overdue" model="ir.cron">
+            <field name="name">M54: to-do for overdue variance explanations</field>
+            <field name="model_id" ref="model_fix_variance_explanation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "warranty_claim.appeal_decided",
+  "description": "Published by cd_warranty_claims through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "warranty_claim.appeal_decided"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_warranty_claims"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "claim_no",
+        "appeal",
+        "decision",
+        "claim_state"
+      ],
+      "properties": {
+        "claim_no": {
+          "type": "string"
+        },
+        "appeal": {
+          "type": "string"
+        },
+        "decision": {
+          "description": "Type not statically derivable from `decision` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_ops.py:369)."
+        },
+        "claim_state": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_warranty_claims",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

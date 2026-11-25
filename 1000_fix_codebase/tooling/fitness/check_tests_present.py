@@ -7,6 +7,7 @@ safely — and DoD-03 requires >= 80% coverage (100% financial/tax).
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,21 +30,30 @@ def main() -> int:
             continue
         modules_checked += 1
         if not (cd_dir / "__manifest__.py").is_file():
-            violations.append((str(cd_dir.relative_to(REPO_ROOT)), "matches cd_* but has no __manifest__.py (stray scaffold?)"))
+            violations.append(
+                (
+                    str(cd_dir.relative_to(REPO_ROOT)),
+                    "matches cd_* but has no __manifest__.py (stray scaffold?)",
+                )
+            )
             continue
         tests_dir = cd_dir / "tests"
         if not tests_dir.is_dir():
             violations.append((cd_dir.name, "no tests/ directory"))
             continue
-        test_files = [f for f in tests_dir.glob("test_*.py")]
+        test_files = list(tests_dir.glob("test_*.py"))
         if not test_files:
             violations.append((cd_dir.name, "tests/ exists but contains no test_*.py files"))
 
     if violations:
-        print(f"tests-present: FAIL - {len(violations)} module(s) without tests ({modules_checked} checked):")
+        print(
+            f"tests-present: FAIL - {len(violations)} module(s) without tests ({modules_checked} checked):"
+        )
         for mod, msg in violations:
             print(f"  {mod}: {msg}")
-        print("  remedy: every module ships a tests/ directory with test_*.py (DoD-03 requires >= 80% coverage).")
+        print(
+            "  remedy: every module ships a tests/ directory with test_*.py (DoD-03 requires >= 80% coverage)."
+        )
         return 1
     print(f"tests-present: OK - {modules_checked} modules, all have tests/")
     return 0

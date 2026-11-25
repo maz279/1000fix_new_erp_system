@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "equipment.written_off",
+  "description": "Published by cd_equipment_register through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "equipment.written_off"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_equipment_register"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "equipment",
+        "approver",
+        "approver_id",
+        "value",
+        "basis",
+        "was_missing"
+      ],
+      "properties": {
+        "equipment": {
+          "type": "string"
+        },
+        "approver": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "approver_id": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "number"
+        },
+        "basis": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "was_missing": {
+          "type": "boolean"
+        },
+        "value_basis": {
+          "type": "string"
+        },
+        "acquisition_cost": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_equipment_register",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

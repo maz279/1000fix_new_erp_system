@@ -1,0 +1,6143 @@
+{
+  "m21": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M21",
+      "en": "Core HR & Lifecycle",
+      "title": "M21 · Core HR & Lifecycle",
+      "bn": "মানবসম্পদ ও জীবনচক্র",
+      "icon": "👥",
+      "desc": "Employee directory and record, org chart and positions, hire and onboarding, transfer and promotion, exit and settlement, movement history, appointment letters, service books, dependants and nominees, and ESS/MSS self-service.",
+      "kpis": [
+        {
+          "l": "Headcount",
+          "m": "headcount"
+        },
+        {
+          "l": "Attrition YTD",
+          "m": "attrition_ytd",
+          "suffix": "%"
+        },
+        {
+          "l": "Technicians",
+          "m": "technicians"
+        },
+        {
+          "l": "Open Positions",
+          "m": "open_positions"
+        },
+        {
+          "l": "Probation Ending (30d)",
+          "m": "probation_ending_30d"
+        },
+        {
+          "l": "Service Books",
+          "m": "service_books_complete"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Record Coverage",
+          "screens": [
+            {
+              "id": "M21-leave-type",
+              "en": "Leave Type",
+              "bn": "Leave Type",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Employee Master",
+          "screens": [
+            {
+              "id": "M21-directory",
+              "en": "Directory",
+              "bn": "কর্মী তালিকা",
+              "t": "g"
+            },
+            {
+              "id": "M21-employee",
+              "en": "Employee Record",
+              "bn": "কর্মী নথি",
+              "t": "f"
+            },
+            {
+              "id": "M21-orgchart",
+              "en": "Org Chart",
+              "bn": "সংগঠন চার্ট",
+              "t": "r"
+            },
+            {
+              "id": "M21-positions",
+              "en": "Positions & Jobs",
+              "bn": "পদ",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Lifecycle",
+          "screens": [
+            {
+              "id": "M21-hire",
+              "en": "Hire / Onboard",
+              "bn": "নিয়োগ",
+              "t": "g"
+            },
+            {
+              "id": "M21-transfer",
+              "en": "Transfer / Promote",
+              "bn": "স্থানান্তর ও পদোন্নতি",
+              "t": "g"
+            },
+            {
+              "id": "M21-exit",
+              "en": "Exit & Settlement",
+              "bn": "প্রস্থান",
+              "t": "g"
+            },
+            {
+              "id": "M21-movement",
+              "en": "Movement History",
+              "bn": "চলাচলের ইতিহাস",
+              "t": "r"
+            }
+          ]
+        },
+        {
+          "en": "Documents",
+          "screens": [
+            {
+              "id": "M21-appointment",
+              "en": "Appointment Letters",
+              "bn": "নিয়োগপত্র",
+              "t": "g"
+            },
+            {
+              "id": "M21-servicebook",
+              "en": "Service Books",
+              "bn": "সার্ভিস বুক",
+              "t": "g"
+            },
+            {
+              "id": "M21-nominees",
+              "en": "Dependants & Nominees",
+              "bn": "মনোনীত ব্যক্তি",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Self-Service",
+          "screens": [
+            {
+              "id": "M21-ess",
+              "en": "ESS / MSS",
+              "bn": "স্ব-সেবা",
+              "t": "r"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Headcount & Movement",
+        "Attrition Analysis",
+        "Probation Conversion",
+        "Establishment Register",
+        "Org Distribution"
+      ],
+      "forms": [
+        "Employee",
+        "Transfer",
+        "Promotion",
+        "Exit Clearance"
+      ],
+      "cross": [
+        "M02 Dispatch",
+        "M56 Payroll",
+        "M55 Attendance",
+        "M57 Incentives"
+      ],
+      "freg": {
+        "src": 70,
+        "sub": [
+          [
+            "1",
+            "Employee Master",
+            12
+          ],
+          [
+            "2",
+            "Employment Contracts",
+            7
+          ],
+          [
+            "3",
+            "Org Structure",
+            9
+          ],
+          [
+            "4",
+            "Lifecycle Events",
+            12
+          ],
+          [
+            "5",
+            "Statutory Documents",
+            7
+          ],
+          [
+            "6",
+            "Dependants & Nominees",
+            5
+          ],
+          [
+            "7",
+            "ESS / MSS",
+            9
+          ],
+          [
+            "8",
+            "Exit Process",
+            9
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M21-directory",
+        "kind": "model_list",
+        "model": "hr.employee",
+        "cols": [
+          "name",
+          "employee_code",
+          "position_id",
+          "operating_unit_id",
+          "job_title",
+          "work_email",
+          "active"
+        ]
+      },
+      {
+        "id": "M21-employee",
+        "kind": "model_form",
+        "model": "hr.employee",
+        "title": "Employee Record",
+        "back": "M21-directory",
+        "sections": [
+          {
+            "title": "Identity",
+            "note": "The employee master is the HR anchor; payroll reference is the code, and the position links the person to the establishment register.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Employee Name"
+              },
+              {
+                "name": "employee_code",
+                "label": "Employee Code"
+              },
+              {
+                "name": "position_id",
+                "label": "Position"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Branch / Operating Unit"
+              },
+              {
+                "name": "job_title",
+                "label": "Job Title"
+              },
+              {
+                "name": "department_id",
+                "label": "Department"
+              },
+              {
+                "name": "work_email",
+                "label": "Work Email"
+              },
+              {
+                "name": "work_phone",
+                "label": "Work Phone"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-orgchart",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "org_distribution",
+        "title": "Org Distribution",
+        "period": false
+      },
+      {
+        "id": "M21-positions",
+        "kind": "model_list",
+        "model": "fix.org.position",
+        "cols": [
+          "name",
+          "parent_id",
+          "grade",
+          "operating_unit_id"
+        ]
+      },
+      {
+        "id": "M21-hire",
+        "kind": "model_list",
+        "model": "fix.employment.contract",
+        "stateField": "state",
+        "cols": [
+          "employee_id",
+          "contract_type",
+          "joining_date",
+          "probation_end",
+          "basic_monthly",
+          "legal_signoff_state",
+          "state"
+        ]
+      },
+      {
+        "id": "M21-transfer",
+        "kind": "model_list",
+        "model": "fix.hr.transfer",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "movement_type",
+          "effective_date",
+          "from_position_id",
+          "to_position_id",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_approve",
+            "l": "Approve"
+          },
+          {
+            "m": "action_apply",
+            "l": "Apply Movement"
+          },
+          {
+            "m": "action_cancel",
+            "l": "Cancel"
+          }
+        ]
+      },
+      {
+        "id": "M21-exit",
+        "kind": "model_list",
+        "model": "fix.hr.exit",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "exit_type",
+          "last_working_day",
+          "clearance_it",
+          "clearance_finance",
+          "settlement_amount",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_clear",
+            "l": "Clear"
+          },
+          {
+            "m": "action_settle",
+            "l": "Settle"
+          },
+          {
+            "m": "action_cancel",
+            "l": "Cancel"
+          }
+        ]
+      },
+      {
+        "id": "M21-movement",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "headcount_movement",
+        "title": "Movement History",
+        "period": false
+      },
+      {
+        "id": "M21-appointment",
+        "kind": "model_list",
+        "model": "fix.hr.document",
+        "cols": [
+          "name",
+          "employee_id",
+          "doc_type",
+          "reference",
+          "issued_on",
+          "acknowledged"
+        ]
+      },
+      {
+        "id": "M21-servicebook",
+        "kind": "model_list",
+        "model": "fix.hr.document",
+        "cols": [
+          "name",
+          "employee_id",
+          "reference",
+          "issued_on",
+          "acknowledged",
+          "notes"
+        ]
+      },
+      {
+        "id": "M21-nominees",
+        "kind": "model_list",
+        "model": "fix.hr.dependant",
+        "cols": [
+          "employee_id",
+          "name",
+          "relation",
+          "date_of_birth",
+          "is_nominee",
+          "nominee_pct"
+        ]
+      },
+      {
+        "id": "M21-ess",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "probation_conversion",
+        "title": "ESS / MSS — Probation Conversions Due",
+        "period": false
+      },
+      {
+        "id": "M21-rpt-headcount",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "headcount_movement",
+        "title": "Headcount & Movement",
+        "period": false
+      },
+      {
+        "id": "M21-rpt-attrition",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "attrition_analysis",
+        "title": "Attrition Analysis",
+        "period": false
+      },
+      {
+        "id": "M21-rpt-probation",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "probation_conversion",
+        "title": "Probation Conversion",
+        "period": false
+      },
+      {
+        "id": "M21-rpt-establishment",
+        "kind": "table_report",
+        "module": "M21",
+        "report": "establishment_register",
+        "title": "Establishment Register",
+        "period": false
+      },
+      {
+        "id": "M21-form-employee",
+        "kind": "model_form",
+        "model": "hr.employee",
+        "title": "Employee",
+        "back": "M21-directory",
+        "sections": [
+          {
+            "title": "Employee",
+            "note": "Creating the employee record is the hire; the employment contract (Hire / Onboard) carries the Labour Act terms and the probation window.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Employee Name"
+              },
+              {
+                "name": "employee_code",
+                "label": "Employee Code"
+              },
+              {
+                "name": "position_id",
+                "label": "Position"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Branch / Operating Unit"
+              },
+              {
+                "name": "job_title",
+                "label": "Job Title"
+              },
+              {
+                "name": "work_email",
+                "label": "Work Email"
+              },
+              {
+                "name": "work_phone",
+                "label": "Work Phone"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-contract",
+        "kind": "model_form",
+        "model": "fix.employment.contract",
+        "title": "Hire / Employment Contract",
+        "back": "M21-hire",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "active": "Active",
+            "expired": "Expired",
+            "terminated": "Terminated"
+          }
+        },
+        "sections": [
+          {
+            "title": "Contract",
+            "note": "Joining date, contract type and basic salary; probation may not exceed six months (Labour Rules 2021 r.25) and the legal-signoff state gates activation.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "contract_type",
+                "required": true,
+                "label": "Contract Type"
+              },
+              {
+                "name": "joining_date",
+                "required": true,
+                "label": "Joining Date"
+              },
+              {
+                "name": "probation_end",
+                "label": "Probation Ends"
+              },
+              {
+                "name": "basic_monthly",
+                "required": true,
+                "label": "Basic Salary (Monthly)"
+              },
+              {
+                "name": "weekly_hours",
+                "label": "Weekly Hours"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-transfer",
+        "kind": "model_form",
+        "model": "fix.hr.transfer",
+        "title": "Transfer / Promotion",
+        "back": "M21-transfer",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "approved": "Approved",
+            "applied": "Applied",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Movement",
+            "note": "Draft → approved → applied. Applying moves the employee's current position and branch; the movement history reads these records. A promotion is the same record with movement_type promotion.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "movement_type",
+                "required": true,
+                "label": "Movement Type"
+              },
+              {
+                "name": "effective_date",
+                "required": true,
+                "label": "Effective Date"
+              },
+              {
+                "name": "to_position_id",
+                "label": "To Position"
+              },
+              {
+                "name": "to_operating_unit_id",
+                "label": "To Branch"
+              },
+              {
+                "name": "reason",
+                "label": "Reason"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-exit",
+        "kind": "model_form",
+        "model": "fix.hr.exit",
+        "title": "Exit Clearance",
+        "back": "M21-exit",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "cleared": "Cleared",
+            "settled": "Settled",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Exit",
+            "note": "Every clearance line must be ticked before the exit can be cleared; settlement is the final amount recorded by payroll.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "exit_type",
+                "required": true,
+                "label": "Exit Type"
+              },
+              {
+                "name": "last_working_day",
+                "required": true,
+                "label": "Last Working Day"
+              },
+              {
+                "name": "notice_date",
+                "label": "Notice Date"
+              },
+              {
+                "name": "settlement_amount",
+                "label": "Final Settlement"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          },
+          {
+            "title": "Clearance Checklist",
+            "fields": [
+              {
+                "name": "clearance_it",
+                "label": "IT / Devices Returned"
+              },
+              {
+                "name": "clearance_finance",
+                "label": "Finance Dues Cleared"
+              },
+              {
+                "name": "clearance_hr",
+                "label": "HR Files Handed Over"
+              },
+              {
+                "name": "clearance_assets",
+                "label": "Company Assets Returned"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-document",
+        "kind": "model_form",
+        "model": "fix.hr.document",
+        "title": "Statutory Document",
+        "back": "M21-appointment",
+        "sections": [
+          {
+            "title": "Document",
+            "note": "Appointment letter, ID card, service book or experience certificate — the Labour Act document register.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "doc_type",
+                "required": true,
+                "label": "Document Type"
+              },
+              {
+                "name": "reference",
+                "label": "Document Ref"
+              },
+              {
+                "name": "issued_on",
+                "label": "Issued On"
+              },
+              {
+                "name": "acknowledged",
+                "label": "Acknowledged by Employee"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-dependant",
+        "kind": "model_form",
+        "model": "fix.hr.dependant",
+        "title": "Dependant / Nominee",
+        "back": "M21-nominees",
+        "sections": [
+          {
+            "title": "Dependant",
+            "note": "Nominee share is a 0–100 percentage (database CHECK).",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "relation",
+                "required": true,
+                "label": "Relation"
+              },
+              {
+                "name": "date_of_birth",
+                "label": "Date of Birth"
+              },
+              {
+                "name": "nid",
+                "label": "NID"
+              },
+              {
+                "name": "is_nominee",
+                "label": "Nominee"
+              },
+              {
+                "name": "nominee_pct",
+                "label": "Nominee Share %"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-form-position",
+        "kind": "model_form",
+        "model": "fix.org.position",
+        "title": "Organisation Position",
+        "back": "M21-positions",
+        "sections": [
+          {
+            "title": "Organisation Position",
+            "note": "A seat in the organisation chart; headcount and approval routing hang off it.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "parent_id",
+                "label": "Reports To"
+              },
+              {
+                "name": "grade",
+                "label": "Grade"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M21-leave-type",
+        "kind": "model_list",
+        "model": "fix.leave.type",
+        "cols": [
+          "name",
+          "code",
+          "company_id",
+          "operating_unit_id",
+          "name_bn",
+          "entitlement_days",
+          "encashable"
+        ]
+      },
+      {
+        "id": "M21-form-leave-type",
+        "kind": "model_form",
+        "model": "fix.leave.type",
+        "title": "Leave Type",
+        "back": "M21-leave-type",
+        "sections": [
+          {
+            "title": "Leave Type",
+            "note": "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "code",
+                "required": true,
+                "label": "Code"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "entitlement_days",
+                "required": true,
+                "label": "Entitlement Days"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "name_bn",
+                "label": "Leave Name (Bengali)"
+              },
+              {
+                "name": "encashable",
+                "label": "Encashable"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M21:Headcount & Movement": "M21-rpt-headcount",
+      "M21:Attrition Analysis": "M21-rpt-attrition",
+      "M21:Probation Conversion": "M21-rpt-probation",
+      "M21:Establishment Register": "M21-rpt-establishment",
+      "M21:Org Distribution": "M21-orgchart"
+    },
+    "FORM_CHIPS": {
+      "M21:Organisation Position": "M21-form-position",
+      "M21:Employee": "M21-form-employee",
+      "M21:Transfer": "M21-form-transfer",
+      "M21:Promotion": "M21-form-transfer",
+      "M21:Exit Clearance": "M21-form-exit",
+      "M21:__by_model__": {
+        "fix.leave.type": "M21-form-leave-type",
+        "fix.org.position": "M21-form-position",
+        "hr.employee": "M21-form-employee",
+        "fix.employment.contract": "M21-form-contract",
+        "fix.hr.transfer": "M21-form-transfer",
+        "fix.hr.exit": "M21-form-exit",
+        "fix.hr.document": "M21-form-document",
+        "fix.hr.dependant": "M21-form-dependant"
+      },
+      "M21:__by_screen__": {
+        "M21-leave-type": "M21-form-leave-type",
+        "M21-positions": "M21-form-position",
+        "M21-directory": "M21-form-employee",
+        "M21-hire": "M21-form-contract",
+        "M21-transfer": "M21-form-transfer",
+        "M21-exit": "M21-form-exit",
+        "M21-appointment": "M21-form-document",
+        "M21-servicebook": "M21-form-document",
+        "M21-nominees": "M21-form-dependant"
+      }
+    }
+  },
+  "m22": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M22",
+      "en": "Learning & Certification",
+      "title": "M22 · Learning & Certification",
+      "bn": "প্রশিক্ষণ ও সার্টিফিকেশন",
+      "icon": "🎓",
+      "desc": "Competency framework, skill matrix and assessments, the certification register with validity and renewal, dispatch eligibility with a hard block on expired certification, the course catalogue and learning paths, schedule/attendance, OJT mentoring, and ISO/brand audit evidence.",
+      "kpis": [
+        {
+          "l": "Certified Technicians",
+          "m": "certified_technicians"
+        },
+        {
+          "l": "Expiring (30d)",
+          "m": "expiring_30d"
+        },
+        {
+          "l": "Expired Working",
+          "m": "expired_working"
+        },
+        {
+          "l": "OJT Hours /tech",
+          "m": "training_hours"
+        },
+        {
+          "l": "Brand Certifications",
+          "m": "brand_certifications"
+        },
+        {
+          "l": "Assessment Pass Rate",
+          "m": "assessment_pass_rate",
+          "suffix": "%"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Competency",
+          "screens": [
+            {
+              "id": "M22-framework",
+              "en": "Competency Framework",
+              "bn": "দক্ষতা কাঠামো",
+              "t": "g"
+            },
+            {
+              "id": "M22-matrix",
+              "en": "Skill Matrix",
+              "bn": "দক্ষতা ম্যাট্রিক্স",
+              "t": "r"
+            },
+            {
+              "id": "M22-assessments",
+              "en": "Assessments",
+              "bn": "মূল্যায়ন",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Certifications",
+          "screens": [
+            {
+              "id": "M22-register",
+              "en": "Certification Register",
+              "bn": "সার্টিফিকেশন রেজিস্টার",
+              "t": "g"
+            },
+            {
+              "id": "M22-expiry",
+              "en": "Validity & Renewal",
+              "bn": "মেয়াদ ও নবায়ন",
+              "t": "r"
+            },
+            {
+              "id": "M22-eligibility",
+              "en": "Dispatch Eligibility (hard block)",
+              "bn": "ডিসপ্যাচ যোগ্যতা",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Training",
+          "screens": [
+            {
+              "id": "M22-catalogue",
+              "en": "Course Catalogue",
+              "bn": "কোর্স তালিকা",
+              "t": "g"
+            },
+            {
+              "id": "M22-paths",
+              "en": "Learning Paths",
+              "bn": "শেখার পথ",
+              "t": "g"
+            },
+            {
+              "id": "M22-schedule",
+              "en": "Schedule & Attendance",
+              "bn": "সূচি ও উপস্থিতি",
+              "t": "g"
+            },
+            {
+              "id": "M22-ojt",
+              "en": "OJT & Mentoring",
+              "bn": "কর্মস্থল প্রশিক্ষণ",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Evidence",
+          "screens": [
+            {
+              "id": "M22-iso",
+              "en": "ISO / Brand Audit Evidence",
+              "bn": "আইএসও প্রমাণ",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Certification Coverage by Brand",
+        "Expiry Forecast",
+        "Training Effectiveness",
+        "Skill-Gap Heatmap",
+        "Audit Evidence Pack"
+      ],
+      "forms": [
+        "Certification",
+        "Course",
+        "Learning Path",
+        "Assessment"
+      ],
+      "cross": [
+        "M02 Dispatch eligibility",
+        "M21 Workforce",
+        "M57 Incentives"
+      ],
+      "freg": {
+        "src": 52,
+        "sub": [
+          [
+            "1",
+            "Competency Framework",
+            8
+          ],
+          [
+            "2",
+            "Skill Matrix & Assessment",
+            10
+          ],
+          [
+            "3",
+            "Certification Register",
+            12
+          ],
+          [
+            "4",
+            "Training Delivery",
+            12
+          ],
+          [
+            "5",
+            "OJT & Mentoring",
+            5
+          ],
+          [
+            "6",
+            "Evidence & Analytics",
+            5
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M22-framework",
+        "kind": "model_list",
+        "model": "fix.competency",
+        "cols": [
+          "code",
+          "name",
+          "device_type",
+          "required_for_dispatch"
+        ]
+      },
+      {
+        "id": "M22-matrix",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "skill_gap_heatmap",
+        "title": "Skill Matrix",
+        "period": false
+      },
+      {
+        "id": "M22-assessments",
+        "kind": "model_list",
+        "model": "fix.competency.assessment",
+        "cols": [
+          "name",
+          "employee_id",
+          "competency_id",
+          "assessed_on",
+          "level",
+          "score",
+          "passed"
+        ]
+      },
+      {
+        "id": "M22-register",
+        "kind": "model_list",
+        "model": "fix.certification",
+        "stateField": "status",
+        "cols": [
+          "employee_id",
+          "competency_id",
+          "issued_on",
+          "expires_on",
+          "evidence_ref",
+          "status"
+        ]
+      },
+      {
+        "id": "M22-expiry",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "expiry_forecast",
+        "title": "Validity & Renewal",
+        "period": false
+      },
+      {
+        "id": "M22-eligibility",
+        "kind": "model_list",
+        "model": "fix.certification",
+        "stateField": "status",
+        "cols": [
+          "employee_id",
+          "competency_id",
+          "expires_on",
+          "status"
+        ]
+      },
+      {
+        "id": "M22-catalogue",
+        "kind": "model_list",
+        "model": "fix.training.course",
+        "cols": [
+          "code",
+          "name",
+          "competency_id",
+          "content_ref"
+        ]
+      },
+      {
+        "id": "M22-paths",
+        "kind": "model_list",
+        "model": "fix.learning.path",
+        "cols": [
+          "name",
+          "target_role",
+          "min_level",
+          "active"
+        ]
+      },
+      {
+        "id": "M22-schedule",
+        "kind": "model_list",
+        "model": "fix.training.enrollment",
+        "stateField": "state",
+        "cols": [
+          "course_id",
+          "employee_id",
+          "state",
+          "completed_on"
+        ]
+      },
+      {
+        "id": "M22-ojt",
+        "kind": "model_list",
+        "model": "fix.ojt.record",
+        "cols": [
+          "name",
+          "employee_id",
+          "mentor_id",
+          "date_from",
+          "hours",
+          "outcome"
+        ]
+      },
+      {
+        "id": "M22-iso",
+        "kind": "model_list",
+        "model": "fix.audit.evidence",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "evidence_type",
+          "standard_ref",
+          "collected_on",
+          "valid_until",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_submit",
+            "l": "Submit"
+          },
+          {
+            "m": "action_accept",
+            "l": "Accept"
+          }
+        ]
+      },
+      {
+        "id": "M22-rpt-coverage",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "certification_coverage",
+        "title": "Certification Coverage by Brand",
+        "period": false
+      },
+      {
+        "id": "M22-rpt-expiry",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "expiry_forecast",
+        "title": "Expiry Forecast",
+        "period": false
+      },
+      {
+        "id": "M22-rpt-training",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "training_effectiveness",
+        "title": "Training Effectiveness",
+        "period": false
+      },
+      {
+        "id": "M22-rpt-skillgap",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "skill_gap_heatmap",
+        "title": "Skill-Gap Heatmap",
+        "period": false
+      },
+      {
+        "id": "M22-rpt-audit",
+        "kind": "table_report",
+        "module": "M22",
+        "report": "audit_evidence",
+        "title": "Audit Evidence Pack",
+        "period": false
+      },
+      {
+        "id": "M22-form-certification",
+        "kind": "model_form",
+        "model": "fix.certification",
+        "title": "Certification",
+        "back": "M22-register",
+        "status": {
+          "field": "status",
+          "labels": {
+            "active": "Active",
+            "expiring": "Expiring Soon",
+            "expired": "Expired"
+          }
+        },
+        "sections": [
+          {
+            "title": "Certification",
+            "note": "Status is computed from the expiry date; an expired certification is what blocks a technician from dispatch on that competency.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "competency_id",
+                "required": true,
+                "label": "Competency"
+              },
+              {
+                "name": "issued_on",
+                "required": true,
+                "label": "Issued On"
+              },
+              {
+                "name": "expires_on",
+                "label": "Expires On (empty = non-expiring)"
+              },
+              {
+                "name": "evidence_ref",
+                "label": "Evidence Reference"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-course",
+        "kind": "model_form",
+        "model": "fix.training.course",
+        "title": "Course",
+        "back": "M22-catalogue",
+        "sections": [
+          {
+            "title": "Course",
+            "note": "A course certifies towards one competency; the catalogue is what learning paths and enrolments reference.",
+            "fields": [
+              {
+                "name": "code",
+                "required": true,
+                "label": "Course Code"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Course Name"
+              },
+              {
+                "name": "name_bn",
+                "label": "Course (Bengali)"
+              },
+              {
+                "name": "competency_id",
+                "label": "Certifies Towards"
+              },
+              {
+                "name": "content_ref",
+                "label": "Content Reference"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-path",
+        "kind": "model_form",
+        "model": "fix.learning.path",
+        "title": "Learning Path",
+        "back": "M22-paths",
+        "sections": [
+          {
+            "title": "Learning Path",
+            "note": "A path names the target role, the target competencies and the courses that build them, with the minimum level expected.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Path Name"
+              },
+              {
+                "name": "target_role",
+                "label": "Target Role"
+              },
+              {
+                "name": "min_level",
+                "required": true,
+                "label": "Minimum Level"
+              },
+              {
+                "name": "active",
+                "label": "Active"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-assessment",
+        "kind": "model_form",
+        "model": "fix.competency.assessment",
+        "title": "Assessment",
+        "back": "M22-assessments",
+        "sections": [
+          {
+            "title": "Assessment",
+            "note": "Score is a 0–100 percentage (database CHECK); the level is the independent judgement the skill matrix reads.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "competency_id",
+                "required": true,
+                "label": "Competency"
+              },
+              {
+                "name": "assessed_on",
+                "required": true,
+                "label": "Assessed On"
+              },
+              {
+                "name": "assessor_id",
+                "label": "Assessor"
+              },
+              {
+                "name": "level",
+                "required": true,
+                "label": "Level"
+              },
+              {
+                "name": "score",
+                "label": "Score %"
+              },
+              {
+                "name": "passed",
+                "label": "Passed"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-ojt",
+        "kind": "model_form",
+        "model": "fix.ojt.record",
+        "title": "OJT Record",
+        "back": "M22-ojt",
+        "sections": [
+          {
+            "title": "On-the-Job Training",
+            "note": "Mentoring record with hours and outcome; the training-hours KPI divides total OJT hours by technicians.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "mentor_id",
+                "label": "Mentor"
+              },
+              {
+                "name": "competency_id",
+                "label": "Focus Competency"
+              },
+              {
+                "name": "date_from",
+                "required": true,
+                "label": "From"
+              },
+              {
+                "name": "date_to",
+                "label": "To"
+              },
+              {
+                "name": "hours",
+                "label": "Hours"
+              },
+              {
+                "name": "outcome",
+                "required": true,
+                "label": "Outcome"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-evidence",
+        "kind": "model_form",
+        "model": "fix.audit.evidence",
+        "title": "Audit Evidence",
+        "back": "M22-iso",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "submitted": "Submitted",
+            "accepted": "Accepted"
+          }
+        },
+        "sections": [
+          {
+            "title": "Evidence",
+            "note": "Draft → submitted → accepted; only submitted evidence can be accepted.",
+            "fields": [
+              {
+                "name": "evidence_type",
+                "required": true,
+                "label": "Evidence Type"
+              },
+              {
+                "name": "standard_ref",
+                "label": "Standard Clause / Requirement"
+              },
+              {
+                "name": "collected_on",
+                "required": true,
+                "label": "Collected On"
+              },
+              {
+                "name": "reference",
+                "label": "Evidence Reference"
+              },
+              {
+                "name": "valid_until",
+                "label": "Valid Until"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-competency",
+        "kind": "model_form",
+        "model": "fix.competency",
+        "title": "Competency",
+        "back": "M22-framework",
+        "sections": [
+          {
+            "title": "Competency",
+            "note": "A competency definition with its proficiency ladder; training and appraisal read it.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "code",
+                "required": true,
+                "label": "Code"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "name_bn",
+                "label": "Competency (Bengali)"
+              },
+              {
+                "name": "device_type",
+                "label": "Device Type Scope"
+              },
+              {
+                "name": "required_for_dispatch",
+                "label": "Required For Dispatch"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M22-form-enrolment",
+        "kind": "model_form",
+        "model": "fix.training.enrollment",
+        "title": "Training Enrolment",
+        "back": "M22-schedule",
+        "sections": [
+          {
+            "title": "Training Enrolment",
+            "note": "An employee's enrolment in a session; completion updates the competency evidence.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "course_id",
+                "required": true,
+                "label": "Course"
+              },
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "completed_on",
+                "label": "Completed On"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M22:Certification Coverage by Brand": "M22-rpt-coverage",
+      "M22:Expiry Forecast": "M22-rpt-expiry",
+      "M22:Training Effectiveness": "M22-rpt-training",
+      "M22:Skill-Gap Heatmap": "M22-rpt-skillgap",
+      "M22:Audit Evidence Pack": "M22-rpt-audit"
+    },
+    "FORM_CHIPS": {
+      "M22:Competency": "M22-form-competency",
+      "M22:Training Enrolment": "M22-form-enrolment",
+      "M22:Certification": "M22-form-certification",
+      "M22:Course": "M22-form-course",
+      "M22:Learning Path": "M22-form-path",
+      "M22:Assessment": "M22-form-assessment",
+      "M22:__by_model__": {
+        "fix.competency": "M22-form-competency",
+        "fix.training.enrollment": "M22-form-enrolment",
+        "fix.certification": "M22-form-certification",
+        "fix.training.course": "M22-form-course",
+        "fix.learning.path": "M22-form-path",
+        "fix.competency.assessment": "M22-form-assessment",
+        "fix.ojt.record": "M22-form-ojt",
+        "fix.audit.evidence": "M22-form-evidence"
+      },
+      "M22:__by_screen__": {
+        "M22-framework": "M22-form-competency",
+        "M22-schedule": "M22-form-enrolment",
+        "M22-register": "M22-form-certification",
+        "M22-eligibility": "M22-form-certification",
+        "M22-catalogue": "M22-form-course",
+        "M22-paths": "M22-form-path",
+        "M22-assessments": "M22-form-assessment",
+        "M22-ojt": "M22-form-ojt",
+        "M22-iso": "M22-form-evidence"
+      }
+    }
+  },
+  "m55": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M55",
+      "en": "Time, Attendance & Scheduling",
+      "title": "M55 · Time, Attendance & Scheduling",
+      "bn": "সময়, উপস্থিতি ও শিডিউলিং",
+      "icon": "⏰",
+      "desc": "Biometric and geofenced capture, exception regularisation, working-time rules and overtime, moon-dependent holidays, leave requests and balances, shift patterns, rosters and publication, on-call standby, and availability published to dispatch.",
+      "kpis": [
+        {
+          "l": "Attendance Today",
+          "m": "attendance_today"
+        },
+        {
+          "l": "Exceptions Pending",
+          "m": "exceptions_pending"
+        },
+        {
+          "l": "Overtime Approved",
+          "m": "overtime_preapproved"
+        },
+        {
+          "l": "Roster Coverage",
+          "m": "roster_coverage",
+          "suffix": "%"
+        },
+        {
+          "l": "Leave Pending",
+          "m": "leave_pending"
+        },
+        {
+          "l": "Geofence Clock-Ins",
+          "m": "geofence_clockins"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Record Coverage",
+          "screens": [
+            {
+              "id": "M55-attendance-lock",
+              "en": "Attendance Lock",
+              "bn": "Attendance Lock",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Capture",
+          "screens": [
+            {
+              "id": "M55-daily",
+              "en": "Daily Attendance",
+              "bn": "দৈনিক উপস্থিতি",
+              "t": "g"
+            },
+            {
+              "id": "M55-devices",
+              "en": "Biometric Devices",
+              "bn": "বায়োমেট্রিক",
+              "t": "g"
+            },
+            {
+              "id": "M55-geofence",
+              "en": "Geofenced Clock-In",
+              "bn": "জিওফেন্স",
+              "t": "g"
+            },
+            {
+              "id": "M55-exc",
+              "en": "Exception Regularisation",
+              "bn": "ব্যতিক্রম নিয়মিতকরণ",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Working Time",
+          "screens": [
+            {
+              "id": "M55-rules",
+              "en": "Rules & Overtime",
+              "bn": "নিয়ম ও অতিরিক্ত সময়",
+              "t": "r"
+            },
+            {
+              "id": "M55-holidays",
+              "en": "Holidays (moon-dependent)",
+              "bn": "ছুটির দিনপঞ্জি",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Leave",
+          "screens": [
+            {
+              "id": "M55-leave",
+              "en": "Leave Requests",
+              "bn": "ছুটির আবেদন",
+              "t": "g"
+            },
+            {
+              "id": "M55-balances",
+              "en": "Balances",
+              "bn": "ব্যালান্স",
+              "t": "r"
+            },
+            {
+              "id": "M55-calendar",
+              "en": "Calendar",
+              "bn": "ক্যালেন্ডার",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Scheduling",
+          "screens": [
+            {
+              "id": "M55-shifts",
+              "en": "Shift Patterns",
+              "bn": "শিফট",
+              "t": "g"
+            },
+            {
+              "id": "M55-rosters",
+              "en": "Rosters & Publication",
+              "bn": "রোস্টার",
+              "t": "g"
+            },
+            {
+              "id": "M55-oncall",
+              "en": "On-Call / Standby",
+              "bn": "অন-কল",
+              "t": "g"
+            },
+            {
+              "id": "M55-availability",
+              "en": "Availability → Dispatch",
+              "bn": "প্রাপ্যতা",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Attendance Summary",
+        "Overtime Analysis",
+        "Leave Utilisation",
+        "Roster vs Actual",
+        "Coverage Gaps"
+      ],
+      "forms": [
+        "Leave Request",
+        "Roster",
+        "Shift Pattern",
+        "Exception Regularisation"
+      ],
+      "cross": [
+        "M21 Workforce",
+        "M56 Payroll",
+        "M57 Incentives",
+        "M02 Dispatch"
+      ],
+      "freg": {
+        "src": 74,
+        "sub": [
+          [
+            "1",
+            "Capture (4 modes)",
+            12
+          ],
+          [
+            "2",
+            "Working Time & OT",
+            9
+          ],
+          [
+            "3",
+            "Leave",
+            10
+          ],
+          [
+            "4",
+            "Holidays",
+            5
+          ],
+          [
+            "5",
+            "Shifts & Rosters",
+            13
+          ],
+          [
+            "6",
+            "On-Call",
+            6
+          ],
+          [
+            "7",
+            "Availability Publication",
+            7
+          ],
+          [
+            "8",
+            "Verification & Lock",
+            6
+          ],
+          [
+            "9",
+            "Timesheets",
+            6
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M55-daily",
+        "kind": "model_list",
+        "model": "fix.attendance.record",
+        "stateField": "approval_state",
+        "cols": [
+          "employee_id",
+          "check_in",
+          "check_out",
+          "source",
+          "worked_hours",
+          "overtime_hours",
+          "approval_state"
+        ],
+        "actions": [
+          {
+            "m": "action_checkout",
+            "l": "Clock Out"
+          }
+        ]
+      },
+      {
+        "id": "M55-devices",
+        "kind": "model_list",
+        "model": "fix.biometric.device",
+        "cols": [
+          "name",
+          "device_id",
+          "model_type",
+          "branch_id",
+          "ip_address",
+          "active"
+        ]
+      },
+      {
+        "id": "M55-geofence",
+        "kind": "model_list",
+        "model": "fix.attendance.record",
+        "cols": [
+          "employee_id",
+          "check_in",
+          "source",
+          "geo_lat",
+          "geo_long",
+          "accuracy_m",
+          "approval_state"
+        ]
+      },
+      {
+        "id": "M55-exc",
+        "kind": "model_list",
+        "model": "fix.attendance.record",
+        "stateField": "approval_state",
+        "cols": [
+          "employee_id",
+          "check_in",
+          "approval_reason",
+          "approval_state",
+          "approved_by"
+        ],
+        "actions": [
+          {
+            "m": "action_approve",
+            "l": "Approve"
+          },
+          {
+            "m": "action_reject",
+            "l": "Reject"
+          }
+        ]
+      },
+      {
+        "id": "M55-rules",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "overtime_analysis",
+        "title": "Rules & Overtime",
+        "period": true
+      },
+      {
+        "id": "M55-holidays",
+        "kind": "model_list",
+        "model": "fix.hr.holiday",
+        "cols": [
+          "name",
+          "date",
+          "holiday_type",
+          "tentative",
+          "notes"
+        ]
+      },
+      {
+        "id": "M55-leave",
+        "kind": "model_list",
+        "model": "fix.leave.request",
+        "stateField": "state",
+        "cols": [
+          "employee_id",
+          "leave_type_id",
+          "date_from",
+          "date_to",
+          "days",
+          "state"
+        ]
+      },
+      {
+        "id": "M55-balances",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "leave_utilisation",
+        "title": "Leave Utilisation",
+        "period": false
+      },
+      {
+        "id": "M55-calendar",
+        "kind": "model_list",
+        "model": "fix.leave.request",
+        "stateField": "state",
+        "cols": [
+          "employee_id",
+          "leave_type_id",
+          "date_from",
+          "date_to",
+          "days",
+          "state"
+        ]
+      },
+      {
+        "id": "M55-shifts",
+        "kind": "model_list",
+        "model": "fix.shift.template",
+        "cols": [
+          "name",
+          "start_hour",
+          "end_hour",
+          "operating_unit_id"
+        ]
+      },
+      {
+        "id": "M55-rosters",
+        "kind": "model_list",
+        "model": "fix.roster.slot",
+        "cols": [
+          "display_label",
+          "employee_id",
+          "date",
+          "shift_id",
+          "branch_id",
+          "on_leave"
+        ]
+      },
+      {
+        "id": "M55-oncall",
+        "kind": "model_list",
+        "model": "fix.hr.oncall",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "shift_id",
+          "date_from",
+          "date_to",
+          "allowance",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_start",
+            "l": "Start"
+          },
+          {
+            "m": "action_complete",
+            "l": "Complete"
+          },
+          {
+            "m": "action_cancel",
+            "l": "Cancel"
+          }
+        ]
+      },
+      {
+        "id": "M55-availability",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "roster_vs_actual",
+        "title": "Availability → Dispatch",
+        "period": true
+      },
+      {
+        "id": "M55-rpt-summary",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "attendance_summary",
+        "title": "Attendance Summary",
+        "period": true
+      },
+      {
+        "id": "M55-rpt-ot",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "overtime_analysis",
+        "title": "Overtime Analysis",
+        "period": true
+      },
+      {
+        "id": "M55-rpt-leave",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "leave_utilisation",
+        "title": "Leave Utilisation",
+        "period": false
+      },
+      {
+        "id": "M55-rpt-roster",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "roster_vs_actual",
+        "title": "Roster vs Actual",
+        "period": true
+      },
+      {
+        "id": "M55-rpt-gaps",
+        "kind": "table_report",
+        "module": "M55",
+        "report": "coverage_gaps",
+        "title": "Coverage Gaps",
+        "period": true
+      },
+      {
+        "id": "M55-form-leave",
+        "kind": "model_form",
+        "model": "fix.leave.request",
+        "title": "Leave Request",
+        "back": "M55-leave",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "submitted": "Submitted",
+            "approved": "Approved",
+            "rejected": "Rejected"
+          }
+        },
+        "sections": [
+          {
+            "title": "Leave Request",
+            "note": "Days compute from the date range; an approved request marks the roster slot as on-leave so dispatch does not schedule the technician.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "leave_type_id",
+                "required": true,
+                "label": "Leave Type"
+              },
+              {
+                "name": "date_from",
+                "required": true,
+                "label": "From"
+              },
+              {
+                "name": "date_to",
+                "required": true,
+                "label": "To"
+              },
+              {
+                "name": "reason",
+                "type": "text",
+                "label": "Reason"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-roster",
+        "kind": "model_form",
+        "model": "fix.roster.slot",
+        "title": "Roster Slot",
+        "back": "M55-rosters",
+        "sections": [
+          {
+            "title": "Roster",
+            "note": "One employee, one date, one shift. The roster is the real availability answer used by dispatch.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "date",
+                "required": true,
+                "label": "Date"
+              },
+              {
+                "name": "shift_id",
+                "required": true,
+                "label": "Shift"
+              },
+              {
+                "name": "branch_id",
+                "label": "Branch"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-shift",
+        "kind": "model_form",
+        "model": "fix.shift.template",
+        "title": "Shift Pattern",
+        "back": "M55-shifts",
+        "sections": [
+          {
+            "title": "Shift",
+            "note": "Start/end hours are decimal (9.5 = 09:30) and must lie inside a 24-hour day.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Shift Name"
+              },
+              {
+                "name": "start_hour",
+                "required": true,
+                "label": "Start (hour)"
+              },
+              {
+                "name": "end_hour",
+                "required": true,
+                "label": "End (hour)"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-exception",
+        "kind": "model_form",
+        "model": "fix.attendance.record",
+        "title": "Exception / Manual Punch",
+        "back": "M55-exc",
+        "status": {
+          "field": "approval_state",
+          "labels": {
+            "not_required": "Not Required",
+            "pending": "Pending Approval",
+            "approved": "Approved",
+            "rejected": "Rejected"
+          }
+        },
+        "sections": [
+          {
+            "title": "Punch",
+            "note": "A manual or flagged punch stays recorded until a supervisor approves or rejects it; only an approved punch counts as worked time.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "check_in",
+                "required": true,
+                "label": "Check In"
+              },
+              {
+                "name": "check_out",
+                "label": "Check Out"
+              },
+              {
+                "name": "source",
+                "required": true,
+                "label": "Source"
+              },
+              {
+                "name": "approval_state",
+                "required": true,
+                "label": "Approval"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-holiday",
+        "kind": "model_form",
+        "model": "fix.hr.holiday",
+        "title": "Holiday",
+        "back": "M55-holidays",
+        "sections": [
+          {
+            "title": "Holiday",
+            "note": "Moon-dependent holidays are tentative until the sighting is announced; one record per date per company.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Holiday"
+              },
+              {
+                "name": "date",
+                "required": true,
+                "label": "Date"
+              },
+              {
+                "name": "holiday_type",
+                "required": true,
+                "label": "Type"
+              },
+              {
+                "name": "tentative",
+                "label": "Tentative (sighting-dependent)"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-oncall",
+        "kind": "model_form",
+        "model": "fix.hr.oncall",
+        "title": "On-Call / Standby",
+        "back": "M55-oncall",
+        "status": {
+          "field": "state",
+          "labels": {
+            "planned": "Planned",
+            "active": "Active",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "On-Call",
+            "note": "Planned → active → completed; the end cannot precede the start (database CHECK).",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "shift_id",
+                "label": "Shift"
+              },
+              {
+                "name": "date_from",
+                "required": true,
+                "label": "From"
+              },
+              {
+                "name": "date_to",
+                "required": true,
+                "label": "To"
+              },
+              {
+                "name": "allowance",
+                "label": "Standby Allowance"
+              },
+              {
+                "name": "phone",
+                "label": "Contact Number"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-form-bio",
+        "kind": "model_form",
+        "model": "fix.biometric.device",
+        "title": "Biometric Device",
+        "back": "M55-devices",
+        "sections": [
+          {
+            "title": "Biometric Device",
+            "note": "A biometric attendance terminal: its serial, location and the sync state of its punches.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "device_id",
+                "required": true,
+                "label": "Device Identifier"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Device Name"
+              },
+              {
+                "name": "model_type",
+                "required": true,
+                "label": "Device Model"
+              },
+              {
+                "name": "branch_id",
+                "label": "Branch / Facility"
+              },
+              {
+                "name": "ip_address",
+                "label": "IP Address / Hostname"
+              },
+              {
+                "name": "location_desc",
+                "label": "Physical Location"
+              },
+              {
+                "name": "active",
+                "label": "Active"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M55-attendance-lock",
+        "kind": "model_list",
+        "model": "fix.attendance.lock",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "state",
+          "company_id",
+          "operating_unit_id",
+          "period_start",
+          "period_end"
+        ]
+      },
+      {
+        "id": "M55-form-attendance-lock",
+        "kind": "model_form",
+        "model": "fix.attendance.lock",
+        "title": "Attendance Lock",
+        "back": "M55-attendance-lock",
+        "status": {
+          "field": "state"
+        },
+        "sections": [
+          {
+            "title": "Attendance Lock",
+            "note": "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "period_start",
+                "required": true,
+                "label": "Period Start"
+              },
+              {
+                "name": "period_end",
+                "required": true,
+                "label": "Period End"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M55:Attendance Summary": "M55-rpt-summary",
+      "M55:Overtime Analysis": "M55-rpt-ot",
+      "M55:Leave Utilisation": "M55-rpt-leave",
+      "M55:Roster vs Actual": "M55-rpt-roster",
+      "M55:Coverage Gaps": "M55-rpt-gaps"
+    },
+    "FORM_CHIPS": {
+      "M55:Biometric Device": "M55-form-bio",
+      "M55:Leave Request": "M55-form-leave",
+      "M55:Roster": "M55-form-roster",
+      "M55:Shift Pattern": "M55-form-shift",
+      "M55:Exception Regularisation": "M55-form-exception",
+      "M55:__by_model__": {
+        "fix.attendance.lock": "M55-form-attendance-lock",
+        "fix.biometric.device": "M55-form-bio",
+        "fix.leave.request": "M55-form-leave",
+        "fix.roster.slot": "M55-form-roster",
+        "fix.shift.template": "M55-form-shift",
+        "fix.attendance.record": "M55-form-exception",
+        "fix.hr.holiday": "M55-form-holiday",
+        "fix.hr.oncall": "M55-form-oncall"
+      },
+      "M55:__by_screen__": {
+        "M55-attendance-lock": "M55-form-attendance-lock",
+        "M55-devices": "M55-form-bio",
+        "M55-leave": "M55-form-leave",
+        "M55-calendar": "M55-form-leave",
+        "M55-rosters": "M55-form-roster",
+        "M55-shifts": "M55-form-shift",
+        "M55-geofence": "M55-form-exception",
+        "M55-exc": "M55-form-exception",
+        "M55-holidays": "M55-form-holiday",
+        "M55-oncall": "M55-form-oncall"
+      }
+    }
+  },
+  "m56": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M56",
+      "en": "Payroll & Statutory",
+      "title": "M56 · Payroll & Statutory",
+      "bn": "বেতন ও বিধিবদ্ধ",
+      "icon": "💵",
+      "desc": "BD gross-to-net engine, income tax AY 2026-27, provident fund, gratuity, festival bonus, BEFTN bank files, payslips and certificates, quarterly withholding returns and final settlements.",
+      "kpis": [
+        {
+          "l": "Payroll Cycle",
+          "m": "payroll_cycle"
+        },
+        {
+          "l": "Gross Payroll",
+          "m": "gross_payroll",
+          "prefix": "৳ "
+        },
+        {
+          "l": "Payslips",
+          "m": "run_duration"
+        },
+        {
+          "l": "Corrections",
+          "m": "corrections"
+        },
+        {
+          "l": "Tax Withheld MTD",
+          "m": "tax_withheld_mtd",
+          "prefix": "৳ "
+        },
+        {
+          "l": "Bonus Accrued",
+          "m": "festival_bonus_accrued",
+          "prefix": "৳ "
+        }
+      ],
+      "groups": [
+        {
+          "en": "Payroll Engine",
+          "screens": [
+            {
+              "id": "M56-runs",
+              "en": "Payroll Runs",
+              "bn": "বেতন রান",
+              "t": "g"
+            },
+            {
+              "id": "M56-structures",
+              "en": "Salary Structures",
+              "bn": "বেতন কাঠামো",
+              "t": "g"
+            },
+            {
+              "id": "M56-payslips",
+              "en": "Payslips",
+              "bn": "বেতন পত্র",
+              "t": "g"
+            },
+            {
+              "id": "M56-offcycle",
+              "en": "Off-Cycle Payments",
+              "bn": "অফ-সাইকেল",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Statutory",
+          "screens": [
+            {
+              "id": "M56-tax",
+              "en": "Income Tax (AY 2026-27)",
+              "bn": "আয়কর",
+              "t": "r"
+            },
+            {
+              "id": "M56-pf",
+              "en": "Provident Fund",
+              "bn": "প্রভিডেন্ট ফান্ড",
+              "t": "r"
+            },
+            {
+              "id": "M56-gratuity",
+              "en": "Gratuity & Encashment",
+              "bn": "গ্র্যাচুইটি",
+              "t": "r"
+            },
+            {
+              "id": "M56-bonus",
+              "en": "Festival Bonus",
+              "bn": "উৎসব বোনাস",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Disbursement",
+          "screens": [
+            {
+              "id": "M56-beftn",
+              "en": "BEFTN Bank Files",
+              "bn": "বিইএফটিএন",
+              "t": "g"
+            },
+            {
+              "id": "M56-certificates",
+              "en": "Certificates & Tax Statements",
+              "bn": "সনদ",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Compliance",
+          "screens": [
+            {
+              "id": "M56-returns",
+              "en": "Withholding Returns (Quarterly)",
+              "bn": "উৎসে কর রিটার্ন",
+              "t": "g"
+            },
+            {
+              "id": "M56-settlement",
+              "en": "Final Settlements",
+              "bn": "চূড়ান্ত নিষ্পত্তি",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Salary Register",
+        "Payroll Cost Allocation",
+        "Tax Deduction Summary",
+        "PF & Gratuity Provisions",
+        "Payroll Variance"
+      ],
+      "forms": [
+        "Salary Structure",
+        "Payroll Run",
+        "Bonus Run",
+        "Final Settlement"
+      ],
+      "cross": [
+        "M21 Workforce",
+        "M55 Attendance",
+        "M19 General Ledger",
+        "M51 TDS",
+        "M50 Treasury"
+      ],
+      "freg": {
+        "src": 82,
+        "sub": [
+          [
+            "1",
+            "Gross-to-Net Engine",
+            14
+          ],
+          [
+            "2",
+            "BD Income Tax",
+            12
+          ],
+          [
+            "3",
+            "Provident Fund",
+            7
+          ],
+          [
+            "4",
+            "Gratuity",
+            7
+          ],
+          [
+            "5",
+            "Bonus & Encashment",
+            7
+          ],
+          [
+            "6",
+            "Loans & Advances",
+            6
+          ],
+          [
+            "7",
+            "Runs & Off-Cycle",
+            9
+          ],
+          [
+            "8",
+            "BEFTN & Payslips",
+            8
+          ],
+          [
+            "9",
+            "Returns & Certificates",
+            7
+          ],
+          [
+            "10",
+            "Final Settlement",
+            5
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M56-runs",
+        "kind": "model_list",
+        "model": "fix.payroll.period",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "period_start",
+          "period_end",
+          "slip_count",
+          "gross_total",
+          "tax_total",
+          "net_total",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_calculate",
+            "l": "Calculate"
+          },
+          {
+            "m": "action_approve",
+            "l": "Approve"
+          },
+          {
+            "m": "action_pay",
+            "l": "Mark Paid"
+          },
+          {
+            "m": "action_post",
+            "l": "Post"
+          }
+        ]
+      },
+      {
+        "id": "M56-structures",
+        "kind": "model_list",
+        "model": "fix.payroll.structure",
+        "cols": [
+          "name",
+          "grade",
+          "basic_pct",
+          "house_rent_pct",
+          "transport_fixed",
+          "medical_fixed",
+          "pf_applicable",
+          "active"
+        ]
+      },
+      {
+        "id": "M56-payslips",
+        "kind": "model_list",
+        "create": false,
+        "model": "fix.payslip",
+        "cols": [
+          "period_id",
+          "employee_id",
+          "basic",
+          "gross",
+          "overtime",
+          "pf_employee",
+          "tax_withheld",
+          "net"
+        ]
+      },
+      {
+        "id": "M56-offcycle",
+        "kind": "model_list",
+        "model": "fix.payroll.offcycle",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "payment_type",
+          "payment_date",
+          "amount",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_approve",
+            "l": "Approve"
+          },
+          {
+            "m": "action_pay",
+            "l": "Pay"
+          }
+        ]
+      },
+      {
+        "id": "M56-tax",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "tax_deduction_summary",
+        "title": "Income Tax (AY 2026-27)",
+        "period": false
+      },
+      {
+        "id": "M56-pf",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "pf_gratuity",
+        "title": "Provident Fund",
+        "period": false
+      },
+      {
+        "id": "M56-gratuity",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "pf_gratuity",
+        "title": "Gratuity & Encashment",
+        "period": false
+      },
+      {
+        "id": "M56-bonus",
+        "kind": "model_list",
+        "model": "fix.payroll.bonus.run",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "festival",
+          "bonus_date",
+          "basis",
+          "multiplier",
+          "employee_count",
+          "total_amount",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_approve",
+            "l": "Approve"
+          },
+          {
+            "m": "action_pay",
+            "l": "Pay"
+          }
+        ]
+      },
+      {
+        "id": "M56-beftn",
+        "kind": "model_list",
+        "create": false,
+        "model": "fix.beftn.batch",
+        "stateField": "state",
+        "cols": [
+          "period_id",
+          "settlement_date",
+          "employee_count",
+          "total_amount",
+          "file_name",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_generate_beftn_file",
+            "l": "Generate File"
+          },
+          {
+            "m": "action_settle",
+            "l": "Settle"
+          }
+        ]
+      },
+      {
+        "id": "M56-certificates",
+        "kind": "model_list",
+        "model": "fix.payroll.certificate",
+        "cols": [
+          "name",
+          "employee_id",
+          "certificate_type",
+          "fiscal_year",
+          "issued_on",
+          "amount",
+          "reference"
+        ]
+      },
+      {
+        "id": "M56-returns",
+        "kind": "model_list",
+        "model": "fix.payroll.return",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "period",
+          "employee_count",
+          "total_tax",
+          "filed_on",
+          "acknowledgement",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_file",
+            "l": "File Return"
+          }
+        ]
+      },
+      {
+        "id": "M56-settlement",
+        "kind": "model_list",
+        "model": "fix.payroll.offcycle",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "payment_date",
+          "amount",
+          "reason",
+          "state"
+        ]
+      },
+      {
+        "id": "M56-rpt-register",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "salary_register",
+        "title": "Salary Register",
+        "period": false
+      },
+      {
+        "id": "M56-rpt-alloc",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "payroll_cost_allocation",
+        "title": "Payroll Cost Allocation",
+        "period": false
+      },
+      {
+        "id": "M56-rpt-tax",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "tax_deduction_summary",
+        "title": "Tax Deduction Summary",
+        "period": false
+      },
+      {
+        "id": "M56-rpt-pf",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "pf_gratuity",
+        "title": "PF & Gratuity Provisions",
+        "period": false
+      },
+      {
+        "id": "M56-rpt-variance",
+        "kind": "table_report",
+        "module": "M56",
+        "report": "payroll_variance",
+        "title": "Payroll Variance",
+        "period": false
+      },
+      {
+        "id": "M56-form-structure",
+        "kind": "model_form",
+        "model": "fix.payroll.structure",
+        "title": "Salary Structure",
+        "back": "M56-structures",
+        "sections": [
+          {
+            "title": "Structure",
+            "note": "Percentages are of gross and must lie in 0–100; PF and gratuity applicability decide which statutory lines the payslip calculates.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Structure Name"
+              },
+              {
+                "name": "grade",
+                "label": "Grade / Band"
+              },
+              {
+                "name": "basic_pct",
+                "required": true,
+                "label": "Basic % of Gross"
+              },
+              {
+                "name": "house_rent_pct",
+                "required": true,
+                "label": "House Rent %"
+              },
+              {
+                "name": "transport_fixed",
+                "label": "Transport (fixed)"
+              },
+              {
+                "name": "medical_fixed",
+                "label": "Medical (fixed)"
+              },
+              {
+                "name": "pf_applicable",
+                "label": "PF Applicable"
+              },
+              {
+                "name": "gratuity_applicable",
+                "label": "Gratuity Applicable"
+              },
+              {
+                "name": "active",
+                "label": "Active"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-run",
+        "kind": "model_form",
+        "model": "fix.payroll.period",
+        "title": "Payroll Run",
+        "back": "M56-runs",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "attendance_locked": "Attendance Locked",
+            "calculated": "Calculated",
+            "approved": "Approved",
+            "paid": "Paid",
+            "posted": "Posted"
+          }
+        },
+        "sections": [
+          {
+            "title": "Payroll Period",
+            "note": "Draft → attendance locked → calculated → approved → paid → posted. The calculator refuses a period whose attendance is not locked.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Period Name"
+              },
+              {
+                "name": "period_start",
+                "required": true,
+                "label": "From"
+              },
+              {
+                "name": "period_end",
+                "required": true,
+                "label": "To"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-bonus",
+        "kind": "model_form",
+        "model": "fix.payroll.bonus.run",
+        "title": "Bonus Run",
+        "back": "M56-bonus",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "approved": "Approved",
+            "paid": "Paid"
+          }
+        },
+        "sections": [
+          {
+            "title": "Festival Bonus",
+            "note": "The bonus is a multiplier on basic or gross; approving commits it and paying closes it.",
+            "fields": [
+              {
+                "name": "festival",
+                "required": true,
+                "label": "Festival"
+              },
+              {
+                "name": "bonus_date",
+                "required": true,
+                "label": "Bonus Date"
+              },
+              {
+                "name": "basis",
+                "required": true,
+                "label": "Basis"
+              },
+              {
+                "name": "multiplier",
+                "required": true,
+                "label": "Multiplier (months)"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-settlement",
+        "kind": "model_form",
+        "model": "fix.payroll.offcycle",
+        "title": "Final Settlement",
+        "back": "M56-settlement",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "approved": "Approved",
+            "paid": "Paid",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Settlement / Off-Cycle",
+            "note": "An off-cycle payment records arrears, advances, adjustments or a part of the final settlement; the Labour Act gratuity itself is computed by the payslip separation action.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "payment_type",
+                "required": true,
+                "label": "Payment Type"
+              },
+              {
+                "name": "payment_date",
+                "required": true,
+                "label": "Payment Date"
+              },
+              {
+                "name": "amount",
+                "required": true,
+                "label": "Amount"
+              },
+              {
+                "name": "reason",
+                "label": "Reason"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-offcycle",
+        "kind": "model_form",
+        "model": "fix.payroll.offcycle",
+        "title": "Off-Cycle Payment",
+        "back": "M56-offcycle",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "approved": "Approved",
+            "paid": "Paid",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Off-Cycle",
+            "note": "Draft → approved → paid; a cancelled payment stays recorded.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "payment_type",
+                "required": true,
+                "label": "Payment Type"
+              },
+              {
+                "name": "payment_date",
+                "required": true,
+                "label": "Payment Date"
+              },
+              {
+                "name": "amount",
+                "required": true,
+                "label": "Amount"
+              },
+              {
+                "name": "reason",
+                "label": "Reason"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-certificate",
+        "kind": "model_form",
+        "model": "fix.payroll.certificate",
+        "title": "Certificate",
+        "back": "M56-certificates",
+        "sections": [
+          {
+            "title": "Certificate",
+            "note": "Salary, tax-deduction or employment certificate for one employee and fiscal year.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "certificate_type",
+                "required": true,
+                "label": "Certificate Type"
+              },
+              {
+                "name": "fiscal_year",
+                "required": true,
+                "label": "Fiscal Year"
+              },
+              {
+                "name": "issued_on",
+                "label": "Issued On"
+              },
+              {
+                "name": "amount",
+                "label": "Annual Figure"
+              },
+              {
+                "name": "reference",
+                "label": "Reference"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M56-form-return",
+        "kind": "model_form",
+        "model": "fix.payroll.return",
+        "title": "Withholding Return",
+        "back": "M56-returns",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "filed": "Filed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Quarterly Return",
+            "note": "Filing records the NBR acknowledgement and the date.",
+            "fields": [
+              {
+                "name": "period",
+                "required": true,
+                "label": "Quarter"
+              },
+              {
+                "name": "employee_count",
+                "label": "Employees"
+              },
+              {
+                "name": "total_tax",
+                "label": "Tax Withheld"
+              },
+              {
+                "name": "acknowledgement",
+                "label": "NBR Acknowledgement"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M56:Salary Register": "M56-rpt-register",
+      "M56:Payroll Cost Allocation": "M56-rpt-alloc",
+      "M56:Tax Deduction Summary": "M56-rpt-tax",
+      "M56:PF & Gratuity Provisions": "M56-rpt-pf",
+      "M56:Payroll Variance": "M56-rpt-variance"
+    },
+    "FORM_CHIPS": {
+      "M56:Salary Structure": "M56-form-structure",
+      "M56:Payroll Run": "M56-form-run",
+      "M56:Bonus Run": "M56-form-bonus",
+      "M56:Final Settlement": "M56-form-settlement",
+      "M56:__by_model__": {
+        "fix.payroll.structure": "M56-form-structure",
+        "fix.payroll.period": "M56-form-run",
+        "fix.payroll.bonus.run": "M56-form-bonus",
+        "fix.payroll.offcycle": "M56-form-offcycle",
+        "fix.payroll.certificate": "M56-form-certificate",
+        "fix.payroll.return": "M56-form-return"
+      },
+      "M56:__by_screen__": {
+        "M56-structures": "M56-form-structure",
+        "M56-runs": "M56-form-run",
+        "M56-bonus": "M56-form-bonus",
+        "M56-settlement": "M56-form-settlement",
+        "M56-offcycle": "M56-form-offcycle",
+        "M56-certificates": "M56-form-certificate",
+        "M56-returns": "M56-form-return"
+      }
+    }
+  },
+  "m57": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M57",
+      "en": "Performance & Incentives",
+      "title": "M57 · Performance & Incentives",
+      "bn": "কর্মদক্ষতা ও প্রণোদনা",
+      "icon": "🏆",
+      "desc": "Goal cascades and KPI definitions, review cycles with calibration, performance improvement plans, technician incentive schemes and calculation runs, recognition awards, compensation review against bands, and succession planning.",
+      "kpis": [
+        {
+          "l": "Reviews On Track",
+          "m": "reviews_on_track",
+          "suffix": "%"
+        },
+        {
+          "l": "Incentive Pool MTD",
+          "m": "incentive_pool_mtd",
+          "prefix": "৳ "
+        },
+        {
+          "l": "Goal Coverage",
+          "m": "goal_coverage",
+          "suffix": "%"
+        },
+        {
+          "l": "Calibration Sessions",
+          "m": "calibration_sessions"
+        },
+        {
+          "l": "PIPs Active",
+          "m": "pips_active"
+        },
+        {
+          "l": "Incentive Accuracy",
+          "m": "incentive_accuracy",
+          "suffix": "%"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Performance",
+          "screens": [
+            {
+              "id": "M57-goals",
+              "en": "Goal Cascades",
+              "bn": "লক্ষ্য স্তর",
+              "t": "g"
+            },
+            {
+              "id": "M57-kpis",
+              "en": "KPI Definitions",
+              "bn": "কেপিআই",
+              "t": "g"
+            },
+            {
+              "id": "M57-reviews",
+              "en": "Review Cycles",
+              "bn": "পর্যালোচনা চক্র",
+              "t": "g"
+            },
+            {
+              "id": "M57-calibration",
+              "en": "Calibration",
+              "bn": "ক্যালিব্রেশন",
+              "t": "r"
+            },
+            {
+              "id": "M57-pips",
+              "en": "PIPs",
+              "bn": "কর্ম উন্নয়ন পরিকল্পনা",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Incentives",
+          "screens": [
+            {
+              "id": "M57-schemes",
+              "en": "Incentive Schemes",
+              "bn": "প্রণোদনা কর্মসূচি",
+              "t": "g"
+            },
+            {
+              "id": "M57-calc",
+              "en": "Calculation Runs",
+              "bn": "হিসাব রান",
+              "t": "g"
+            },
+            {
+              "id": "M57-recognition",
+              "en": "Recognition",
+              "bn": "স্বীকৃতি",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Compensation",
+          "screens": [
+            {
+              "id": "M57-comp",
+              "en": "Compensation Review",
+              "bn": "বেতন পর্যালোচনা",
+              "t": "g"
+            },
+            {
+              "id": "M57-succession",
+              "en": "Succession",
+              "bn": "উত্তরসূরি",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Rating Distribution",
+        "Incentive Payout by Scheme",
+        "Technician Scorecards",
+        "Calibration Summary",
+        "PIP Outcomes"
+      ],
+      "forms": [
+        "Goal",
+        "Review",
+        "Incentive Scheme",
+        "Recognition"
+      ],
+      "cross": [
+        "M21 Workforce",
+        "M56 Payroll",
+        "M01 Service Orders",
+        "M54 Costing"
+      ],
+      "freg": {
+        "src": 58,
+        "sub": [
+          [
+            "1",
+            "Goals & KPIs",
+            11
+          ],
+          [
+            "2",
+            "Review Cycles",
+            10
+          ],
+          [
+            "3",
+            "Multi-Source Feedback",
+            6
+          ],
+          [
+            "4",
+            "Rating & Calibration",
+            8
+          ],
+          [
+            "5",
+            "Incentive Design & Calculation",
+            12
+          ],
+          [
+            "6",
+            "Recognition",
+            4
+          ],
+          [
+            "7",
+            "Compensation Review",
+            7
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M57-goals",
+        "kind": "model_list",
+        "model": "fix.performance.goal",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "parent_goal_id",
+          "period",
+          "weight",
+          "target_value",
+          "actual_value",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_activate",
+            "l": "Activate"
+          },
+          {
+            "m": "action_close",
+            "l": "Close"
+          }
+        ]
+      },
+      {
+        "id": "M57-kpis",
+        "kind": "model_list",
+        "create": false,
+        "model": "fix.performance.scorecard",
+        "cols": [
+          "employee_id",
+          "period",
+          "first_time_fix",
+          "sla_hit",
+          "csat",
+          "rework_rate",
+          "score"
+        ]
+      },
+      {
+        "id": "M57-reviews",
+        "kind": "model_list",
+        "model": "fix.performance.review",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "period",
+          "manager_rating",
+          "calibrated_rating",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_manager_review",
+            "l": "Manager Review"
+          },
+          {
+            "m": "action_calibrate",
+            "l": "Calibrate"
+          },
+          {
+            "m": "action_close",
+            "l": "Close"
+          }
+        ]
+      },
+      {
+        "id": "M57-calibration",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "calibration_summary",
+        "title": "Calibration Summary",
+        "period": false
+      },
+      {
+        "id": "M57-pips",
+        "kind": "model_list",
+        "model": "fix.performance.pip",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "start_date",
+          "end_date",
+          "outcome",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_start",
+            "l": "Start"
+          },
+          {
+            "m": "action_close",
+            "l": "Close"
+          }
+        ]
+      },
+      {
+        "id": "M57-schemes",
+        "kind": "model_list",
+        "model": "fix.incentive.run",
+        "stateField": "state",
+        "cols": [
+          "period",
+          "band_base",
+          "total",
+          "state"
+        ]
+      },
+      {
+        "id": "M57-calc",
+        "kind": "model_list",
+        "model": "fix.incentive.line",
+        "cols": [
+          "run_id",
+          "employee_id",
+          "scorecard_id",
+          "amount"
+        ]
+      },
+      {
+        "id": "M57-recognition",
+        "kind": "model_list",
+        "model": "fix.performance.recognition",
+        "cols": [
+          "name",
+          "employee_id",
+          "award_type",
+          "awarded_on",
+          "prize_amount",
+          "citation"
+        ]
+      },
+      {
+        "id": "M57-comp",
+        "kind": "model_list",
+        "model": "fix.compensation.band",
+        "cols": [
+          "name",
+          "grade",
+          "range_min",
+          "range_mid",
+          "range_max"
+        ]
+      },
+      {
+        "id": "M57-succession",
+        "kind": "model_list",
+        "model": "fix.succession.plan",
+        "cols": [
+          "position_name",
+          "incumbent_id",
+          "successor_id",
+          "readiness",
+          "risk"
+        ]
+      },
+      {
+        "id": "M57-rpt-ratings",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "rating_distribution",
+        "title": "Rating Distribution",
+        "period": false
+      },
+      {
+        "id": "M57-rpt-payout",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "incentive_payout",
+        "title": "Incentive Payout by Scheme",
+        "period": false
+      },
+      {
+        "id": "M57-rpt-scorecards",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "technician_scorecards",
+        "title": "Technician Scorecards",
+        "period": false
+      },
+      {
+        "id": "M57-rpt-calib",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "calibration_summary",
+        "title": "Calibration Summary",
+        "period": false
+      },
+      {
+        "id": "M57-rpt-pip",
+        "kind": "table_report",
+        "module": "M57",
+        "report": "pip_outcomes",
+        "title": "PIP Outcomes",
+        "period": false
+      },
+      {
+        "id": "M57-form-goal",
+        "kind": "model_form",
+        "model": "fix.performance.goal",
+        "title": "Goal",
+        "back": "M57-goals",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "active": "Active",
+            "achieved": "Achieved",
+            "missed": "Missed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Goal",
+            "note": "A goal cascades from a parent goal and carries a 0–100 weight; closing it compares actual against target and records achieved or missed.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Goal"
+              },
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "parent_goal_id",
+                "label": "Cascaded From"
+              },
+              {
+                "name": "period",
+                "required": true,
+                "label": "Period (YYYY-MM)"
+              },
+              {
+                "name": "weight",
+                "required": true,
+                "label": "Weight %"
+              },
+              {
+                "name": "target_value",
+                "label": "Target"
+              },
+              {
+                "name": "actual_value",
+                "label": "Actual"
+              },
+              {
+                "name": "unit",
+                "label": "Unit"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-review",
+        "kind": "model_form",
+        "model": "fix.performance.review",
+        "title": "Review",
+        "back": "M57-reviews",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "self_review": "Self Review",
+            "manager_review": "Manager Review",
+            "calibrated": "Calibrated",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Review Cycle",
+            "note": "Manager review needs a manager rating; calibration defaults to the manager rating unless changed; only a calibrated review closes.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "reviewer_id",
+                "label": "Reviewer"
+              },
+              {
+                "name": "period",
+                "required": true,
+                "label": "Period"
+              },
+              {
+                "name": "self_rating",
+                "label": "Self Rating (1-5)"
+              },
+              {
+                "name": "manager_rating",
+                "label": "Manager Rating (1-5)"
+              },
+              {
+                "name": "calibrated_rating",
+                "label": "Calibrated Rating (1-5)"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-scheme",
+        "kind": "model_form",
+        "model": "fix.incentive.run",
+        "title": "Incentive Run",
+        "back": "M57-schemes",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "calculated": "Calculated",
+            "approved": "Approved",
+            "paid": "Paid"
+          }
+        },
+        "sections": [
+          {
+            "title": "Incentive Run",
+            "note": "A run fixes the period and the band base; its lines are computed from the technician scorecards.",
+            "fields": [
+              {
+                "name": "period",
+                "required": true,
+                "label": "Period (YYYY-MM)"
+              },
+              {
+                "name": "band_base",
+                "label": "Band Base"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-recognition",
+        "kind": "model_form",
+        "model": "fix.performance.recognition",
+        "title": "Recognition",
+        "back": "M57-recognition",
+        "sections": [
+          {
+            "title": "Recognition",
+            "note": "Spot, monthly, quarterly or values award with its citation and prize.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "award_type",
+                "required": true,
+                "label": "Award Type"
+              },
+              {
+                "name": "awarded_on",
+                "required": true,
+                "label": "Awarded On"
+              },
+              {
+                "name": "prize_amount",
+                "label": "Prize"
+              },
+              {
+                "name": "citation",
+                "label": "Citation"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-pip",
+        "kind": "model_form",
+        "model": "fix.performance.pip",
+        "title": "PIP",
+        "back": "M57-pips",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "active": "Active",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Improvement Plan",
+            "note": "End cannot precede start (CHECK); closing requires an outcome.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "mentor_id",
+                "label": "Mentor"
+              },
+              {
+                "name": "start_date",
+                "required": true,
+                "label": "Start"
+              },
+              {
+                "name": "end_date",
+                "required": true,
+                "label": "End"
+              },
+              {
+                "name": "reason",
+                "type": "text",
+                "label": "Reason"
+              },
+              {
+                "name": "outcome",
+                "label": "Outcome"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-succession",
+        "kind": "model_form",
+        "model": "fix.succession.plan",
+        "title": "Succession Plan",
+        "back": "M57-succession",
+        "sections": [
+          {
+            "title": "Succession",
+            "note": "Key position, incumbent, ready successor and the readiness window.",
+            "fields": [
+              {
+                "name": "position_name",
+                "required": true,
+                "label": "Key Position"
+              },
+              {
+                "name": "incumbent_id",
+                "label": "Incumbent"
+              },
+              {
+                "name": "successor_id",
+                "label": "Ready Successor"
+              },
+              {
+                "name": "readiness",
+                "required": true,
+                "label": "Readiness"
+              },
+              {
+                "name": "risk",
+                "required": true,
+                "label": "Risk"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M57-form-band",
+        "kind": "model_form",
+        "model": "fix.compensation.band",
+        "title": "Compensation Band",
+        "back": "M57-comp",
+        "sections": [
+          {
+            "title": "Compensation Band",
+            "note": "A pay band for a grade; offers are validated against the band it belongs to.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "grade",
+                "required": true,
+                "label": "Grade"
+              },
+              {
+                "name": "currency_id",
+                "required": true,
+                "label": "Currency"
+              },
+              {
+                "name": "range_min",
+                "label": "Range Min"
+              },
+              {
+                "name": "range_mid",
+                "label": "Range Mid"
+              },
+              {
+                "name": "range_max",
+                "label": "Range Max"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M57:Rating Distribution": "M57-rpt-ratings",
+      "M57:Incentive Payout by Scheme": "M57-rpt-payout",
+      "M57:Technician Scorecards": "M57-rpt-scorecards",
+      "M57:Calibration Summary": "M57-rpt-calib",
+      "M57:PIP Outcomes": "M57-rpt-pip"
+    },
+    "FORM_CHIPS": {
+      "M57:Compensation Band": "M57-form-band",
+      "M57:Goal": "M57-form-goal",
+      "M57:Review": "M57-form-review",
+      "M57:Incentive Scheme": "M57-form-scheme",
+      "M57:Recognition": "M57-form-recognition",
+      "M57:__by_model__": {
+        "fix.compensation.band": "M57-form-band",
+        "fix.performance.goal": "M57-form-goal",
+        "fix.performance.review": "M57-form-review",
+        "fix.incentive.run": "M57-form-scheme",
+        "fix.performance.recognition": "M57-form-recognition",
+        "fix.performance.pip": "M57-form-pip",
+        "fix.succession.plan": "M57-form-succession"
+      },
+      "M57:__by_screen__": {
+        "M57-comp": "M57-form-band",
+        "M57-goals": "M57-form-goal",
+        "M57-reviews": "M57-form-review",
+        "M57-schemes": "M57-form-scheme",
+        "M57-calc": "M57-form-scheme",
+        "M57-recognition": "M57-form-recognition",
+        "M57-pips": "M57-form-pip",
+        "M57-succession": "M57-form-succession"
+      }
+    }
+  },
+  "m58": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M58",
+      "en": "Talent Acquisition",
+      "title": "M58 · Talent Acquisition",
+      "bn": "প্রতিভা নিয়োগ",
+      "icon": "🧲",
+      "desc": "Requisitions against budget, job postings, the candidate pipeline, structured interviews, practical assessments, reference and background checks, offers, pre-boarding and first-90-days reviews.",
+      "kpis": [
+        {
+          "l": "Open Requisitions",
+          "m": "open_requisitions"
+        },
+        {
+          "l": "Time-to-Fill (days)",
+          "m": "time_to_fill"
+        },
+        {
+          "l": "Pipeline",
+          "m": "pipeline"
+        },
+        {
+          "l": "Offer Accept Rate",
+          "m": "offer_accept_rate",
+          "suffix": "%"
+        },
+        {
+          "l": "Referral Share",
+          "m": "referral_share",
+          "suffix": "%"
+        },
+        {
+          "l": "First-90 Retention",
+          "m": "first90_retention",
+          "suffix": "%"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Record Coverage",
+          "screens": [
+            {
+              "id": "M58-talent-assessment",
+              "en": "Talent Assessment",
+              "bn": "Talent Assessment",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Requisitions",
+          "screens": [
+            {
+              "id": "M58-reqs",
+              "en": "Requisitions",
+              "bn": "নিয়োগ অনুরোধ",
+              "t": "g"
+            },
+            {
+              "id": "M58-approval",
+              "en": "Approval vs Budget",
+              "bn": "বাজেট অনুমোদন",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Sourcing",
+          "screens": [
+            {
+              "id": "M58-postings",
+              "en": "Job Postings",
+              "bn": "চাকরির বিজ্ঞপ্তি",
+              "t": "g"
+            },
+            {
+              "id": "M58-candidates",
+              "en": "Candidate Pipeline",
+              "bn": "প্রার্থী",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Selection",
+          "screens": [
+            {
+              "id": "M58-interviews",
+              "en": "Structured Interviews",
+              "bn": "সাক্ষাৎকার",
+              "t": "g"
+            },
+            {
+              "id": "M58-practical",
+              "en": "Practical Assessments",
+              "bn": "ব্যবহারিক মূল্যায়ন",
+              "t": "r"
+            },
+            {
+              "id": "M58-checks",
+              "en": "Reference & Background",
+              "bn": "রেফারেন্স",
+              "t": "g"
+            },
+            {
+              "id": "M58-offers",
+              "en": "Offers",
+              "bn": "প্রস্তাব",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Onboarding",
+          "screens": [
+            {
+              "id": "M58-preboard",
+              "en": "Pre-Boarding",
+              "bn": "প্রি-বোর্ডিং",
+              "t": "g"
+            },
+            {
+              "id": "M58-first90",
+              "en": "First-90-Days",
+              "bn": "প্রথম ৯০ দিন",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Funnel & Conversion",
+        "Time-to-Fill by Role",
+        "Source Effectiveness",
+        "First-90 Retention",
+        "Practical Assessment Results"
+      ],
+      "forms": [
+        "Requisition",
+        "Candidate",
+        "Interview Evaluation",
+        "Offer"
+      ],
+      "cross": [
+        "M21 Workforce",
+        "M22 Competency",
+        "M54 Budgeting"
+      ],
+      "freg": {
+        "src": 50,
+        "sub": [
+          [
+            "1",
+            "Workforce Planning & Requisition",
+            9
+          ],
+          [
+            "2",
+            "Sourcing",
+            7
+          ],
+          [
+            "3",
+            "Screening",
+            6
+          ],
+          [
+            "4",
+            "Interviews & Assessments",
+            11
+          ],
+          [
+            "5",
+            "Checks & Offers",
+            7
+          ],
+          [
+            "6",
+            "Pre-Boarding",
+            4
+          ],
+          [
+            "7",
+            "Onboarding Orchestration",
+            6
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M58-reqs",
+        "kind": "model_list",
+        "model": "fix.job.requisition",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "department_id",
+          "position_id",
+          "openings",
+          "state"
+        ]
+      },
+      {
+        "id": "M58-approval",
+        "kind": "model_list",
+        "model": "fix.job.requisition",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "position_id",
+          "openings",
+          "state"
+        ]
+      },
+      {
+        "id": "M58-postings",
+        "kind": "model_list",
+        "model": "fix.job.requisition",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "department_id",
+          "openings",
+          "state"
+        ]
+      },
+      {
+        "id": "M58-candidates",
+        "kind": "model_list",
+        "model": "fix.candidate",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "email",
+          "phone",
+          "requisition_id",
+          "state"
+        ]
+      },
+      {
+        "id": "M58-interviews",
+        "kind": "model_list",
+        "model": "fix.talent.interview",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "candidate_id",
+          "interviewer_id",
+          "scheduled_on",
+          "round_no",
+          "score",
+          "recommendation",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_done",
+            "l": "Complete Interview"
+          }
+        ]
+      },
+      {
+        "id": "M58-practical",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "practical_results",
+        "title": "Practical Assessment Results",
+        "period": false
+      },
+      {
+        "id": "M58-checks",
+        "kind": "model_list",
+        "model": "fix.talent.check",
+        "stateField": "result",
+        "cols": [
+          "name",
+          "candidate_id",
+          "check_type",
+          "requested_on",
+          "completed_on",
+          "result"
+        ],
+        "actions": [
+          {
+            "m": "action_clear",
+            "l": "Mark Clear"
+          }
+        ]
+      },
+      {
+        "id": "M58-offers",
+        "kind": "model_list",
+        "model": "fix.talent.offer",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "candidate_id",
+          "position_id",
+          "gross_salary",
+          "issued_on",
+          "joining_date",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_issue",
+            "l": "Issue Offer"
+          },
+          {
+            "m": "action_accept",
+            "l": "Accept"
+          },
+          {
+            "m": "action_decline",
+            "l": "Decline"
+          }
+        ]
+      },
+      {
+        "id": "M58-preboard",
+        "kind": "model_list",
+        "model": "fix.onboarding.plan",
+        "cols": [
+          "name",
+          "candidate_id",
+          "position_id",
+          "joined_date",
+          "employee_id"
+        ]
+      },
+      {
+        "id": "M58-first90",
+        "kind": "model_list",
+        "model": "fix.talent.first90",
+        "cols": [
+          "name",
+          "employee_id",
+          "milestone",
+          "check_date",
+          "rating",
+          "on_track"
+        ]
+      },
+      {
+        "id": "M58-rpt-funnel",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "funnel_conversion",
+        "title": "Funnel & Conversion",
+        "period": false
+      },
+      {
+        "id": "M58-rpt-ttf",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "time_to_fill",
+        "title": "Time-to-Fill by Role",
+        "period": false
+      },
+      {
+        "id": "M58-rpt-source",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "source_effectiveness",
+        "title": "Source Effectiveness",
+        "period": false
+      },
+      {
+        "id": "M58-rpt-retention",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "first90_retention",
+        "title": "First-90 Retention",
+        "period": false
+      },
+      {
+        "id": "M58-rpt-practical",
+        "kind": "table_report",
+        "module": "M58",
+        "report": "practical_results",
+        "title": "Practical Assessment Results",
+        "period": false
+      },
+      {
+        "id": "M58-form-requisition",
+        "kind": "model_form",
+        "model": "fix.job.requisition",
+        "title": "Requisition",
+        "back": "M58-reqs",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "open": "Open",
+            "hired": "Hired",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Requisition",
+            "note": "A requisition names the position and the number of openings; opening it is the budget approval point in this model.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Requisition"
+              },
+              {
+                "name": "department_id",
+                "label": "Department"
+              },
+              {
+                "name": "position_id",
+                "label": "Position"
+              },
+              {
+                "name": "openings",
+                "required": true,
+                "label": "Openings"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-candidate",
+        "kind": "model_form",
+        "model": "fix.candidate",
+        "title": "Candidate",
+        "back": "M58-candidates",
+        "status": {
+          "field": "state",
+          "labels": {
+            "applied": "Applied",
+            "screening": "Screening",
+            "interview": "Interview",
+            "offered": "Offered",
+            "hired": "Hired",
+            "rejected": "Rejected"
+          }
+        },
+        "sections": [
+          {
+            "title": "Candidate",
+            "note": "Name, contact and the requisition applied for; the stage carries the pipeline.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Candidate Name"
+              },
+              {
+                "name": "email",
+                "label": "Email"
+              },
+              {
+                "name": "phone",
+                "label": "Phone"
+              },
+              {
+                "name": "requisition_id",
+                "label": "Requisition"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "Stage"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-interview",
+        "kind": "model_form",
+        "model": "fix.talent.interview",
+        "title": "Interview Evaluation",
+        "back": "M58-interviews",
+        "status": {
+          "field": "state",
+          "labels": {
+            "scheduled": "Scheduled",
+            "done": "Completed",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Structured Interview",
+            "note": "Score is 0–5 (CHECK); completing the interview requires a recommendation.",
+            "fields": [
+              {
+                "name": "candidate_id",
+                "required": true,
+                "label": "Candidate"
+              },
+              {
+                "name": "interviewer_id",
+                "label": "Interviewer"
+              },
+              {
+                "name": "scheduled_on",
+                "required": true,
+                "label": "Scheduled On"
+              },
+              {
+                "name": "round_no",
+                "required": true,
+                "label": "Round"
+              },
+              {
+                "name": "competency_code",
+                "label": "Focus Competency Code"
+              },
+              {
+                "name": "score",
+                "label": "Score (1-5)"
+              },
+              {
+                "name": "recommendation",
+                "label": "Recommendation"
+              },
+              {
+                "name": "notes",
+                "type": "text",
+                "label": "Notes"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-offer",
+        "kind": "model_form",
+        "model": "fix.talent.offer",
+        "title": "Offer",
+        "back": "M58-offers",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "issued": "Issued",
+            "accepted": "Accepted",
+            "declined": "Declined",
+            "expired": "Expired"
+          }
+        },
+        "sections": [
+          {
+            "title": "Offer",
+            "note": "Draft → issued → accepted/declined; accepting the offer moves the candidate to Hired.",
+            "fields": [
+              {
+                "name": "candidate_id",
+                "required": true,
+                "label": "Candidate"
+              },
+              {
+                "name": "position_id",
+                "label": "Position"
+              },
+              {
+                "name": "gross_salary",
+                "label": "Gross Monthly"
+              },
+              {
+                "name": "issued_on",
+                "required": true,
+                "label": "Issued On"
+              },
+              {
+                "name": "valid_until",
+                "label": "Valid Until"
+              },
+              {
+                "name": "joining_date",
+                "label": "Joining Date"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-check",
+        "kind": "model_form",
+        "model": "fix.talent.check",
+        "title": "Background Check",
+        "back": "M58-checks",
+        "status": {
+          "field": "result",
+          "labels": {
+            "pending": "Pending",
+            "clear": "Clear",
+            "discrepancy": "Discrepancy",
+            "failed": "Failed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Check",
+            "note": "Reference, NID, education, employment or police check; marking clear records the completion date.",
+            "fields": [
+              {
+                "name": "candidate_id",
+                "required": true,
+                "label": "Candidate"
+              },
+              {
+                "name": "check_type",
+                "required": true,
+                "label": "Check Type"
+              },
+              {
+                "name": "requested_on",
+                "required": true,
+                "label": "Requested On"
+              },
+              {
+                "name": "reference_contact",
+                "label": "Reference Contact"
+              },
+              {
+                "name": "result",
+                "required": true,
+                "label": "Result"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-first90",
+        "kind": "model_form",
+        "model": "fix.talent.first90",
+        "title": "First-90 Review",
+        "back": "M58-first90",
+        "sections": [
+          {
+            "title": "Review",
+            "note": "Milestone check (day 30/60/90) with a 0–5 rating.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "plan_id",
+                "label": "Onboarding Plan"
+              },
+              {
+                "name": "milestone",
+                "required": true,
+                "label": "Milestone"
+              },
+              {
+                "name": "check_date",
+                "required": true,
+                "label": "Check Date"
+              },
+              {
+                "name": "rating",
+                "label": "Rating (1-5)"
+              },
+              {
+                "name": "on_track",
+                "label": "On Track"
+              },
+              {
+                "name": "notes",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-form-onboard",
+        "kind": "model_form",
+        "model": "fix.onboarding.plan",
+        "title": "Onboarding Plan",
+        "back": "M58-preboard",
+        "sections": [
+          {
+            "title": "Onboarding Plan",
+            "note": "A pre-boarding plan: the tasks that must complete before the joining date.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "candidate_id",
+                "required": true,
+                "label": "Candidate"
+              },
+              {
+                "name": "joined_date",
+                "required": true,
+                "label": "Joining Date"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "requisition_id",
+                "label": "Job Requisition"
+              },
+              {
+                "name": "employee_id",
+                "label": "Created Employee Record"
+              },
+              {
+                "name": "position_id",
+                "label": "Position"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M58-talent-assessment",
+        "kind": "model_list",
+        "model": "fix.talent.assessment",
+        "cols": [
+          "name",
+          "company_id",
+          "candidate_id",
+          "competency_code",
+          "assessor_id",
+          "assessed_on",
+          "score"
+        ]
+      },
+      {
+        "id": "M58-form-talent-assessment",
+        "kind": "model_form",
+        "model": "fix.talent.assessment",
+        "title": "Talent Assessment",
+        "back": "M58-talent-assessment",
+        "sections": [
+          {
+            "title": "Talent Assessment",
+            "note": "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "candidate_id",
+                "required": true,
+                "label": "Candidate"
+              },
+              {
+                "name": "assessed_on",
+                "required": true,
+                "label": "Assessed On"
+              },
+              {
+                "name": "competency_code",
+                "label": "Competency Tested (code)"
+              },
+              {
+                "name": "assessor_id",
+                "label": "Assessor"
+              },
+              {
+                "name": "score",
+                "label": "Score %"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M58:Funnel & Conversion": "M58-rpt-funnel",
+      "M58:Time-to-Fill by Role": "M58-rpt-ttf",
+      "M58:Source Effectiveness": "M58-rpt-source",
+      "M58:First-90 Retention": "M58-rpt-retention",
+      "M58:Practical Assessment Results": "M58-rpt-practical"
+    },
+    "FORM_CHIPS": {
+      "M58:Onboarding Plan": "M58-form-onboard",
+      "M58:Requisition": "M58-form-requisition",
+      "M58:Candidate": "M58-form-candidate",
+      "M58:Interview Evaluation": "M58-form-interview",
+      "M58:Offer": "M58-form-offer",
+      "M58:__by_model__": {
+        "fix.talent.assessment": "M58-form-talent-assessment",
+        "fix.onboarding.plan": "M58-form-onboard",
+        "fix.job.requisition": "M58-form-requisition",
+        "fix.candidate": "M58-form-candidate",
+        "fix.talent.interview": "M58-form-interview",
+        "fix.talent.offer": "M58-form-offer",
+        "fix.talent.check": "M58-form-check",
+        "fix.talent.first90": "M58-form-first90"
+      },
+      "M58:__by_screen__": {
+        "M58-talent-assessment": "M58-form-talent-assessment",
+        "M58-preboard": "M58-form-onboard",
+        "M58-reqs": "M58-form-requisition",
+        "M58-approval": "M58-form-requisition",
+        "M58-postings": "M58-form-requisition",
+        "M58-candidates": "M58-form-candidate",
+        "M58-interviews": "M58-form-interview",
+        "M58-offers": "M58-form-offer",
+        "M58-checks": "M58-form-check",
+        "M58-first90": "M58-form-first90"
+      }
+    }
+  },
+  "m59": {
+    "MODULE": {
+      "area": "A09",
+      "code": "M59",
+      "en": "Health, Safety & Wellbeing",
+      "title": "M59 · Health, Safety & Wellbeing",
+      "bn": "স্বাস্থ্য, নিরাপত্তা ও কল্যাণ",
+      "icon": "🦺",
+      "desc": "Hazard register with risk scoring, JSA and safe procedures, PPE register, incident and near-miss reporting, investigation and RCA, the statutory DIFE notification clock, lone-worker check-ins, road and vehicle safety, battery/electrical/chemical risks, drills and training, the safety committee and occupational health with return-to-work.",
+      "kpis": [
+        {
+          "l": "Recordable Incidents YTD",
+          "m": "recordable_incidents_ytd"
+        },
+        {
+          "l": "Lost-Time Injuries",
+          "m": "lost_time_injuries"
+        },
+        {
+          "l": "Near-Miss MTD",
+          "m": "near_miss_mtd"
+        },
+        {
+          "l": "Statutory Clock",
+          "m": "statutory_clock"
+        },
+        {
+          "l": "PPE Types Stocked",
+          "m": "ppe_compliance"
+        },
+        {
+          "l": "Drills Completed",
+          "m": "drills_completed"
+        }
+      ],
+      "groups": [
+        {
+          "en": "Record Coverage",
+          "screens": [
+            {
+              "id": "M59-safety-inspection",
+              "en": "Safety Inspection",
+              "bn": "Safety Inspection",
+              "t": "g"
+            },
+            {
+              "id": "M59-statutory-accident-register",
+              "en": "Statutory Accident Register",
+              "bn": "Statutory Accident Register",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Risk",
+          "screens": [
+            {
+              "id": "M59-hazards",
+              "en": "Hazard Register",
+              "bn": "ঝুঁকি রেজিস্টার",
+              "t": "g"
+            },
+            {
+              "id": "M59-jsa",
+              "en": "JSA & Safe Procedures",
+              "bn": "কাজের নিরাপত্তা বিশ্লেষণ",
+              "t": "g"
+            },
+            {
+              "id": "M59-ppe",
+              "en": "PPE Issue Register",
+              "bn": "পিপিই",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Incidents",
+          "screens": [
+            {
+              "id": "M59-report",
+              "en": "Incident & Near-Miss Reporting",
+              "bn": "ঘটনা রিপোর্ট",
+              "t": "f"
+            },
+            {
+              "id": "M59-investigate",
+              "en": "Investigation & RCA",
+              "bn": "তদন্ত",
+              "t": "g"
+            },
+            {
+              "id": "M59-statutory",
+              "en": "Statutory Notification Clock",
+              "bn": "আইনি ঘড়ি",
+              "t": "r"
+            }
+          ]
+        },
+        {
+          "en": "Field Safety",
+          "screens": [
+            {
+              "id": "M59-loneworker",
+              "en": "Lone-Worker & Emergency",
+              "bn": "একাকী কর্মী",
+              "t": "g"
+            },
+            {
+              "id": "M59-road",
+              "en": "Road & Vehicle Safety",
+              "bn": "সড়ক নিরাপত্তা",
+              "t": "g"
+            },
+            {
+              "id": "M59-battery",
+              "en": "Battery / Electrical / Chemical",
+              "bn": "ব্যাটারি ঝুঁকি",
+              "t": "g"
+            }
+          ]
+        },
+        {
+          "en": "Programme",
+          "screens": [
+            {
+              "id": "M59-drills",
+              "en": "Drills & Training",
+              "bn": "মহড়া",
+              "t": "g"
+            },
+            {
+              "id": "M59-committee",
+              "en": "Safety Committee",
+              "bn": "নিরাপত্তা কমিটি",
+              "t": "g"
+            },
+            {
+              "id": "M59-wellbeing",
+              "en": "Occupational Health",
+              "bn": "পেশাগত স্বাস্থ্য",
+              "t": "g"
+            }
+          ]
+        }
+      ],
+      "reports": [
+        "Incident Statistics",
+        "Leading Indicators",
+        "Statutory Compliance",
+        "PPE Compliance",
+        "Drill Calendar Coverage"
+      ],
+      "forms": [
+        "Incident Report",
+        "JSA",
+        "PPE Issue",
+        "Return-to-Work"
+      ],
+      "cross": [
+        "M47 Facility safety",
+        "M21 Workforce",
+        "M46 Fleet",
+        "M02 Field Safety"
+      ],
+      "freg": {
+        "src": 60,
+        "sub": [
+          [
+            "1",
+            "Hazard Register & Risk",
+            9
+          ],
+          [
+            "2",
+            "Procedures & Permits",
+            7
+          ],
+          [
+            "3",
+            "Incident Management",
+            13
+          ],
+          [
+            "4",
+            "Statutory Notification",
+            5
+          ],
+          [
+            "5",
+            "PPE",
+            5
+          ],
+          [
+            "6",
+            "Field & Road Safety",
+            8
+          ],
+          [
+            "7",
+            "Training & Drills",
+            6
+          ],
+          [
+            "8",
+            "Health & Wellbeing",
+            7
+          ]
+        ]
+      }
+    },
+    "SCREENS": [
+      {
+        "id": "M59-hazards",
+        "kind": "model_list",
+        "model": "fix.hse.hazard",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "hazard_type",
+          "likelihood",
+          "severity",
+          "risk_score",
+          "residual_risk",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_control",
+            "l": "Mark Controlled"
+          },
+          {
+            "m": "action_close",
+            "l": "Close"
+          }
+        ]
+      },
+      {
+        "id": "M59-jsa",
+        "kind": "model_list",
+        "model": "fix.hse.jsa",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "job_type",
+          "ppe_required",
+          "approved_by_id",
+          "approved_on",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_approve",
+            "l": "Approve JSA"
+          }
+        ]
+      },
+      {
+        "id": "M59-ppe",
+        "kind": "model_list",
+        "model": "fix.ppe.register",
+        "cols": [
+          "name",
+          "item_type",
+          "regulatory_standard",
+          "stock_quantity"
+        ]
+      },
+      {
+        "id": "M59-report",
+        "kind": "model_form",
+        "model": "fix.hse.incident",
+        "title": "Incident Report",
+        "back": "M59-investigate",
+        "status": {
+          "field": "state",
+          "labels": {
+            "reported": "Reported",
+            "investigating": "Investigating",
+            "action_taken": "Action Taken",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Incident",
+            "note": "Report the incident with its type and severity; high severity means critical/hospitalisation/DIFE-reportable and starts the statutory clock.",
+            "fields": [
+              {
+                "name": "incident_type",
+                "required": true,
+                "label": "Incident Type"
+              },
+              {
+                "name": "severity",
+                "required": true,
+                "label": "Severity"
+              },
+              {
+                "name": "branch_id",
+                "label": "Branch"
+              },
+              {
+                "name": "employee_id",
+                "label": "Reported By"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-investigate",
+        "kind": "model_list",
+        "model": "fix.hse.incident",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "incident_type",
+          "severity",
+          "branch_id",
+          "reported_at",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_investigate",
+            "l": "Investigate"
+          },
+          {
+            "m": "action_close",
+            "l": "Close Incident"
+          }
+        ]
+      },
+      {
+        "id": "M59-statutory",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "statutory_compliance",
+        "title": "Statutory Notification Clock",
+        "period": false
+      },
+      {
+        "id": "M59-loneworker",
+        "kind": "model_list",
+        "model": "fix.hse.loneworker",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "checkin_time",
+          "expected_end",
+          "buddy_id",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_checkout",
+            "l": "Check Out"
+          },
+          {
+            "m": "action_escalate",
+            "l": "Escalate"
+          }
+        ]
+      },
+      {
+        "id": "M59-road",
+        "kind": "model_list",
+        "model": "fix.hse.roadcheck",
+        "cols": [
+          "name",
+          "employee_id",
+          "vehicle_ref",
+          "checked_on",
+          "tyres_ok",
+          "brakes_ok",
+          "documents_ok",
+          "passed"
+        ]
+      },
+      {
+        "id": "M59-battery",
+        "kind": "model_list",
+        "model": "fix.hazardous.substance.register",
+        "cols": [
+          "name"
+        ]
+      },
+      {
+        "id": "M59-drills",
+        "kind": "model_list",
+        "model": "fix.hse.drill",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "drill_type",
+          "scheduled_on",
+          "completed_on",
+          "participants",
+          "state"
+        ],
+        "actions": [
+          {
+            "m": "action_complete",
+            "l": "Mark Completed"
+          }
+        ]
+      },
+      {
+        "id": "M59-committee",
+        "kind": "model_list",
+        "model": "fix.safety.committee",
+        "cols": [
+          "name",
+          "branch_id",
+          "formation_date",
+          "chairperson_id",
+          "secretary_id",
+          "member_count"
+        ]
+      },
+      {
+        "id": "M59-wellbeing",
+        "kind": "model_list",
+        "model": "fix.hse.health",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "employee_id",
+          "record_type",
+          "record_date",
+          "valid_until",
+          "fitness",
+          "state"
+        ]
+      },
+      {
+        "id": "M59-rpt-incidents",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "incident_statistics",
+        "title": "Incident Statistics",
+        "period": false
+      },
+      {
+        "id": "M59-rpt-leading",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "leading_indicators",
+        "title": "Leading Indicators",
+        "period": false
+      },
+      {
+        "id": "M59-rpt-statutory",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "statutory_compliance",
+        "title": "Statutory Compliance",
+        "period": false
+      },
+      {
+        "id": "M59-rpt-ppe",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "ppe_compliance",
+        "title": "PPE Compliance",
+        "period": false
+      },
+      {
+        "id": "M59-rpt-drills",
+        "kind": "table_report",
+        "module": "M59",
+        "report": "drill_coverage",
+        "title": "Drill Calendar Coverage",
+        "period": false
+      },
+      {
+        "id": "M59-form-incident",
+        "kind": "model_form",
+        "model": "fix.hse.incident",
+        "title": "Incident Report",
+        "back": "M59-investigate",
+        "status": {
+          "field": "state",
+          "labels": {
+            "reported": "Reported",
+            "investigating": "Investigating",
+            "action_taken": "Action Taken",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Incident Report",
+            "note": "Reported → investigating → action taken → closed. High severity is the DIFE-reportable band.",
+            "fields": [
+              {
+                "name": "incident_type",
+                "required": true,
+                "label": "Incident Type"
+              },
+              {
+                "name": "severity",
+                "required": true,
+                "label": "Severity"
+              },
+              {
+                "name": "branch_id",
+                "label": "Branch"
+              },
+              {
+                "name": "employee_id",
+                "label": "Reported By"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-jsa",
+        "kind": "model_form",
+        "model": "fix.hse.jsa",
+        "title": "JSA",
+        "back": "M59-jsa",
+        "status": {
+          "field": "state",
+          "labels": {
+            "draft": "Draft",
+            "approved": "Approved",
+            "retired": "Retired"
+          }
+        },
+        "sections": [
+          {
+            "title": "Job Safety Analysis",
+            "note": "Steps, hazards and controls per step, plus the PPE required; approving stamps the date.",
+            "fields": [
+              {
+                "name": "job_type",
+                "required": true,
+                "label": "Job / Task Type"
+              },
+              {
+                "name": "ppe_required",
+                "label": "PPE Required"
+              },
+              {
+                "name": "approved_by_id",
+                "label": "Approved By"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          },
+          {
+            "title": "Analysis",
+            "fields": [
+              {
+                "name": "steps",
+                "type": "text",
+                "label": "Job Steps"
+              },
+              {
+                "name": "hazards",
+                "type": "text",
+                "label": "Hazards per Step"
+              },
+              {
+                "name": "controls",
+                "type": "text",
+                "label": "Controls per Step"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-ppe",
+        "kind": "model_form",
+        "model": "fix.ppe.register",
+        "title": "PPE Issue",
+        "back": "M59-ppe",
+        "sections": [
+          {
+            "title": "PPE Item",
+            "note": "The register holds PPE item types with their regulatory standard and stock; issuing to a worker records the item type and standard.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "PPE Item Name"
+              },
+              {
+                "name": "item_type",
+                "required": true,
+                "label": "Item Type"
+              },
+              {
+                "name": "regulatory_standard",
+                "label": "Regulatory Standard"
+              },
+              {
+                "name": "stock_quantity",
+                "label": "Available In Stock"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-health",
+        "kind": "model_form",
+        "model": "fix.hse.health",
+        "title": "Return-to-Work",
+        "back": "M59-wellbeing",
+        "status": {
+          "field": "state",
+          "labels": {
+            "open": "Open",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Occupational Health",
+            "note": "Fitness outcome drives the return-to-work decision; restrictions are recorded verbatim.",
+            "fields": [
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "record_type",
+                "required": true,
+                "label": "Record Type"
+              },
+              {
+                "name": "record_date",
+                "required": true,
+                "label": "Date"
+              },
+              {
+                "name": "valid_until",
+                "label": "Valid Until"
+              },
+              {
+                "name": "fitness",
+                "required": true,
+                "label": "Fitness"
+              },
+              {
+                "name": "restrictions",
+                "label": "Restrictions"
+              },
+              {
+                "name": "clinician",
+                "label": "Clinician"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-hazard",
+        "kind": "model_form",
+        "model": "fix.hse.hazard",
+        "title": "Hazard",
+        "back": "M59-hazards",
+        "status": {
+          "field": "state",
+          "labels": {
+            "open": "Open",
+            "controlled": "Controlled",
+            "closed": "Closed"
+          }
+        },
+        "sections": [
+          {
+            "title": "Hazard",
+            "note": "Risk score is likelihood × severity (both 1–5, CHECK); residual risk is the judgement after controls.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Hazard"
+              },
+              {
+                "name": "hazard_type",
+                "required": true,
+                "label": "Hazard Type"
+              },
+              {
+                "name": "likelihood",
+                "required": true,
+                "label": "Likelihood (1-5)"
+              },
+              {
+                "name": "severity",
+                "required": true,
+                "label": "Severity (1-5)"
+              },
+              {
+                "name": "residual_risk",
+                "required": true,
+                "label": "Residual Risk"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          },
+          {
+            "title": "Controls",
+            "fields": [
+              {
+                "name": "controls",
+                "type": "text",
+                "label": "Existing Controls"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-drill",
+        "kind": "model_form",
+        "model": "fix.hse.drill",
+        "title": "Drill",
+        "back": "M59-drills",
+        "status": {
+          "field": "state",
+          "labels": {
+            "planned": "Planned",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+          }
+        },
+        "sections": [
+          {
+            "title": "Drill",
+            "note": "Completing a drill stamps the date; participants and findings are recorded for the coverage pack.",
+            "fields": [
+              {
+                "name": "drill_type",
+                "required": true,
+                "label": "Drill Type"
+              },
+              {
+                "name": "scheduled_on",
+                "required": true,
+                "label": "Scheduled On"
+              },
+              {
+                "name": "participants",
+                "label": "Participants"
+              },
+              {
+                "name": "duration_min",
+                "label": "Duration (minutes)"
+              },
+              {
+                "name": "findings",
+                "label": "Findings"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-loneworker",
+        "kind": "model_form",
+        "model": "fix.hse.loneworker",
+        "title": "Lone Worker Check-in",
+        "back": "M59-loneworker",
+        "sections": [
+          {
+            "title": "Lone Worker Check-in",
+            "note": "A lone-worker check-in record; a missed check-in raises the HSE alert.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Employee"
+              },
+              {
+                "name": "checkin_time",
+                "required": true,
+                "label": "Checkin Time"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "expected_end",
+                "label": "Expected End"
+              },
+              {
+                "name": "location",
+                "label": "Location"
+              },
+              {
+                "name": "buddy_id",
+                "label": "Emergency Contact"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-roadcheck",
+        "kind": "model_form",
+        "model": "fix.hse.roadcheck",
+        "title": "Road Check",
+        "back": "M59-road",
+        "sections": [
+          {
+            "title": "Road Check",
+            "note": "A vehicle road-worthiness check with the defects found and the action taken.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "checked_on",
+                "required": true,
+                "label": "Checked On"
+              },
+              {
+                "name": "employee_id",
+                "label": "Driver"
+              },
+              {
+                "name": "vehicle_ref",
+                "label": "Vehicle / Plate"
+              },
+              {
+                "name": "tyres_ok",
+                "label": "Tyres OK"
+              },
+              {
+                "name": "brakes_ok",
+                "label": "Brakes OK"
+              },
+              {
+                "name": "lights_ok",
+                "label": "Lights OK"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-battery",
+        "kind": "model_form",
+        "model": "fix.hazardous.substance.register",
+        "title": "Hazardous Substance Register",
+        "back": "M59-battery",
+        "sections": [
+          {
+            "title": "Hazardous Substance Register",
+            "note": "The hazardous-substance register entry (battery/chemical): quantity, storage and disposal route.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Chemical / Substance Name"
+              },
+              {
+                "name": "storage_location",
+                "required": true,
+                "label": "Approved Storage Location"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "un_number",
+                "label": "UN Transport Number (e.g. UN 1219 for IPA, UN 3481 for Li-Ion)"
+              },
+              {
+                "name": "max_allowable_litres",
+                "label": "Max Permissible Storage Limit"
+              },
+              {
+                "name": "current_stock_litres",
+                "label": "Current Stock On-Hand"
+              },
+              {
+                "name": "msds_on_file",
+                "label": "Safety Data Sheet (MSDS) Available"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-committee",
+        "kind": "model_form",
+        "model": "fix.safety.committee",
+        "title": "Safety Committee",
+        "back": "M59-committee",
+        "sections": [
+          {
+            "title": "Safety Committee",
+            "note": "A safety committee with its members, meeting cadence and the minutes reference.",
+            "fields": [
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "name",
+                "required": true,
+                "label": "Committee Designation"
+              },
+              {
+                "name": "branch_id",
+                "required": true,
+                "label": "Service Centre / Branch"
+              },
+              {
+                "name": "formation_date",
+                "required": true,
+                "label": "Formation Date"
+              },
+              {
+                "name": "chairperson_id",
+                "required": true,
+                "label": "Chairperson (Employer Rep)"
+              },
+              {
+                "name": "secretary_id",
+                "required": true,
+                "label": "Secretary (Worker Rep)"
+              },
+              {
+                "name": "member_count",
+                "required": true,
+                "label": "Total Committee Members"
+              },
+              {
+                "name": "meeting_frequency",
+                "required": true,
+                "label": "Meeting Frequency"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-safety-inspection",
+        "kind": "model_list",
+        "model": "fix.safety.inspection",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "state",
+          "company_id",
+          "operating_unit_id",
+          "branch_id",
+          "inspected_on",
+          "inspector_id"
+        ]
+      },
+      {
+        "id": "M59-statutory-accident-register",
+        "kind": "model_list",
+        "model": "fix.statutory.accident.register",
+        "stateField": "state",
+        "cols": [
+          "name",
+          "state",
+          "company_id",
+          "employee_id",
+          "operating_unit_id",
+          "incident_id",
+          "accident_date"
+        ]
+      },
+      {
+        "id": "M59-form-safety-inspection",
+        "kind": "model_form",
+        "model": "fix.safety.inspection",
+        "title": "Safety Inspection",
+        "back": "M59-safety-inspection",
+        "status": {
+          "field": "state"
+        },
+        "sections": [
+          {
+            "title": "Safety Inspection",
+            "note": "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Name"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "branch_id",
+                "required": true,
+                "label": "Branch"
+              },
+              {
+                "name": "inspected_on",
+                "required": true,
+                "label": "Inspected On"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "inspector_id",
+                "label": "Inspector"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "M59-form-statutory-accident-register",
+        "kind": "model_form",
+        "model": "fix.statutory.accident.register",
+        "title": "Statutory Accident Register",
+        "back": "M59-statutory-accident-register",
+        "status": {
+          "field": "state"
+        },
+        "sections": [
+          {
+            "title": "Statutory Accident Register",
+            "note": "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+            "fields": [
+              {
+                "name": "name",
+                "required": true,
+                "label": "Statutory Record ID"
+              },
+              {
+                "name": "state",
+                "required": true,
+                "label": "State"
+              },
+              {
+                "name": "company_id",
+                "required": true,
+                "label": "Company"
+              },
+              {
+                "name": "employee_id",
+                "required": true,
+                "label": "Worker Involved"
+              },
+              {
+                "name": "accident_date",
+                "required": true,
+                "label": "Date of Accident"
+              },
+              {
+                "name": "operating_unit_id",
+                "label": "Operating Unit"
+              },
+              {
+                "name": "incident_id",
+                "label": "Linked HSE Incident"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "REPORT_ROUTES": {
+      "M59:Incident Statistics": "M59-rpt-incidents",
+      "M59:Leading Indicators": "M59-rpt-leading",
+      "M59:Statutory Compliance": "M59-rpt-statutory",
+      "M59:PPE Compliance": "M59-rpt-ppe",
+      "M59:Drill Calendar Coverage": "M59-rpt-drills"
+    },
+    "FORM_CHIPS": {
+      "M59:Lone Worker Check-in": "M59-form-loneworker",
+      "M59:Road Check": "M59-form-roadcheck",
+      "M59:Hazardous Substance Register": "M59-form-battery",
+      "M59:Safety Committee": "M59-form-committee",
+      "M59:Incident Report": "M59-form-incident",
+      "M59:JSA": "M59-form-jsa",
+      "M59:PPE Issue": "M59-form-ppe",
+      "M59:Return-to-Work": "M59-form-health",
+      "M59:__by_model__": {
+        "fix.safety.inspection": "M59-form-safety-inspection",
+        "fix.statutory.accident.register": "M59-form-statutory-accident-register",
+        "fix.hse.loneworker": "M59-form-loneworker",
+        "fix.hse.roadcheck": "M59-form-roadcheck",
+        "fix.hazardous.substance.register": "M59-form-battery",
+        "fix.safety.committee": "M59-form-committee",
+        "fix.hse.incident": "M59-form-incident",
+        "fix.hse.jsa": "M59-form-jsa",
+        "fix.ppe.register": "M59-form-ppe",
+        "fix.hse.health": "M59-form-health",
+        "fix.hse.hazard": "M59-form-hazard",
+        "fix.hse.drill": "M59-form-drill"
+      },
+      "M59:__by_screen__": {
+        "M59-safety-inspection": "M59-form-safety-inspection",
+        "M59-statutory-accident-register": "M59-form-statutory-accident-register",
+        "M59-loneworker": "M59-form-loneworker",
+        "M59-road": "M59-form-roadcheck",
+        "M59-battery": "M59-form-battery",
+        "M59-committee": "M59-form-committee",
+        "M59-investigate": "M59-form-incident",
+        "M59-jsa": "M59-form-jsa",
+        "M59-ppe": "M59-form-ppe",
+        "M59-wellbeing": "M59-form-health",
+        "M59-hazards": "M59-form-hazard",
+        "M59-drills": "M59-form-drill"
+      }
+    }
+  }
+}

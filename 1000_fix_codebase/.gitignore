@@ -90,3 +90,5 @@ results/
 .mimosa/
 .zcode/
 
+# runtime logs written by local servers and upgrade runs (14 Nov 2026)
+/*.log

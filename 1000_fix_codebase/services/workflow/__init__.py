@@ -1,12 +1,12 @@
 # services/workflow/__init__.py
 from .brand_submission_engine import (
-    BrandTemplateRegistry,
     BrandSubmissionWorkflow,
+    BrandTemplateRegistry,
     CompletenessViolationError,
 )
 
 __all__ = [
-    "BrandTemplateRegistry",
     "BrandSubmissionWorkflow",
+    "BrandTemplateRegistry",
     "CompletenessViolationError",
 ]

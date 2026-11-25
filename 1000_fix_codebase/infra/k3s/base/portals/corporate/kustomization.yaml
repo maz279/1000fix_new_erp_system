@@ -1,0 +1,39 @@
+# portal-corporate (apps/web/corporate) - instance of ../_template.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../_template
+nameSuffix: -corporate
+labels:
+  - pairs:
+      app.kubernetes.io/name: portal-corporate
+    includeSelectors: true
+images:
+  - name: 1000fix/portal
+    newName: 1000fix/portal-corporate
+# server-side OIDC (apps/web/corporate/app/api/auth/oidc-auth.ts): issuer and
+# redirect from the platform ConfigMap; the client secret is optional (a public
+# PKCE client has none).
+patches:
+  - target: { kind: Deployment, name: portal }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OIDC_ISSUER
+          valueFrom: { configMapKeyRef: { name: fix-platform, key: KEYCLOAK_ISSUER } }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OIDC_REDIRECT_URI
+          valueFrom: { configMapKeyRef: { name: fix-platform, key: CORPORATE_OIDC_REDIRECT_URI } }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OIDC_CLIENT_ID
+          valueFrom: { configMapKeyRef: { name: fix-platform, key: CORPORATE_OIDC_CLIENT_ID } }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OIDC_CLIENT_SECRET
+          valueFrom: { secretKeyRef: { name: fix-portal-corporate, key: oidc-client-secret, optional: true } }

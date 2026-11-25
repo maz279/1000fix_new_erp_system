@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M23 capture audit (2026-11-19): the numbering of the new quality records. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_qms_change_assessment" model="ir.sequence">
+            <field name="name">QMS Change Assessment</field>
+            <field name="code">fix.qms.change.assessment</field>
+            <field name="prefix">CHG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_qms_rca" model="ir.sequence">
+            <field name="name">Root-Cause Analysis</field>
+            <field name="code">fix.qms.rca</field>
+            <field name="prefix">RCA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_internal_audit" model="ir.sequence">
+            <field name="name">Internal Audit</field>
+            <field name="code">fix.internal.audit</field>
+            <field name="prefix">IA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_qms_audit_finding" model="ir.sequence">
+            <field name="name">Process Audit Finding</field>
+            <field name="code">fix.qms.audit.finding</field>
+            <field name="prefix">AF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_qms_evidence_release" model="ir.sequence">
+            <field name="name">Evidence Release</field>
+            <field name="code">fix.qms.evidence.release</field>
+            <field name="prefix">EVR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+    <!-- every update: the checklist item count is counted, never typed -->
+    <function model="fix.qms.checklist" name="_m23_recount_items" eval="[[]]"/>
+</odoo>

@@ -1,2 +1,17 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_knowledge_article,fix.knowledge.article,model_fix_knowledge_article,base.group_user,1,1,1,0
+access_fix_knowledge_tree,fix.knowledge.tree,model_fix_knowledge_tree,base.group_user,1,1,1,0
+access_fix_knowledge_media,fix.knowledge.media,model_fix_knowledge_media,base.group_user,1,1,1,0
+access_fix_knowledge_bulletin,fix.knowledge.bulletin,model_fix_knowledge_bulletin,base.group_user,1,1,1,0
+access_fix_knowledge_bulletin_recipient,fix.knowledge.bulletin.recipient,model_fix_knowledge_bulletin_recipient,base.group_user,1,1,1,0
+access_fix_knowledge_review_user,fix.knowledge.review user,model_fix_knowledge_review,base.group_user,1,1,1,0
+access_fix_knowledge_capture_user,fix.knowledge.capture user,model_fix_knowledge_capture,base.group_user,1,1,1,0
+access_fix_knowledge_article_version_user,fix.knowledge.article.version user,model_fix_knowledge_article_version,base.group_user,1,0,0,0
+access_fix_knowledge_tree_node_user,fix.knowledge.tree.node user,model_fix_knowledge_tree_node,base.group_user,1,1,1,1
+access_fix_knowledge_library_user,fix.knowledge.library user,model_fix_knowledge_library,base.group_user,1,0,0,0
+access_fix_knowledge_library_publisher,fix.knowledge.library publisher,model_fix_knowledge_library,cd_knowledge.group_knowledge_publisher,1,1,1,0
+access_fix_knowledge_link_user,fix.knowledge.link user,model_fix_knowledge_link,base.group_user,1,1,1,0
+access_fix_knowledge_link_publisher,fix.knowledge.link publisher,model_fix_knowledge_link,cd_knowledge.group_knowledge_publisher,1,1,1,1
+access_fix_knowledge_offline_set_user,fix.knowledge.offline.set user,model_fix_knowledge_offline_set,base.group_user,1,0,0,0
+access_fix_knowledge_offline_set_publisher,fix.knowledge.offline.set publisher,model_fix_knowledge_offline_set,cd_knowledge.group_knowledge_publisher,1,1,1,0
+access_fix_knowledge_feedback_user,fix.knowledge.feedback user,model_fix_knowledge_feedback,base.group_user,1,0,1,0

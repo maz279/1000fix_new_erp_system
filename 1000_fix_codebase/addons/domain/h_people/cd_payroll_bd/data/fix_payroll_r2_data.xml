@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 round 2 (M56).
+     * M56-11: statutory pack version 1 holds EXACTLY the figures payroll used
+       before packs existed (libs/py/payroll_engine: tax table FY 2026-27,
+       OT_DIVISOR_HOURS 208, SALARY_EXEMPTION_CEILING 450,000, the separation
+       bands citing a 2026 amendment) and says so: "as coded, unsourced". It
+       applies to every company until a sourced pack is prepared by one
+       Payroll Manager and approved by a second. No new rate is introduced.
+     * FR-PAY-022: the monthly gratuity provision (a cron method without its
+       ir.cron record never runs: the deployment test asserts this record). -->
+<odoo>
+    <data noupdate="1">
+        <record id="statutory_pack_v1_as_coded" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="version">1</field>
+            <field name="state">baseline</field>
+            <field name="basis">as_coded</field>
+            <field name="effective_from">2000-01-01</field>
+            <!-- A09 B1b (AUT-PAY-12): the baseline covers the years its table
+                 was the code's table, through the FY 2026-27 it is labelled
+                 with. From 2027-07-01 a run is refused until an approved pack
+                 for that fiscal year exists; the enacted FY 2027-28 / 2028-29
+                 / 2029-30 packs awaiting sign-off are in
+                 fix_payroll_a09_erp_b1b.xml. On an upgraded database this
+                 noupdate seed needs a one-time refresh (the lead's upgrade
+                 step) or the baseline stays open-ended. -->
+            <field name="effective_to">2027-06-30</field>
+            <field name="tax_table_rule">engine_fy2026_27</field>
+            <!-- Json fields take an `eval` Python literal: on Odoo 19 a text
+                 node reaches the ORM as a STRING (Json.convert_to_cache no
+                 longer parses it), and _check_rule_figures then dies with
+                 "'str' object has no attribute 'values'" - the clean install
+                 stopped here on 2026-11-24. -->
+            <field name="tax_free_thresholds" eval='{"general": 375000.0, "female_senior": 400000.0, "disabled_third_gender": 475000.0, "freedom_fighter": 500000.0}'/>
+            <field name="guardian_extra_threshold">50000</field>
+            <field name="tax_slabs" eval='[[300000.0, 0.1], [400000.0, 0.15], [500000.0, 0.2], [2000000.0, 0.25], [None, 0.3]]'/>
+            <field name="minimum_tax">0</field>
+            <field name="rebate_rate_percent">15</field>
+            <field name="rebate_cap">1000000</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="resignation_bands" eval='[[0, 7], [5, 15], [10, 30]]'/>
+            <field name="gratuity_bands" eval='{"min_years": 5, "days_upto_12": 30, "days_above_12": 45}'/>
+            <field name="ot_base_components" eval='["basic", "dearness", "ad_hoc"]'/>
+            <field name="festival_bonus_proportionate" eval="False"/>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">As coded, unsourced. These are the constants libs/py/payroll_engine applied before statutory packs existed: the FY 2026-27 tax table (375k/400k/475k/500k thresholds, 10-30% slabs, minimum tax 5,000/4,000/3,000), the 208-hour overtime divisor (labelled "BLR 2015 formula", no citation), the ITA 2023 Para 27 ceiling of BDT 450,000 and the gratuity / resignation bands citing a Labour (Amendment) Act 2026 that no repository source holds. None is confirmed by a tax adviser or labour counsel (A09 report 7.3 / 7.4); the A09 audit found the tax thresholds contradicted by the hr.employee category labels (400k/450k/500k/525k) and by the enacted Finance Act tables (400k/450k/525k/550k, PwC reviewed 31 Jul 2026), which are seeded as sourced DRAFT packs awaiting sign-off in fix_payroll_a09_erp_b1b.xml.</field>
+        </record>
+    </data>
+    <data>
+        <record id="ir_cron_payroll_gratuity_accrual" model="ir.cron">
+            <field name="name">M56: monthly gratuity provision (FR-PAY-022)</field>
+            <field name="model_id" ref="model_fix_payroll_gratuity_accrual"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_accrue_gratuity()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

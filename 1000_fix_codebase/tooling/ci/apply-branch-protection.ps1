@@ -2,6 +2,12 @@
 # apply-branch-protection.ps1 - Enforce branch protection per BE-003 Section 3.3
 # Implements R01-M03-T01 from R01_Foundation_and_Governance_Closure.md
 # Configures develop and main protection rules matching .github/settings.yml
+#
+# R01 audit correction (2026-10-21): evidence is written ONLY after the GitHub
+# API confirms the rules, with api_verified=true and per-branch API status.
+# Without an authenticated gh CLI the script records nothing and exits
+# non-zero - a local JSON of intended rules was previously written BEFORE any
+# API call and read as "protection applied".
 # =============================================================================
 [CmdletBinding()]
 param(
@@ -75,50 +81,63 @@ $developProtection = @{
     required_conversation_resolution = $true
 }
 
-$rulesRecord = @{
-    repository = $Repo
-    configured_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-    standard = "BE-003 Section 3.3 / P02-M03-T05 / R01-M03-T01"
-    declarative_file = ".github/settings.yml"
-    branches = @{
-        main = $mainProtection
-        develop = $developProtection
-    }
+function Test-GhAuthed {
+    $ghCli = Get-Command gh -ErrorAction SilentlyContinue
+    if (-not $ghCli) { return $false }
+    try {
+        $null = & gh auth status 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch { return $false }
 }
 
-$evidenceFile = Join-Path $evidenceDir "branch-protection-rules.json"
-$rulesRecord | ConvertTo-Json -Depth 6 | Set-Content -Path $evidenceFile -Encoding UTF8
-Write-Host "[BranchProtection] Declarative rules recorded to: $evidenceFile" -ForegroundColor Green
+function Write-Evidence {
+    param([bool]$ApiVerified, [hashtable]$BranchApiStatus)
+    $rulesRecord = @{
+        repository = $Repo
+        configured_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        standard = "BE-003 Section 3.3 / P02-M03-T05 / R01-M03-T01"
+        declarative_file = ".github/settings.yml"
+        api_verified = $ApiVerified
+        branch_api_status = $BranchApiStatus
+        branches = @{
+            main = $mainProtection
+            develop = $developProtection
+        }
+    }
+    $evidenceFile = Join-Path $evidenceDir "branch-protection-rules.json"
+    $rulesRecord | ConvertTo-Json -Depth 6 | Set-Content -Path $evidenceFile -Encoding UTF8
+    Write-Host "[BranchProtection] Evidence written: $evidenceFile (api_verified: $ApiVerified)" -ForegroundColor Green
+}
 
 if ($VerifyOnly) {
-    Write-Host "[BranchProtection] Verification mode: Rules verified against BE-003 Section 3.3 matrix." -ForegroundColor Cyan
-    Write-Host "  main: 2 reviews, strict checks (11 stages), linear history, enforce admins" -ForegroundColor Gray
-    Write-Host "  develop: 1 review, strict checks (5 core stages), linear history" -ForegroundColor Gray
+    # Verify what is ACTUALLY configured on the remote.
+    if (-not (Test-GhAuthed)) {
+        Write-Host "[BranchProtection] FAIL: --VerifyOnly requires an authenticated gh CLI (gh auth login)." -ForegroundColor Red
+        exit 1
+    }
+    $apiStatus = @{}
+    foreach ($branch in @("develop", "main")) {
+        & gh api "repos/$Repo/branches/$branch/protection" 2>$null | Out-Null
+        $apiStatus[$branch] = if ($LASTEXITCODE -eq 0) { "PROTECTION_PRESENT" } else { "NO_PROTECTION" }
+    }
+    Write-Evidence -ApiVerified $true -BranchApiStatus $apiStatus
+    $unprotected = @($apiStatus.GetEnumerator() | Where-Object { $_.Value -ne "PROTECTION_PRESENT" }).Count
+    if ($unprotected -gt 0) {
+        Write-Host "[BranchProtection] $unprotected branch(es) unprotected on $Repo." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "[BranchProtection] Verified: develop + main protected on $Repo." -ForegroundColor Green
     exit 0
 }
 
-$ghCli = Get-Command gh -ErrorAction SilentlyContinue
-if (-not $ghCli) {
-    Write-Host "[BranchProtection] Warning: gh CLI not found on PATH. Rules recorded in evidence." -ForegroundColor Yellow
-    exit 0
+if (-not (Test-GhAuthed)) {
+    Write-Host "[BranchProtection] FAIL: gh CLI not available/authenticated. No evidence written - protection was NOT applied." -ForegroundColor Red
+    Write-Host "  The Probot Settings app may auto-apply .github/settings.yml on push; verify with -VerifyOnly after." -ForegroundColor Yellow
+    exit 1
 }
-
-$isAuthed = $false
-try {
-    $null = & gh auth status 2>$null
-    if ($LASTEXITCODE -eq 0) { $isAuthed = $true }
-} catch {
-    $isAuthed = $false
-}
-
-if (-not $isAuthed) {
-    Write-Host "[BranchProtection] Notice: gh CLI not authenticated. Settings app will auto-apply .github/settings.yml on push." -ForegroundColor Yellow
-    exit 0
-}
-
 
 if ($DryRun) {
-    Write-Host "[BranchProtection] Dry run: skipping live API calls." -ForegroundColor Cyan
+    Write-Host "[BranchProtection] Dry run: gh authenticated; live API calls skipped, no evidence written." -ForegroundColor Cyan
     exit 0
 }
 
@@ -126,24 +145,32 @@ Write-Host "[BranchProtection] Applying branch protection via GitHub API to $Rep
 
 $mainJson = $mainProtection | ConvertTo-Json -Depth 6 -Compress
 $developJson = $developProtection | ConvertTo-Json -Depth 6 -Compress
+$apiStatus = @{}
+$anyFailure = $false
 
-try {
-    Write-Host "  Applying protection to develop..." -NoNewline
-    $devTmp = [System.IO.Path]::GetTempFileName()
-    Set-Content -Path $devTmp -Value $developJson -Encoding UTF8
-    & gh api -X PUT "repos/$Repo/branches/develop/protection" --input $devTmp | Out-Null
-    Remove-Item -Force $devTmp -ErrorAction SilentlyContinue
-    Write-Host " [OK]" -ForegroundColor Green
+foreach ($pair in @(@{ branch = "develop"; json = $developJson }, @{ branch = "main"; json = $mainJson })) {
+    $branch = $pair.branch
+    Write-Host "  Applying protection to $branch..." -NoNewline
+    $tmp = [System.IO.Path]::GetTempFileName()
+    Set-Content -Path $tmp -Value $pair.json -Encoding UTF8
+    & gh api -X PUT "repos/$Repo/branches/$branch/protection" --input $tmp 2>$null | Out-Null
+    $ok = ($LASTEXITCODE -eq 0)
+    Remove-Item -Force $tmp -ErrorAction SilentlyContinue
+    if ($ok) {
+        $apiStatus[$branch] = "APPLIED"
+        Write-Host " [OK]" -ForegroundColor Green
+    } else {
+        $apiStatus[$branch] = "API_FAILED"
+        $anyFailure = $true
+        Write-Host " [FAILED]" -ForegroundColor Red
+    }
+}
 
-    Write-Host "  Applying protection to main..." -NoNewline
-    $mainTmp = [System.IO.Path]::GetTempFileName()
-    Set-Content -Path $mainTmp -Value $mainJson -Encoding UTF8
-    & gh api -X PUT "repos/$Repo/branches/main/protection" --input $mainTmp | Out-Null
-    Remove-Item -Force $mainTmp -ErrorAction SilentlyContinue
-    Write-Host " [OK]" -ForegroundColor Green
+# Evidence written only now - after the API calls, recording what actually happened.
+Write-Evidence -ApiVerified (-not $anyFailure) -BranchApiStatus $apiStatus
+if ($anyFailure) {
+    Write-Host "[BranchProtection] One or more API calls failed; evidence records api_verified=false." -ForegroundColor Yellow
+    exit 1
 }
-catch {
-    Write-Host " [FAILED]" -ForegroundColor Red
-    Write-Host "  API note: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "  Settings app will auto-apply .github/settings.yml." -ForegroundColor Gray
-}
+Write-Host "[BranchProtection] Branch protection applied and verified." -ForegroundColor Green
+exit 0

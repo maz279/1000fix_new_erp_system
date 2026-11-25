@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_device_pm" model="ir.sequence">
+            <field name="name">Device PM Plan</field>
+            <field name="code">fix.device.pm</field>
+            <field name="prefix">DPM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_condition" model="ir.sequence">
+            <field name="name">Device Condition</field>
+            <field name="code">fix.device.condition</field>
+            <field name="prefix">DCON/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_identity" model="ir.sequence">
+            <field name="name">Device Identity Resolution</field>
+            <field name="code">fix.device.identity</field>
+            <field name="prefix">DIDR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_custody" model="ir.sequence">
+            <field name="name">Device Custody Event</field>
+            <field name="code">fix.device.custody</field>
+            <field name="prefix">DCUS/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_bulk_load" model="ir.sequence">
+            <field name="name">Device Bulk Registration</field>
+            <field name="code">fix.device.bulk.load</field>
+            <field name="prefix">DBULK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

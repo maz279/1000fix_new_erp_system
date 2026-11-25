@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP M39-F4 (20 Nov 2026): a successful autopay collection becomes a
+     confirmed M20 receipt allocated to the cycle invoice (one per attempt). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_subscription_autopay_succeeded" model="fix.event.consumer">
+            <field name="name">M39: book a collected autopay as an M20 receipt</field>
+            <field name="event_type">subscription.autopay_succeeded</field>
+            <field name="model">fix.subscription.autopay.attempt</field>
+            <field name="method">consume_autopay_succeeded</field>
+            <field name="module">cd_subscription</field>
+        </record>
+    </data>
+</odoo>
