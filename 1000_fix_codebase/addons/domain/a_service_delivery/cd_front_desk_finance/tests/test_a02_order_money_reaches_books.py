@@ -335,3 +335,76 @@ def test_a_credit_customer_is_released_by_finance_within_the_limit(books):
     invoice.invalidate_recordset()
     assert invoice.state == "issued" and invoice.amount_residual == 1150.0
     assert m.ar_of(order.customer_id) == 1150.0
+
+
+def test_d21_d22_charges_are_paid_with_the_repair_and_billed(books, monkeypatch):
+    """A03 review (s3 P2): the wasted-visit fee (D21) and the pick-and-drop
+    charge (D22) were recorded and reported, and never reached the amount
+    due, the tax invoice or revenue. They are collected with the repair and
+    billed on its invoice, VAT added by M51 on their charge codes."""
+    m = books
+    m.shift(as_user=m.so_cashier)
+    order = m.job(1000.0)
+    assert order._fix_amount_due() == 1150.0
+    charges = [
+        {
+            "code": "CHG-TRANSPORT",
+            "line_type": "transport",
+            "description": "Delivery charge CN-OMB",
+            "net": 100.0,
+        },
+        {
+            "code": "CHG-CALLOUT",
+            "line_type": "callout",
+            "description": "Wasted visit FVX-OMB",
+            "net": 200.0,
+        },
+    ]
+    # the M02/M03 records are their own suites' (test_a02r2_field,
+    # test_a02r2_release); here the order carries their two charges
+    monkeypatch.setattr(type(order), "_fix_extra_charges", lambda self: [dict(c) for c in charges])
+    due = order._fix_amount_due()
+    assert due == 1495.0  # (1,000 + 100 + 200) + 15% VAT
+    order.with_user(m.so_cashier).action_mark_settled(
+        amount_bdt=due, reference="CTR-OMB-D22", source="counter", tender="cash"
+    )
+    invoice = m.deliver(order)
+    invoice.invalidate_recordset()
+    assert invoice.state == "paid" and invoice.amount_residual == 0.0
+    assert invoice.total_payable == 1495.0 and invoice.vat_amount == 195.0
+    by_type = {line.line_type: line for line in invoice.line_ids}
+    assert set(by_type) == {"labour", "transport", "callout"}
+    assert by_type["transport"].product_id.default_code == "CHG-TRANSPORT"
+    assert by_type["transport"].line_total == 115.0
+    assert by_type["callout"].product_id.default_code == "CHG-CALLOUT"
+    assert by_type["callout"].line_total == 230.0
+    assert _balance(m.env, m.rev) == -1300.0
+    assert m.ar_of(order.customer_id) == 0.0
+
+
+def test_a_free_repair_still_collects_and_bills_its_charges(books, monkeypatch):
+    """A03 re-check of 88d85640: with a BDT 0 estimate the extras were
+    skipped in the amount due, yet the invoice billed them and left AR open.
+    A free (but customer-charged) repair owes its charges."""
+    m = books
+    m.shift(as_user=m.so_cashier)
+    order = m.job(0.0)
+    assert order._fix_amount_due() == 0.0
+    charge = {
+        "code": "CHG-CALLOUT",
+        "line_type": "callout",
+        "description": "Wasted visit FVX-FREE",
+        "net": 300.0,
+    }
+    monkeypatch.setattr(type(order), "_fix_extra_charges", lambda self: [dict(charge)])
+    assert not order._fix_zero_charge_basis()
+    due = order._fix_amount_due()
+    assert due == 345.0
+    order.with_user(m.so_cashier).action_mark_settled(
+        amount_bdt=due, reference="CTR-OMB-FREE", source="counter", tender="cash"
+    )
+    invoice = m.deliver(order)
+    invoice.invalidate_recordset()
+    assert invoice.state == "paid" and invoice.amount_residual == 0.0
+    assert invoice.total_payable == 345.0
+    assert m.ar_of(order.customer_id) == 0.0

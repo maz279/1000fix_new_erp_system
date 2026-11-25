@@ -146,15 +146,19 @@ def test_every_served_surface_is_reachable_from_a_screen(odoo_env):
     for js in _modules():
         for _sid, body in _screens(js):
             mm = MODEL.search(body)
-            gm = re.search(r"lines:\s*\{[^}]*?field:\s*'([a-z0-9_]+)'", body, re.S)
-            if not (mm and gm):
+            if not mm or mm.group(1) not in odoo_env:
                 continue
-            owner, field = mm.group(1), gm.group(1)
-            if owner not in odoo_env:
-                continue
-            fl = odoo_env[owner]._fields.get(field)
-            if fl is not None and fl.type == "one2many":
-                bound.add(fl.comodel_name)
+            owner = mm.group(1)
+            # the `lines:` grid, and every grid of the engine's `grids: [...]`
+            # (several child grids on one form, e.g. M38 return lines)
+            fields_ = re.findall(r"lines:\s*\{[^}]*?field:\s*'([a-z0-9_]+)'", body, re.S)
+            gs = re.search(r"grids:\s*\[(.*?)\n\s{4}\]", body, re.S)
+            if gs:
+                fields_ += re.findall(r"\{\s*field:\s*'([a-z0-9_]+)'", gs.group(1))
+            for field in fields_:
+                fl = odoo_env[owner]._fields.get(field)
+                if fl is not None and fl.type == "one2many":
+                    bound.add(fl.comodel_name)
     orphans = sorted(m for m in _a04_surfaces() if m not in bound)
     assert not orphans, (
         "%d surface(s) that no screen opens and no grid reaches:" % len(orphans)

@@ -111,7 +111,11 @@ def test_s05_a_later_change_supersedes_the_one_still_waiting(m5):
 def test_s05_a_stale_proration_never_overwrites_a_newer_price(m5):
     sub = _subscription(m5, amount=10000.0)
     P = m5.env["fix.subscription.proration"].sudo()
-    stale = P.create_for_plan_change(sub, 10500.0)
+    # A04 ERP round 2 M39-F16: an MSP fee change is a signed terms amendment
+    # (no customer notice wait), so the stale-amount guard is what refuses it
+    stale = P.create_for_plan_change(
+        sub, 10500.0, notice_exemption="contract_amendment", notice_exemption_ref="MSP terms #1"
+    )
     sub.sudo()._guarded().write({"recurring_amount": 11000.0})  # another change applied
     with pytest.raises(UserError, match="computed from a recurring amount"):
         stale._proration_apply_to_subscription()

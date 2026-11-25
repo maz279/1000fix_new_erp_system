@@ -13,3 +13,6 @@ from . import fix_m39_capture
 
 # A02 ERP audit M05-F4 (2026-11-20): the MSP device-uplift consumer (independent)
 from . import fix_msp_uplift_billing
+
+# A04 ERP round 2 (21 Nov 2026): price notice, usage, service gate, one billing engine.
+from . import fix_a04_r2_subscription

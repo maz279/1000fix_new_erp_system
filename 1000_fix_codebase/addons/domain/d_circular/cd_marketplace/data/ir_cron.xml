@@ -35,5 +35,16 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
-    </data>
-</odoo>
+        <!-- A04 ERP round 2 (21 Nov 2026) M12-F15: an award the seller has
+             not accepted inside the acceptance window
+             (cd_marketplace.award_acceptance_hours) goes back to bidding. -->
+        <record id="ir_cron_marketplace_award_lapse" model="ir.cron">
+            <field name="name">Marketplace: lapse awards not accepted in time</field>
+            <field name="model_id" ref="model_fix_marketplace_order"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_lapse_unaccepted_awards()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data></odoo>

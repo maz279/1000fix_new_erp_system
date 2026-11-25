@@ -273,6 +273,9 @@ class FixConsignmentRelease(models.Model):
                 "service order %s is %s: a device goes out on a delivery leg only once the "
                 "order is Ready (repaired and passed QC)" % (order.name, order.state)
             )
+        stale = self._m03_courier_booking_cod_problem()
+        if stale:
+            return stale
         released, reason = delivery_release_verdict(order)
         if released:
             return ""
@@ -294,6 +297,26 @@ class FixConsignmentRelease(models.Model):
             "BDT %.2f is due on %s and it is neither paid, credit-released nor a "
             "cash-on-delivery leg%s" % (due, order.name, why)
         )
+
+    def _m03_courier_booking_cod_problem(self) -> str:
+        """A courier booking copies the leg's cash on delivery when it is
+        made and then locks it (M03-03), while a draft leg re-derives its COD
+        (a payment or a price change). A booking made on the draft leg kept
+        the old figure and the courier collected it (A03 review, s3 P2)."""
+        self.ensure_one()
+        bookings = (
+            self.env["fix.courier.booking"]
+            .sudo()
+            .search([("consignment_id", "=", self.id), ("state", "in", ("booked", "picked_up"))])
+        )
+        for booking in bookings:
+            if abs((booking.cod_amount or 0.0) - (self.cod_amount or 0.0)) > 0.005:
+                return (
+                    "courier booking %s collects BDT %.2f but the leg collects BDT %.2f now: "
+                    "cancel the booking and book again"
+                    % (booking.name, booking.cod_amount or 0.0, self.cod_amount or 0.0)
+                )
+        return ""
 
     def _m03_check_delivery_release(self):
         for rec in self:

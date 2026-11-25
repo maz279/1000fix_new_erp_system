@@ -572,6 +572,35 @@ def test_m02_12_a_wasted_visit_carries_the_fee_a_dispatcher_waives(w):
     assert row["waived"] == 300.0 and row["technician"] == w.ea.name
 
 
+def test_d21_an_unwaived_wasted_visit_fee_is_charged_to_its_order(w):
+    """A03 review (s3 P2): the fee was never billed. An unwaived fee is one of
+    the order's extra charges (paid with the repair, on its tax invoice);
+    the dispatcher's waiver takes it off."""
+    w.env["ir.config_parameter"].sudo().set_param("cd_field_service.wasted_visit_fee_bdt", "300")
+    so = w.so()
+    assert so._fix_extra_charges() == []
+    rec = _on_site(w, so)
+    visit = (
+        w.env["fix.field.visit.exception"]
+        .with_user(w.ua)
+        .create(
+            {
+                "field_order_id": rec.id,
+                "exception_type": "customer_absent",
+                "reason": "Nobody home",
+                "evidence_photo": PNG,
+                "latitude": 23.8,
+                "longitude": 90.4,
+            }
+        )
+    )
+    (charge,) = so._fix_extra_charges()
+    assert charge["code"] == "CHG-CALLOUT" and charge["line_type"] == "callout"
+    assert charge["net"] == 300.0 and visit.name in charge["description"]
+    visit.with_user(w.ud).action_waive_fee(reason="regular customer, phoned ahead")
+    assert so._fix_extra_charges() == []
+
+
 # ===================================================== M02-10 FTFR
 def test_m02_10_ftfr_counts_only_real_completions(w):
     from odoo.addons.cd_p03_portal.controllers.a02 import m02

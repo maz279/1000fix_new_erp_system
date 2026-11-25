@@ -1479,6 +1479,7 @@ WRITABLE = {
             "obligation_ids",
             "operating_unit_id",
             "plan",
+            "plan_def_id",
             "recurring_amount",
             "start_date",
         }

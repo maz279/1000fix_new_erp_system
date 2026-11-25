@@ -67,7 +67,7 @@ export const MODULE = {
       { id: 'M40-ranking', en: 'Ranking & Scorecards', bn: 'র্যাঙ্কিং', t: 'r' }
     ]}
   ],
-  reports: ['Partner Revenue Contribution', 'Referral Conversion', 'Brand Audit Calendar', 'Rebate Accruals', 'Channel Conflict Log', 'Deal Register'],
+  reports: ['Partner Revenue Contribution', 'Referral Conversion', 'Brand Audit Calendar', 'Authorisations Expiring', 'Rebate Accruals', 'Channel Conflict Log', 'Deal Register'],
   forms: ['Partner', 'Deal Registration', 'Rebate Scheme', 'Franchise Agreement'],
   cross: ['M07 CRM', 'M12 Marketplace', 'M35 Marketing', 'M20 AR'],
   /* M40 capture audit (19 Nov 2026): each page lists and captures the
@@ -75,7 +75,7 @@ export const MODULE = {
   freg: { src: 80, sub: [
     ['1', 'Partner Master', 10, { model: 'fix.partner', cols: ['name', 'state', 'partner_type', 'programme_id', 'tier_id', 'territory'], screens: ['M40-partners', 'M40-programmes', 'M40-contacts', 'M40-rate-changes'], reports: ['Partner Revenue Contribution'], forms: ['Partner', 'Partner Programme', 'Partner Contact', 'Commission Rate Change'] }],
     ['2', 'Recruitment & Onboarding', 8, { model: 'fix.partner.onboarding', cols: ['partner_id', 'step', 'name', 'required', 'state'], screens: ['M40-onboarding', 'M40-enablement', 'M40-partners'], reports: [], forms: ['Onboarding Step', 'Partner Enablement', 'Partner'] }],
-    ['3', 'Brand Relations', 9, { model: 'fix.partner.authorisation', cols: ['name', 'partner_id', 'brand_id', 'valid_to', 'state'], screens: ['M40-brand', 'M40-authorisation', 'M40-obligations', 'M40-brand-audits', 'M40-engagement'], reports: ['Brand Audit Calendar'], forms: ['Partner Authorisation', 'Brand Obligation', 'Brand Audit', 'Partner Engagement'] }],
+    ['3', 'Brand Relations', 9, { model: 'fix.partner.authorisation', cols: ['name', 'partner_id', 'brand_id', 'valid_to', 'state'], screens: ['M40-brand', 'M40-authorisation', 'M40-obligations', 'M40-brand-audits', 'M40-engagement', 'M40-rpt-auth-expiring'], reports: ['Brand Audit Calendar', 'Authorisations Expiring'], forms: ['Partner Authorisation', 'Brand Obligation', 'Brand Audit', 'Partner Engagement'] }],
     ['4', 'Alliances', 6, { model: 'fix.alliance.scheme', cols: ['code', 'name', 'partner_id', 'valid_from', 'valid_to', 'eligible_count', 'state'], screens: ['M40-schemes', 'M40-eligibility', 'M40-alliance'], reports: [], forms: ['Alliance Scheme', 'Eligibility Check'] }],
     ['5', 'Referrals', 8, { model: 'fix.partner.lead', cols: ['name', 'partner_id', 'customer_name', 'attribution_expires_on', 'referral_id', 'state'], screens: ['M40-leads', 'M40-referral-links', 'M40-referral', 'M40-rpt-referral'], reports: ['Referral Conversion'], forms: ['Partner Lead', 'Referral Link', 'Referral'] }],
     ['6', 'Deal Registration', 7, { model: 'fix.partner.deal', cols: ['name', 'state', 'partner_id', 'customer_id', 'value', 'registered_on'], screens: ['M40-dealreg', 'M40-conflict', 'M40-conflict-rules', 'M40-rpt-deals'], reports: ['Deal Register', 'Channel Conflict Log'], forms: ['Deal Registration', 'Channel Conflict', 'Channel Precedence Rule'] }],
@@ -290,7 +290,9 @@ export const SCREENS = {
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'partner_id', label: 'Partner', required: true },
         { name: 'customer_id', label: 'End Customer' },
-        { name: 'currency_id', label: 'Currency', required: true }
+        { name: 'currency_id', label: 'Currency', required: true },
+        /* A04 ERP audit M40-F23: the M07 hand-off of a won deal */
+        { name: 'opportunity_id', label: 'M07 Opportunity (hand-off)', readonly: true }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },
@@ -320,7 +322,8 @@ export const SCREENS = {
           { name: 'period', required: true, label: 'Evaluation Period' },
           { name: 'period_from', required: true, label: 'Period From (paid invoices)' },
           { name: 'period_to', required: true, label: 'Period To (paid invoices)' },
-          { name: 'kind', required: true, label: 'Rebate Classification' },
+          /* A04 ERP audit M40-F26: an MDF is an MDF Claim now; the kind is shown, not chosen */
+          { name: 'kind', readonly: true, label: 'Rebate Classification' },
           { name: 'campaign_id', label: 'Co-Marketing Campaign (MDF only; the partner must co-fund it)' }
         ] },
       { tab: 'computation', title: 'Stored Computation Formula', fields: [
@@ -698,7 +701,8 @@ export const SCREENS = {
     title: 'Commission Rate Change', back: 'M40-rate-changes', status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. Proposed Rate', bn: '১. প্রস্তাবিত হার', icon: '📈' },
-      { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '✅' }
+      { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '✅' },
+      { id: 'docs', label: '3. Documents', bn: '৩. নথি ও প্রমাণক' }
     ],
     sections: [
       { tab: 'general', title: 'Proposal (A04 ERP M40-F5)', note: 'Takes effect only when a DOFA Tier 3 approver other than the proposer approves it from the M63 inbox.', fields: [
@@ -713,12 +717,14 @@ export const SCREENS = {
         { name: 'applied_by_id', label: 'Applied By', readonly: true },
         { name: 'applied_at', label: 'Applied On', readonly: true },
         { name: 'state', label: 'Status', readonly: true }
-      ] }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The partner agreement amendment, benchmark or other evidence behind the proposed rate attaches here (fix.document, M24).', fields: [] }
     ] },
   'M40-form-draw': { kind: 'model_form', model: 'fix.reseller.draw',
     title: 'Reseller Draw', back: 'M40-draws', create: false, pick: true,
     tabs: [
-      { id: 'general', label: '1. Draw', bn: '১. উত্তোলন', icon: '📦' }
+      { id: 'general', label: '1. Draw', bn: '১. উত্তোলন', icon: '📦' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক' }
     ],
     sections: [
       { tab: 'general', title: 'Draw (A04 ERP M40-F16)', note: 'Raised by Record Draw on the allocation: the stock move and the draft M20 invoice at the M11 reseller price.', fields: [
@@ -729,7 +735,8 @@ export const SCREENS = {
         { name: 'unit_price', label: 'Unit Price (M11)', readonly: true },
         { name: 'move_id', label: 'Stock Move (M15)', readonly: true },
         { name: 'invoice_id', label: 'Invoice (M20)', readonly: true }
-      ] }
+      ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The delivery challan and the reseller receiving copy attach here (fix.document, M24).', fields: [] }
     ] },
   'M40-form-contact': { kind: 'model_form', model: 'fix.partner.contact.role',
     title: 'Partner Contact', back: 'M40-contacts',
@@ -896,11 +903,12 @@ export const SCREENS = {
         { name: 'state', label: 'Status', readonly: true },
         { name: 'activated_by_id', label: 'Activated By', readonly: true }
       ] },
-      { tab: 'benefit', title: 'Members & Benefit', note: 'The benefit is applied by the M11 rule named here, never as an ad-hoc discount (BRU-PCM-19).', fields: [
+      { tab: 'benefit', title: 'Members & Benefit', note: 'The benefit is the M11 promotion named here, never an ad-hoc discount (BRU-PCM-19): once named it is member-only, granted through price_for under an eligible check of this scheme (A04 ERP audit M40-F28).', fields: [
         { name: 'member_definition', label: 'Member Base', type: 'text', required: true },
         { name: 'eligibility_method', label: 'Validation Method', required: true },
         { name: 'benefit_description', label: 'Benefit', type: 'text', required: true },
-        { name: 'benefit_ref', label: 'M11 Benefit Rule' }
+        { name: 'benefit_promotion_id', label: 'M11 Benefit Promotion (member-only)' },
+        { name: 'benefit_ref', label: 'Promotion Code', readonly: true }
       ] },
       { tab: 'volume', title: 'Volume Commitment (FR-PCM-032)', fields: [
         { name: 'volume_commitment', label: 'Committed Volume (jobs)' },
@@ -976,7 +984,9 @@ export const SCREENS = {
         { name: 'converted_at', label: 'Converted On', readonly: true },
         { name: 'attribution_lapsed', label: 'Converted Outside Window', readonly: true },
         { name: 'referral_id', label: 'Commission Referral', readonly: true },
-        { name: 'loss_reason', label: 'Loss Reason', readonly: true }
+        { name: 'loss_reason', label: 'Loss Reason', readonly: true },
+        /* A04 ERP audit M40-F23: the M07 hand-off made at qualification */
+        { name: 'opportunity_id', label: 'M07 Lead / Opportunity (hand-off)', readonly: true }
       ] }
     ] },
   'M40-form-conflict-rule': { kind: 'model_form', model: 'fix.channel.conflict.rule',
@@ -1155,6 +1165,8 @@ export const SCREENS = {
 
   /* computed pack that had no screen (closure 2026-10-28) */
   'M40-rpt-deals': { kind: 'table_report', module: 'M40', report: 'deal_register', title: "Deal Register", period: false },
+  /* A04 ERP audit M40-F14 follow-up: authorisations by escalation band (T-180/90/30) */
+  'M40-rpt-auth-expiring': { kind: 'table_report', module: 'M40', report: 'authorisations_expiring', title: 'Authorisations Expiring', period: true },
 };
 
 export const REPORT_ROUTES = {
@@ -1162,6 +1174,7 @@ export const REPORT_ROUTES = {
   'M40:Partner Revenue Contribution': 'M40-rpt-revenue',
   'M40:Referral Conversion': 'M40-rpt-referral',
   'M40:Brand Audit Calendar': 'M40-rpt-audits',
+  'M40:Authorisations Expiring': 'M40-rpt-auth-expiring',
   'M40:Rebate Accruals': 'M40-rpt-rebates',
   'M40:Channel Conflict Log': 'M40-rpt-conflict'
 };

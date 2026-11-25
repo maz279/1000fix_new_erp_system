@@ -35,8 +35,14 @@ SURFACES = {
             "action_lift_restriction",
             "action_discontinue",
             "action_revise",
+            # A04 ERP round 2: FR-CAT-046 impact preview before a lifecycle
+            # change, FR-CAT-007 code from the numbering mask
+            "action_preview_impact",
+            "action_assign_code",
         },
     },
+    # A04 ERP round 2 FR-CAT-007: the item code mask of each item type.
+    "fix.catalogue.numbering": {"order": "item_type", "limit": 100, "actions": set()},
     # fix.fault.code is declared by M01 (a02) — single owner, served via the merge.
     "fix.service.kit": {
         "order": "id desc",

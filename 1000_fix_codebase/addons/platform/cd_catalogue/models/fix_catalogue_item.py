@@ -485,10 +485,13 @@ class FixCatalogueItem(models.Model):
         # until end of support); Obsolete ends that too.
         contract_cover = item.state == "deprecated" and (channel or "") in CONTRACT_CHANNELS
         if item.state in CLOSED_STATES and not contract_cover:
+            # A04 ERP round 2 M37-F7 (BRU-CAT-08): name the LIVE successor down
+            # the supersession chain, the item the seller offers instead
+            live = item.successor_id._fix_live_successor() if item.successor_id else None
             return "catalogue item '%s' is %s; it is no longer sold%s" % (
                 label,
                 dict(ITEM_STATES)[item.state],
-                " (successor: %s)" % item.successor_id.name if item.successor_id else "",
+                " (offer its successor %s instead)" % live.name if live else "",
             )
         if item.state == "restricted" and (channel or "") in RESTRICTED_CHANNELS:
             return "catalogue item '%s' is restricted and is not sold on the %s channel" % (

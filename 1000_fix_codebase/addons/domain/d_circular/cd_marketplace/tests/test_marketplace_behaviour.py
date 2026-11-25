@@ -400,6 +400,7 @@ def test_start_job_requires_selection(odoo_env):
     with pytest.raises(UserError, match="must be selected"):
         order.action_start_job()
     awarded = _order_in(odoo_env, "selected")
+    awarded.action_accept_award()  # A04 ERP round 2 (M12-F15)
     awarded.action_start_job()
     assert awarded.state == "in_progress"
 
@@ -749,12 +750,14 @@ def test_kpis_are_measured_from_real_quotes_orders_ratings_and_disputes(odoo_env
     rival = _seller(odoo_env, name="Rival Seller")
     on_time = _order(odoo_env)
     on_time.action_select_quote(_quote(odoo_env, on_time, seller, eta_days=3))
+    on_time.action_accept_award()
     on_time.action_start_job()
     _job_evidence(on_time)
     on_time.action_complete()
     on_time.action_review(rating=4)
     late = _order(odoo_env)
     late.action_select_quote(_quote(odoo_env, late, seller, eta_days=1))
+    late.action_accept_award()
     late.action_start_job()
     _job_evidence(late)
     late.action_complete()

@@ -135,10 +135,17 @@ export const SCREENS = {
   // storefront's scoped view of that master - online-facing promotions
   // only - not a second copy of it. It used to repeat M11-promos column
   // for column, which is the duplication this estate forbids.
+  /* A04 ERP round 2 (M38-F14): the filter named channels fix.promotion does
+   * not have ('online', 'both'), so the screen was always empty. It lists the
+   * promotions the storefront applies - all channels and the customer
+   * portal - with what checkout has used of them. A Checkout Voucher is
+   * applied only when the customer enters its code; the others are in the
+   * M11 price itself. */
   'M38-promos': { kind: 'model_list', model: 'fix.promotion', stateField: 'state',
     create: false,
-    domain: [['channel', 'in', ['online', 'both']]],
-    cols: ['code', 'name', 'discount_type', 'value', 'state'] },
+    domain: [['channel', 'in', ['all', 'portal']]],
+    cols: ['code', 'name', 'storefront_voucher', 'discount_type', 'value', 'valid_from', 'valid_until', 'use_count', 'max_uses', 'budget_used', 'budget_amount', 'state'],
+    empty: 'No online promotion. Promotions are created and released in M11 (Pricing & Rate Cards).' },
   'M38-slots': { kind: 'model_list', model: 'fix.storefront.slot', stateField: 'state',
     cols: ['name', 'slot_type', 'slot_date', 'start_hour', 'end_hour', 'capacity', 'booked', 'state'],
     actions: [
@@ -221,13 +228,17 @@ export const SCREENS = {
       title: 'Order Lines',
       note: 'The lines are what the customer bought, at the price the server set at placement; they cannot be edited.',
       fields: [
+        { name: 'line_type', label: 'Line', readonly: true },
         { name: 'product_id', label: 'Product', readonly: true },
+        { name: 'promotion_id', label: 'Voucher (M11)', readonly: true },
         { name: 'graded_stock_id', label: 'Refurbished Item', readonly: true },
         { name: 'quantity', label: 'Qty', readonly: true },
         { name: 'unit_price', label: 'Unit Price (incl. VAT)', readonly: true },
         { name: 'unit_price_excl', label: 'M11 Price (excl. VAT)', readonly: true },
         { name: 'price_card_id', label: 'M11 Rate Card', readonly: true },
-        { name: 'subtotal', label: 'Subtotal', readonly: true }
+        { name: 'subtotal', label: 'Subtotal', readonly: true },
+        { name: 'discount_amount', label: 'Voucher Share', readonly: true },
+        { name: 'net_subtotal', label: 'Paid for the Line', readonly: true }
       ]
     },
     kind: 'model_form',
@@ -255,7 +266,12 @@ export const SCREENS = {
           { name: 'name', readonly: true, label: 'Order Reference (auto)' },
           { name: 'customer_id', readonly: true, label: 'Customer Record' },
           { name: 'order_date', readonly: true, label: 'Order Placed Date/Time' },
+          { name: 'goods_amount', readonly: true, label: 'Goods (BDT, incl. VAT)' },
+          { name: 'delivery_fee', readonly: true, label: 'Delivery Fee (M11, incl. VAT)' },
+          { name: 'discount_amount', readonly: true, label: 'Voucher Discount (M11 promotion)' },
+          { name: 'voucher_code', readonly: true, label: 'Voucher' },
           { name: 'total_amount', readonly: true, label: 'Order Grand Total (BDT)' },
+          { name: 'cancelled_by_customer', readonly: true, label: 'Cancelled by the Customer' },
           { name: 'state', readonly: true, label: 'Fulfillment Status' }
         ] },
       { tab: 'items', title: 'Cart Line Items & Warranty Packages',
@@ -449,6 +465,24 @@ export const SCREENS = {
   'M38-form-storefront-return': { kind: 'model_form', model: 'fix.storefront.return',
     title: 'Storefront Return', back: 'M38-storefront-return',
     status: { field: 'state' },
+    /* A04 ERP round 2 (M38-F8): a return names the order lines and units it
+     * takes back; what each costs is read from the order (the voucher share
+     * taken off), more units than were sold are refused, and restock and the
+     * M20 credit follow the lines. Fixed once the return is authorised. */
+    grids: [
+      { field: 'line_ids', tab: 'commercial', title: 'Lines Returned',
+        addLabel: '+ Add line',
+        empty: 'No line named: the whole order is returned.',
+        note: 'One row per order line returned. Paid per Unit, the line refund, the credited share and the restock are set by the system.',
+        fields: [
+          { name: 'order_line_id', label: 'Order Line', required: true },
+          { name: 'quantity', label: 'Units Returned', required: true },
+          { name: 'unit_refund', label: 'Paid per Unit', readonly: true },
+          { name: 'amount', label: 'Line Refund', readonly: true },
+          { name: 'credit_amount', label: 'Credited (M20)', readonly: true },
+          { name: 'restock_state', label: 'Restock', readonly: true }
+        ] }
+    ],
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
@@ -469,6 +503,7 @@ export const SCREENS = {
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'refund_amount', label: 'Refund Requested (capped at the amount paid)' },
+        { name: 'lines_amount', label: 'Paid for the Lines Returned', readonly: true },
         { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
         { name: 'dofa_justification', label: 'Refund Justification', type: 'text' },
         { name: 'approval_state', label: 'Refund Approval', readonly: true }

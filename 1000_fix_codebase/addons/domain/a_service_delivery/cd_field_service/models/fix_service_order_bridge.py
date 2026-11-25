@@ -28,6 +28,44 @@ class FixServiceOrderFieldBridge(models.Model):
             "field_workshop_transfer",
         }
 
+    def _fix_extra_charges(self) -> list:
+        """D21: an unwaived wasted-visit fee is billed with the repair
+        (CHG-CALLOUT); a dispatcher's waiver takes it off."""
+        charges = super()._fix_extra_charges()
+        # read as the system: whoever settles or closes the order (a counter
+        # clerk) need not read field orders to be charged their fees
+        field_orders = self.sudo().field_order_ids
+        if not field_orders:
+            return charges
+        visits = (
+            self.env["fix.field.visit.exception"]
+            .sudo()
+            .search(
+                [
+                    ("field_order_id", "in", field_orders.ids),
+                    ("wasted_fee_bdt", ">", 0),
+                    ("fee_waived_by_id", "=", False),
+                ],
+                order="id",
+            )
+        )
+        for visit in visits:
+            charges.append(
+                {
+                    "code": "CHG-CALLOUT",
+                    "line_type": "callout",
+                    "description": "Wasted visit %s (%s)"
+                    % (
+                        visit.name,
+                        dict(visit._fields["exception_type"].selection).get(
+                            visit.exception_type, visit.exception_type
+                        ),
+                    ),
+                    "net": round(visit.wasted_fee_bdt, 2),
+                }
+            )
+        return charges
+
     def _fix_field_pickup_requested(self) -> bool:
         """cd_consignment asks this to start an on-site order with a pickup."""
         self.ensure_one()

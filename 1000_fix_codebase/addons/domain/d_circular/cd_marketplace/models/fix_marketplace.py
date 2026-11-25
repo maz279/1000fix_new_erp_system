@@ -577,16 +577,25 @@ class FixMarketplaceOrder(models.Model):
         required=True,
         tracking=True,
     )
-    customer_id = fields.Many2one("res.partner", string="Customer", required=True, index=True)
+    # A04 ERP round 2 (M12-F7, BRU-MKP-04): who the customer is and what they
+    # wrote are staff fields. A seller (portal) reads the job through the
+    # masked projection (fix_marketplace_award.py): a short brief and the
+    # customer's initials before award, the full job only once it is theirs.
+    customer_id = fields.Many2one(
+        "res.partner", string="Customer", required=True, index=True, groups="base.group_user"
+    )
     service_order_id = fields.Many2one(
-        "fix.service.order", string="Linked Service Order (M01)", ondelete="set null"
+        "fix.service.order",
+        string="Linked Service Order (M01)",
+        ondelete="set null",
+        groups="base.group_user",
     )
     category_id = fields.Many2one(
         "product.category",
         string="Service Category",
         help="Category classification for seller qualification matching (BRU-ECM-07)",
     )
-    description = fields.Text(required=True)
+    description = fields.Text(required=True, groups="base.group_user")
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -881,13 +890,9 @@ class FixMarketplaceOrder(models.Model):
                     summary="Forfeit escrow %s (%s)" % (escrow.name, source_ref),
                 )
                 return {"model": escrow._name, "id": escrow.id, "action": "forfeit_requested"}
-        Ledger = self.env.get("fix.commission.ledger")
-        paid = (
-            Ledger.sudo().search([("marketplace_order_id", "=", self.id), ("state", "=", "paid")])
-            if Ledger is not None
-            else None
-        )
-        if not paid:
+        # M12 never reads the M53 ledger itself (the M12/M53 boundary): the
+        # settlement module answers through _fix_m53_ledger_states
+        if "paid" not in self._fix_m53_ledger_states():
             return {"skipped": "the seller was not paid on %s" % self.name}
         reason = "Recovery of %s on %s" % (source_ref, self.name)
         existing = Adjustment.search(
@@ -1230,13 +1235,8 @@ class FixMarketplaceOrder(models.Model):
             # run and no M50 instruction while the ledger stayed earned. The
             # order is paid only when its M53 commission row was discharged by
             # a bank-confirmed payout run (the discharge calls this).
-            Ledger = self.env.get("fix.commission.ledger")
-            rows = (
-                Ledger.sudo().search([("marketplace_order_id", "=", rec.id)])
-                if Ledger is not None
-                else None
-            )
-            if not rows or any(r.state != "paid" for r in rows):
+            states = rec._fix_m53_ledger_states()
+            if not states or any(state != "paid" for state in states):
                 raise UserError(
                     "Order %s is paid out when its M53 payout run has paid the seller (the "
                     "bank-confirmed discharge), not by marking it here." % rec.name
@@ -1244,6 +1244,15 @@ class FixMarketplaceOrder(models.Model):
             rec._guarded().write(
                 {"state": "paid", "paid_at": fields.Datetime.now(), "paid_by_id": self.env.uid}
             )
+
+    def _fix_m53_ledger_states(self):
+        """The states of this order's M53 commission rows. M12 does not read
+        the settlement ledger (the M12/M53 boundary): the settlement module
+        overrides this. With no settlement module installed nothing was ever
+        paid out, so the answer is empty and the order can never be marked
+        paid by hand."""
+        self.ensure_one()
+        return []
 
     def action_cancel(self):
         """Cancel an order before the job starts."""

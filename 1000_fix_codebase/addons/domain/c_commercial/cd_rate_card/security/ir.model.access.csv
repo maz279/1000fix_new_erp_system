@@ -26,3 +26,12 @@ access_fix_price_mass_change,fix.price.mass.change,model_fix_price_mass_change,b
 access_fix_price_mass_change_officer,fix.price.mass.change officer,model_fix_price_mass_change,group_pricing_officer,1,1,1,0
 access_fix_price_mass_change_line,fix.price.mass.change.line,model_fix_price_mass_change_line,base.group_user,1,0,0,0
 access_fix_price_override,fix.price.override,model_fix_price_override,base.group_user,1,1,1,0
+access_fix_price_break,fix.price.break,model_fix_price_break,base.group_user,1,0,0,0
+access_fix_price_break_officer,fix.price.break officer,model_fix_price_break,group_pricing_officer,1,1,1,1
+access_fix_channel_differential,fix.channel.differential,model_fix_channel_differential,base.group_user,1,0,0,0
+access_fix_channel_differential_officer,fix.channel.differential officer,model_fix_channel_differential,group_pricing_officer,1,1,1,0
+access_fix_channel_differential_releaser,fix.channel.differential releaser,model_fix_channel_differential,group_price_releaser,1,1,0,0
+access_fix_price_override_log,fix.price.override.log,model_fix_price_override_log,base.group_user,1,0,0,0
+access_fix_price_review,fix.price.review,model_fix_price_review,base.group_user,1,0,0,0
+access_fix_price_review_officer,fix.price.review officer,model_fix_price_review,group_pricing_officer,1,1,0,0
+access_fix_price_review_releaser,fix.price.review releaser,model_fix_price_review,group_price_releaser,1,1,0,0

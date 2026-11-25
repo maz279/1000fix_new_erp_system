@@ -1004,6 +1004,12 @@ class FixProtectionClaim(models.Model):
             )
         return True
 
+    def _fix_payable(self):
+        """What the plan pays on this claim: the assessed value less the
+        excess (A04 ERP M09-F15 adds depreciation and the per-claim cap)."""
+        self.ensure_one()
+        return max((self.assessed_value or 0.0) - (self.excess_amount or 0.0), 0.0)
+
     def _decider(self, what):
         _assert_role(self.env, OFFICER_GROUP, what)
         for claim in self:
@@ -1039,7 +1045,7 @@ class FixProtectionClaim(models.Model):
                     "Record a Fraud Review first."
                     % (claim.name, claim.fraud_score, claim.fraud_signals)
                 )
-            payable = max(claim.assessed_value - claim.excess_amount, 0.0)
+            payable = claim._fix_payable()
             limit = claim.policy_id.claim_limit
             if limit:
                 remaining = claim.policy_id.remaining_limit

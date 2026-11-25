@@ -116,11 +116,15 @@ class SellerApiController(http.Controller):
         result = []
         for o in board:
             mine = o.quote_ids.filtered(lambda q: q.seller_id.id == seller.id)
+            # A04 ERP round 2 (M12-F7, BRU-MKP-04): before award every seller
+            # sees the masked projection - a short brief, the customer's
+            # initials, no contact - never the order's customer or description
             result.append(
                 {
                     "id": o.id,
                     "name": o.name,
-                    "description": o.description,
+                    "description": o.seller_job_brief,
+                    "customer": o.seller_customer_name,
                     "budget_bdt": _fmt_bdt(o.budget),
                     "state": o.state,
                     "my_quote": (
@@ -136,6 +140,52 @@ class SellerApiController(http.Controller):
                 }
             )
         return {"orders": result, "total": len(result)}
+
+    @http.route("/seller/awards", type="jsonrpc", auth="user", readonly=True)
+    def awards(self, **kwargs):
+        """The jobs awarded to this seller (M12-F7 / F15): the full job, the
+        customer's contact while it is revealed, and the acceptance window."""
+        seller = _seller(kwargs)
+        if not seller:
+            return _error("no_seller", "No seller profile for this account")
+        jobs = request.env["fix.marketplace.order"].search(
+            [("revealed_seller_id", "=", seller.id)], limit=100, order="id desc"
+        )
+        result = [
+            {
+                "id": o.id,
+                "name": o.name,
+                "state": o.state,
+                "description": o.seller_description,
+                "customer": o.seller_customer_name,
+                "contact": o.seller_customer_contact,
+                "price_bdt": _fmt_bdt(o.awarded_price),
+                "accept_by": str(o.award_expires_at or ""),
+                "accepted": bool(o.award_accepted_at),
+            }
+            for o in jobs
+        ]
+        return {"awards": result, "total": len(result)}
+
+    @http.route("/seller/awards/accept", type="jsonrpc", auth="user", readonly=False)
+    def accept_award(self, order_id=None, **kwargs):
+        """M12-F15: the awarded seller accepts the job inside its window."""
+        seller = _seller(kwargs)
+        if not seller:
+            return _error("no_seller", "No seller profile for this account")
+        order = request.env["fix.marketplace.order"].browse(_to_int(order_id) or [])
+        if not order.exists() or order.sudo().revealed_seller_id != seller.sudo():
+            return _error("not_your_award", "No award of this job is yours")
+        try:
+            with request.env.cr.savepoint():
+                accepted = order.action_accept_award()
+        except (UserError, ValidationError) as exc:
+            return _error("accept_refused", str(exc))
+        if not accepted:
+            return _error(
+                "award_lapsed", "The acceptance window closed: the job is back for quotes"
+            )
+        return {"award": {"id": order.id, "state": order.state, "accepted": True}}
 
     @http.route("/seller/quotes", type="jsonrpc", auth="user", readonly=False)
     def quotes(self, **kwargs):

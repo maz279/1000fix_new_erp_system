@@ -42,7 +42,17 @@ SURFACES = {
             # A04 ERP M09-F5 / F10: withdraw a claim; extend a lapsed window
             "action_cancel",
             "action_extend_deadline",
+            # A04 ERP round 2 M09-F16: the brand's reference for the last sending
+            "action_record_brand_reference",
         },
+    },
+    # A04 ERP round 2 M09-F16: every sending of a claim to the brand (what was
+    # sent, when, the brand's codes and reference). Written by the submission
+    # path only; a clerk adds the brand's reference once.
+    "fix.warranty.claim.submission": {
+        "order": "submitted_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_record_brand_reference"},
     },
     "fix.warranty.evidence": {
         "order": "id desc",
@@ -741,7 +751,109 @@ def warranty_fraud(env, date_from=None, date_to=None, **params):
     )
 
 
+def brand_performance(env, date_from=None, date_to=None, **params):
+    """FR-WTY-061 / A04 ERP round 2 M09-F16: each brand measured as it
+    measures us - approval rate, decision time, days to pay and short
+    payments - over the claims SUBMITTED in the period (Asia/Dhaka days),
+    read through _scope (the caller's companies; OU isolation applies)."""
+    Claim = env["fix.warranty.claim"]
+    claims = Claim.search(
+        [
+            ("submitted_at", "!=", False),
+            *company_domain(env, Claim),
+            *period_domain(Claim, "submitted_at", date_from, date_to),
+        ]
+    )
+    by_brand = {}
+    for claim in claims:
+        row = by_brand.setdefault(
+            claim.brand_id.id,
+            {
+                "brand": claim.brand_id.name or "-",
+                "submitted": 0,
+                "decided": 0,
+                "approved": 0,
+                "decision_days": [],
+                "pay_days": [],
+                "remitted": 0,
+                "short_paid": 0,
+                "approved_amount": 0.0,
+                "remitted_amount": 0.0,
+            },
+        )
+        row["submitted"] += 1
+        if claim.state in DECIDED and claim.decided_at:
+            row["decided"] += 1
+            row["decision_days"].append(
+                (claim.decided_at - claim.submitted_at).total_seconds() / 86400.0
+            )
+            if claim.state in RECOVERED and claim.approved_amount:
+                row["approved"] += 1
+        if claim.remitted_at and claim.decided_at and claim.approved_amount:
+            row["remitted"] += 1
+            row["pay_days"].append((claim.remitted_at - claim.decided_at).total_seconds() / 86400.0)
+            row["approved_amount"] += claim.approved_amount
+            row["remitted_amount"] += claim.remittance_amount or 0.0
+            if (claim.remittance_amount or 0.0) < claim.approved_amount - 0.01:
+                row["short_paid"] += 1
+
+    def _avg(values):
+        return round(sum(values) / len(values), 1) if values else None
+
+    rows = []
+    for row in by_brand.values():
+        short_amount = row["approved_amount"] - row["remitted_amount"]
+        rows.append(
+            {
+                "brand": row["brand"],
+                "submitted": row["submitted"],
+                "approval_pct": round(row["approved"] / row["decided"] * 100.0, 1)
+                if row["decided"]
+                else None,
+                "decision_days": _avg(row["decision_days"]),
+                "days_to_pay": _avg(row["pay_days"]),
+                "short_pay_pct": round(row["short_paid"] / row["remitted"] * 100.0, 1)
+                if row["remitted"]
+                else None,
+                "short_pay_amount_pct": round(short_amount / row["approved_amount"] * 100.0, 1)
+                if row["approved_amount"]
+                else None,
+            }
+        )
+    rows.sort(key=lambda r: -r["submitted"])
+    return _pack(
+        "Brand Partner Performance",
+        [
+            "brand",
+            "submitted",
+            "approval_pct",
+            "decision_days",
+            "days_to_pay",
+            "short_pay_pct",
+            "short_pay_amount_pct",
+        ],
+        {
+            "brand": "Brand",
+            "submitted": "Claims Submitted",
+            "approval_pct": "Approval %",
+            "decision_days": "Avg Days to Decide",
+            "days_to_pay": "Avg Days to Pay",
+            "short_pay_pct": "Short-Paid Claims %",
+            "short_pay_amount_pct": "Short-Paid Value %",
+        },
+        rows,
+        [
+            "Claims submitted in the period. Approval % = approved (in full or part) / decided. "
+            "Days to decide: submission to the brand's decision; days to pay: decision to the "
+            "bank receipt recorded. Short-paid: received less than the brand approved.",
+            "A blank figure has nothing to measure yet (no decided or paid claim).",
+        ],
+        empty="No claim was submitted to a brand in this period.",
+    )
+
+
 REPORTS = {
+    "brand_performance": brand_performance,
     "claim_ageing_by_brand": claim_ageing_by_brand,
     "reimbursement_cycle": reimbursement_cycle,
     "claim_rejection": claim_rejection,

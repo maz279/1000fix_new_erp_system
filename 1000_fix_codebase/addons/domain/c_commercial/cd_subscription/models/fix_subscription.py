@@ -333,11 +333,17 @@ class FixSubscription(models.Model):
         cycles_a_year = {"monthly": 12, "quarterly": 4, "annual": 1}[self.billing_cycle]
         return abs((new_amount or 0.0) - (self.recurring_amount or 0.0)) * cycles_a_year
 
-    def action_request_price_change(self, new_amount, plan=None, reason=""):
+    def action_request_price_change(
+        self, new_amount, plan=None, reason="", effective_date=None, customer_request_ref=None
+    ):
         """A mid-term price (or plan) change: never applied by its requester.
         With A04's proration service the change is a draft proration routed
         through its DOFA approval (it applies the price); otherwise a second
-        person approves it here (action_approve_price_change)."""
+        person approves it here (action_approve_price_change).
+
+        A04 ERP round 2 M39-F16: an increase applies only after the customer's
+        notice period (Send Price Notice on the plan change), unless the
+        customer asked for it (customer_request_ref, the evidence)."""
         require_role(self.env, GROUP_ACCOUNTANT, "Requesting a subscription price change")
         if not (reason or "").strip():
             raise UserError("State why the price changes.")
@@ -349,8 +355,20 @@ class FixSubscription(models.Model):
             if sub.state in ("cancelled", "churned"):
                 raise UserError("Subscription %s is %s." % (sub.name, sub.state))
             if Proration is not None and hasattr(Proration, "create_for_plan_change"):
+                extra = {}
+                if (customer_request_ref or "").strip():
+                    extra = {
+                        "notice_exemption": "customer_request",
+                        "notice_exemption_ref": customer_request_ref.strip()[:250],
+                    }
                 proration = Proration.create_for_plan_change(
-                    sub, new_amount, to_plan=plan, effective_date=fields.Date.context_today(sub)
+                    sub,
+                    new_amount,
+                    to_plan=plan,
+                    effective_date=fields.Date.to_date(effective_date)
+                    if effective_date
+                    else fields.Date.context_today(sub),
+                    **extra,
                 )
                 if hasattr(proration, "action_request_approval"):
                     proration.action_request_approval(justification=reason)

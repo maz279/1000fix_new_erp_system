@@ -1,27 +1,29 @@
 """M40 co-marketing: the partner <-> campaign link and the MDF -> campaign key.
 
 The M40-comarketing report was a declared gap because neither link existed:
-fix.campaign carried no fix.partner key and an MDF accrual
-(fix.partner.rebate, kind 'mdf') no campaign key. These tests drive the two
-links as the roles that would use them: a channel officer names the
-co-marketing partners of a campaign and ties an MDF accrual to one, a plain
-clerk does neither, and an MDF cannot point at a campaign its partner does
-not co-fund or be re-pointed once it is accrued.
+fix.campaign carried no fix.partner key and an MDF accrual no campaign key.
+These tests drive the two links as the roles that would use them: a channel
+officer names the co-marketing partners of a campaign and ties an MDF claim
+to one, a plain clerk does neither, and an MDF claim cannot point at a
+campaign its partner does not co-fund or be re-pointed once it is submitted.
+
+A04 ERP audit M40-F26 (21 Nov 2026): one MDF mechanism. The MDF is a claim
+on the partner's MDF fund (fix.mdf.claim, campaign_id); a rebate of kind
+'mdf' is refused with a pointer there.
 """
 
+import base64
 import types
 from contextlib import contextmanager
 from datetime import timedelta
 
 import pytest
 from odoo import Command, fields
-from odoo.addons.cd_partner.tests.m40_fixtures import paid_invoice
-
-TODAY = None
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
 OFFICER = "cd_partner.group_fix_channel_officer"
+MANAGER = "cd_partner.group_fix_channel_manager"
 
 
 def _user(env, login, *xmlids):
@@ -45,11 +47,11 @@ def cm(odoo_env):
     env = odoo_env
     if "fix.campaign" not in env:
         pytest.skip("cd_campaign not installed")
-    global TODAY
-    TODAY = fields.Date.context_today(env.user)
-    x = types.SimpleNamespace(env=env)
+    x = types.SimpleNamespace(env=env, today=fields.Date.context_today(env.user))
     x.clerk = _user(env, "cm_clerk")
     x.officer = _user(env, "cm_officer", OFFICER)
+    x.manager = _user(env, "cm_manager", MANAGER)
+    x.manager2 = _user(env, "cm_manager2", MANAGER)
 
     def partner(name, onboarded=True):
         rec = env["fix.partner"].create(
@@ -71,23 +73,63 @@ def cm(odoo_env):
     x.campaign = env["fix.campaign"].create({"name": "CM Monsoon Co-Promo", "channel": "social"})
     x.other = env["fix.campaign"].create({"name": "CM Eid Push", "channel": "sms"})
 
-    def mdf(partner_rec, campaign=None, kind="mdf", **kw):
+    def fund(partner_rec):
+        rec = (
+            env["fix.mdf.fund"]
+            .with_user(x.officer)
+            .create(
+                {
+                    "name": "CM fund",
+                    "partner_id": partner_rec.id,
+                    "period": "2026-Q4",
+                    "allocated": 100000.0,
+                }
+            )
+        )
+        rec.with_user(x.manager).action_open()
+        return rec
+
+    def claim(partner_rec, campaign=None, **kw):
         vals = {
-            "name": "CM MDF",
+            "fund_id": fund(partner_rec).id,
+            "amount": 20000.0,
+            "description": "CM co-promo stall",
+            **kw,
+        }
+        if campaign is not None:
+            vals["campaign_id"] = campaign.id
+        return env["fix.mdf.claim"].with_user(x.officer).create(vals)
+
+    def evidence(rec):
+        att = (
+            env["ir.attachment"]
+            .with_user(x.officer)
+            .create(
+                {
+                    "name": "proof.pdf",
+                    "res_model": rec._name,
+                    "res_id": rec.id,
+                    "datas": base64.b64encode(b"%PDF-1.4 cm"),
+                }
+            )
+        )
+        rec.with_user(x.officer).write({"evidence_attachment_id": att.id})
+
+    def rebate(partner_rec, campaign=None, kind="rebate"):
+        vals = {
+            "name": "CM rebate",
             "partner_id": partner_rec.id,
             "period": "2026-Q4",
-            # A04 ERP audit M40-F12: the basis is computed from paid invoices
-            "period_from": TODAY - timedelta(days=30),
-            "period_to": TODAY,
+            "period_from": x.today - timedelta(days=30),
+            "period_to": x.today,
             "rate": 0.05,
             "kind": kind,
-            **kw,
         }
         if campaign is not None:
             vals["campaign_id"] = campaign.id
         return env["fix.partner.rebate"].with_user(x.officer).create(vals)
 
-    x.mdf = mdf
+    x.claim, x.evidence, x.rebate = claim, evidence, rebate
     return x
 
 
@@ -130,45 +172,50 @@ def test_the_partner_side_is_maintained_by_the_officer_too(cm):
         cm.p2.with_user(cm.clerk).write({"comarketing_campaign_ids": [Command.link(cm.other.id)]})
 
 
-def test_an_mdf_accrual_carries_its_campaign(cm):
+def test_an_mdf_claim_carries_its_campaign(cm):
     cm.campaign.write({"partner_ids": [Command.link(cm.p1.id)]})
-    rec = cm.mdf(cm.p1, cm.campaign)
+    rec = cm.claim(cm.p1, cm.campaign)
     assert rec.campaign_id == cm.campaign
-    field = cm.env["fix.partner.rebate"]._fields["campaign_id"]
+    field = cm.env["fix.mdf.claim"]._fields["campaign_id"]
     assert field.comodel_name == "fix.campaign" and not field.required
 
 
-def test_a_volume_rebate_carries_no_campaign(cm):
+def test_an_mdf_is_no_longer_a_rebate(cm):
+    """M40-F26: one MDF mechanism - the rebate of kind 'mdf' is refused with
+    the pointer to the MDF fund / claim registers, and a volume rebate still
+    names no campaign."""
     cm.campaign.write({"partner_ids": [Command.link(cm.p1.id)]})
+    with _refused(cm.env, ValidationError, "MDF Claim"):
+        cm.rebate(cm.p1, kind="mdf")
     with _refused(cm.env, ValidationError, "market development fund"):
-        cm.mdf(cm.p1, cm.campaign, kind="rebate")
-    # an MDF without a campaign is still allowed (the key is optional)
-    assert cm.mdf(cm.p1).campaign_id.id is False
+        cm.rebate(cm.p1, cm.campaign)
+    # an MDF claim without a campaign is still allowed (the key is optional)
+    assert cm.claim(cm.p1).campaign_id.id is False
 
 
-def test_an_mdf_points_only_at_a_campaign_its_partner_co_funds(cm):
+def test_an_mdf_claim_points_only_at_a_campaign_its_partner_co_funds(cm):
     cm.campaign.write({"partner_ids": [Command.link(cm.p1.id)]})
     with _refused(cm.env, ValidationError, "co-marketing partner"):
-        cm.mdf(cm.p2, cm.campaign)
+        cm.claim(cm.p2, cm.campaign)
 
 
-def test_the_campaign_is_pinned_once_the_mdf_is_accrued(cm):
+def test_the_campaign_is_pinned_once_the_claim_is_submitted(cm):
     cm.campaign.write({"partner_ids": [Command.link(cm.p1.id)]})
     cm.other.write({"partner_ids": [Command.link(cm.p1.id)]})
-    rec = cm.mdf(cm.p1, cm.campaign)
+    rec = cm.claim(cm.p1, cm.campaign)
     rec.with_user(cm.officer).write({"campaign_id": cm.other.id})  # draft: still editable
-    paid_invoice(cm.env, cm.p1.partner_id, 100000.0, TODAY - timedelta(days=5))  # set-up
-    rec.with_user(cm.officer).action_accrue()
-    assert rec.state == "accrued"
+    cm.evidence(rec)
+    rec.with_user(cm.officer).action_submit()
+    assert rec.state == "submitted"
     with _refused(cm.env, UserError):
         rec.with_user(cm.officer).write({"campaign_id": cm.campaign.id})
     assert rec.campaign_id == cm.other
     assert "campaign_id" in rec._fix_form_locked_fields()
 
 
-def test_a_partner_with_live_mdf_stays_on_the_campaign(cm):
+def test_a_partner_with_a_live_mdf_claim_stays_on_the_campaign(cm):
     cm.campaign.write({"partner_ids": [Command.link(cm.p1.id), Command.link(cm.p2.id)]})
-    rec = cm.mdf(cm.p1, cm.campaign)
+    rec = cm.claim(cm.p1, cm.campaign)
     with _refused(cm.env, ValidationError, "MDF"):
         cm.campaign.with_user(cm.officer).write({"partner_ids": [Command.unlink(cm.p1.id)]})
     with _refused(cm.env, ValidationError, "MDF"):
@@ -177,7 +224,9 @@ def test_a_partner_with_live_mdf_stays_on_the_campaign(cm):
         )
     # a partner with no MDF on the campaign leaves freely
     cm.campaign.with_user(cm.officer).write({"partner_ids": [Command.unlink(cm.p2.id)]})
-    # once the MDF is cancelled the link may go
-    rec.with_user(cm.officer).action_cancel()
+    # once the claim is refused the link may go
+    cm.evidence(rec)
+    rec.with_user(cm.officer).action_submit()
+    rec.with_user(cm.manager2).action_refuse(reason="No proof of the stall")
     cm.campaign.with_user(cm.officer).write({"partner_ids": [Command.unlink(cm.p1.id)]})
     assert not cm.campaign.partner_ids
