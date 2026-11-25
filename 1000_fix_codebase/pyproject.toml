@@ -27,6 +27,9 @@ dependencies = [
 dev = [
     "ruff==0.8.4",
     "mypy>=1.13",
+    # psycopg2 stubs: the ORM-boundary migration scripts and finance/libs code
+    # import psycopg2; without stubs mypy flags every import (issue #7).
+    "types-psycopg2>=2.9",
     "pre-commit>=4.0",
     "pip-audit>=2.7",
     "pyyaml>=6.0",
@@ -124,10 +127,42 @@ module = ["odoo.*", "odoo.addons.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Odoo's Model / AbstractModel / Controller are Any (untyped upstream, see
-# above): subclassing them is the only way to write an addon.
+# ORM-BOUNDARY POLICY (owner-approved 2026-11-25, issue #7). Odoo's Model /
+# AbstractModel / Controller are Any (untyped upstream): subclassing them is
+# the only way to write an addon, and idiomatic model/controller methods
+# (`def action_x(self):`) are untyped by convention. Requiring annotations on
+# every such method produced 16,389 no-untyped-def + 11,575 no-untyped-call
+# errors that are STRUCTURAL, not bugs. Annotation requirements are therefore
+# relaxed for addons.* exactly as for tests below - but bodies ARE still
+# type-checked (check_untyped_defs), so genuine errors (attr-defined,
+# arg-type, union-attr, assignment, ...) still fail the gate. libs/ and
+# services/ stay FULLY strict (the pure engines live there). This is a
+# documented policy change with owner sign-off, not a silent lowering to pass;
+# per-file opt-outs still carry TODO(DBT-nnn) (PYS-22).
 module = ["addons.*"]
 disallow_subclassing_any = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Migration scripts (ORM-boundary policy, issue #7): the version-dotted dirs
+# (19.0.1.1.0) are unimportable, so mypy maps each script to a top-level module
+# name (post-migrate / pre-migrate). They are Odoo-idiom one-shot ORM scripts -
+# the same relaxation as addons.* applies, bodies still checked. The runner
+# checks each in isolation so the duplicate-module start-up failure cannot
+# block the gate (tooling/ci/run-mypy.py).
+module = ["post-migrate", "pre-migrate", "post-a12_finish_m30"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = true
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Tests: bodies ARE type-checked (check_untyped_defs), but pytest functions and
