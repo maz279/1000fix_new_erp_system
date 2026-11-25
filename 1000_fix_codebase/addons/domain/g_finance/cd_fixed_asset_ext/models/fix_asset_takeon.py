@@ -373,9 +373,10 @@ class FixAssetTakeonBatch(models.Model):
         return True
 
     def action_validate(self):
-        """Resolve crosswalks, prove the arithmetic, quarantine what fails."""
+        """Resolve crosswalks, prove the arithmetic, quarantine what fails.
+        Also the re-post path after a rollback (rolled_back -> validated)."""
         self.ensure_one()
-        if self.state not in ("staged", "validated"):
+        if self.state not in ("staged", "validated", "rolled_back"):
             raise UserError(self.env._("Stage the spreadsheet before validating."))
         walk = self._category_crosswalk()
         Category = self.env["fix.asset.category"].sudo()
@@ -725,10 +726,27 @@ class FixAssetTakeonBatch(models.Model):
             run._guarded().write({"state": "draft"})
             run.line_ids.sudo().unlink()
             run.sudo().unlink()
-        # assets: reverse activation, then delete the drafts
+        # assets: reverse activation, then delete the drafts. Depreciation
+        # lines of OTHER runs referencing these assets must go first: an
+        # unposted computed line is abandoned (the engine's own takeover
+        # rule); a POSTED foreign charge blocks the rollback — reverse that
+        # run first (posted lines are never deleted).
+        DepLine = self.env["fix.asset.depreciation.line"].sudo()
         for ln in posted:
             asset = ln.asset_id
             if asset:
+                foreign = DepLine.search(
+                    [("asset_id", "=", asset.id), ("run_id", "not in", self.run_ids.ids)]
+                )
+                if any(f.state == "posted" for f in foreign):
+                    raise UserError(
+                        self.env._(
+                            "%s already carries a posted depreciation charge outside this "
+                            "take-on: reverse that run before rolling back.",
+                            asset.display_name,
+                        )
+                    )
+                foreign.unlink()
                 asset._guarded().write(
                     {"state": "draft", "seam_id": False, "acquisition_move_id": False}
                 )

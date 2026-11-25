@@ -257,6 +257,17 @@ class TestAssetTakeon:
         batch.action_stage()
         batch.action_validate()
         batch.action_post()
+        # a computed (unposted) run of the take-on month charges the zero-accum
+        # asset; rollback must clear its lines before retiring the assets
+        nov = env["fix.asset.depreciation.run"].create(
+            {
+                "company_id": takeon["company"].id,
+                "book": "book",
+                "period_start": batch.takeon_date.replace(day=1),
+            }
+        )
+        nov.action_compute()
+        assert nov.line_ids
         cat = takeon["category"]
         contra = env["account.account"].search([("code", "=", "2.99.99.901")], limit=1)
         batch.action_rollback()
@@ -277,6 +288,13 @@ class TestAssetTakeon:
         assert balance(env, cat.accumulated_account_id) == 0.0
         assert balance(env, contra) == 0.0
         assert all(ln.state == "ready" for ln in batch.line_ids)
+        # idempotent re-run: validate from rolled_back, post again
+        batch.action_validate()
+        assert batch.state == "validated"
+        batch.action_post()
+        assert batch.state == "posted"
+        assert batch.posted_count == 2
+        assert balance(env, cat.asset_account_id) == 180000.0
 
     def test_posting_needs_accounting_administrator(self, takeon):
         batch = takeon["make_batch"](_good_rows(takeon["branch"].name))
