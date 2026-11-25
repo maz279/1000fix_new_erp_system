@@ -10,4 +10,6 @@ from . import (
     fix_partner_capture,
     # A04 ERP audit (20 Nov 2026), stream B5: standing, rate governance, brand link
     fix_partner_a04erp,
+    # A04 ERP audit round 2 (21 Nov 2026): M07 hand-off, M11 alliance benefit
+    fix_partner_r2,
 )

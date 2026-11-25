@@ -386,7 +386,14 @@ class FixStorefrontOrderBooks(models.Model):
         can hold for it is refused (the storefront store is named by
         cd_storefront_finance.stock_location_code)."""
         for order in self.sudo():
-            for line in order.line_ids.filtered(lambda ln: not ln.graded_stock_id):
+            if order.state not in ("draft", "pending_payment", "paid"):
+                continue
+            for line in order.line_ids.filtered(
+                lambda ln: not ln.graded_stock_id
+                and ln.line_type == "product"
+                and ln.stock_state == "none"
+                and ln.reserved_qty <= 1e-9
+            ):
                 part = line._sfb_part()
                 if not part:
                     continue
@@ -669,12 +676,28 @@ class FixStorefrontOrderBooks(models.Model):
     def _sfb_invoice_lines(self, day):
         lines = []
         for line in self.line_ids:
-            gross = Decimal(str(line.subtotal or 0.0)).quantize(CENT, ROUND_HALF_UP)
+            # A04 ERP round 2 (M38-F14): a goods line is invoiced at what the
+            # customer paid for it - its subtotal less its share of the voucher
+            # (the M20 line takes no negative amount, so the discount line
+            # itself is spread over the goods, never invoiced on its own)
+            if line.line_type == "discount":
+                continue
+            gross = Decimal(str(line.net_subtotal or 0.0)).quantize(CENT, ROUND_HALF_UP)
             if gross <= 0:
                 continue
             product = line.product_id.sudo().product_variant_id
             qty = format(Decimal(str(line.quantity)).normalize(), "f")
             label = "%s x %s (storefront order %s)" % (line.product_id.display_name, qty, self.name)
+            if line.line_type == "delivery":
+                label = "Delivery fee: %s (storefront order %s)" % (
+                    line.product_id.display_name,
+                    self.name,
+                )
+            elif line.discount_amount:
+                label += " less voucher %s BDT %.2f" % (
+                    self.voucher_code or "",
+                    line.discount_amount,
+                )
             for taxable, suffix in self._sfb_split(gross, product, day):
                 lines.append(
                     {
@@ -1071,13 +1094,18 @@ class FixStorefrontCartReserve(models.Model):
         shipping_method="standard_delivery",
         payment_rail="bkash",
         slot_id=None,
+        voucher_code=None,
+        idempotency_key=None,
     ):
         order = super().action_place_order(
             shipping_address=shipping_address,
             shipping_method=shipping_method,
             payment_rail=payment_rail,
             slot_id=slot_id,
+            voucher_code=voucher_code,
+            idempotency_key=idempotency_key,
         )
+        # idempotent: a replayed placement (M38-F20) reserves nothing twice
         order._sfb_reserve()
         return order
 
@@ -1235,7 +1263,9 @@ class FixStorefrontOrderLineBooks(models.Model):
         delivery); a product with no spare part is not stock."""
         self.ensure_one()
         line = self.sudo()
-        if line.graded_stock_id:
+        # a refurb device is its own ledger; a delivery fee or a voucher line
+        # is no stock at all (A04 ERP round 2)
+        if line.graded_stock_id or line.line_type != "product":
             line.write({"stock_state": "not_required"})
             return
         part = line._sfb_part()

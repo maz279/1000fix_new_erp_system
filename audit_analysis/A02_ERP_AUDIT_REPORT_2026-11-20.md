@@ -146,6 +146,61 @@ the fix, re-checked by the reviewer, and the follow-up findings closed:
   opened passed the "verified contacts only" rule. Fixed in 4e735862: such a mobile is refused unless a
   data steward vouches for it (vouch recorded with who and when on the contact point).
 
+## Deployed 22 Nov 2026 (owner approved): everything is live
+- Upgraded cd_data_case, cd_service_order, cd_consignment, cd_field_service, cd_billing_engine and
+  cd_p03_portal on fix_real and fix_dev (exit 0, no errors), restarted 05:27:50 UTC (13:28 local).
+- The live servers now run from a clean release worktree (`1000 fix\live-release`, detached at the
+  pushed shared tip 69bf96f4), not from the main checkout, where an absent A08 session's uncommitted
+  work sits (owner decision: deploy without touching it). Supervisors and the deploy procedure:
+  `1000 fix\live-supervisor\README.md`.
+- Live: 136/136 A02 screens on 8069 and 8090, 0 errors, 0 dropped columns; 68/68 A02 reports per port,
+  0 ERROR/CRITICAL in the logs since the restart, steward vouch field present on both DBs (A03's
+  independent read-only check).
+- Walks on a copy of the deployed fix_real: charges 6/6, repair journey 18/18, declined fee 9/9,
+  field dispatch 6/6 (`evidence_a02_erp/a02_*_deployed_fix_real_copy_2026-11-22.txt`). The live
+  databases themselves are not walked: a rolled-back walk still consumes invoice and Mushak numbers.
+- A03 (independent reviewer): no open findings on A02.
+- Read-only check of the deployed billing/courier code on the live databases (compute only, rolled
+  back, no numbers used): fix_real has 0 open service orders and 0 live legs; fix_dev's 6 open orders
+  all keep their amount due; 0 stale courier bookings, 0 errors; CHG-TRANSPORT and CHG-CALLOUT present;
+  tariff and wasted-visit fee unset on both, so no charge arises until the business sets them
+  (`evidence_a02_erp/a02_live_readonly_billing_check_2026-11-22.txt`).
+
+## A03 review P1/P2 findings, re-checked one by one (22 Nov, tip d233cb24)
+The review's serious (P1) and lower (P2) findings had been reported on the stream branches and never
+re-checked on the merged code. Each was traced to its fix and test, or fixed now:
+
+| Finding | Status |
+|---|---|
+| s3 COD receipt for source 'cod'; rider COD never remitted; field over-collection; M02-08 OR-ed rule; part payments | Fixed aa78fbb9 + e016c78b (N1-N5), tests in test_a02r2_release / test_a02r2_field |
+| s4 D10 all-or-nothing; business-hours SLA wall-clock | Fixed e4e95620 |
+| s5 P03 scoping/read log; finance sudo; consumer binding; D16 blank media | Fixed 86586402 + c1283042 |
+| s5 legacy quotes | No live impact (0 rows on both DBs) |
+| s4 batched uplifts from the earliest date | Fixed b56a34cc (owner decision: one proration per date) |
+| s4 fee change to 0 | By design: flagged to finance, the price change cannot end the subscription (M39 decides); test_a_fee_falling_to_zero_is_flagged_not_a_silent_cancel |
+| s4 late go-live, UTC date, late renewal, seed, legacy uplift events, reclassify approver, period labels | Fixed e4e95620 |
+| s3 loaner legs; seal/weight locked | Fixed c1283042 / aa78fbb9 |
+| **s3 D21/D22 charges never billed** | **Fixed now**: the wasted-visit fee (CHG-CALLOUT, unless waived) and the pick-and-drop tariff charge (CHG-TRANSPORT) are extra charges of the order; M51 adds their VAT to the amount due (counter, field and COD collect them) and they are billed on the delivery tax invoice to revenue. A delivery leg is priced before its COD is derived, so the rider collects its own charge. |
+| **s3 courier booking COD goes stale** | **Fixed now**: a leg whose live courier booking carries a different COD does not leave ("cancel the booking and book again") |
+| s5 m31_order_delivered context; self-made manager; protocol lock; hand-off withdrawal; bench ESD default | Fixed 86586402 (context key gone) |
+| s5 D17 KPI counted held cases | Fixed: purge_overdue excludes cases on hold |
+| s5 handover_recipient_id routable | Fixed 8ba8900d + 4e735862 (verified contacts only, steward vouch) |
+| s6 AUT-018 cursor | Fixed 218c6af1, its 4 tests pass |
+
+Proven on a fresh copy of fix_real upgraded to the shared tip (tariff BDT 120 and fee BDT 300 set on
+the copy only): a pick-up leg is priced at confirm, the counter collects 1,288.00 (1,000 + 120, VAT
+15%), the delivery invoice bills labour 1,150.00 + CHG-TRANSPORT 138.00, paid, revenue -1,120 / VAT
+-168; a courier booking made before a part payment holds the leg ("collects BDT 2300.00 but the leg
+collects BDT 1938.00 now"), the re-booking carries 1,938.00 including the leg's own charge; a failed
+visit (customer absent) adds 345.00, the technician collects 2,070.00 on the second visit and the
+field-delivered invoice bills CHG-CALLOUT 345.00. Charges walk 6/6; repair journey 18/18, declined
+fee 9/9, dispatch 6/6 on the same copy (`evidence_a02_erp/a02_*_fix_real_copy_shared_tip_2026-11-22.txt`).
+A03's re-check found one edge (a BDT 0 estimate skipped the charges in the amount due while the
+invoice billed them): a free repair now owes its charges unless the order is zero-charge.
+
+The tariff table and the wasted-visit fee are still at their D22/D21 defaults (empty / BDT 0), so no
+charge arises until the business sets them.
+
 ## Still the business's to supply
 - **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
   the waiver above is the path, and it works end to end today.

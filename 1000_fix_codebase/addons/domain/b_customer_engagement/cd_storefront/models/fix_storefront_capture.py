@@ -1104,12 +1104,20 @@ class FixStorefrontCartCapture(models.Model):
         shipping_method="standard_delivery",
         payment_rail="bkash",
         slot_id=None,
+        voucher_code=None,
+        idempotency_key=None,
     ):
         self.ensure_one()
         rec = self
         if rec.state != "ordered" and rec.line_ids:
             lines = rec.line_ids.sudo()
             total = sum(line.quantity * line._sf_server_price() for line in lines)
+            # A04 ERP round 2 (M38-F14): the COD and credit limits read what the
+            # customer will pay - goods plus the delivery fee less the voucher
+            fee = rec._sf_delivery_fee(shipping_method or "standard_delivery")
+            total += fee["incl"] if fee else 0.0
+            if (voucher_code or "").strip():
+                total -= rec._sf_voucher_discount(voucher_code)["incl"]
             # BRU-ECM-07: refurbished condition terms are accepted, explicitly
             if lines.filtered("graded_stock_id") and not rec.terms_accepted_at:
                 raise UserError(
@@ -1131,6 +1139,8 @@ class FixStorefrontCartCapture(models.Model):
             shipping_method=shipping_method,
             payment_rail=payment_rail,
             slot_id=slot_id,
+            voucher_code=voucher_code,
+            idempotency_key=idempotency_key,
         )
 
 

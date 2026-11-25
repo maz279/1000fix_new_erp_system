@@ -39,7 +39,9 @@ export const MODULE = {
       { id: 'M09-remittances', en: 'Brand Remittances', bn: 'ব্র্যান্ড রেমিট্যান্স', t: 'g' },
       { id: 'M09-brandrecon', en: 'Period Reconciliation Statements', bn: 'সময়কালীন মিলকরণ', t: 'g' },
       { id: 'M09-writeoffs', en: 'Claim Write-offs', bn: 'দাবি অবলোপন', t: 'g' },
-      { id: 'M09-defreturns', en: 'Defective Part Returns', bn: 'ত্রুটিপূর্ণ যন্ত্রাংশ ফেরত', t: 'g' }
+      { id: 'M09-defreturns', en: 'Defective Part Returns', bn: 'ত্রুটিপূর্ণ যন্ত্রাংশ ফেরত', t: 'g' },
+      { id: 'M09-submissions', en: 'Submissions to Brands', bn: 'ব্র্যান্ডে দাখিল', t: 'g' },
+      { id: 'M09-rpt-brandperf', en: 'Brand Partner Performance', bn: 'ব্র্যান্ড পারফরম্যান্স', t: 'r' }
     ]},
     { en: 'Protection Plans', screens: [
       { id: 'M09-protection', en: 'Extended Protection Cover', bn: 'প্রোটেকশন পরিবার', t: 'g' },
@@ -57,7 +59,7 @@ export const MODULE = {
       { id: 'M09-fraudreviews', en: 'Fraud Reviews', bn: 'প্রতারণা পর্যালোচনা', t: 'g' }
     ]}
   ],
-  reports: ['Claim Ageing by Brand', 'Reimbursement Cycle Time', 'Claim Rejection Analysis', 'Evidence Completeness', 'Loss Ratio by Product', 'Recall Coverage Report'],
+  reports: ['Claim Ageing by Brand', 'Reimbursement Cycle Time', 'Claim Rejection Analysis', 'Evidence Completeness', 'Loss Ratio by Product', 'Recall Coverage Report', 'Brand Partner Performance'],
   forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign', 'Warranty Register Entry', 'Warranty Transfer', 'Protection Product', 'Claim Evidence Item', 'Provision Policy',
     'Void Condition', 'Pre-sale Inspection', 'Protection Claim', 'Brand Claim Rule', 'Brand Information Request', 'Brand Remittance', 'Brand Reconciliation', 'Claim Write-off', 'Defective Part Return', 'Fraud Review'],
   cross: ['M01 Service Orders', 'M08 Contracts', 'M20 AR', 'M37 Catalogue'],
@@ -105,7 +107,7 @@ export const MODULE = {
     ['5', 'Protection Products', 13, { model: 'fix.protection.policy', cols: ['name', 'partner_id', 'device_id', 'product_id', 'premium', 'term_start', 'term_end', 'state'], screens: ['M09-policies', 'M09-products', 'M09-inspections', 'M09-preserve', 'M09-protection'], reports: [], forms: ['Protection Policy', 'Pre-sale Inspection', 'Protection Product'], create: 'M09-form-ppolicy' }],
     ['6', 'Claim Assessment', 9, { model: 'fix.protection.claim', cols: ['name', 'policy_id', 'partner_id', 'incident_date', 'cause', 'assessed_value', 'fraud_score', 'state'], screens: ['M09-pclaims', 'M09-claims', 'M09-rpt-ageing'], reports: ['Claim Ageing by Brand'], forms: ['Protection Claim'], create: 'M09-form-pclaim' }],
     ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash'], screens: ['M09-evidence', 'M09-claims', 'M09-rpt-evidence'], reports: ['Evidence Completeness'], forms: ['Claim Evidence Item'], create: 'M09-form-wevidence' }],
-    ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-brandrules', 'M09-rpt-cycle'], reports: ['Reimbursement Cycle Time'], forms: ['Brand Claim', 'Brand Claim Rule'] }],
+    ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-brandrules', 'M09-submissions', 'M09-rpt-cycle', 'M09-rpt-brandperf'], reports: ['Reimbursement Cycle Time', 'Brand Partner Performance'], forms: ['Brand Claim', 'Brand Claim Rule'] }],
     ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-appeals', 'M09-inforeq', 'M09-claims', 'M09-rpt-rejection'], reports: ['Claim Rejection Analysis'], forms: ['Claim Appeal', 'Brand Information Request'], create: 'M09-form-appeal' }],
     ['10', 'Reconciliation', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'approved_amount', 'remittance_amount', 'remittance_mismatch'], screens: ['M09-remittances', 'M09-remit', 'M09-brandrecon', 'M09-writeoffs', 'M09-defreturns', 'M09-recon', 'M09-reserves', 'M09-provpolicies'], reports: [], forms: ['Brand Remittance', 'Brand Reconciliation', 'Claim Write-off', 'Defective Part Return', 'Provision Policy'], create: 'M09-form-remittance', domain: [['state', 'in', ['approved', 'partially_approved', 'remitted', 'closed', 'written_off']]] }],
     ['11', 'Recalls', 7, { model: 'fix.warranty.recall', cols: ['name', 'state', 'brand_id', 'product_ref', 'affected_units', 'covered_units', 'launched_on'], screens: ['M09-recalls', 'M09-rpt-recall'], reports: ['Recall Coverage Report'], forms: ['Recall Campaign'] }],
@@ -156,7 +158,7 @@ export const SCREENS = {
     empty: 'No reserve movement yet. Activating a protection policy establishes its reserve; settling a claim, cancellation and expiry release it. The ledger is never typed in.' },
   /* FR-WTY-027..036: a customer's claim on a protection plan. */
   'M09-pclaims': { kind: 'model_list', model: 'fix.protection.claim', stateField: 'state',
-    cols: ['name', 'policy_id', 'partner_id', 'incident_date', 'cause', 'assessed_value', 'fraud_score', 'approved_amount', 'excess_state', 'state'],
+    cols: ['name', 'policy_id', 'partner_id', 'incident_date', 'cause', 'assessed_value', 'fraud_score', 'approved_amount', 'approval_state', 'excess_state', 'state'],
     actions: [
       { m: 'action_assess', l: 'Confirm Assessment', states: ['draft'] },
       { m: 'action_approve', l: 'Approve Claim', states: ['assessed'] },
@@ -339,8 +341,21 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel / Withdraw Claim', ask: 'Why the claim is cancelled', kwarg: 'reason', states: ['draft', 'ready', 'lapsed', 'submitted', 'in_review'] },
       { m: 'action_extend_deadline', l: 'Extend Window (brand accepts late)', states: ['lapsed', 'draft', 'ready'],
         asks: [{ kwarg: 'new_deadline', label: 'New window ends (YYYY-MM-DD HH:MM)' },
-          { kwarg: 'reason', label: 'Brand acceptance reference' }] }
+          { kwarg: 'reason', label: 'Brand acceptance reference' }] },
+      // A04 ERP round 2 M09-F16: the brand's own reference for the last sending
+      { m: 'action_record_brand_reference', l: 'Record Brand Reference', ask: 'The brand\'s reference for this claim', kwarg: 'reference', states: ['submitted', 'in_review', 'approved', 'partially_approved', 'rejected'] }
     ] },
+  /* A04 ERP round 2 M09-F16 (FR-WTY-044/048): every sending of a claim to the
+   * brand - what was sent (its digest), when, by whom, the brand's fault codes
+   * and the brand's reference. Written by Submit / an upheld appeal only. */
+  'M09-submissions': { kind: 'model_list', model: 'fix.warranty.claim.submission', create: false,
+    stateField: 'kind',
+    cols: ['claim_id', 'brand_id', 'attempt', 'kind', 'submitted_at', 'submitted_by_id', 'claim_amount', 'brand_codes', 'brand_reference'],
+    actions: [
+      { m: 'action_record_brand_reference', l: 'Record Brand Reference', ask: 'The brand\'s reference for this sending', kwarg: 'reference', states: ['submission', 'resubmission'] }
+    ],
+    empty: 'Nothing sent to a brand yet. Submit to Brand on Brand Claims records each sending here.' },
+  'M09-rpt-brandperf': { kind: 'table_report', module: 'M09', report: 'brand_performance', title: 'Brand Partner Performance', period: true },
   'M09-record': {
 
     lines: {
@@ -392,7 +407,10 @@ export const SCREENS = {
       { tab: 'defect', title: 'Device Serial/IMEI Provenance & Defect Diagnosis',
         fields: [
           { name: 'device_id', readonly: true, label: 'Covered Device Record' },
-          { name: 'job_completed_at', readonly: true, label: 'Workshop Job Completed At' }
+          { name: 'job_completed_at', readonly: true, label: 'Workshop Job Completed At' },
+          // A04 ERP round 2 M09-F13: what the brand's rules were checked against
+          { name: 'brand_fault_codes', readonly: true, label: 'Brand Fault Codes (sent)' },
+          { name: 'labour_minutes', readonly: true, label: 'Labour Claimed (min)' }
         ] },
       { tab: 'financial', title: 'Commercial Reimbursement & Remittance Matching',
         fields: [
@@ -401,7 +419,13 @@ export const SCREENS = {
           { name: 'valuation_basis', readonly: true, label: 'Valued By' },
           { name: 'rate_id', readonly: true, label: 'Brand Rate Applied' },
           { name: 'approved_amount', readonly: true, label: 'Approved by the OEM (BDT)' },
-          { name: 'remittance_amount', readonly: true, label: 'Remitted, bank-confirmed (BDT)' }
+          { name: 'remittance_amount', readonly: true, label: 'Remitted, bank-confirmed (BDT)' },
+          // A04 ERP round 2 M09-F12: what the brand still owes, and its age
+          { name: 'receivable_outstanding', readonly: true, label: 'Owed by the Brand (BDT)' },
+          { name: 'receivable_age_days', readonly: true, label: 'Receivable Age (days)' },
+          { name: 'ageing_bucket', readonly: true, label: 'Ageing Bucket' },
+          { name: 'chase_level', readonly: true, label: 'Chase Level' },
+          { name: 'last_chased_at', readonly: true, label: 'Last Chased' }
         ] },
       { tab: 'evidence', title: 'Cryptographic Evidence Integrity (SHA-256)',
         note: 'All photographic and diagnostic proof is hashed (SHA-256) upon submission to ensure tamper-proof auditability.',
@@ -643,6 +667,11 @@ export const SCREENS = {
         { name: 'waiting_until', label: 'Waiting Period Until', readonly: true },
         { name: 'excess', label: 'Customer Excess', readonly: true },
         { name: 'claim_limit', label: 'Aggregate Limit', readonly: true },
+        { name: 'per_claim_limit', label: 'Per-Claim Limit', readonly: true },
+        { name: 'max_claim_count', label: 'Claim-Count Limit', readonly: true },
+        { name: 'depreciation_pct_per_month', label: 'Depreciation (% per month)', readonly: true },
+        { name: 'depreciation_cap_pct', label: 'Depreciation Cap (%)', readonly: true },
+        { name: 'depreciation_basis', label: 'Depreciation Applies To', readonly: true },
         { name: 'claimed_amount', label: 'Settled Claims', readonly: true },
         { name: 'remaining_limit', label: 'Remaining Limit', readonly: true },
         { name: 'reserve_balance', label: 'Reserve Balance', readonly: true },
@@ -716,6 +745,10 @@ export const SCREENS = {
       { tab: 'decision', title: 'Decision and excess', fields: [
         { name: 'state', label: 'State', readonly: true },
         { name: 'approved_amount', label: 'Payable By The Plan', readonly: true },
+        { name: 'depreciation_amount', label: 'Depreciation', readonly: true },
+        { name: 'payable_note', label: 'How the Payable Was Reached', readonly: true },
+        { name: 'dofa_band_tier', label: 'Value-Band Tier (M63)', readonly: true },
+        { name: 'approval_state', label: 'Value-Band Approval', readonly: true },
         { name: 'decision_reason', label: 'Decision Reason', readonly: true, type: 'text' },
         { name: 'decided_by_id', label: 'Decided By', readonly: true },
         { name: 'excess_amount', label: 'Excess', readonly: true },
@@ -1029,8 +1062,13 @@ export const SCREENS = {
         { name: 'coverage_scope', label: 'What Is Covered', type: 'text' },
         { name: 'exclusions', label: 'What Is Not Covered', type: 'text' }
       ] },
-      { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'excess_amount', label: 'Customer Excess' }
+      { tab: 'commercial', title: '2. Commercial', note: 'FR-WTY-020: 0 = no limit / no depreciation. A policy keeps the terms it was sold with.', fields: [
+        { name: 'excess_amount', label: 'Customer Excess' },
+        { name: 'per_claim_limit', label: 'Per-Claim Limit (0 = none)' },
+        { name: 'max_claim_count', label: 'Claim-Count Limit (0 = none)' },
+        { name: 'depreciation_pct_per_month', label: 'Depreciation (% per month of cover)' },
+        { name: 'depreciation_cap_pct', label: 'Depreciation Cap (%, 0 = up to 100)' },
+        { name: 'depreciation_basis', label: 'Depreciation Applies To' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
@@ -1038,6 +1076,7 @@ export const SCREENS = {
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'company_id', label: 'Company', required: true },
         { name: 'catalogue_item_id', label: 'Catalogue Item' },
+        { name: 'catalogue_def_id', label: 'Catalogue Definition (M37)', readonly: true },
         { name: 'currency_id', label: 'Currency', required: true }
       ] },
       { tab: 'statutory', title: '5. Statutory', fields: [
@@ -1119,7 +1158,8 @@ export const REPORT_ROUTES = {
   'M09:Claim Rejection Analysis': 'M09-rpt-rejection',
   'M09:Evidence Completeness': 'M09-rpt-evidence',
   'M09:Loss Ratio by Product': 'M09-rpt-loss',
-  'M09:Recall Coverage Report': 'M09-rpt-recall'
+  'M09:Recall Coverage Report': 'M09-rpt-recall',
+  'M09:Brand Partner Performance': 'M09-rpt-brandperf'
 };
 
 /* 'Protection Policy' is the plan sold to a customer: since the second pass

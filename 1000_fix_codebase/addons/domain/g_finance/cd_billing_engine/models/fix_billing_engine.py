@@ -1428,6 +1428,11 @@ class FixArInvoice(models.Model):
         # order's company, never the delivering user's current company.
         tax_point = order.delivered_at or closed_event_at or fields.Datetime.now()
         invoice_date = dhaka_date(tax_point)
+        # D21/D22: the wasted-visit fees and pick-and-drop charges the customer
+        # paid with the repair are billed on its invoice (they were recorded,
+        # reported and collected, and never reached the tax invoice or revenue)
+        extra = self._fix_extra_charge_lines(order)
+        lines += [tax_line for _vals, tax_line in extra]
         determination = m51_determine(
             self.env, lines, on_date=invoice_date, company=order.company_id
         )
@@ -1445,7 +1450,7 @@ class FixArInvoice(models.Model):
                 "discount_amount": float(line_discount),
             }
             for line, qty, price, line_discount in billed_lines
-        ]
+        ] + [vals for vals, _tax_line in extra]
         invoice = self._fix_issue_order_invoice(order, billed, determination, invoice_date, started)
         # A02 ERP audit (19 Nov 2026): the order was PAID before it closed
         # (no device leaves unpaid). That money is a confirmed M20 receipt
@@ -1453,6 +1458,44 @@ class FixArInvoice(models.Model):
         # stayed open, aged, and dunned a customer who owed nothing.
         invoice._fix_apply_order_settlement(order)
         return invoice
+
+    def _fix_extra_charge_lines(self, order):
+        """[(invoice line values, M51 tax line)] for the order's charges
+        outside its estimate (D21 wasted visits, D22 pick and drop)."""
+        if not hasattr(order, "_fix_extra_charges"):
+            return []
+        result = []
+        Product = self.env["product.product"].sudo()
+        for charge in order._fix_extra_charges():
+            product = Product.search([("default_code", "=", charge["code"])], limit=1)
+            if not product:
+                raise UserError(
+                    "%s cannot be invoiced: charge code %s (%s) is not in the catalogue."
+                    % (order.name, charge["code"], charge["description"])
+                )
+            net = Decimal(str(charge["net"])).quantize(TWO_PLACES, ROUND_HALF_UP)
+            result.append(
+                (
+                    {
+                        "line_type": charge["line_type"],
+                        "product_id": product.id,
+                        "description": charge["description"],
+                        "uom_id": product.uom_id.id or False,
+                        "serial_ref": False,
+                        "quantity": 1.0,
+                        "unit_price": float(net),
+                        "gross_amount": float(net),
+                        "discount_amount": 0.0,
+                    },
+                    tax_logic.TaxLine(
+                        product_code=charge["code"],
+                        qty=Decimal("1"),
+                        unit_price=net,
+                        discount=Decimal("0"),
+                    ),
+                )
+            )
+        return result
 
     def _fix_issue_order_invoice(self, order, billed, determination, invoice_date, started):
         """Create, number and post the customer invoice of ``order``: its

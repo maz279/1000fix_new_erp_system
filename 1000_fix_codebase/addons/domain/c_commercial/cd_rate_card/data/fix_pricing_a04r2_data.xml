@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 ERP round 2 (21 Nov 2026), M11-F19 / M37-F7: the consumers of the
+  catalogue and stock events (AUT-PRC-08/09/10) and the pricing scans
+  (AUT-PRC-10/11/12). Scans run just after midnight Dhaka time and are
+  idempotent (one open review per card / code).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_m11_item_discontinued" model="fix.event.consumer">
+            <field name="name">M11: a discontinued item's rates are flagged to the pricing officer, then retired</field>
+            <field name="event_type">catalogue.item_discontinued</field>
+            <field name="model">fix.m11.pricing.consumers</field>
+            <field name="method">consume_item_discontinued</field>
+            <field name="module">cd_rate_card</field>
+        </record>
+        <record id="consumer_m11_srt_rebaselined" model="fix.event.consumer">
+            <field name="name">M11: a re-baselined SRT opens a labour-price review (price held until accepted)</field>
+            <field name="event_type">catalogue.srt_rebaselined</field>
+            <field name="model">fix.m11.pricing.consumers</field>
+            <field name="method">consume_srt_rebaselined</field>
+            <field name="module">cd_rate_card</field>
+        </record>
+        <record id="consumer_m11_stock_received" model="fix.event.consumer">
+            <field name="name">M11: received stock moved the M15 cost: flag rates now under the floor</field>
+            <field name="event_type">stock.received</field>
+            <field name="model">fix.m11.pricing.consumers</field>
+            <field name="method">consume_stock_received</field>
+            <field name="module">cd_rate_card</field>
+        </record>
+        <record id="consumer_m11_stock_adjusted" model="fix.event.consumer">
+            <field name="name">M11: a stock adjustment moved the M15 cost: flag rates now under the floor</field>
+            <field name="event_type">stock.adjusted</field>
+            <field name="model">fix.m11.pricing.consumers</field>
+            <field name="method">consume_stock_adjusted</field>
+            <field name="module">cd_rate_card</field>
+        </record>
+
+        <record id="ir_cron_m11_cost_scan" model="ir.cron">
+            <field name="name">M11: rates under their cost floor or target margin (AUT-PRC-10)</field>
+            <field name="model_id" ref="model_fix_price_review"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_cost_scan()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:06:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m11_consistency_scan" model="ir.cron">
+            <field name="name">M11: nightly price consistency scan across channels and branches (AUT-PRC-11)</field>
+            <field name="model_id" ref="model_fix_price_review"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_consistency_scan()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:07:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m11_leakage_scan" model="ir.cron">
+            <field name="name">M11: weekly discount leakage scan by branch and agent (AUT-PRC-12)</field>
+            <field name="model_id" ref="model_fix_price_review"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_leakage_scan()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">weeks</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:08:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

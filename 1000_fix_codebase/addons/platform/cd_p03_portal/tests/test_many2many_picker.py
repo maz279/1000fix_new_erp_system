@@ -141,32 +141,43 @@ def _categories(env, n):
     )
 
 
-def test_the_picked_categories_are_saved_as_the_whole_selection(odoo_env, ui, supplier):
+@pytest.fixture
+def qualification(odoo_env, supplier):
+    # A06 P08 (21 Nov): a supplier's APPROVED categories are set by an
+    # approved qualification only (read-only, guarded), so the picker writes
+    # the categories a draft qualification is for
+    return odoo_env["fix.supplier.qualification"].create(
+        {"name": "M2M Picker Qualification", "supplier_id": supplier.id}
+    )
+
+
+def test_the_picked_categories_are_saved_as_the_whole_selection(odoo_env, ui, qualification):
     cats = _categories(odoo_env, 3)
     posted = [{"id": c.id, "label": c.display_name} for c in cats[:2]]
-    res = ui.write(
-        model="fix.supplier", record_id=supplier.id, values={"approved_category_ids": posted}
-    )
+    model = "fix.supplier.qualification"
+    res = ui.write(model=model, record_id=qualification.id, values={"category_ids": posted})
     assert not res.get("error"), res
-    assert supplier.approved_category_ids == cats[:2]
+    assert qualification.category_ids == cats[:2]
     # a later pick replaces, it does not append
     res = ui.write(
-        model="fix.supplier",
-        record_id=supplier.id,
-        values={"approved_category_ids": [{"id": cats[2].id, "label": cats[2].display_name}]},
+        model=model,
+        record_id=qualification.id,
+        values={"category_ids": [{"id": cats[2].id, "label": cats[2].display_name}]},
     )
     assert not res.get("error"), res
-    assert supplier.approved_category_ids == cats[2]
+    assert qualification.category_ids == cats[2]
 
 
-def test_removing_every_chip_clears_the_field(odoo_env, ui, supplier):
+def test_removing_every_chip_clears_the_field(odoo_env, ui, qualification):
     cats = _categories(odoo_env, 2)
-    supplier.approved_category_ids = cats
+    qualification.category_ids = cats
     res = ui.write(
-        model="fix.supplier", record_id=supplier.id, values={"approved_category_ids": []}
+        model="fix.supplier.qualification",
+        record_id=qualification.id,
+        values={"category_ids": []},
     )
     assert not res.get("error"), res
-    assert not supplier.approved_category_ids
+    assert not qualification.category_ids
 
 
 def test_the_form_reloads_the_chips_it_saved(odoo_env, ui, supplier):

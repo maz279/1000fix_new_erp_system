@@ -51,6 +51,9 @@ PROMOTION_CHANNEL = {
 # Item types priced by a released parts scheme on M15 cost when no rate card
 # names them (FR-PRC-013).
 PART_ITEM_TYPES = ("part", "accessory", "finished_good")
+# Item types a technician performs: with no fixed rate they are priced at a
+# labour rate x their standard repair time (FR-PRC-012).
+LABOUR_ITEM_TYPES = ("labour", "service", "inspection")
 # Transaction-scoped one-shot pass: an estimate line that cleared the floor
 # with its own bound override lets the line-less re-check that follows it
 # (product._fix_check_sale) through once. See check_sale_price.
@@ -190,6 +193,122 @@ class FixRateCardPriceService(models.Model):
         except (UserError, ValidationError, AttributeError):
             return None
 
+    @api.model
+    def _vat_rate_for(self, item, company, day):
+        """M11-F15: the VAT rate of the item's M37 VAT class. Exempt and
+        zero-rated items carry none; a reduced or truncated item's rate is the
+        M51 determination's on the invoice (None here); otherwise the
+        standard rate in force."""
+        vat_class = item.vat_class if item and "vat_class" in item._fields else False
+        if vat_class in ("exempt", "zero_rated"):
+            return 0.0
+        if vat_class in ("reduced", "truncated"):
+            return None
+        return self._vat_rate(company, day)
+
+    # ------------------------------------------------- FR-PRC-012 labour
+    @api.model
+    def _srt_for_pricing(self, item, day, device_model=None, level=None):
+        """(minutes, baseline, held) the labour price of `item` is computed
+        on: the newest applied SRT baseline of the device model (else the
+        general one), else the item's standard labour time. A re-baseline
+        M11 has not accepted yet prices at the time it replaced (AUT-PRC-09)."""
+        Baseline = self.env["fix.srt.baseline"].sudo()
+        domain = [
+            ("item_id", "=", item.id),
+            ("applied_at", "!=", False),
+            ("state", "in", ("approved", "superseded")),
+            ("effective_from", "<=", day),
+        ]
+        if level:
+            domain.append(("repair_level", "=", level))
+        found = Baseline.browse()
+        for model in ([device_model] if device_model else []) + [False]:
+            found = Baseline.search(
+                [*domain, ("device_model_id", "=", model.id if model else False)],
+                order="effective_from desc, id desc",
+                limit=1,
+            )
+            if found:
+                break
+        if not found:
+            return float(item.standard_labour_time or 0.0) * 60.0, None, False
+        if found.price_effect == "held":
+            return found._previous_minutes(), found, True
+        return float(found.minutes), found, False
+
+    @api.model
+    def _labour_rate_card(self, item, level, tier, contract_no, day, company, currency, facts):
+        """The released labour rate that fits the job most closely: the
+        contract lane first, then the most specific match on brand, skill
+        band, delivery mode and branch, then the highest tier reached."""
+        domain = [
+            ("rate_kind", "=", "labour_hour"),
+            ("state", "=", "released"),
+            ("company_id", "=", company.id),
+            ("repair_level", "=", level),
+            "|",
+            ("valid_from", "=", False),
+            ("valid_from", "<=", day),
+            "|",
+            ("valid_to", "=", False),
+            ("valid_to", ">=", day),
+        ]
+        if currency:
+            domain.append(("currency_id", "=", currency.id))
+        unit = facts.get("operating_unit")
+        unit_id = unit.id if hasattr(unit, "id") else (int(unit) if unit else 0)
+        band = facts.get("skill_band") or item.required_skill_band
+        mode = facts.get("delivery_mode")
+
+        def fits(c):
+            if c.brand_id and c.brand_id != item.brand_id:
+                return False
+            if c.skill_band and c.skill_band != band:
+                return False
+            if c.delivery_mode and c.delivery_mode != mode:
+                return False
+            if c.operating_unit_id and c.operating_unit_id.id != unit_id:
+                return False
+            if c.min_tier == 99:
+                return bool(contract_no) and c.contract_no == contract_no
+            return c.min_tier <= int(tier or 0)
+
+        cards = self.sudo().search(domain).filtered(lambda c: fits(c) and c._version_in_force(day))
+        if not cards:
+            return cards
+
+        def key(c):
+            specific = sum(
+                bool(x) for x in (c.brand_id, c.skill_band, c.delivery_mode, c.operating_unit_id)
+            )
+            return (c.min_tier == 99, specific, c.min_tier, c.valid_from or day.min, c.id)
+
+        return max(cards, key=key)
+
+    @api.model
+    def _labour_price(self, item, tier, contract_no, day, company, currency, facts):
+        level = facts.get("repair_level") or item.repair_level
+        if not level:
+            return None
+        model = facts.get("device_model")
+        if model and not hasattr(model, "id"):
+            model = self.env["fix.device.model"].browse(int(model)).exists()
+        minutes, baseline, held = self._srt_for_pricing(item, day, model or None, level)
+        if not minutes or minutes <= 0:
+            return None
+        card = self._labour_rate_card(item, level, tier, contract_no, day, company, currency, facts)
+        if not card:
+            return None
+        return {
+            "price": money(card.unit_price * minutes / 60.0),
+            "card": card,
+            "rate": card.unit_price,
+            "minutes": minutes,
+            "baseline_id": baseline.id if baseline else False,
+            "held": held,
+        }
+
     # --------------------------------------------------------------- the price
     @api.model
     def price_for(
@@ -276,7 +395,8 @@ class FixRateCardPriceService(models.Model):
             "dynamic_rule_id": False,
             "currency_id": currency.id if currency else False,
             "vat_basis": "exclusive",
-            "vat_rate": self._vat_rate(company, day),
+            "vat_rate": self._vat_rate_for(item, company, day),
+            "price_incl": None,
             "vat_class": item.vat_class if item and "vat_class" in item._fields else False,
             "qty": float(qty or 0.0),
         }
@@ -296,7 +416,16 @@ class FixRateCardPriceService(models.Model):
             partner=partner,
             currency=currency,
         )
+        facts = dict(facts or {})
+        # A04 ERP round 2 M37-F7: a closed item names the item sold instead
+        if (
+            item
+            and item.state in ("deprecated", "obsolete")
+            and hasattr(item, "_fix_sale_substitute")
+        ):
+            result["successor_item_id"] = item._fix_sale_substitute(channel).id or False
         price = None
+        labour = None
         if card:
             price = card.unit_price
             result["card_id"] = card.id
@@ -308,14 +437,31 @@ class FixRateCardPriceService(models.Model):
                 result["source"] = "tier"
             else:
                 result["source"] = "card"
-        elif item and item.item_type in PART_ITEM_TYPES and cost > 0:
+            # FR-PRC-017: quantity / value / committed-volume breaks
+            broke, used = card._apply_breaks(price, qty, facts)
+            if used:
+                price = broke
+                result["price_breaks"] = used.ids
+        elif item and item.item_type in LABOUR_ITEM_TYPES:
+            # FR-PRC-012: a labour line with no fixed rate = labour rate x SRT
+            labour = self._labour_price(item, tier, contract_no, day, company, currency, facts)
+            if labour:
+                price = labour["price"]
+                result.update(
+                    source="labour_rate",
+                    card_id=labour["card"].id,
+                    labour_rate=labour["rate"],
+                    srt_minutes=labour["minutes"],
+                    srt_held=labour["held"],
+                )
+        if price is None and not card and item and item.item_type in PART_ITEM_TYPES and cost > 0:
             price = self._scheme_price(item, variant, cost, day, company)
             if price is not None:
                 result["source"] = "parts_scheme"
         if price is None:
             result["reason"] = (
-                "no released M11 price for %s on %s (no rate card of company %s in %s, and "
-                "no parts scheme)"
+                "no released M11 price for %s on %s (no rate card of company %s in %s, no "
+                "labour rate for its standard repair time, and no parts scheme)"
                 % (
                     code or variant.display_name,
                     day,
@@ -325,10 +471,21 @@ class FixRateCardPriceService(models.Model):
             )
             return result
         price = money(price)
-        line_type = card.line_type if card else "part"
+        priced_card = card or (labour["card"] if labour else None)
+        line_type = priced_card.line_type if priced_card else "part"
+        # FR-PRC-020: the declared channel differential (never on a contract
+        # rate: BRU-PRC-11, the contract's price overrides every other book)
+        if result["source"] != "contract":
+            diff = self.env["fix.channel.differential"]._for(channel, code, item, company, day)
+            if diff:
+                price = money(price * (1.0 + diff.adjustment_pct / 100.0))
+                result["channel_differential_id"] = diff.id
         if premiums:
+            premium_facts = {
+                k: facts[k] for k in ("distance_km", "hour", "operating_unit") if k in facts
+            }
             lines = self.env["fix.price.adjustment"].premiums_for(
-                premiums, price, on_date=day, company=company, line_type=line_type, **(facts or {})
+                premiums, price, on_date=day, company=company, line_type=line_type, **premium_facts
             )
             result["premiums"] = [{"code": p.code, "amount": amount} for p, amount in lines]
             price = money(price + sum(a for _p, a in lines))
@@ -351,6 +508,10 @@ class FixRateCardPriceService(models.Model):
             price = floor["floor"]
             result["floor_clamped"] = True
         result["price"] = money(price)
+        # FR-PRC-009 / M11-F15: both figures, the inclusive one on the M51 rate
+        # of the item's VAT class (None when M51 decides it on the invoice)
+        if result["vat_rate"] is not None:
+            result["price_incl"] = money(result["price"] * (1.0 + result["vat_rate"] / 100.0))
         return result
 
     @api.model
@@ -433,7 +594,25 @@ class FixRateCardPriceService(models.Model):
         if not override and line:
             override = Override._bound_to(line)
         if override:
+            first_use = override.sudo().state == "approved"
             override.sudo()._use_for(line, variant, price)
+            if first_use and line:
+                # FR-PRC-032: the permanent record of the approved override
+                listed = self.price_for(
+                    variant or item or code,
+                    partner=partner,
+                    channel=channel,
+                    date=date,
+                    company=company,
+                )["list_price"]
+                self.record_override(
+                    line,
+                    listed if listed is not None else info["floor"],
+                    price,
+                    "Below-floor price approved by override %s" % override.sudo().name,
+                    approval=override.sudo(),
+                    product=variant,
+                )
             if line:
                 cleared = self.env.cr.precommit.data.setdefault(_CLEARED_KEY, set())
                 cleared.add((variant.id, channel, money(price)))
@@ -549,8 +728,9 @@ class FixPriceChangeDating(models.Model):
         if self.change_type in ("release", "change"):
             # M11-F8: a rate is never set below its floor.
             target._assert_not_below_floor(self.proposed_value)
-        if self.change_type == "release":
-            # M11-F20: a card is released for an item that exists and sells.
+        if self.change_type == "release" and target.rate_kind != "labour_hour":
+            # M11-F20: a card is released for an item that exists and sells
+            # (a labour rate per hour names a repair level, not an item).
             Product = self.env["product.product"].sudo()
             product = Product.search([("default_code", "=", target.product_code)], limit=1)
             if not product:

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP round 2 (21 Nov 2026): company isolation of the new M11 records. -->
+<odoo>
+    <record id="rule_fix_price_break_company" model="ir.rule">
+        <field name="name">fix.price.break: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_break"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_channel_differential_company" model="ir.rule">
+        <field name="name">fix.channel.differential: allowed companies</field>
+        <field name="model_id" ref="model_fix_channel_differential"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_override_log_company" model="ir.rule">
+        <field name="name">fix.price.override.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_override_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_review_company" model="ir.rule">
+        <field name="name">fix.price.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

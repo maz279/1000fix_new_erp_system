@@ -499,5 +499,10 @@ def test_the_new_file_loads_after_the_models_it_extends():
     (fix_ap_payment_run): it is imported after every other model file."""
     init = (AP / "models" / "__init__.py").read_text(encoding="utf-8")
     names = re.findall(r"^    (\w+),$", init, re.M)
-    assert names[-1] == "fix_ap_capture", names
+    # later files may follow it (fix_ap_grni, 21 Nov): what matters is that it
+    # comes after every model file it extends
+    capture = names.index("fix_ap_capture")
+    assert capture > names.index("fix_ap_ext") and capture > names.index(
+        "fix_ap_payment_run"
+    ), names
     assert "ruff: noqa: I001" in init

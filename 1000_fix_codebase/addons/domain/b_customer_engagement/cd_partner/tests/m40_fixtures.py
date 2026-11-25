@@ -16,6 +16,8 @@ PAYOUT_PARAMS = {
     "cd_settlement_ext.account_code.partner_mdf_expense": "500210",
     "cd_settlement_ext.account_code.partner_payable": "200202",
     "cd_settlement_ext.account_code.tds_payable": "200905",
+    # A04 ERP audit M40-F25: M51's TDS payable is the same account (fix_real)
+    "cd_tax_engine_bd.account_code.tds_payable": "200905",
     "cd_partner.account_code.royalty_income": "400109",
     "cd_partner.account_code.franchise_fee_income": "400109",
 }

@@ -118,6 +118,8 @@ def mk(odoo_env):
     def reviewed(seller_rec=None, price=8000.0):
         o, q = awarded(seller_rec, price)
         as_op = o.with_user(ns.operator)
+        # A04 ERP round 2 (M12-F15): the awarded seller accepts the job first
+        o.sudo().action_accept_award()
         as_op.action_start_job()
         _job_evidence(o)
         as_op.action_complete()
@@ -271,6 +273,7 @@ def test_price_and_tier_rate_are_pinned_at_award(mk):
     with mk.refused(UserError, "the order is"):
         o.with_user(mk.operator).write({"budget": 1.0})
     as_op = o.with_user(mk.operator)
+    as_op.action_accept_award()  # A04 ERP round 2 (M12-F15)
     as_op.action_start_job()
     _job_evidence(o)
     as_op.action_complete()

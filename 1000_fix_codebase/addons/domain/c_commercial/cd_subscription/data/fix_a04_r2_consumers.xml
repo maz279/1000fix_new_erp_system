@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP round 2 (21 Nov 2026) M39-F17 / F11: usage ingestion, the service gate
+     on suspension / pause / cancellation, and the subscription of a contract
+     billed by M39. Relay-only consumers (superuser). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_r2_usage_msp" model="fix.event.consumer">
+            <field name="name">M39: ingest M05 usage (remote hours, incidents)</field>
+            <field name="event_type">msp.usage_reported</field>
+            <field name="model">fix.subscription.usage.intake</field>
+            <field name="method">consume_msp_usage_reported</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_usage_data" model="fix.event.consumer">
+            <field name="name">M39: ingest M06 usage (storage volume)</field>
+            <field name="event_type">data.usage_reported</field>
+            <field name="model">fix.subscription.usage.intake</field>
+            <field name="method">consume_data_usage_reported</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_usage_rental" model="fix.event.consumer">
+            <field name="name">M39: ingest M13 usage (rental utilisation)</field>
+            <field name="event_type">rental.usage_reported</field>
+            <field name="model">fix.subscription.usage.intake</field>
+            <field name="method">consume_rental_usage_reported</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_locked" model="fix.event.consumer">
+            <field name="name">M39: gate service on a suspended subscription</field>
+            <field name="event_type">subscription.service_order_locked</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_paused" model="fix.event.consumer">
+            <field name="name">M39: gate service on a paused subscription</field>
+            <field name="event_type">subscription.paused</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_cancelled" model="fix.event.consumer">
+            <field name="name">M39: gate service on a cancelled subscription</field>
+            <field name="event_type">subscription.cancelled</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_cancel_applied" model="fix.event.consumer">
+            <field name="name">M39: gate service on a cancellation applied</field>
+            <field name="event_type">subscription.cancel_applied</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_churned" model="fix.event.consumer">
+            <field name="name">M39: gate service on a churned subscription</field>
+            <field name="event_type">subscription.churned</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_reinstated" model="fix.event.consumer">
+            <field name="name">M39: reopen service on reinstatement</field>
+            <field name="event_type">subscription.reinstated</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_gate_resumed" model="fix.event.consumer">
+            <field name="name">M39: reopen service when a pause ends</field>
+            <field name="event_type">subscription.resumed</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_service_gate_event</field>
+            <field name="module">cd_subscription</field>
+        </record>
+        <record id="consumer_r2_contract_activated" model="fix.event.consumer">
+            <field name="name">M39: subscription for a contract billed by M39 (AUT-SUB-01)</field>
+            <field name="event_type">contract.activated</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_contract_activated</field>
+            <field name="module">cd_subscription</field>
+        </record>
+    </data>
+</odoo>

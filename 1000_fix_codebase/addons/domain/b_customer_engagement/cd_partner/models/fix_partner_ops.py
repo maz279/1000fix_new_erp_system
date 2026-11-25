@@ -116,6 +116,13 @@ def executed_payout(rec, label):
     return pay
 
 
+# A04 ERP audit M40-F26: where a market development fund is raised now.
+MDF_POINTER = (
+    "A market development fund is no longer raised as a rebate: allocate it on an MDF Fund "
+    "(M40 > MDF Funds) and pay it on an evidenced MDF Claim (M40 > MDF Claims), which "
+    "accrues it and raises its M50 payout (M40-F26, one MDF mechanism)."
+)
+
 # The highest rebate / MDF rate accepted, as a fraction. Report §7.5 leaves
 # the bound to the business; 20% is the default until it rules.
 REBATE_MAX_RATE = 0.20
@@ -571,6 +578,11 @@ class FixPartnerDeal(models.Model):
     conflict_id = fields.Many2one("fix.partner.conflict", readonly=True, copy=False)
     decline_reason = fields.Char(readonly=True, copy=False)
     expiry_warned = fields.Boolean(readonly=True, copy=False)
+    # A04 ERP audit M40-F23: the M07 opportunity a won deal hands to 1000FiX
+    # sales, carrying the partner attribution.
+    opportunity_id = fields.Many2one(
+        "crm.lead", string="M07 Opportunity (hand-off)", readonly=True, copy=False, index=True
+    )
 
     _FROZEN = frozenset({"partner_id", "customer_id", "currency_id", "registered_on"})
 
@@ -583,6 +595,7 @@ class FixPartnerDeal(models.Model):
             "conflict_id",
             "decline_reason",
             "expiry_warned",
+            "opportunity_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -602,24 +615,112 @@ class FixPartnerDeal(models.Model):
         return super().write(vals)
 
     def _fix_rivals(self):
-        """Other partners' protected deals on the same end customer."""
+        """Other partners' deals that hold the same end customer (its whole
+        commercial entity).
+
+        A04 ERP audit M40-F23: only another partner's PROTECTED deal was
+        checked, so two partners could both register, and the first approved
+        won by speed. A rival is now another partner's protected deal (not
+        lapsed), or its open registration (registered / in conflict review)
+        made BEFORE this one - first registered, first heard."""
         self.ensure_one()
         if not self.customer_id:
             return self.browse()
         today = fields.Date.context_today(self)
         commercial = self.customer_id.commercial_partner_id
+        mine = (self.registered_on or today, self.id or 0)
+
+        def holds(deal):
+            if deal.state == "approved":
+                return not deal.protected_until or deal.protected_until >= today
+            return (deal.registered_on or today, deal.id) < mine
+
         return (
             self.sudo()
             .search(
                 [
                     ("id", "!=", self.id),
-                    ("state", "=", "approved"),
+                    ("state", "in", ("registered", "conflict", "approved")),
                     ("partner_id", "!=", self.partner_id.id),
                     ("customer_id", "child_of", commercial.id),
                 ]
             )
-            .filtered(lambda d: not d.protected_until or d.protected_until >= today)
+            .filtered(holds)
         )
+
+    def _fix_rival_leads(self):
+        """A04 ERP audit M40-F23: other partners' OPEN leads (submitted or
+        qualified, inside their attribution window) on the same customer."""
+        self.ensure_one()
+        if not self.customer_id:
+            return self.env["fix.partner.lead"]
+        today = fields.Date.context_today(self)
+        return (
+            self.env["fix.partner.lead"]
+            .sudo()
+            .search(
+                [
+                    ("partner_id", "!=", self.partner_id.id),
+                    ("state", "in", ("submitted", "qualified")),
+                    ("customer_id", "child_of", self.customer_id.commercial_partner_id.id),
+                    ("company_id", "=", self.company_id.id),
+                ]
+            )
+            .filtered(
+                lambda lead: not lead.attribution_expires_on or lead.attribution_expires_on >= today
+            )
+        )
+
+    def _fix_rival_opportunities(self):
+        """A04 ERP audit M40-F23: the customer's OPEN M07 opportunities (not
+        won, not archived) that are not this partner's own hand-off. One with
+        no partner attribution is 1000FiX's direct sale."""
+        self.ensure_one()
+        if not self.customer_id:
+            return self.env["crm.lead"]
+        opps = (
+            self.env["crm.lead"]
+            .sudo()
+            .search(
+                [
+                    ("type", "=", "opportunity"),
+                    ("active", "=", True),
+                    ("probability", "<", 100),
+                    ("partner_id", "child_of", self.customer_id.commercial_partner_id.id),
+                    ("company_id", "in", (False, self.company_id.id)),
+                ]
+            )
+        )
+        return opps.filtered(
+            lambda o: not (o.stage_id and o.stage_id.is_won) and o.fix_partner_id != self.partner_id
+        )
+
+    def _fix_clash(self):
+        """(partner A, partner B, description lines) of every clash, or None.
+        Partner A is the rival partner; a direct M07 opportunity's clash names
+        this deal's partner as A and no partner B (a 'direct' ruling keeps the
+        account direct, a 'partner A' ruling gives it to the partner)."""
+        self.ensure_one()
+        deals = self._fix_rivals()
+        leads = self._fix_rival_leads()
+        opps = self._fix_rival_opportunities() or []
+        lines = ["Protected / earlier deal %s of %s" % (d.name, d.partner_id.name) for d in deals]
+        lines += ["Open lead %s of %s" % (lead.name, lead.partner_id.name) for lead in leads]
+        lines += [
+            "M07 opportunity %s (%s)"
+            % (o.name, o.fix_partner_id.name if o.fix_partner_id else "direct sale")
+            for o in opps
+        ]
+        if not lines:
+            return None
+        rival = (
+            deals[:1].partner_id
+            or leads[:1].partner_id
+            or next((o.fix_partner_id for o in opps if o.fix_partner_id), None)
+        )
+        if rival and rival != self.partner_id:
+            return rival, self.partner_id, lines
+        return self.partner_id, self.env["fix.partner"], lines
 
     def _fix_ruling_for(self, conflict):
         """'win', 'lose' or 'split' for this deal's partner under a ruling."""
@@ -671,29 +772,30 @@ class FixPartnerDeal(models.Model):
                             "decline_reason": "Lost channel-conflict ruling %s" % conflict.name,
                         }
                     )
-            elif rivals:
-                conflict = (
-                    self.env["fix.partner.conflict"]
-                    .sudo()
-                    .create(
-                        {
-                            "name": "Deal clash: %s" % rec.customer_id.display_name,
-                            "partner_a_id": rivals[0].partner_id.id,
-                            "partner_b_id": rec.partner_id.id,
-                            "customer_id": rec.customer_id.id,
-                            "description": "Deal %s of %s clashes with protected deal %s of %s."
-                            % (
-                                rec.name,
-                                rec.partner_id.name,
-                                rivals[0].name,
-                                rivals[0].partner_id.name,
-                            ),
-                        }
+            else:
+                # A04 ERP audit M40-F23: every partner's open or protected
+                # deal and open lead, and the customer's open M07
+                # opportunities, are checked before the deal is protected.
+                clash = rec._fix_clash()
+                if clash:
+                    partner_a, partner_b, lines = clash
+                    conflict = (
+                        self.env["fix.partner.conflict"]
+                        .sudo()
+                        .create(
+                            {
+                                "name": "Deal clash: %s" % rec.customer_id.display_name,
+                                "partner_a_id": partner_a.id,
+                                "partner_b_id": partner_b.id or False,
+                                "customer_id": rec.customer_id.id,
+                                "description": "Deal %s of %s clashes with: %s."
+                                % (rec.name, rec.partner_id.name, "; ".join(lines)),
+                            }
+                        )
                     )
-                )
-                rec._guarded().write({"state": "conflict", "conflict_id": conflict.id})
-                result[rec.id] = conflict.name
-                continue
+                    rec._guarded().write({"state": "conflict", "conflict_id": conflict.id})
+                    result[rec.id] = conflict.name
+                    continue
             rec._guarded().write(
                 {
                     "state": "approved",
@@ -723,7 +825,35 @@ class FixPartnerDeal(models.Model):
             if rec.protected_until and rec.protected_until < today:
                 raise UserError("Deal %s lapsed on %s." % (rec.name, rec.protected_until))
             rec._guarded().write({"state": "won"})
+            rec._fix_handoff_opportunity()
         return True
+
+    def _fix_handoff_opportunity(self):
+        """A04 ERP audit M40-F23: a won deal hands 1000FiX sales an M07
+        opportunity on the end customer, carrying the partner attribution
+        (fix_partner_id / fix_partner_deal_id, guarded on crm.lead).
+        Idempotent: one opportunity per deal."""
+        self.ensure_one()
+        if self.opportunity_id or "crm.lead" not in self.env:
+            return self.opportunity_id
+        Opp = self.env["crm.lead"].sudo().with_company(self.company_id)
+        opp = Opp.search([("fix_partner_deal_id", "=", self.id)], limit=1) or Opp.create(
+            {
+                "name": "%s (partner deal %s)" % (self.customer_id.display_name, self.name),
+                "type": "opportunity",
+                "partner_id": self.customer_id.id,
+                "expected_revenue": self.value or 0.0,
+                "company_id": self.company_id.id,
+                "lead_source": "referral",
+                "fix_partner_id": self.partner_id.id,
+                "fix_partner_deal_id": self.id,
+                "description": "Won by channel partner %s on deal registration %s."
+                % (self.partner_id.name, self.name),
+            }
+        )
+        self._guarded().write({"opportunity_id": opp.id})
+        self.message_post(body="Handed to M07 sales as opportunity %s." % opp.name)
+        return opp
 
     def action_mark_lost(self):
         fix_require(self.env, [GROUP_OFFICER], "Recording a lost deal")
@@ -800,8 +930,12 @@ class FixPartnerRebate(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
+    # A04 ERP audit M40-F26: ONE MDF mechanism - the fund and its evidenced
+    # claims (fix.mdf.fund / fix.mdf.claim). 'mdf' stays a value only so the
+    # rows raised before 21 Nov 2026 keep their history; a new or re-kinded
+    # one is refused with a pointer (MDF_POINTER).
     kind = fields.Selection(
-        [("rebate", "Volume rebate"), ("mdf", "Market development fund")],
+        [("rebate", "Volume rebate"), ("mdf", "Market development fund (legacy)")],
         required=True,
         default="rebate",
     )
@@ -911,13 +1045,42 @@ class FixPartnerRebate(models.Model):
             locked |= {"dofa_justification"}
         return locked
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A04 ERP audit M40-F26: no new MDF rebate, whoever asks (seeds too)
+        if any(vals.get("kind") == "mdf" for vals in vals_list):
+            raise ValidationError(MDF_POINTER)
+        return super().create(vals_list)
+
     def write(self, vals):
+        if vals.get("kind") == "mdf" and any(rec.kind != "mdf" for rec in self):
+            raise ValidationError(MDF_POINTER)
         if self and not self._fix_guard_open():
             for rec in self.filtered(lambda r: r.state != "draft"):
                 _refuse_frozen(
                     rec, vals, self._FROZEN, "the rebate is %s and its amount is pinned" % rec.state
                 )
         return super().write(vals)
+
+    @api.model
+    def _fix_migrate_mdf_rebates(self):
+        """A04 ERP audit M40-F26 data step (post-migrate 19.0.0.3.2, and safe
+        to re-run). An MDF raised as a rebate that has not been approved is
+        cancelled, with its pending approval voided and a note pointing at
+        the MDF fund / claim registers - no money had moved on it. An
+        approved one is left to finish on the payout path it is already on
+        (its M50 instruction), and a paid one is history. Returns the ids
+        cancelled. fix_real holds 0 such rows (20 Nov 2026)."""
+        legacy = self.sudo().search([("kind", "=", "mdf"), ("state", "in", ("draft", "accrued"))])
+        for rec in legacy:
+            if rec.approval_state == "pending":
+                rec._approval_void("MDF moved to the MDF fund / claim registers (M40-F26)")
+            rec._guarded().write({"state": "cancelled"})
+            rec.message_post(
+                body="Cancelled by the M40-F26 migration: market development funds are allocated "
+                "on an MDF Fund and paid on evidenced MDF Claims. Re-raise this one there."
+            )
+        return legacy.ids
 
     # ------------------------------------------------------------ DOFA
     def _dofa_amount(self) -> float:

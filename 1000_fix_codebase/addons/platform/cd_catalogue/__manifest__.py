@@ -25,7 +25,7 @@ Owns:
 
 AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
 """,
-    "version": "19.0.1.4.1",
+    "version": "19.0.1.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Catalogue",
@@ -35,6 +35,7 @@ AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
         "security/cd_catalogue_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_catalogue_usage_rules.xml",
         "data/fix_refurb_grades.xml",
         "data/fix_brand_data.xml",
         "data/ir_cron.xml",

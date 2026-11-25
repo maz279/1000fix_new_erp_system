@@ -330,6 +330,89 @@ def brand_audit_calendar(env, date_from=None, date_to=None, **params):
     )
 
 
+# A04 ERP audit M40-F14 follow-up (AUT-PCM-04): the escalation bands of a
+# brand authorisation, from the model's own thresholds (180 / 90 / 30 days).
+def _escalation_band(days_left):
+    from odoo.addons.cd_partner.models.fix_partner_ops import AUTHORISATION_WARNINGS
+
+    if days_left < 0:
+        return "Lapsed"
+    due = [d for d, _g in AUTHORISATION_WARNINGS if days_left <= d]
+    return "T-%d" % min(due) if due else "Later"
+
+
+def authorisations_expiring(env, date_from=None, date_to=None, **params):
+    """A04 ERP audit M40-F14 follow-up: every active brand authorisation
+    whose validity ends in the period (today to T-180 when no period is
+    given), with its escalation band, the threshold already escalated and
+    whether brand work on it would still pass the BRU-PCM-08 gate. Read
+    through _scope: the caller's companies and the period on valid_to."""
+    today = _today(env)
+    start = date_from or today
+    end = date_to or (today + datetime.timedelta(days=180))
+    auths = scoped(
+        env,
+        "fix.partner.authorisation",
+        [("state", "=", "active")],
+        "valid_to",
+        start,
+        end,
+        order="valid_to, id",
+    )
+    rows = []
+    for auth in auths:
+        days_left = (auth.valid_to - today).days
+        rows.append(
+            {
+                "authorisation": auth.name,
+                "partner": auth.partner_id.name,
+                "brand": auth.brand_id.name if auth.brand_id else "—",
+                "valid_to": str(auth.valid_to),
+                "days_left": days_left,
+                "band": _escalation_band(days_left),
+                "escalated": ("T-%d" % auth.expiry_warned_days)
+                if auth.expiry_warned_days
+                else "Not yet",
+                "partner_state": auth.partner_id.state,
+            }
+        )
+    counts = {}
+    for row in rows:
+        counts[row["band"]] = counts.get(row["band"], 0) + 1
+    return _pack(
+        "Authorisations Expiring — %s to %s" % (start, end),
+        [
+            "authorisation",
+            "partner",
+            "brand",
+            "valid_to",
+            "days_left",
+            "band",
+            "escalated",
+            "partner_state",
+        ],
+        {
+            "authorisation": "Authorisation",
+            "partner": "Partner",
+            "brand": "Brand (M37)",
+            "valid_to": "Valid To",
+            "days_left": "Days Left",
+            "band": "Escalation Band",
+            "escalated": "Escalated At",
+            "partner_state": "Partner Standing",
+        },
+        rows,
+        [
+            "Active brand authorisations whose validity ends in the period. They escalate at "
+            "T-180 (channel managers), T-90 (DOFA Tier 3) and T-30 (DOFA Tier 5) days "
+            "(AUT-PCM-04); once lapsed, brand work on them is refused (BRU-PCM-08).",
+            "By band: %s."
+            % (", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)) if counts else "none"),
+        ],
+        empty="No active brand authorisation expires in the period.",
+    )
+
+
 def referral_conversion(env, date_from=None, date_to=None, **params):
     referrals = scoped(env, "fix.referral", None, "referred_on", date_from, date_to)
     states = {}
@@ -583,6 +666,14 @@ _MDF_BUCKETS = {
     "approved": "mdf_approved",
     "paid": "mdf_paid",
 }
+# A04 ERP audit M40-F26: an MDF claim's state in the same buckets (a claim
+# under evidence review is the claimed, accrued-to-be amount).
+_CLAIM_BUCKETS = {
+    "draft": "mdf_planned",
+    "submitted": "mdf_accrued",
+    "approved": "mdf_approved",
+    "paid": "mdf_paid",
+}
 
 
 def _campaign_revenue(env, campaigns, model):
@@ -621,6 +712,15 @@ def comarketing(env, date_from=None, date_to=None, model=None, **params):
             ("state", "in", tuple(_MDF_BUCKETS)),
         ]
     )
+    # A04 ERP audit M40-F26: the MDF is an evidenced claim on the partner's
+    # fund now; the legacy MDF rebates above keep their history.
+    claims = env["fix.mdf.claim"].search(
+        [
+            *_company_domain(env, "fix.mdf.claim"),
+            ("campaign_id", "in", campaigns.ids),
+            ("state", "in", tuple(_CLAIM_BUCKETS)),
+        ]
+    )
     revenue = _campaign_revenue(env, campaigns, model)
     rows = []
     for partner in partners.sorted("name"):
@@ -635,6 +735,8 @@ def comarketing(env, date_from=None, date_to=None, model=None, **params):
         }
         for mdf in mdfs.filtered(lambda r, pid=partner.id: r.partner_id.id == pid):
             row[_MDF_BUCKETS[mdf.state]] += mdf.amount or 0.0
+        for claim in claims.filtered(lambda r, pid=partner.id: r.partner_id.id == pid):
+            row[_CLAIM_BUCKETS[claim.state]] += claim.amount or 0.0
         for key in _MDF_BUCKETS.values():
             row[key] = round(row[key], 2)
         credited = [revenue[c.id] for c in funded if c.id in revenue]
@@ -666,11 +768,18 @@ def comarketing(env, date_from=None, date_to=None, model=None, **params):
     )
     unlinked = env["fix.partner.rebate"].search_count(
         [("kind", "=", "mdf"), ("campaign_id", "=", False), ("state", "!=", "cancelled")]
+    ) + env["fix.mdf.claim"].search_count(
+        [
+            *_company_domain(env, "fix.mdf.claim"),
+            ("campaign_id", "=", False),
+            ("state", "in", tuple(_CLAIM_BUCKETS)),
+        ]
     )
     notes = [
         "Campaigns are the M35 campaigns that name the partner as a co-marketing partner; "
-        "MDF is the partner's market development fund on those campaigns by state "
-        "(planned = draft, accrued, approved for payout, paid; cancelled is left out).",
+        "MDF is the partner's MDF claims on those campaigns by state (planned = draft claim, "
+        "accrued = under evidence review, approved = payment instructed, paid; a refused "
+        "claim is left out), plus MDF raised as a rebate before 21 Nov 2026.",
         "Attributed revenue is the %s attribution of the M35 touch ledger, counted only "
         "where every credited conversion of the campaign has its value on file. It is the "
         "co-funded campaigns' revenue, not a partner share: a campaign co-funded by two "
@@ -678,8 +787,8 @@ def comarketing(env, date_from=None, date_to=None, model=None, **params):
     ]
     if unlinked:
         notes.append(
-            "%d MDF accrual(s) name no campaign and are not shown here (see Rebate Accruals)."
-            % unlinked
+            "%d MDF claim(s) or legacy MDF accrual(s) name no campaign and are not shown here "
+            "(see MDF Claims and Rebate Accruals)." % unlinked
         )
     pack = _pack(
         "Co-Marketing — partners, campaigns and MDF",
@@ -960,6 +1069,7 @@ def franchises(env, date_from=None, date_to=None, **params):
 REPORTS = {
     "brand_partners": brand_partners,
     "brand_audit_calendar": brand_audit_calendar,
+    "authorisations_expiring": authorisations_expiring,
     "referral_conversion": referral_conversion,
     "partner_revenue": partner_revenue,
     "rebate_accruals": rebate_accruals,

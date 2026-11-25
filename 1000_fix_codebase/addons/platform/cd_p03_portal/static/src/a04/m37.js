@@ -24,6 +24,7 @@ export const MODULE = {
     ]},
     { en: 'Item Master', screens: [
       { id: 'M37-items', en: 'Unified Item Master', bn: 'ইউনিফায়েড আইটেম মাস্টার', t: 'g' },
+      { id: 'M37-numbering', en: 'Item Numbering Rules', bn: 'আইটেম কোড নিয়ম', t: 'g' },
       { id: 'M37-item', en: 'Item Record', bn: 'আইটেম রেকর্ড', t: 'f' },
       { id: 'M37-taxonomy', en: 'Typed Taxonomy (14 streams)', bn: 'টাইপড ট্যাক্সোনমি', t: 'g' },
       { id: 'M37-hierarchy', en: 'Product Hierarchy', bn: 'পণ্য শ্রেণিবিন্যাস', t: 'r' },
@@ -62,7 +63,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Catalogue Coverage by Brand', 'rBOM Completeness', 'SRT Calibration Variance', 'Item Margin Analysis', 'Deprecated Items Register', 'Bilingual Content Gaps'],
-  forms: ['Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template',
+  forms: ['Item Numbering Rule', 'Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template',
     'Service Kit', 'Brand & Authorisation', 'Catalogue Category', 'Contract Template', 'Rental SKU', 'VAT Treatment',
     'SRT Baseline', 'Part Cross-Reference', 'Tax & Revenue Classification', 'Channel Publication', 'Product Attribute',
     'Service / Charge Code', 'Model Compatibility', 'Attribute Set', 'Fault Symptom', 'Subscription Plan',
@@ -88,7 +89,7 @@ export const MODULE = {
    * was no compatibility matrix, attribute set, symptom / root cause or
    * subscription plan, and refurb grades could not be defined by anyone. */
   freg: { src: 120, sub: [
-    ['1', 'Unified Item Master', 14, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'], screens: ['M37-items'], reports: ['Catalogue Coverage by Brand', 'Deprecated Items Register'], forms: ['Catalogue Item (9 types)'] }],
+    ['1', 'Unified Item Master', 14, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'], screens: ['M37-items', 'M37-numbering'], reports: ['Catalogue Coverage by Brand', 'Deprecated Items Register'], forms: ['Catalogue Item (9 types)', 'Item Numbering Rule'] }],
     // FR-CAT-004: the category tree. A node is captured here; saving one
     // needs the product-manager role (product.category ACL), which the
     // server checks - the role decides the save, not whether the page offers it.
@@ -180,6 +181,8 @@ export const SCREENS = {
       { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
       { m: 'action_lift_restriction', l: 'Lift Restriction' },
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line',
@@ -200,6 +203,8 @@ export const SCREENS = {
       { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
       { m: 'action_lift_restriction', l: 'Lift Restriction' },
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Variance', period: true },
@@ -230,6 +235,8 @@ export const SCREENS = {
       { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
       { m: 'action_recall_approval', l: 'Recall Submission' },
       { m: 'action_discontinue', l: 'Discontinue / Supersede (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-contract-tpl': { kind: 'model_list', model: 'fix.contract.template', create: true,
@@ -256,6 +263,8 @@ export const SCREENS = {
       { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
       { m: 'action_lift_restriction', l: 'Lift Restriction' },
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-rental-sku': { kind: 'model_list', model: 'fix.rental.sku',
@@ -384,6 +393,25 @@ export const SCREENS = {
         ] },
       { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
+  /* A04 ERP round 2 (21 Nov 2026) FR-CAT-007: the code mask of each item
+   * type (no-gap sequence; a code is never reused). */
+  'M37-numbering': { kind: 'model_list', model: 'fix.catalogue.numbering',
+    cols: ['item_type', 'prefix', 'padding', 'next_code', 'company_id', 'active'],
+    note: 'An item created with no code takes the next code of its type. Masks are the owner\'s; none is seeded.',
+    empty: 'No numbering rule yet: + New Numbering Rule.' },
+  'M37-form-numbering': { kind: 'model_form', model: 'fix.catalogue.numbering',
+    title: 'Item Numbering Rule', back: 'M37-numbering',
+    tabs: [{ id: 'mask', label: '1. Mask', bn: '১. কোড কাঠামো', icon: '#️⃣', badge: '4' }],
+    sections: [
+      { tab: 'mask', title: 'Item Code Mask (FR-CAT-007)',
+        note: 'Prefix plus a zero-padded number with no gaps. Catalogue Publisher only.',
+        fields: [
+          { name: 'item_type', label: 'Item Type', required: true },
+          { name: 'prefix', label: 'Prefix (e.g. SRV-)', required: true },
+          { name: 'padding', label: 'Digits', required: true },
+          { name: 'next_code', label: 'Next Code', readonly: true }
+        ] }
+    ] },
   // FR-CAT-038
   'M37-plan-defs': { kind: 'model_list', model: 'fix.subscription.plan.def',
     cols: ['name', 'billing_frequency', 'commitment_months', 'included_quantity', 'included_uom_id', 'overage_uom_id', 'active'],
@@ -433,6 +461,8 @@ export const SCREENS = {
       { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
       { m: 'action_lift_restriction', l: 'Lift Restriction' },
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_preview_impact', l: 'Preview Impact (before restrict / discontinue / revise)' },
+      { m: 'action_assign_code', l: 'Issue Code from the Numbering Mask (Draft)' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-item': {
@@ -573,7 +603,7 @@ export const SCREENS = {
         { name: 'deliverables', label: 'Deliverables', type: 'text' }
       ] },
       { tab: 'delivery', title: 'Warranty and SLA (FR-CAT-018/020)', fields: [
-        { name: 'repair_warranty_days', label: 'Repair Warranty (days)' },
+        { name: 'repair_warranty_days', label: 'Repair Warranty (days; M01 gives the longer of this and the company policy)' },
         { name: 'default_sla_policy_id', label: 'Default SLA Template' }
       ] },
       { tab: 'skill', title: 'Who May Perform It and With What (FR-CAT-015/025/026)',
@@ -581,6 +611,8 @@ export const SCREENS = {
         fields: [
         { name: 'required_competency_id', label: 'Required Skill Profile (M22 competency)' },
         { name: 'requires_certification', label: 'Certified Technician Only' },
+        { name: 'required_skill_band', label: 'Required Skill Band (also prices labour, FR-PRC-012)' },
+        { name: 'requires_brand_certification', label: 'Brand-Certified Technician Only' },
         { name: 'workstation_class', label: 'Workstation Class' },
         { name: 'tooling_required', label: 'Tools & Test Equipment', type: 'text' },
         { name: 'fault_code_ids', label: 'Faults It Resolves (estimate pre-fill)' },
@@ -594,7 +626,10 @@ export const SCREENS = {
         { name: 'product_tmpl_id', label: 'Product Template', required: true },
         { name: 'category_id', label: 'Product Category' },
         { name: 'brand_id', label: 'Brand' },
-        { name: 'approved_by', label: 'Approved By', readonly: true }
+        { name: 'approved_by', label: 'Approved By', readonly: true },
+        { name: 'legacy_codes', label: 'Legacy Codes (searchable aliases, FR-CAT-007)' },
+        { name: 'impact_summary', label: 'Impact Preview (FR-CAT-046)', type: 'text', readonly: true },
+        { name: 'impact_previewed_at', label: 'Impact Previewed At', readonly: true }
       ] },
       { tab: 'statutory', title: '5. Statutory',
         note: 'VAT class and revenue recognition are required before approval (BRU-CAT-02).',
@@ -1290,6 +1325,7 @@ export const FORM_MODELS = {
   'M37:Attribute Set': 'fix.catalogue.attribute.set',
   'M37:Fault Symptom': 'fix.fault.symptom',
   'M37:Subscription Plan': 'fix.subscription.plan.def',
+  'M37:Item Numbering Rule': 'fix.catalogue.numbering',
   'M37:Protection Product (Cover Terms)': 'fix.warranty.product'
 };
 
@@ -1317,6 +1353,7 @@ export const FORM_CHIPS = {
   'M37:Attribute Set': 'M37-form-attrset',
   'M37:Fault Symptom': 'M37-form-symptom',
   'M37:Subscription Plan': 'M37-form-plandef',
+  'M37:Item Numbering Rule': 'M37-form-numbering',
   // FR-CAT-037: the protection product's cover (scope, exclusions, term,
   // claim limit, eligibility) is held on M09's Protection Product, which
   // sells and honours it; M37 opens that form rather than a second copy.
@@ -1339,7 +1376,8 @@ export const FORM_CHIPS = {
     'fix.model.compatibility': 'M37-form-compat',
     'fix.catalogue.attribute.set': 'M37-form-attrset',
     'fix.fault.symptom': 'M37-form-symptom',
-    'fix.subscription.plan.def': 'M37-form-plandef'
+    'fix.subscription.plan.def': 'M37-form-plandef',
+    'fix.catalogue.numbering': 'M37-form-numbering'
   },
   'M37:__by_screen__': {
     'M37-brand': 'M37-form-brand',
@@ -1364,7 +1402,8 @@ export const FORM_CHIPS = {
     'M37-model-compat': 'M37-form-compat',
     'M37-attribute-sets': 'M37-form-attrset',
     'M37-symptoms': 'M37-form-symptom',
-    'M37-plan-defs': 'M37-form-plandef'
+    'M37-plan-defs': 'M37-form-plandef',
+    'M37-numbering': 'M37-form-numbering'
   }
 };
 

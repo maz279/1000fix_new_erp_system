@@ -5,7 +5,7 @@
     "description": """
 CD-M40-01 (P10) — Partner, Channel & Franchise.
 """,
-    "version": "19.0.0.3.1",
+    "version": "19.0.0.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Partner, Channel & Franchise",
@@ -30,6 +30,11 @@ CD-M40-01 (P10) — Partner, Channel & Franchise.
         # is M11's. Neither module's closure reaches cd_partner (no cycle).
         "cd_billing_engine",
         "cd_rate_card",
+        # A04 ERP audit round 2 (21 Nov 2026) M40-F23: a partner lead or won
+        # deal is handed to M07 (crm.lead) with its partner attribution, and a
+        # deal is checked against the customer's open M07 opportunities.
+        # cd_crm_ext's closure does not reach cd_partner (no cycle).
+        "cd_crm_ext",
     ],
     "data": [
         "security/cd_partner_groups.xml",

@@ -1,0 +1,10 @@
+DB fix_real
+open orders 0 | amount due unchanged 0 | with extra charges 0 | mismatches 0 | errors 0
+live legs 0 | stale courier COD 0 | errors 0
+tariff bands 0 | wasted-visit fee 0 | charge codes present 2 / 2
+ROLLED BACK (read-only)
+DB fix_dev
+open orders 6 | amount due unchanged 6 | with extra charges 0 | mismatches 0 | errors 0
+live legs 0 | stale courier COD 0 | errors 0
+tariff bands 0 | wasted-visit fee 0 | charge codes present 2 / 2
+ROLLED BACK (read-only)

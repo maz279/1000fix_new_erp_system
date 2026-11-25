@@ -10,3 +10,7 @@ from . import fix_m11_capture
 # A04 ERP audit (20 Nov 2026): the M11 price service (price_for /
 # check_sale_price), below-floor overrides and the M01 estimate pricing record.
 from . import fix_price_service, fix_price_documents
+
+# A04 ERP round 2 (21 Nov 2026): labour rates, breaks, channel differentials,
+# the override record, pricing reviews and the catalogue / stock consumers.
+from . import fix_pricing_automation
